@@ -13,19 +13,72 @@ public:
     typedef value_type* iterator;
     typedef const value_type* const_iterator;
 
-	Vector();
-	Vector(const Vector& Other);
-	Vector(Vector&& Other);
-	~Vector();
-	Vector& operator = (const Vector& Other);
-	Vector& operator = (Vector&& Other);
-	void swap(Vector& Other);
+	Vector()
+	{
+	}
 
-	TYPE& operator [](size_t Idx);
-	const TYPE& operator [](size_t Idx) const;
-	void fill(const TYPE& Val);
+	Vector(const Vector& Other)
+	{
+		internalResize(Other.Size_);
+		Size_ = Other.Size_;
+		for(size_t Idx = 0; Idx < Other.Size_; ++Idx)
+			Data_[Idx] = Other.Data_[Idx];
+	}
 
-	void clear();
+	Vector(Vector&& Other)
+	{
+		swap(Other);
+	}
+
+	~Vector()
+	{
+	}
+
+	Vector& operator = (const Vector& Other)
+	{
+		internalResize(Other.Size_);
+		Size_ = Other.Size_;
+		for(size_t Idx = 0; Idx < Other.Size_; ++Idx)
+			Data_[Idx] = Other.Data_[Idx];
+		return *this;
+	}
+
+	Vector& operator = (Vector&& Other)
+	{
+		swap(Other);
+		return *this;
+	}
+
+	void swap(Vector& Other)
+	{
+		std::swap(Data_, Other.Data_);
+		std::swap(Size_, Other.Size_);
+		std::swap(Capacity_, Other.Capacity_);	
+	}
+
+	TYPE& operator [](size_t Idx)
+	{
+		DBG_ASSERT_MSG(Idx < Size_, "Index out of bounds. (index %u, size %u)", Idx, Size_);
+		return Data_[Idx];
+	}
+
+	const TYPE& operator [](size_t Idx) const
+	{
+		DBG_ASSERT_MSG(Idx < Size_, "Index out of bounds. (%u, size %u)", Idx, Size_);
+		return Data_[Idx];
+	}
+
+	void clear()
+	{
+		internalResize(0);
+	}
+
+	void fill(const TYPE& Val)
+	{
+		for(size_t Idx = 0; Idx < Size_; ++Idx)
+			Data_[Idx] = Val;
+	}
+
 	void push_back(const TYPE& Value);
 	void pop_back();
 	iterator erase(iterator It)
@@ -37,15 +90,69 @@ public:
 		return It;
 	}
 
-	void reserve(size_t Capacity);
-	void resize(size_t Size);
-	void resize(size_t Size, const TYPE& Default);
-	void shrink_to_fit();
+	void push_back(const TYPE& Value)
+	{
+		if(Capacity_ < (Size_ + 1))
+			internalResize(getGrowCapacity(Capacity_));
+		Data_[Size_++] = Value;
+	}
 
-	TYPE& front();
-	const TYPE& front() const;
-	TYPE& back();
-	const TYPE& back() const;
+	void pop_back()
+	{
+		DBG_ASSERT_MSG(Size_ > 0, "No elements in vector.");
+		--Size_;
+	}
+
+	void reserve(size_t Capacity)
+	{
+		if(Capacity_ != Capacity)
+			internalResize(Capacity);
+	}
+
+	void resize(size_t Size)
+	{
+		if(Size_ != Size)
+			internalResize(Size);
+		Size_ = Size;
+	}
+
+	void resize(size_t Size, const TYPE& Default)
+	{
+		if(Size_ != Size)
+			internalResize(Size);
+		Size_ = Size;
+		fill(Default);
+	}
+
+	void shrink_to_fit()
+	{
+		if(Capacity_ > Size_)
+			internalResize(Size_);
+	}
+
+	TYPE& front()
+	{
+		DBG_ASSERT_MSG(Size_ > 0, "No elements in vector.");
+		return Data_[0];
+	}
+
+	const TYPE& front() const
+	{
+		DBG_ASSERT_MSG(Size_ > 0, "No elements in vector.");
+		return Data_[0];
+	}
+
+	TYPE& back()
+	{
+		DBG_ASSERT_MSG(Size_ > 0, "No elements in vector.");
+		return Data_[Size_ - 1];
+	}
+
+	const TYPE& back() const
+	{
+		DBG_ASSERT_MSG(Size_ > 0, "No elements in vector.");
+		return Data_[Size_ - 1];
+	}
 
 	iterator begin() { return Data_; } 
     const_iterator begin() const { return Data_; }
@@ -95,158 +202,3 @@ private:
 	size_t Size_ = 0;
 	size_t Capacity_ = 0;
 };
-
-//////////////////////////////////////////////////////////////////////////
-// Implementation
-template<typename TYPE>
-Vector<TYPE>::Vector()
-{
-}
-
-template<typename TYPE>
-Vector<TYPE>::Vector(const Vector& Other)
-{
-	internalResize(Other.Size_);
-	Size_ = Other.Size_;
-	for(size_t Idx = 0; Idx < Other.Size_; ++Idx)
-		Data_[Idx] = Other.Data_[Idx];
-}
-
-template<typename TYPE>
-Vector<TYPE>::Vector(Vector&& Other)
-	: Vector()
-{
-	swap(Other);
-}
-
-template<typename TYPE>
-Vector<TYPE>::~Vector()
-{
-}
-
-template<typename TYPE>
-Vector<TYPE>& Vector<TYPE>::operator = (const Vector& Other)
-{
-	internalResize(Other.Size_);
-	Size_ = Other.Size_;
-	for(size_t Idx = 0; Idx < Other.Size_; ++Idx)
-		Data_[Idx] = Other.Data_[Idx];
-	return *this;
-}
-
-template<typename TYPE>
-Vector<TYPE>& Vector<TYPE>::operator = (Vector&& Other)
-{
-	swap(Other);
-	return *this;
-}
-
-template<typename TYPE>
-void Vector<TYPE>::swap(Vector& Other)
-{
-	std::swap(Data_, Other.Data_);
-	std::swap(Size_, Other.Size_);
-	std::swap(Capacity_, Other.Capacity_);	
-}
-
-template<typename TYPE>
-TYPE& Vector<TYPE>::operator [](size_t Idx)
-{
-	DBG_ASSERT_MSG(Idx < Size_, "Index out of bounds. (index %u, size %u)", Idx, Size_);
-	return Data_[Idx];
-}
-
-template<typename TYPE>
-const TYPE& Vector<TYPE>::operator [](size_t Idx) const
-{
-	DBG_ASSERT_MSG(Idx < Size_, "Index out of bounds. (%u, size %u)", Idx, Size_);
-	return Data_[Idx];
-}
-
-template<typename TYPE>
-void Vector<TYPE>::clear()
-{
-	internalResize(0);
-}
-
-template<typename TYPE>
-void Vector<TYPE>::fill(const TYPE& Val)
-{
-	for(size_t Idx = 0; Idx < Size_; ++Idx)
-		Data_[Idx] = Val;
-}
-
-template<typename TYPE>
-void Vector<TYPE>::push_back(const TYPE& Value)
-{
-	if(Capacity_ < (Size_ + 1))
-		internalResize(getGrowCapacity(Capacity_));
-	Data_[Size_++] = Value;
-}
-
-template<typename TYPE>
-void Vector<TYPE>::pop_back()
-{
-	DBG_ASSERT_MSG(Size_ > 0, "No elements in vector.");
-	--Size_;
-}
-
-template<typename TYPE>
-void Vector<TYPE>::reserve(size_t Capacity)
-{
-	if(Capacity_ != Capacity)
-		internalResize(Capacity);
-}
-
-template<typename TYPE>
-void Vector<TYPE>::resize(size_t Size)
-{
-	if(Size_ != Size)
-		internalResize(Size);
-	Size_ = Size;
-}
-
-template<typename TYPE>
-void Vector<TYPE>::resize(size_t Size, const TYPE& Default)
-{
-	if(Size_ != Size)
-		internalResize(Size);
-	Size_ = Size;
-	fill(Default);
-}
-
-template<typename TYPE>
-void Vector<TYPE>::shrink_to_fit()
-{
-	if(Capacity_ > Size_)
-		internalResize(Size_);
-}
-
-template<typename TYPE>
-TYPE& Vector<TYPE>::front()
-{
-	DBG_ASSERT_MSG(Size_ > 0, "No elements in vector.");
-	return Data_[0];
-}
-
-template<typename TYPE>
-const TYPE& Vector<TYPE>::front() const
-{
-	DBG_ASSERT_MSG(Size_ > 0, "No elements in vector.");
-	return Data_[0];
-}
-
-template<typename TYPE>
-TYPE& Vector<TYPE>::back()
-{
-	DBG_ASSERT_MSG(Size_ > 0, "No elements in vector.");
-	return Data_[Size_ - 1];
-}
-
-template<typename TYPE>
-const TYPE& Vector<TYPE>::back() const
-{
-	DBG_ASSERT_MSG(Size_ > 0, "No elements in vector.");
-	return Data_[Size_ - 1];
-}
-
