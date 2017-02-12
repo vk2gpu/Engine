@@ -5,7 +5,9 @@
 
 namespace
 {
-	template<typename TYPE, size_t ARRAY_SIZE>
+	typedef i32 index_type;
+
+	template<typename TYPE, index_type ARRAY_SIZE>
 	void VectorTestSize()
 	{
 		Vector<TYPE> TestArray;
@@ -18,34 +20,34 @@ namespace
 		REQUIRE(TestArray.capacity() >= TestArray.size());
 	}
 
-	template<typename TYPE, size_t ARRAY_SIZE>
-	void VectorTestFill(TYPE(IdxToVal)(size_t))
+	template<typename TYPE, index_type ARRAY_SIZE>
+	void VectorTestFill(TYPE(IdxToVal)(index_type))
 	{
 		Vector<TYPE> TestArray;
 		TestArray.resize(ARRAY_SIZE);
 
 		bool Success = true;
-		const size_t FILL_VAL = 123;
+		const index_type FILL_VAL = 123;
 		TestArray.fill(IdxToVal(FILL_VAL));
-		for(size_t Idx = 0; Idx < ARRAY_SIZE; ++Idx)
+		for(index_type Idx = 0; Idx < ARRAY_SIZE; ++Idx)
 			Success &= (TestArray[Idx] == IdxToVal(FILL_VAL));
 		REQUIRE(Success);
 	}
 
-	template<typename TYPE, size_t ARRAY_SIZE>
-	void VectorTestPushBack(TYPE(IdxToVal)(size_t))
+	template<typename TYPE, index_type ARRAY_SIZE>
+	void VectorTestPushBack(TYPE(IdxToVal)(index_type))
 	{
 		Vector<TYPE> TestArray;
 		bool Success = true;
-		for(size_t Idx = 0; Idx < ARRAY_SIZE; ++Idx)
+		for(index_type Idx = 0; Idx < ARRAY_SIZE; ++Idx)
 			TestArray.push_back(IdxToVal(Idx));
-		for(size_t Idx = 0; Idx < ARRAY_SIZE; ++Idx)
+		for(index_type Idx = 0; Idx < ARRAY_SIZE; ++Idx)
 			Success &= (TestArray[Idx] == IdxToVal(Idx));
 		REQUIRE(Success);
 	}
 
-	template<typename TYPE, size_t ARRAY_SIZE>
-	void VectorTestPushBackReserve(TYPE(IdxToVal)(size_t))
+	template<typename TYPE, index_type ARRAY_SIZE>
+	void VectorTestPushBackReserve(TYPE(IdxToVal)(index_type))
 	{
 		Vector<TYPE> TestArray;
 		TestArray.reserve(ARRAY_SIZE);
@@ -53,94 +55,94 @@ namespace
 		REQUIRE(TestArray.capacity() >= ARRAY_SIZE);
 
 		bool Success = true;
-		for(size_t Idx = 0; Idx < ARRAY_SIZE; ++Idx)
+		for(index_type Idx = 0; Idx < ARRAY_SIZE; ++Idx)
 			TestArray.push_back(IdxToVal(Idx));
-		for(size_t Idx = 0; Idx < ARRAY_SIZE; ++Idx)
+		for(index_type Idx = 0; Idx < ARRAY_SIZE; ++Idx)
 			Success &= (TestArray[Idx] == IdxToVal(Idx));
 		REQUIRE(Success);
 	}
 
-	template<typename TYPE, size_t ARRAY_SIZE>
-	void VectorTestOperatorAssignment(TYPE(IdxToVal)(size_t))
+	template<typename TYPE, index_type ARRAY_SIZE>
+	void VectorTestOperatorAssignment(TYPE(IdxToVal)(index_type))
 	{
 		Vector<TYPE> TestArray;
 		TestArray.resize(ARRAY_SIZE);
 
 		bool Success = true;
-		for(size_t Idx = 0; Idx < ARRAY_SIZE; ++Idx)
+		for(index_type Idx = 0; Idx < ARRAY_SIZE; ++Idx)
 			TestArray[Idx] = IdxToVal(Idx);
-		for(size_t Idx = 0; Idx < ARRAY_SIZE; ++Idx)
+		for(index_type Idx = 0; Idx < ARRAY_SIZE; ++Idx)
 			Success &= (TestArray[Idx] == IdxToVal(Idx));
 		REQUIRE(Success);
 	}
 
-	template<typename TYPE, size_t ARRAY_SIZE>
-	void VectorTestCopy(TYPE(IdxToVal)(size_t))
+	template<typename TYPE, index_type ARRAY_SIZE>
+	void VectorTestCopy(TYPE(IdxToVal)(index_type))
 	{
 		Vector<TYPE> TestArray;
 		Vector<TYPE> TestArray2;
 		TestArray.resize(ARRAY_SIZE);
 
 		bool Success = true;
-		for(size_t Idx = 0; Idx < ARRAY_SIZE; ++Idx)
+		for(index_type Idx = 0; Idx < ARRAY_SIZE; ++Idx)
 			TestArray[Idx] = IdxToVal(Idx);
 		TestArray2 = TestArray;
 		REQUIRE(TestArray.size() == ARRAY_SIZE);
 		REQUIRE(TestArray2.size() == ARRAY_SIZE);
-		for(size_t Idx = 0; Idx < ARRAY_SIZE; ++Idx)
+		for(index_type Idx = 0; Idx < ARRAY_SIZE; ++Idx)
 			Success &= (TestArray2[Idx] == IdxToVal(Idx));
 		REQUIRE(Success);
 	}
 
-	template<typename TYPE, size_t ARRAY_SIZE>
-	void VectorTestMove(TYPE(IdxToVal)(size_t))
+	template<typename TYPE, index_type ARRAY_SIZE>
+	void VectorTestMove(TYPE(IdxToVal)(index_type))
 	{
 		Vector<TYPE> TestArray;
 		Vector<TYPE> TestArray2;
 		TestArray.resize(ARRAY_SIZE);
 
 		bool Success = true;
-		for(size_t Idx = 0; Idx < ARRAY_SIZE; ++Idx)
+		for(index_type Idx = 0; Idx < ARRAY_SIZE; ++Idx)
 			TestArray[Idx] = IdxToVal(Idx);
 		TestArray2 = std::move(TestArray);
 		REQUIRE(TestArray.size() == 0);
 		REQUIRE(TestArray2.size() == ARRAY_SIZE);
-		for(size_t Idx = 0; Idx < ARRAY_SIZE; ++Idx)
+		for(index_type Idx = 0; Idx < ARRAY_SIZE; ++Idx)
 			Success &= (TestArray2[Idx] == IdxToVal(Idx));
 		REQUIRE(Success);
 	}
 
-	template<typename TYPE, size_t ARRAY_SIZE>
-	void VectorTestDataAssignment(TYPE(IdxToVal)(size_t))
+	template<typename TYPE, index_type ARRAY_SIZE>
+	void VectorTestDataAssignment(TYPE(IdxToVal)(index_type))
 	{
 		Vector<TYPE> TestArray;
 		TestArray.resize(ARRAY_SIZE);
 
 		bool Success = true;
-		for(size_t Idx = 0; Idx < ARRAY_SIZE; ++Idx)
+		for(index_type Idx = 0; Idx < ARRAY_SIZE; ++Idx)
 			TestArray.data()[Idx] = IdxToVal(Idx);
-		for(size_t Idx = 0; Idx < ARRAY_SIZE; ++Idx)
+		for(index_type Idx = 0; Idx < ARRAY_SIZE; ++Idx)
 			Success &= (TestArray[Idx] == IdxToVal(Idx));
 		REQUIRE(Success);
 	}
 
-	template<typename TYPE, size_t ARRAY_SIZE>
-	void VectorTestIteratorAssignment(TYPE(IdxToVal)(size_t))
+	template<typename TYPE, index_type ARRAY_SIZE>
+	void VectorTestIteratorAssignment(TYPE(IdxToVal)(index_type))
 	{
 		Vector<TYPE> TestArray;
 		TestArray.resize(ARRAY_SIZE);
 
 		bool Success = true;
-		size_t Idx = 0;
+		index_type Idx = 0;
 		for(auto& It : TestArray)
 			It = IdxToVal(Idx++);
-		for(size_t Idx = 0; Idx < ARRAY_SIZE; ++Idx)
+		for(index_type Idx = 0; Idx < ARRAY_SIZE; ++Idx)
 			Success &= (TestArray[Idx] == IdxToVal(Idx));
 		REQUIRE(Success);
 	}
 
-	template<typename TYPE, size_t ARRAY_SIZE>
-	void VectorTestShrinkToFit(TYPE(IdxToVal)(size_t))
+	template<typename TYPE, index_type ARRAY_SIZE>
+	void VectorTestShrinkToFit(TYPE(IdxToVal)(index_type))
 	{
 		Vector<TYPE> TestArray;
 		TestArray.resize(ARRAY_SIZE);
@@ -151,15 +153,15 @@ namespace
 		REQUIRE(TestArray.size() == TestArray.capacity());
 	}
 
-	template<typename TYPE, size_t ARRAY_SIZE>
-	void VectorTestErase(TYPE(IdxToVal)(size_t))
+	template<typename TYPE, index_type ARRAY_SIZE>
+	void VectorTestErase(TYPE(IdxToVal)(index_type))
 	{
 		Vector<TYPE> TestArray;
 
 		// Erase from beginning.
 		{
 			TestArray.resize(ARRAY_SIZE);
-			size_t Idx = 0;
+			index_type Idx = 0;
 			for(auto& It : TestArray)
 				It = IdxToVal(Idx++);
 
@@ -179,7 +181,7 @@ namespace
 		// Erase from end.
 		{
 			TestArray.resize(ARRAY_SIZE);
-			size_t Idx = 0;
+			index_type Idx = 0;
 			for(auto& It : TestArray)
 				It = IdxToVal(Idx++);
 
@@ -198,7 +200,7 @@ namespace
 		// Erase from middle.
 		{
 			TestArray.resize(ARRAY_SIZE);
-			size_t Idx = 0;
+			index_type Idx = 0;
 			for(auto& It : TestArray)
 				It = IdxToVal(Idx++);
 
@@ -215,12 +217,12 @@ namespace
 		}
 	}
 
-	size_t IdxToVal_size_t(size_t Idx)
+	index_type IdxToVal_index_type(index_type Idx)
 	{
 		return Idx;
 	}
 
-	std::string IdxToVal_string(size_t Idx)
+	std::string IdxToVal_string(index_type Idx)
 	{
 		char Buffer[1024] = {0};
 		sprintf_s(Buffer, sizeof(Buffer), "%u", Idx);
@@ -231,22 +233,22 @@ namespace
 
 TEST_CASE("vector-tests-size")
 {
-	VectorTestSize<size_t, 0x1>();
-	VectorTestSize<size_t, 0x2>();
-	VectorTestSize<size_t, 0xff>();
-	VectorTestSize<size_t, 0x100>();
-	VectorTestSize<size_t, 0xffff>();
-	VectorTestSize<size_t, 0x10000>();
+	VectorTestSize<index_type, 0x1>();
+	VectorTestSize<index_type, 0x2>();
+	VectorTestSize<index_type, 0xff>();
+	VectorTestSize<index_type, 0x100>();
+	VectorTestSize<index_type, 0xffff>();
+	VectorTestSize<index_type, 0x10000>();
 }
 
 TEST_CASE("vector-tests-fill")
 {
 	SECTION("trivial")
 	{
-		VectorTestFill<size_t, 0x1>(IdxToVal_size_t);
-		VectorTestFill<size_t, 0x2>(IdxToVal_size_t);
-		VectorTestFill<size_t, 0xff>(IdxToVal_size_t);
-		VectorTestFill<size_t, 0x100>(IdxToVal_size_t);
+		VectorTestFill<index_type, 0x1>(IdxToVal_index_type);
+		VectorTestFill<index_type, 0x2>(IdxToVal_index_type);
+		VectorTestFill<index_type, 0xff>(IdxToVal_index_type);
+		VectorTestFill<index_type, 0x100>(IdxToVal_index_type);
 	}
 
 	SECTION("non-trivial")
@@ -262,10 +264,10 @@ TEST_CASE("vector-tests-push-back")
 {
 	SECTION("trivial")
 	{
-		VectorTestPushBack<size_t, 0x1>(IdxToVal_size_t);
-		VectorTestPushBack<size_t, 0x2>(IdxToVal_size_t);
-		VectorTestPushBack<size_t, 0xff>(IdxToVal_size_t);
-		VectorTestPushBack<size_t, 0x100>(IdxToVal_size_t);
+		VectorTestPushBack<index_type, 0x1>(IdxToVal_index_type);
+		VectorTestPushBack<index_type, 0x2>(IdxToVal_index_type);
+		VectorTestPushBack<index_type, 0xff>(IdxToVal_index_type);
+		VectorTestPushBack<index_type, 0x100>(IdxToVal_index_type);
 	}
 
 	SECTION("non-trivial")
@@ -281,10 +283,10 @@ TEST_CASE("vector-tests-push-back-reserve")
 {
 	SECTION("trivial")
 	{
-		VectorTestPushBackReserve<size_t, 0x1>(IdxToVal_size_t);
-		VectorTestPushBackReserve<size_t, 0x2>(IdxToVal_size_t);
-		VectorTestPushBackReserve<size_t, 0xff>(IdxToVal_size_t);
-		VectorTestPushBackReserve<size_t, 0x100>(IdxToVal_size_t);
+		VectorTestPushBackReserve<index_type, 0x1>(IdxToVal_index_type);
+		VectorTestPushBackReserve<index_type, 0x2>(IdxToVal_index_type);
+		VectorTestPushBackReserve<index_type, 0xff>(IdxToVal_index_type);
+		VectorTestPushBackReserve<index_type, 0x100>(IdxToVal_index_type);
 	}
 
 	SECTION("non-trivial")
@@ -300,10 +302,10 @@ TEST_CASE("vector-tests-operator-assignment")
 {
 	SECTION("trivial")
 	{
-		VectorTestOperatorAssignment<size_t, 0x1>(IdxToVal_size_t);
-		VectorTestOperatorAssignment<size_t, 0x2>(IdxToVal_size_t);
-		VectorTestOperatorAssignment<size_t, 0xff>(IdxToVal_size_t);
-		VectorTestOperatorAssignment<size_t, 0x100>(IdxToVal_size_t);
+		VectorTestOperatorAssignment<index_type, 0x1>(IdxToVal_index_type);
+		VectorTestOperatorAssignment<index_type, 0x2>(IdxToVal_index_type);
+		VectorTestOperatorAssignment<index_type, 0xff>(IdxToVal_index_type);
+		VectorTestOperatorAssignment<index_type, 0x100>(IdxToVal_index_type);
 	}
 
 	SECTION("non-trivial")
@@ -319,10 +321,10 @@ TEST_CASE("vector-tests-copy")
 {
 	SECTION("trivial")
 	{
-		VectorTestCopy<size_t, 0x1>(IdxToVal_size_t);
-		VectorTestCopy<size_t, 0x2>(IdxToVal_size_t);
-		VectorTestCopy<size_t, 0xff>(IdxToVal_size_t);
-		VectorTestCopy<size_t, 0x100>(IdxToVal_size_t);
+		VectorTestCopy<index_type, 0x1>(IdxToVal_index_type);
+		VectorTestCopy<index_type, 0x2>(IdxToVal_index_type);
+		VectorTestCopy<index_type, 0xff>(IdxToVal_index_type);
+		VectorTestCopy<index_type, 0x100>(IdxToVal_index_type);
 	}
 
 	SECTION("non-trivial")
@@ -338,10 +340,10 @@ TEST_CASE("vector-tests-move")
 {
 	SECTION("trivial")
 	{
-		VectorTestMove<size_t, 0x1>(IdxToVal_size_t);
-		VectorTestMove<size_t, 0x2>(IdxToVal_size_t);
-		VectorTestMove<size_t, 0xff>(IdxToVal_size_t);
-		VectorTestMove<size_t, 0x100>(IdxToVal_size_t);
+		VectorTestMove<index_type, 0x1>(IdxToVal_index_type);
+		VectorTestMove<index_type, 0x2>(IdxToVal_index_type);
+		VectorTestMove<index_type, 0xff>(IdxToVal_index_type);
+		VectorTestMove<index_type, 0x100>(IdxToVal_index_type);
 	}
 
 	SECTION("non-trivial")
@@ -357,10 +359,10 @@ TEST_CASE("vector-tests-data-assignment")
 {
 	SECTION("trivial")
 	{
-		VectorTestDataAssignment<size_t, 0x1>(IdxToVal_size_t);
-		VectorTestDataAssignment<size_t, 0x2>(IdxToVal_size_t);
-		VectorTestDataAssignment<size_t, 0xff>(IdxToVal_size_t);
-		VectorTestDataAssignment<size_t, 0x100>(IdxToVal_size_t);
+		VectorTestDataAssignment<index_type, 0x1>(IdxToVal_index_type);
+		VectorTestDataAssignment<index_type, 0x2>(IdxToVal_index_type);
+		VectorTestDataAssignment<index_type, 0xff>(IdxToVal_index_type);
+		VectorTestDataAssignment<index_type, 0x100>(IdxToVal_index_type);
 	}
 
 	SECTION("non-trivial")
@@ -376,10 +378,10 @@ TEST_CASE("vector-tests-iterator-assignment")
 {
 	SECTION("trivial")
 	{
-		VectorTestIteratorAssignment<size_t, 0x1>(IdxToVal_size_t);
-		VectorTestIteratorAssignment<size_t, 0x2>(IdxToVal_size_t);
-		VectorTestIteratorAssignment<size_t, 0xff>(IdxToVal_size_t);
-		VectorTestIteratorAssignment<size_t, 0x100>(IdxToVal_size_t);
+		VectorTestIteratorAssignment<index_type, 0x1>(IdxToVal_index_type);
+		VectorTestIteratorAssignment<index_type, 0x2>(IdxToVal_index_type);
+		VectorTestIteratorAssignment<index_type, 0xff>(IdxToVal_index_type);
+		VectorTestIteratorAssignment<index_type, 0x100>(IdxToVal_index_type);
 	}
 
 	SECTION("non-trivial")
@@ -395,10 +397,10 @@ TEST_CASE("vector-tests-erase")
 {
 	SECTION("trivial")
 	{
-		VectorTestErase<size_t, 0x1>(IdxToVal_size_t);
-		VectorTestErase<size_t, 0x2>(IdxToVal_size_t);
-		VectorTestErase<size_t, 0xff>(IdxToVal_size_t);
-		VectorTestErase<size_t, 0x100>(IdxToVal_size_t);
+		VectorTestErase<index_type, 0x1>(IdxToVal_index_type);
+		VectorTestErase<index_type, 0x2>(IdxToVal_index_type);
+		VectorTestErase<index_type, 0xff>(IdxToVal_index_type);
+		VectorTestErase<index_type, 0x100>(IdxToVal_index_type);
 	}
 
 	SECTION("non-trivial")

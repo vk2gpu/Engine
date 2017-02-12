@@ -10,11 +10,12 @@ template<typename KEY_TYPE, typename VALUE_TYPE>
 class Map
 {
 public:
+	typedef i32 index_type;
 	typedef Pair<KEY_TYPE, VALUE_TYPE> value_type;
     typedef value_type* iterator;
     typedef const value_type* const_iterator;
 
-	static const size_t INVALID_INDEX = (size_t)-1;
+	static const index_type INVALID_INDEX = (index_type)-1;
 
 	Map()
 	{
@@ -92,8 +93,8 @@ public:
 	{
 		const auto KeyValuePair = Pair<typename KEY_TYPE, typename VALUE_TYPE>(Key, Value);
 		const u32 KeyHash = Hash(0, Key);
-		const size_t IndicesIdx = KeyHash & Mask_;
-		const size_t Idx = Indices_[IndicesIdx];
+		const index_type IndicesIdx = KeyHash & Mask_;
+		const index_type Idx = Indices_[IndicesIdx];
 		if(Idx != INVALID_INDEX)
 		{
 			// Got hit, check if hashes are same and replace or insert.
@@ -122,7 +123,7 @@ public:
 	iterator erase(iterator It)
 	{
 		DBG_ASSERT_MSG(It >= begin() && It < end(), "Invalid iterator.");
-		size_t BaseIdx = It - begin();
+		index_type BaseIdx = It - begin();
 		Values_.erase(It);
 		for(auto& Idx : Indices_)
 		{
@@ -143,8 +144,8 @@ public:
 	const_iterator find(const KEY_TYPE& Key) const
 	{		
 		const u32 KeyHash = Hash(0, Key);
-		const size_t IndicesIdx = KeyHash & Mask_;
-		const size_t Idx = Indices_[IndicesIdx];
+		const index_type IndicesIdx = KeyHash & Mask_;
+		const index_type Idx = Indices_[IndicesIdx];
 		if(Idx != INVALID_INDEX)
 		{
 			return Values_.data() + Idx;
@@ -155,8 +156,8 @@ public:
 	iterator find(const KEY_TYPE& Key)
 	{		
 		const u32 KeyHash = Hash(0, Key);
-		const size_t IndicesIdx = KeyHash & Mask_;
-		const size_t Idx = Indices_[IndicesIdx];
+		const index_type IndicesIdx = KeyHash & Mask_;
+		const index_type Idx = Indices_[IndicesIdx];
 		if(Idx != INVALID_INDEX)
 		{
 			iterator RetVal = Values_.data() + Idx;
@@ -168,11 +169,11 @@ public:
 		return end();
 	}
 
-	size_t size() const{ return Values_.size(); }
+	index_type size() const{ return Values_.size(); }
 	bool empty() const{ return Values_.size() == 0; }
 
 private:
-	void resizeIndices(size_t Size)
+	void resizeIndices(index_type Size)
 	{
 		bool Collisions = true;
 
@@ -186,10 +187,10 @@ private:
 			Mask_ = Size - 1;
 
 			// Reinsert all keys.
-			for(size_t Idx = 0; Idx < Values_.size(); ++Idx)
+			for(index_type Idx = 0; Idx < Values_.size(); ++Idx)
 			{
 				const u32 KeyHash = Hash(0, Values_[Idx].First_);
-				const size_t IndicesIdx = KeyHash & Mask_;
+				const index_type IndicesIdx = KeyHash & Mask_;
 				if(Indices_[IndicesIdx] == INVALID_INDEX)
 				{
 					Indices_[IndicesIdx] = Idx;
@@ -210,9 +211,9 @@ private:
 	}
 
 	Vector<value_type> Values_;
-	Vector<size_t> Indices_;
+	Vector<index_type> Indices_;
 
-	size_t MaxIndex_ = 0x8;
-	size_t Mask_ = 0x7;
+	index_type MaxIndex_ = 0x8;
+	index_type Mask_ = 0x7;
 };
 

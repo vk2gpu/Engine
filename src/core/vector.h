@@ -9,6 +9,7 @@ template<typename TYPE>
 class Vector
 {
 public:
+	typedef i32 index_type;
 	typedef TYPE value_type;
     typedef value_type* iterator;
     typedef const value_type* const_iterator;
@@ -21,7 +22,7 @@ public:
 	{
 		internalResize(Other.Size_);
 		Size_ = Other.Size_;
-		for(size_t Idx = 0; Idx < Other.Size_; ++Idx)
+		for(index_type Idx = 0; Idx < Other.Size_; ++Idx)
 			Data_[Idx] = Other.Data_[Idx];
 	}
 
@@ -38,7 +39,7 @@ public:
 	{
 		internalResize(Other.Size_);
 		Size_ = Other.Size_;
-		for(size_t Idx = 0; Idx < Other.Size_; ++Idx)
+		for(index_type Idx = 0; Idx < Other.Size_; ++Idx)
 			Data_[Idx] = Other.Data_[Idx];
 		return *this;
 	}
@@ -56,15 +57,15 @@ public:
 		std::swap(Capacity_, Other.Capacity_);	
 	}
 
-	TYPE& operator [](size_t Idx)
+	TYPE& operator [](index_type Idx)
 	{
-		DBG_ASSERT_MSG(Idx < Size_, "Index out of bounds. (index %u, size %u)", Idx, Size_);
+		DBG_ASSERT_MSG(Idx >= 0 && Idx < Size_, "Index out of bounds. (index %u, size %u)", Idx, Size_);
 		return Data_[Idx];
 	}
 
-	const TYPE& operator [](size_t Idx) const
+	const TYPE& operator [](index_type Idx) const
 	{
-		DBG_ASSERT_MSG(Idx < Size_, "Index out of bounds. (%u, size %u)", Idx, Size_);
+		DBG_ASSERT_MSG(Idx >= 0 && Idx < Size_, "Index out of bounds. (%u, size %u)", Idx, Size_);
 		return Data_[Idx];
 	}
 
@@ -75,12 +76,10 @@ public:
 
 	void fill(const TYPE& Val)
 	{
-		for(size_t Idx = 0; Idx < Size_; ++Idx)
+		for(index_type Idx = 0; Idx < Size_; ++Idx)
 			Data_[Idx] = Val;
 	}
 
-	void push_back(const TYPE& Value);
-	void pop_back();
 	iterator erase(iterator It)
 	{
 		DBG_ASSERT_MSG(It >= begin() && It < end(), "Invalid iterator.");
@@ -103,20 +102,20 @@ public:
 		--Size_;
 	}
 
-	void reserve(size_t Capacity)
+	void reserve(index_type Capacity)
 	{
 		if(Capacity_ != Capacity)
 			internalResize(Capacity);
 	}
 
-	void resize(size_t Size)
+	void resize(index_type Size)
 	{
 		if(Size_ != Size)
 			internalResize(Size);
 		Size_ = Size;
 	}
 
-	void resize(size_t Size, const TYPE& Default)
+	void resize(index_type Size, const TYPE& Default)
 	{
 		if(Size_ != Size)
 			internalResize(Size);
@@ -161,12 +160,12 @@ public:
 
 	TYPE* data() { return &Data_[0]; }
 	const TYPE* data() const { return &Data_[0]; }
-	size_t size() const{ return Size_; }
-    size_t capacity() const{ return Capacity_; }
+	index_type size() const{ return Size_; }
+    index_type capacity() const{ return Capacity_; }
 	bool empty() const{ return Size_ == 0; }
 
 private:
-	static TYPE* alloc(size_t Size)
+	static TYPE* alloc(index_type Size)
 	{
 		TYPE* RetVal = new TYPE[Size];
 		DBG_ASSERT_MSG(RetVal != nullptr, "Out of memory allocating %u elements.", Size);
@@ -176,18 +175,18 @@ private:
 	{
 		delete [] Data;
 	}
-	static size_t getGrowCapacity(size_t CurrCapacity)
+	static index_type getGrowCapacity(index_type CurrCapacity)
 	{
 		return CurrCapacity ? (CurrCapacity + CurrCapacity / 2) : 16;
 	}
-	void internalResize(size_t NewCapacity)
+	void internalResize(index_type NewCapacity)
 	{
-		size_t CopySize = NewCapacity < Size_ ? NewCapacity : Size_; 
+		index_type CopySize = NewCapacity < Size_ ? NewCapacity : Size_; 
 		TYPE* NewData = nullptr;
 		if(NewCapacity > 0)
 		{
 			NewData = alloc(NewCapacity);
-			for(size_t Idx = 0; Idx < CopySize; ++Idx)
+			for(index_type Idx = 0; Idx < CopySize; ++Idx)
 				NewData[Idx] = std::move(Data_[Idx]);
 		}
 		dealloc(Data_);
@@ -199,6 +198,6 @@ private:
 
 private:
 	TYPE* Data_ = nullptr;
-	size_t Size_ = 0;
-	size_t Capacity_ = 0;
+	index_type Size_ = 0;
+	index_type Capacity_ = 0;
 };

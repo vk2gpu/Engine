@@ -11,8 +11,10 @@ u32 Hash(u32 Input, const std::string& String)
 
 namespace
 {
+	typedef i32 index_type;
+
 	template<typename KEY_TYPE, typename VALUE_TYPE>
-	void MapTestSize(KEY_TYPE(IdxToKey)(size_t), VALUE_TYPE(IdxToVal)(size_t))
+	void MapTestSize(KEY_TYPE(IdxToKey)(index_type), VALUE_TYPE(IdxToVal)(index_type))
 	{
 		Map<KEY_TYPE, VALUE_TYPE> TestMap;
 		REQUIRE(TestMap.size() == 0);
@@ -21,36 +23,36 @@ namespace
 		REQUIRE(TestMap.size() == 1);
 	}
 
-	template<typename KEY_TYPE, typename VALUE_TYPE, size_t SIZE>
-	void MapTestInsert(KEY_TYPE(IdxToKey)(size_t), VALUE_TYPE(IdxToVal)(size_t))
+	template<typename KEY_TYPE, typename VALUE_TYPE, index_type SIZE>
+	void MapTestInsert(KEY_TYPE(IdxToKey)(index_type), VALUE_TYPE(IdxToVal)(index_type))
 	{
 		Map<KEY_TYPE, VALUE_TYPE> TestMap;
 
-		for(size_t Idx = 0; Idx < SIZE; ++Idx)
+		for(index_type Idx = 0; Idx < SIZE; ++Idx)
 		{
 			TestMap.insert(IdxToKey(Idx), IdxToVal(Idx));
 		}
 		REQUIRE(TestMap.size() == SIZE);
 
-		for(size_t Idx = 0; Idx < SIZE; ++Idx)
+		for(index_type Idx = 0; Idx < SIZE; ++Idx)
 		{
 			TestMap.insert(IdxToKey(Idx), IdxToVal(Idx));
 		}
 		REQUIRE(TestMap.size() == SIZE);
 	}
 
-	template<typename KEY_TYPE, typename VALUE_TYPE, size_t SIZE>
-	void MapTestFind(KEY_TYPE(IdxToKey)(size_t), VALUE_TYPE(IdxToVal)(size_t))
+	template<typename KEY_TYPE, typename VALUE_TYPE, index_type SIZE>
+	void MapTestFind(KEY_TYPE(IdxToKey)(index_type), VALUE_TYPE(IdxToVal)(index_type))
 	{
 		Map<KEY_TYPE, VALUE_TYPE> TestMap;
 
-		for(size_t Idx = 0; Idx < SIZE; ++Idx)
+		for(index_type Idx = 0; Idx < SIZE; ++Idx)
 		{
 			TestMap.insert(IdxToKey(Idx), IdxToVal(Idx));
 		}
 
 		bool Success = true;
-		for(size_t Idx = 0; Idx < SIZE; ++Idx)
+		for(index_type Idx = 0; Idx < SIZE; ++Idx)
 		{
 			auto Val = TestMap.find(IdxToKey(Idx));
 			Success &= Val->First_ == IdxToKey(Idx);
@@ -59,18 +61,18 @@ namespace
 		REQUIRE(Success);
 	}
 
-	template<typename KEY_TYPE, typename VALUE_TYPE, size_t SIZE>
-	void MapTestOperatorInsert(KEY_TYPE(IdxToKey)(size_t), VALUE_TYPE(IdxToVal)(size_t))
+	template<typename KEY_TYPE, typename VALUE_TYPE, index_type SIZE>
+	void MapTestOperatorInsert(KEY_TYPE(IdxToKey)(index_type), VALUE_TYPE(IdxToVal)(index_type))
 	{
 		Map<KEY_TYPE, VALUE_TYPE> TestMap;
 
-		for(size_t Idx = 0; Idx < SIZE; ++Idx)
+		for(index_type Idx = 0; Idx < SIZE; ++Idx)
 		{
 			TestMap[IdxToKey(Idx)] = IdxToVal(Idx);
 		}
 
 		bool Success = true;
-		for(size_t Idx = 0; Idx < SIZE; ++Idx)
+		for(index_type Idx = 0; Idx < SIZE; ++Idx)
 		{
 			auto Val = TestMap.find(IdxToKey(Idx));
 			Success &= Val->First_ == IdxToKey(Idx);
@@ -79,18 +81,18 @@ namespace
 		REQUIRE(Success);
 	}
 
-	template<typename KEY_TYPE, typename VALUE_TYPE, size_t SIZE>
-	void MapTestOperatorFind(KEY_TYPE(IdxToKey)(size_t), VALUE_TYPE(IdxToVal)(size_t))
+	template<typename KEY_TYPE, typename VALUE_TYPE, index_type SIZE>
+	void MapTestOperatorFind(KEY_TYPE(IdxToKey)(index_type), VALUE_TYPE(IdxToVal)(index_type))
 	{
 		Map<KEY_TYPE, VALUE_TYPE> TestMap;
 
-		for(size_t Idx = 0; Idx < SIZE; ++Idx)
+		for(index_type Idx = 0; Idx < SIZE; ++Idx)
 		{
 			TestMap[IdxToKey(Idx)] = IdxToVal(Idx);
 		}
 
 		bool Success = true;
-		for(size_t Idx = 0; Idx < SIZE; ++Idx)
+		for(index_type Idx = 0; Idx < SIZE; ++Idx)
 		{
 			auto Val = TestMap[IdxToKey(Idx)];
 			Success &= Val == IdxToVal(Idx);
@@ -98,12 +100,12 @@ namespace
 		REQUIRE(Success);
 	}
 
-	size_t IdxToVal_size_t(size_t Idx)
+	index_type IdxToVal_index_type(index_type Idx)
 	{
 		return Idx;
 	}
 
-	std::string IdxToVal_string(size_t Idx)
+	std::string IdxToVal_string(index_type Idx)
 	{
 		char Buffer[1024] = {0};
 		sprintf_s(Buffer, sizeof(Buffer), "%u", Idx);
@@ -113,17 +115,17 @@ namespace
 
 TEST_CASE("map-tests-size")
 {
-	MapTestSize<size_t, size_t>(IdxToVal_size_t, IdxToVal_size_t);
+	MapTestSize<index_type, index_type>(IdxToVal_index_type, IdxToVal_index_type);
 }
 
 TEST_CASE("map-tests-insert")
 {
 	SECTION("trivial")
 	{
-		MapTestInsert<size_t, size_t, 0x1>(IdxToVal_size_t, IdxToVal_size_t);
-		MapTestInsert<size_t, size_t, 0x2>(IdxToVal_size_t, IdxToVal_size_t);
-		MapTestInsert<size_t, size_t, 0xff>(IdxToVal_size_t, IdxToVal_size_t);
-		MapTestInsert<size_t, size_t, 0x100>(IdxToVal_size_t, IdxToVal_size_t);
+		MapTestInsert<index_type, index_type, 0x1>(IdxToVal_index_type, IdxToVal_index_type);
+		MapTestInsert<index_type, index_type, 0x2>(IdxToVal_index_type, IdxToVal_index_type);
+		MapTestInsert<index_type, index_type, 0xff>(IdxToVal_index_type, IdxToVal_index_type);
+		MapTestInsert<index_type, index_type, 0x100>(IdxToVal_index_type, IdxToVal_index_type);
 	}
 
 	SECTION("non-trivial")
@@ -140,10 +142,10 @@ TEST_CASE("map-tests-find")
 {
 	SECTION("trivial")
 	{
-		MapTestFind<size_t, size_t, 0x1>(IdxToVal_size_t, IdxToVal_size_t);
-		MapTestFind<size_t, size_t, 0x2>(IdxToVal_size_t, IdxToVal_size_t);
-		MapTestFind<size_t, size_t, 0xff>(IdxToVal_size_t, IdxToVal_size_t);
-		MapTestFind<size_t, size_t, 0x100>(IdxToVal_size_t, IdxToVal_size_t);
+		MapTestFind<index_type, index_type, 0x1>(IdxToVal_index_type, IdxToVal_index_type);
+		MapTestFind<index_type, index_type, 0x2>(IdxToVal_index_type, IdxToVal_index_type);
+		MapTestFind<index_type, index_type, 0xff>(IdxToVal_index_type, IdxToVal_index_type);
+		MapTestFind<index_type, index_type, 0x100>(IdxToVal_index_type, IdxToVal_index_type);
 	}
 
 	SECTION("non-trivial")
@@ -159,10 +161,10 @@ TEST_CASE("map-tests-operator-insert")
 {
 	SECTION("trivial")
 	{
-		MapTestOperatorInsert<size_t, size_t, 0x1>(IdxToVal_size_t, IdxToVal_size_t);
-		MapTestOperatorInsert<size_t, size_t, 0x2>(IdxToVal_size_t, IdxToVal_size_t);
-		MapTestOperatorInsert<size_t, size_t, 0xff>(IdxToVal_size_t, IdxToVal_size_t);
-		MapTestOperatorInsert<size_t, size_t, 0x100>(IdxToVal_size_t, IdxToVal_size_t);
+		MapTestOperatorInsert<index_type, index_type, 0x1>(IdxToVal_index_type, IdxToVal_index_type);
+		MapTestOperatorInsert<index_type, index_type, 0x2>(IdxToVal_index_type, IdxToVal_index_type);
+		MapTestOperatorInsert<index_type, index_type, 0xff>(IdxToVal_index_type, IdxToVal_index_type);
+		MapTestOperatorInsert<index_type, index_type, 0x100>(IdxToVal_index_type, IdxToVal_index_type);
 	}
 
 	SECTION("non-trivial")
@@ -179,10 +181,10 @@ TEST_CASE("map-tests-operator-find")
 {
 	SECTION("trivial")
 	{
-		MapTestOperatorFind<size_t, size_t, 0x1>(IdxToVal_size_t, IdxToVal_size_t);
-		MapTestOperatorFind<size_t, size_t, 0x2>(IdxToVal_size_t, IdxToVal_size_t);
-		MapTestOperatorFind<size_t, size_t, 0xff>(IdxToVal_size_t, IdxToVal_size_t);
-		MapTestOperatorFind<size_t, size_t, 0x100>(IdxToVal_size_t, IdxToVal_size_t);
+		MapTestOperatorFind<index_type, index_type, 0x1>(IdxToVal_index_type, IdxToVal_index_type);
+		MapTestOperatorFind<index_type, index_type, 0x2>(IdxToVal_index_type, IdxToVal_index_type);
+		MapTestOperatorFind<index_type, index_type, 0xff>(IdxToVal_index_type, IdxToVal_index_type);
+		MapTestOperatorFind<index_type, index_type, 0x100>(IdxToVal_index_type, IdxToVal_index_type);
 	}
 
 	SECTION("non-trivial")
