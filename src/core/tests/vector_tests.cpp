@@ -136,7 +136,7 @@ namespace
 		index_type Idx = 0;
 		for(auto& It : TestArray)
 			It = IdxToVal(Idx++);
-		for(index_type Idx = 0; Idx < ARRAY_SIZE; ++Idx)
+		for(Idx = 0; Idx < ARRAY_SIZE; ++Idx)
 			Success &= (TestArray[Idx] == IdxToVal(Idx));
 		REQUIRE(Success);
 	}

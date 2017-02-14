@@ -5,6 +5,7 @@ SET(SOURCES_PUBLIC
 	"debug.h"
 	"hash.h"
 	"map.h"
+	"misc.h"
 	"pair.h"
 	"portability.h"
 	"types.h"
