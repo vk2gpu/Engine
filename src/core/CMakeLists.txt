@@ -4,6 +4,7 @@ SET(SOURCES_PUBLIC
 	"array.h"
 	"debug.h"
 	"hash.h"
+	"library.h"
 	"map.h"
 	"misc.h"
 	"pair.h"
@@ -15,6 +16,7 @@ SET(SOURCES_PUBLIC
 SET(SOURCES_PRIVATE 
 	"private/debug.cpp"
 	"private/hash.cpp"
+	"private/library.cpp"
 )
 
 SET(SOURCES_TESTS
