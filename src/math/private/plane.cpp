@@ -3,22 +3,22 @@
 
 #include <cmath>
 
-void Plane::Transform( const Mat44& Transform )
+void Plane::Transform(const Mat44& Transform)
 {
-	Vec3 Translation( Transform.Row3().x, Transform.Row3().y, Transform.Row3().z );
-	Normal_ = ( Normal_ * Transform ) - Translation;
-	D_ = D_ - ( Normal_.Dot( Translation ) );
+	Vec3 Translation(Transform.Row3().x, Transform.Row3().y, Transform.Row3().z);
+	Normal_ = (Normal_ * Transform) - Translation;
+	D_ = D_ - (Normal_.Dot(Translation));
 }
 
-Plane::eClassify Plane::Classify( const Vec3& Point, f32 Radius ) const
+Plane::eClassify Plane::Classify(const Vec3& Point, f32 Radius) const
 {
-	f32 Dist = Distance( Point );
-			
-	if( Dist > Radius )
+	f32 Dist = Distance(Point);
+
+	if(Dist > Radius)
 	{
 		return FRONT;
 	}
-	else if( Dist < -Radius )
+	else if(Dist < -Radius)
 	{
 		return BACK;
 	}
@@ -26,12 +26,12 @@ Plane::eClassify Plane::Classify( const Vec3& Point, f32 Radius ) const
 	return COINCIDING;
 }
 
-bool Plane::LineIntersection( const Vec3& Point, const Vec3& Dir, f32& Distance ) const
+bool Plane::LineIntersection(const Vec3& Point, const Vec3& Dir, f32& Distance) const
 {
-	const f32 Dist = ( Normal_.Dot( Point ) ) + D_;
-	const f32 Ndiv = Normal_.Dot( -Dir );
+	const f32 Dist = (Normal_.Dot(Point)) + D_;
+	const f32 Ndiv = Normal_.Dot(-Dir);
 
-	if( std::abs( Ndiv ) > 0.0f )
+	if(std::abs(Ndiv) > 0.0f)
 	{
 		Distance = Dist / Ndiv;
 		return true;
@@ -40,51 +40,51 @@ bool Plane::LineIntersection( const Vec3& Point, const Vec3& Dir, f32& Distance 
 	return false;
 }
 
-bool Plane::LineIntersection( const Vec3& A, const Vec3& B, f32& Distance, Vec3& Intersection ) const
+bool Plane::LineIntersection(const Vec3& A, const Vec3& B, f32& Distance, Vec3& Intersection) const
 {
 	bool RetVal = false;
 	Vec3 Dir = B - A;
-	if( LineIntersection( A, Dir, Distance ) && Distance >= 0.0f && Distance <= 1.0f )
+	if(LineIntersection(A, Dir, Distance) && Distance >= 0.0f && Distance <= 1.0f)
 	{
-		Intersection = A + ( Dir * Distance );
+		Intersection = A + (Dir * Distance);
 		RetVal = true;
 	}
 	return RetVal;
 }
 
-bool Plane::Intersect( const Plane& A, const Plane& B, const Plane& C, Vec3& Point )
+bool Plane::Intersect(const Plane& A, const Plane& B, const Plane& C, Vec3& Point)
 {
-	const f32 Denom = A.Normal_.Dot( ( B.Normal_.Cross( C.Normal_ ) ) );
+	const f32 Denom = A.Normal_.Dot((B.Normal_.Cross(C.Normal_)));
 
-	if ( std::abs( Denom ) < ( F32_EPSILON ) )
+	if(std::abs(Denom) < (F32_EPSILON))
 	{
 		return false;
 	}
 
-	Point = ( ( ( B.Normal_.Cross( C.Normal_ ) ) * -A.D_ ) -
-	          ( ( C.Normal_.Cross( A.Normal_ ) ) *  B.D_ ) -
-	          ( ( A.Normal_.Cross( B.Normal_ ) ) *  C.D_ ) ) / Denom;
+	Point = (((B.Normal_.Cross(C.Normal_)) * -A.D_) - ((C.Normal_.Cross(A.Normal_)) * B.D_) -
+	            ((A.Normal_.Cross(B.Normal_)) * C.D_)) /
+	        Denom;
 
 	return true;
 }
 
-void Plane::FromPoints( const Vec3& V1, const Vec3& V2, const Vec3& V3 )
+void Plane::FromPoints(const Vec3& V1, const Vec3& V2, const Vec3& V3)
 {
-	Normal_ = ( V1 - V2 ).Cross( ( V3 - V2 ) );
+	Normal_ = (V1 - V2).Cross((V3 - V2));
 	Normal_.Normalise();
-	D_ = -( V1.Dot( Normal_ ) );
+	D_ = -(V1.Dot(Normal_));
 }
 
-void Plane::FromPointNormal( const Vec3& Point, const Vec3& Normal )
+void Plane::FromPointNormal(const Vec3& Point, const Vec3& Normal)
 {
 	Normal_ = Normal;
 	Normal_.Normalise();
-	D_ = -( Point.Dot( Normal_ ) );
+	D_ = -(Point.Dot(Normal_));
 }
 
-f32 Plane::Distance( const Vec3& P ) const
+f32 Plane::Distance(const Vec3& P) const
 {
-	return ( Normal_.Dot(P) ) + D_;
+	return (Normal_.Dot(P)) + D_;
 }
 
 void Plane::Normalise()
@@ -103,18 +103,17 @@ f32 Plane::D() const
 	return D_;
 };
 
-bool Plane::operator == (const Plane& Other ) const
+bool Plane::operator==(const Plane& Other) const
 {
-	return ( Other.Normal() == Normal() && Other.D() == D() );
+	return (Other.Normal() == Normal() && Other.D() == D());
 }
 
-bool Plane::operator != (const Plane& Other ) const
+bool Plane::operator!=(const Plane& Other) const
 {
-	return ( Other.Normal() != Normal() || Other.D() != D() );
+	return (Other.Normal() != Normal() || Other.D() != D());
 }
 
-Plane Plane::operator -() const
+Plane Plane::operator-() const
 {
-	return Plane( -Normal_, D_ );
+	return Plane(-Normal_, D_);
 }
-

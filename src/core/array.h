@@ -11,8 +11,8 @@ class Array
 public:
 	typedef decltype(SIZE) index_type;
 	typedef TYPE value_type;
-    typedef value_type* iterator;
-    typedef const value_type* const_iterator;
+	typedef value_type* iterator;
+	typedef const value_type* const_iterator;
 
 	Array()
 	{
@@ -27,37 +27,35 @@ public:
 	}
 
 	Array(Array&& Other)
-		: Array()
+	    : Array()
 	{
 		for(index_type Idx = 0; Idx < SIZE; ++Idx)
 			std::swap(Data_[Idx], Other.Data_[Idx]);
 	}
 
-	~Array()
-	{
-	}
+	~Array() {}
 
-	Array& operator = (const Array& Other)
+	Array& operator=(const Array& Other)
 	{
 		for(index_type Idx = 0; Idx < SIZE; ++Idx)
 			Data_[Idx] = Other.Data_[Idx];
 		return *this;
 	}
 
-	Array& operator = (Array&& Other)
+	Array& operator=(Array&& Other)
 	{
 		for(index_type Idx = 0; Idx < SIZE; ++Idx)
 			std::swap(Data_[Idx], Other.Data_[Idx]);
 		return *this;
 	}
 
-	TYPE& operator [](index_type Idx)
+	TYPE& operator[](index_type Idx)
 	{
 		DBG_ASSERT_MSG(Idx >= 0 && Idx < SIZE, "Index out of bounds. (index %u, size %u)", Idx, SIZE);
 		return Data_[Idx];
 	}
 
-	const TYPE& operator [](index_type Idx) const
+	const TYPE& operator[](index_type Idx) const
 	{
 		DBG_ASSERT_MSG(Idx >= 0 && Idx < SIZE, "Index out of bounds. (%u, size %u)", Idx, SIZE);
 		return Data_[Idx];
@@ -74,14 +72,14 @@ public:
 	TYPE& back() { return Data_[SIZE - 1]; }
 	const TYPE& back() const { return Data_[SIZE - 1]; }
 
-	iterator begin() { return Data_; } 
-    const_iterator begin() const { return Data_; }
-    iterator end() { return Data_ + SIZE; }
+	iterator begin() { return Data_; }
+	const_iterator begin() const { return Data_; }
+	iterator end() { return Data_ + SIZE; }
 	const_iterator end() const { return Data_ + SIZE; }
 
 	TYPE* data() { return &Data_[0]; }
 	const TYPE* data() const { return &Data_[0]; }
-	index_type size() const{ return SIZE; }
+	index_type size() const { return SIZE; }
 
 private:
 	TYPE Data_[SIZE];

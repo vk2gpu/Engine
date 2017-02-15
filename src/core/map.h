@@ -12,15 +12,12 @@ class Map
 public:
 	typedef i32 index_type;
 	typedef Pair<KEY_TYPE, VALUE_TYPE> value_type;
-    typedef value_type* iterator;
-    typedef const value_type* const_iterator;
+	typedef value_type* iterator;
+	typedef const value_type* const_iterator;
 
 	static const index_type INVALID_INDEX = (index_type)-1;
 
-	Map()
-	{
-		Indices_.resize(MaxIndex_, INVALID_INDEX);
-	}
+	Map() { Indices_.resize(MaxIndex_, INVALID_INDEX); }
 
 	Map(const Map& Other)
 	{
@@ -31,16 +28,11 @@ public:
 		Mask_ = Other.Mask_;
 	}
 
-	Map(Map&& Other)
-	{
-		swap(Other);
-	}
+	Map(Map&& Other) { swap(Other); }
 
-	~Map()
-	{
-	}
+	~Map() {}
 
-	Map& operator = (const Map& Other)
+	Map& operator=(const Map& Other)
 	{
 		Values_ = Other.Values_;
 		Indices_ = Other.Indices_;
@@ -50,7 +42,7 @@ public:
 		return *this;
 	}
 
-	Map& operator = (Map&& Other)
+	Map& operator=(Map&& Other)
 	{
 		swap(Other);
 		return *this;
@@ -65,7 +57,7 @@ public:
 		std::swap(Mask_, Other.Mask_);
 	}
 
-	VALUE_TYPE& operator [](const KEY_TYPE& Key)
+	VALUE_TYPE& operator[](const KEY_TYPE& Key)
 	{
 		iterator FoundValue = find(Key);
 		if(FoundValue == end())
@@ -76,7 +68,7 @@ public:
 		return FoundValue->Second_;
 	}
 
-	const VALUE_TYPE& operator [](const KEY_TYPE& Key) const
+	const VALUE_TYPE& operator[](const KEY_TYPE& Key) const
 	{
 		iterator FoundValue = find(Key);
 		DBG_ASSERT_MSG(FoundValue != end(), "Key does not exist in map.");
@@ -118,7 +110,7 @@ public:
 			return Values_.data() + Values_.size() - 1;
 		}
 	}
-	
+
 	// TODO: TEST.
 	iterator erase(iterator It)
 	{
@@ -136,13 +128,13 @@ public:
 	}
 
 
-	iterator begin() { return Values_.data(); } 
-    const_iterator begin() const { return Values_.data(); }
-    iterator end() { return Values_.data() + Values_.size(); }
+	iterator begin() { return Values_.data(); }
+	const_iterator begin() const { return Values_.data(); }
+	iterator end() { return Values_.data() + Values_.size(); }
 	const_iterator end() const { return Values_.data() + Values_.size(); }
 
 	const_iterator find(const KEY_TYPE& Key) const
-	{		
+	{
 		const u32 KeyHash = Hash(0, Key);
 		const index_type IndicesIdx = KeyHash & Mask_;
 		const index_type Idx = Indices_[IndicesIdx];
@@ -154,7 +146,7 @@ public:
 	}
 
 	iterator find(const KEY_TYPE& Key)
-	{		
+	{
 		const u32 KeyHash = Hash(0, Key);
 		const index_type IndicesIdx = KeyHash & Mask_;
 		const index_type Idx = Indices_[IndicesIdx];
@@ -169,8 +161,8 @@ public:
 		return end();
 	}
 
-	index_type size() const{ return Values_.size(); }
-	bool empty() const{ return Values_.size() == 0; }
+	index_type size() const { return Values_.size(); }
+	bool empty() const { return Values_.size() == 0; }
 
 private:
 	void resizeIndices(index_type Size)
@@ -216,4 +208,3 @@ private:
 	index_type MaxIndex_ = 0x8;
 	index_type Mask_ = 0x7;
 };
-

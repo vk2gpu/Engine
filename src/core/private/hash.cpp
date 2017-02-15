@@ -4,6 +4,7 @@
 
 namespace
 {
+	// clang-format off
 	const u32 gCRC32Table_[256] =
 	{
 		0x00000000, 0x77073096, 0xee0e612c, 0x990951ba, 0x076dc419,
@@ -59,18 +60,19 @@ namespace
 		0x5d681b02, 0x2a6f2b94, 0xb40bbe37, 0xc30c8ea1, 0x5a05df1b,
 		0x2d02ef8d
 	};
+	// clang-format on
 }
 
 u32 HashCRC32(u32 Input, const void* pInData, size_t Size)
 {
-	const u8* Data = reinterpret_cast<const u8*>( pInData );
+	const u8* Data = reinterpret_cast<const u8*>(pInData);
 	u32 Hash = Input;
 
 	Hash = ~Hash;
 
-	while( Size-- )
+	while(Size--)
 	{
-		Hash = gCRC32Table_[ ( Hash ^ *Data++ ) & 0xff ] ^ ( Hash >> 8 );
+		Hash = gCRC32Table_[(Hash ^ *Data++) & 0xff] ^ (Hash >> 8);
 	}
 
 	return ~Hash;
@@ -78,10 +80,10 @@ u32 HashCRC32(u32 Input, const void* pInData, size_t Size)
 
 u32 HashSDBM(u32 Input, const void* pInData, size_t Size)
 {
-	const u8* Data = reinterpret_cast<const u8*>( pInData );
+	const u8* Data = reinterpret_cast<const u8*>(pInData);
 	u32 Hash = Input;
 
-	while( Size-- )
+	while(Size--)
 	{
 		Hash = (u32)*Data++ + (Hash << 6) + (Hash << 16) - Hash;
 	}

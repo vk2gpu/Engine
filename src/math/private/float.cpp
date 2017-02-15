@@ -11,11 +11,11 @@ bool CheckFloat(f32 T)
 	u32 IntFloat = *((u32*)&(Copy));
 	u32 Exp = IntFloat & BC_FLOAT_EXP_MASK;
 	u32 Frac = IntFloat & BC_FLOAT_FRAC_MASK;
-	if ((Exp == 0) && (Frac != 0)) 
+	if((Exp == 0) && (Frac != 0))
 		return false;
-	if (Exp == BC_FLOAT_EXP_MASK) 
+	if(Exp == BC_FLOAT_EXP_MASK)
 		return false;
-	if ((Exp == BC_FLOAT_EXP_MASK) && ((Frac & BC_FLOAT_SNAN_MASK) == 0)) 
+	if((Exp == BC_FLOAT_EXP_MASK) && ((Frac & BC_FLOAT_SNAN_MASK) == 0))
 		return false;
 	return true;
 }

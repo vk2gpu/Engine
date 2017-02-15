@@ -98,10 +98,7 @@ namespace
 		REQUIRE(Success);
 	}
 
-	index_type IdxToVal_index_type(index_type Idx)
-	{
-		return Idx;
-	}
+	index_type IdxToVal_index_type(index_type Idx) { return Idx; }
 
 	std::string IdxToVal_string(index_type Idx)
 	{

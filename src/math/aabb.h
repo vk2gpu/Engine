@@ -40,12 +40,12 @@ public:
 
 public:
 	AABB();
-	AABB( const AABB& Other );
-	AABB( const Vec3& Min, const Vec3& Max );
+	AABB(const AABB& Other);
+	AABB(const Vec3& Min, const Vec3& Max);
 	~AABB();
 
-	void Minimum( const Vec3& Min );
-	void Maximum( const Vec3& Max );
+	void Minimum(const Vec3& Min);
+	void Maximum(const Vec3& Max);
 
 	const Vec3& Minimum() const;
 	const Vec3& Maximum() const;
@@ -55,9 +55,9 @@ public:
 	f32 Depth() const;
 	f32 Volume() const;
 
-	Vec3 Corner( u32 i ) const;
-	Plane FacePlane( u32 i ) const;
-	Vec3 FaceCentre( u32 i ) const;
+	Vec3 Corner(u32 i) const;
+	Plane FacePlane(u32 i) const;
+	Vec3 FaceCentre(u32 i) const;
 	Vec3 Centre() const;
 	Vec3 Dimensions() const;
 	f32 Diameter() const;
@@ -66,22 +66,21 @@ public:
 
 	// Construction
 	void Empty();
-	void ExpandBy( const Vec3& Point );
-	void ExpandBy( const AABB& AABB );
+	void ExpandBy(const Vec3& Point);
+	void ExpandBy(const AABB& AABB);
 
 	// Intersection
-	bool LineIntersect( const Vec3& Start, const Vec3& End, Vec3* pIntersectionPoint, Vec3* pIntersectionNormal ) const;
-	bool BoxIntersect( const AABB& Box, AABB* pIntersectionBox ) const;
+	bool LineIntersect(const Vec3& Start, const Vec3& End, Vec3* pIntersectionPoint, Vec3* pIntersectionNormal) const;
+	bool BoxIntersect(const AABB& Box, AABB* pIntersectionBox) const;
 
 	// Classification
-	eClassify Classify( const Vec3& Point ) const;
-	eClassify Classify( const AABB& AABB ) const;
+	eClassify Classify(const Vec3& Point) const;
+	eClassify Classify(const AABB& AABB) const;
 
 	// Transform
-	AABB Transform( const Mat44& Transform ) const;
+	AABB Transform(const Mat44& Transform) const;
 
 private:
 	Vec3 Min_;
 	Vec3 Max_;
 };
-
