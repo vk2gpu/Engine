@@ -278,7 +278,7 @@ f32 Quat::Magnitude()
 void Quat::Inverse()
 {
 	Quat Q = ~(*this);
-	auto DotThis = dot(*this);
+	auto DotThis = Dot(*this);
 	x = Q.x / DotThis;
 	y = Q.y / DotThis;
 	z = Q.z / DotThis;

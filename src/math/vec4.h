@@ -220,12 +220,12 @@ FORCEINLINE Vec4 Vec4::operator-() const
 	return Vec4(-x, -y, -z, -w);
 }
 
-FORCEINLINE f32 Vec4::magnitudeSquared() const
+FORCEINLINE f32 Vec4::MagnitudeSquared() const
 {
-	return dot(*this);
+	return Dot(*this);
 }
 
-FORCEINLINE f32 Vec4::dot(const Vec4& Rhs) const
+FORCEINLINE f32 Vec4::Dot(const Vec4& Rhs) const
 {
 	return (x * Rhs.x) + (y * Rhs.y) + (z * Rhs.z) + (w * Rhs.w);
 }

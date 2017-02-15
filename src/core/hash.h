@@ -38,3 +38,5 @@ inline u32 Hash(u32 Input, u64 Data)
 {
 	return Input ^ (u32)Data ^ (Data >> 32);
 }
+
+

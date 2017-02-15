@@ -33,5 +33,3 @@ INCLUDE_DIRECTORIES(
 # Add source.
 ADD_SUBDIRECTORY("src/core")
 ADD_SUBDIRECTORY("src/math")
-
-

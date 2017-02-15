@@ -33,7 +33,7 @@ Vec3 Vec4::Normal3() const
 	return Vec3(x * InvMag, y * InvMag, z * InvMag);
 }
 
-f32 Vec4::Magnitudeagnitude() const
+f32 Vec4::Magnitude() const
 {
 	return sqrtf(MagnitudeSquared());
 }
