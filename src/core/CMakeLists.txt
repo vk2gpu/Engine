@@ -9,6 +9,7 @@ SET(SOURCES_PUBLIC
 	"misc.h"
 	"pair.h"
 	"portability.h"
+	"timer.h"
 	"types.h"
 	"vector.h"
 )
@@ -17,6 +18,7 @@ SET(SOURCES_PRIVATE
 	"private/debug.cpp"
 	"private/hash.cpp"
 	"private/library.cpp"
+	"private/timer.cpp"
 )
 
 SET(SOURCES_TESTS
