@@ -19,10 +19,10 @@ struct FileTimestamp
 };
 
 /**
- * Get file stats.
+ * Get file or directory stats.
  * @return Success.
  */
-bool FileStats(const char* path, FileTimestamp* created, FileTimestamp* modified);
+bool FileStats(const char* path, FileTimestamp* created, FileTimestamp* modified, i64* size);
 
 /**
  * @return Does file exist?

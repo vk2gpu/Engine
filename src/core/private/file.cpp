@@ -18,69 +18,69 @@
 
 #if PLATFORM_WINDOWS
 
-#define lowLevelOpen		::_open
-#define lowLevelClose		::_close
-#define lowLevelReadFlags	(_O_RDONLY | _O_BINARY)
-#define lowLevelWriteFlags	(_O_WRONLY | _O_BINARY)
-#define lowLevelAppendFlags	(_O_APPEND)
-#define lowLevelCreateFlags	(_O_CREAT)
+#define lowLevelOpen ::_open
+#define lowLevelClose ::_close
+#define lowLevelReadFlags (_O_RDONLY | _O_BINARY)
+#define lowLevelWriteFlags (_O_WRONLY | _O_BINARY)
+#define lowLevelAppendFlags (_O_APPEND)
+#define lowLevelCreateFlags (_O_CREAT)
 #define lowLevelPermissionFlags (_S_IREAD | _S_IWRITE)
 
 #elif PLATFORM_LINUX || PLATFORM_OSX
 #include <unistd.h>
 
-#define lowLevelOpen		::open
-#define lowLevelClose		::close
-#define lowLevelReadFlags	(O_RDONLY)	//Binary flag does not exist on posix
-#define lowLevelWriteFlags	(O_WRONLY)
-#define lowLevelAppendFlags	(O_APPEND)
-#define lowLevelCreateFlags	(O_CREAT)
+#define lowLevelOpen ::open
+#define lowLevelClose ::close
+#define lowLevelReadFlags (O_RDONLY) // Binary flag does not exist on posix
+#define lowLevelWriteFlags (O_WRONLY)
+#define lowLevelAppendFlags (O_APPEND)
+#define lowLevelCreateFlags (O_CREAT)
 #define lowLevelPermissionFlags (0666)
 
 #endif
 
-bool FileStats(const char* path, FileTimestamp* created, FileTimestamp* modified)
+bool FileStats(const char* path, FileTimestamp* created, FileTimestamp* modified, i64* size)
 {
 	DBG_ASSERT(path);
 #if PLATFORM_LINUX || PLATFORM_OSX || PLATFORM_WINDOWS
 	struct stat attrib;
-	int desc = lowLevelOpen(path, lowLevelReadFlags);
-	if(desc != -1)
+	if(0 == stat(path, &attrib))
 	{
-		if(0 == fstat(desc, &attrib))
+		if(created)
 		{
-			if(created)
-			{
-				struct tm* createdTime = nullptr;
-				createdTime = gmtime(&(attrib.st_ctime));
-				created->seconds_ = createdTime->tm_sec;
-				created->minutes_ = createdTime->tm_min;
-				created->hours_ = createdTime->tm_hour;
-				created->monthDay_ = createdTime->tm_mday;
-				created->month_ = createdTime->tm_mon;
-				created->year_ = createdTime->tm_year;
-				created->weekDay_ = createdTime->tm_wday;
-				created->yearDay_ = createdTime->tm_yday;
-				created->isDST_ = createdTime->tm_isdst;
-			}
-
-			if(modified)
-			{
-				struct tm* modifiedTime = nullptr;
-				modifiedTime = gmtime(&(attrib.st_mtime));
-				modified->seconds_ = modifiedTime->tm_sec;
-				modified->minutes_ = modifiedTime->tm_min;
-				modified->hours_ = modifiedTime->tm_hour;
-				modified->monthDay_ = modifiedTime->tm_mday;
-				modified->month_ = modifiedTime->tm_mon;
-				modified->year_ = modifiedTime->tm_year;
-				modified->weekDay_ = modifiedTime->tm_wday;
-				modified->yearDay_ = modifiedTime->tm_yday;
-				modified->isDST_ = modifiedTime->tm_isdst;
-			}
-			return true;
+			struct tm* createdTime = nullptr;
+			createdTime = gmtime(&(attrib.st_ctime));
+			created->seconds_ = createdTime->tm_sec;
+			created->minutes_ = createdTime->tm_min;
+			created->hours_ = createdTime->tm_hour;
+			created->monthDay_ = createdTime->tm_mday;
+			created->month_ = createdTime->tm_mon;
+			created->year_ = createdTime->tm_year;
+			created->weekDay_ = createdTime->tm_wday;
+			created->yearDay_ = createdTime->tm_yday;
+			created->isDST_ = createdTime->tm_isdst;
 		}
-		lowLevelClose(desc);
+
+		if(modified)
+		{
+			struct tm* modifiedTime = nullptr;
+			modifiedTime = gmtime(&(attrib.st_mtime));
+			modified->seconds_ = modifiedTime->tm_sec;
+			modified->minutes_ = modifiedTime->tm_min;
+			modified->hours_ = modifiedTime->tm_hour;
+			modified->monthDay_ = modifiedTime->tm_mday;
+			modified->month_ = modifiedTime->tm_mon;
+			modified->year_ = modifiedTime->tm_year;
+			modified->weekDay_ = modifiedTime->tm_wday;
+			modified->yearDay_ = modifiedTime->tm_yday;
+			modified->isDST_ = modifiedTime->tm_isdst;
+		}
+
+		if(size)
+		{
+			*size = attrib.st_size;
+		}
+		return true;
 	}
 
 #else
@@ -219,7 +219,7 @@ File::File(const char* path, FileFlags flags)
 	impl_ = new FileImpl();
 
 	// Setup flags.
-	char openString[8] = { 0 };
+	char openString[8] = {0};
 	int openStringIdx = 0;
 	int openPermissions = 0;
 	int lowLevelFlags = 0;
@@ -322,7 +322,7 @@ i64 File::Size() const
 	DBG_ASSERT(*impl_);
 	i64 size = 0;
 	struct stat attrib;
-	if (0 == fstat(impl_->fileDescriptor_, &attrib))
+	if(0 == fstat(impl_->fileDescriptor_, &attrib))
 	{
 		size = attrib.st_size;
 	}
