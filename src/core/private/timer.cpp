@@ -1,6 +1,7 @@
 #include "core/timer.h"
 
 #if PLATFORM_WINDOWS
+#define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
 #define USE_QUERY_PERF_COUNTER 1
 #endif

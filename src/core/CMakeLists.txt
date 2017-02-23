@@ -3,6 +3,7 @@
 SET(SOURCES_PUBLIC 
 	"array.h"
 	"debug.h"
+	"file.h"
 	"hash.h"
 	"library.h"
 	"map.h"
@@ -16,6 +17,7 @@ SET(SOURCES_PUBLIC
 
 SET(SOURCES_PRIVATE 
 	"private/debug.cpp"
+	"private/file.cpp"
 	"private/hash.cpp"
 	"private/library.cpp"
 	"private/timer.cpp"

@@ -3,6 +3,23 @@ CMAKE_MINIMUM_REQUIRED(VERSION 3.2.3)
 # Engine project is C++
 PROJECT(Engine CXX)
 
+# Add third party
+
+SET(SDL_SHARED OFF)
+SET(SDL_STATIC ON)
+
+ADD_SUBDIRECTORY("3rdparty/SDL-mirror")
+
+SET_TARGET_PROPERTIES(SDL2main PROPERTIES FOLDER "3rdparty/SDL2")
+
+IF(SDL_SHARED)
+	SET_TARGET_PROPERTIES(SDL2 PROPERTIES FOLDER 3rdparty/SDL2)
+ENDIF()
+
+IF(SDL_STATIC)
+	SET_TARGET_PROPERTIES(SDL2-static PROPERTIES FOLDER "3rdparty/SDL2")
+ENDIF()
+
 SET_PROPERTY(GLOBAL PROPERTY USE_FOLDERS ON)
 
 SET(CMAKE_MODULE_PATH "cmake")
@@ -25,6 +42,7 @@ ENDIF()
 INCLUDE_DIRECTORIES(
 	# 3rd party includes.
 	"3rdparty/Catch/include"
+	"3rdparty/SDL-mirror/include"
 
 	# Source.
 	"src"
@@ -33,3 +51,5 @@ INCLUDE_DIRECTORIES(
 # Add source.
 ADD_SUBDIRECTORY("src/core")
 ADD_SUBDIRECTORY("src/math")
+ADD_SUBDIRECTORY("src/client")
+
