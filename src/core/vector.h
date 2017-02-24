@@ -86,6 +86,13 @@ public:
 		Data_[Size_++] = Value;
 	}
 
+	void emplace_back(TYPE&& value)
+	{
+		if(Capacity_ < (Size_ + 1))
+			internalResize(getGrowCapacity(Capacity_));
+		Data_[Size_++] = std::move(value);
+	}
+
 	void pop_back()
 	{
 		DBG_ASSERT_MSG(Size_ > 0, "No elements in vector.");
