@@ -1,4 +1,5 @@
 #include "core/concurrency.h"
+#include "core/vector.h"
 
 #include "catch.hpp"
 
@@ -345,6 +346,40 @@ TEST_CASE("concurrency-tests-thread")
 	}
 }
 
+TEST_CASE("concurrency-tests-fiber")
+{
+	Fiber primaryFiber(Fiber::THIS_THREAD);
+
+	struct SharedData
+	{
+		Vector<Fiber> fibers_;
+		i32 currFiber_ = 0;
+		i32 exited_ = 0;
+	};
+
+	auto fiberFunc = [](void* inData) -> void {
+		auto* data = reinterpret_cast<SharedData*>(inData);
+		Fiber& currFiber = data->fibers_[data->currFiber_];
+		data->currFiber_++;
+		if(data->currFiber_ < data->fibers_.size())
+		{
+			Fiber& nextFiber = data->fibers_[data->currFiber_];
+			nextFiber.SwitchTo(currFiber);
+		}
+		data->exited_++;
+	};
+
+	SharedData sharedData;
+	sharedData.fibers_.emplace_back(Fiber(fiberFunc, &sharedData));
+	sharedData.fibers_.emplace_back(Fiber(fiberFunc, &sharedData));
+	sharedData.fibers_.emplace_back(Fiber(fiberFunc, &sharedData));
+	sharedData.fibers_.emplace_back(Fiber(fiberFunc, &sharedData));
+
+	sharedData.fibers_[0].SwitchTo(primaryFiber);
+	REQUIRE(sharedData.currFiber_ == sharedData.fibers_.size());
+	REQUIRE(sharedData.exited_ == sharedData.fibers_.size());
+}
+
 TEST_CASE("concurrency-tests-event")
 {
 	SECTION("st-default")
@@ -462,4 +497,62 @@ TEST_CASE("concurrency-tests-mutex")
 		mutex.Unlock();
 		mutex.Unlock();
 	}
+}
+
+TEST_CASE("concurrency-tests-tls")
+{
+	struct SharedData
+	{
+		TLS tls_;
+		volatile i32 waitLock_ = 0;
+		i32 numThreads_ = 4;
+	};
+
+	struct ThreadData
+	{
+		SharedData* sharedData_ = nullptr;
+		int myVal_ = 0;
+	};
+
+	SharedData sharedData;
+	ThreadData thread0Data;
+	ThreadData thread1Data;
+	ThreadData thread2Data;
+	ThreadData thread3Data;
+	thread0Data.sharedData_ = &sharedData;
+	thread0Data.myVal_ = 1;
+	thread1Data.sharedData_ = &sharedData;
+	thread1Data.myVal_ = 2;
+	thread2Data.sharedData_ = &sharedData;
+	thread2Data.myVal_ = 3;
+	thread3Data.sharedData_ = &sharedData;
+	thread3Data.myVal_ = 4;
+
+	auto threadFunc = [](void* inData) -> int {
+		auto* threadData = reinterpret_cast<ThreadData*>(inData);
+		auto* sharedData = threadData->sharedData_;
+		i32 myVal = threadData->myVal_;
+		threadData->sharedData_->tls_.Set(&myVal);
+
+		// Wait until all threads have set their data in TLS.
+		AtomicIncAcq(&sharedData->waitLock_);
+		while(AtomicCmpExchg(&sharedData->waitLock_, sharedData->numThreads_, sharedData->numThreads_) !=
+		      sharedData->numThreads_)
+			;
+
+		// Now get it and check it's the same value as the original set by the current thread.
+		i32* myValNew = (i32*)threadData->sharedData_->tls_.Get();
+
+		return (*myValNew == threadData->myVal_) ? 1 : 0;
+	};
+
+	Thread thread0(threadFunc, &thread0Data);
+	Thread thread1(threadFunc, &thread0Data);
+	Thread thread2(threadFunc, &thread0Data);
+	Thread thread3(threadFunc, &thread0Data);
+
+	REQUIRE(thread0.Join());
+	REQUIRE(thread1.Join());
+	REQUIRE(thread2.Join());
+	REQUIRE(thread3.Join());
 }

@@ -90,7 +90,7 @@ public:
 	{
 		if(Capacity_ < (Size_ + 1))
 			internalResize(getGrowCapacity(Capacity_));
-		Data_[Size_++] = std::move(value);
+		Data_[Size_++] = std::forward<TYPE>(value);
 	}
 
 	void pop_back()

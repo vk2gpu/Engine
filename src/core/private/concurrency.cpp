@@ -12,13 +12,12 @@
 #if PLATFORM_WINDOWS
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
-#endif
 
 struct ThreadImpl
 {
 	DWORD threadId_ = 0;
 	HANDLE threadHandle_ = 0;
-	Thread::EntryPointFunc entryPointFunc_;
+	Thread::EntryPointFunc entryPointFunc_ = nullptr;
 	void* userData_ = nullptr;
 };
 
@@ -30,6 +29,7 @@ static DWORD WINAPI ThreadEntryPoint(LPVOID lpThreadParameter)
 
 Thread::Thread(EntryPointFunc entryPointFunc, void* userData, i32 stackSize)
 {
+	DBG_ASSERT(entryPointFunc);
 	DWORD creationFlags = 0;
 	impl_ = new ThreadImpl();
 	impl_->entryPointFunc_ = entryPointFunc;
@@ -75,6 +75,95 @@ i32 Thread::Join()
 		return exitCode;
 	}
 	return 0;
+}
+
+
+struct FiberImpl
+{
+	void* callingFiber_ = nullptr;
+	void* fiber_ = nullptr;
+	Fiber::EntryPointFunc entryPointFunc_ = nullptr;
+	void* userData_ = nullptr;
+};
+
+static void __stdcall FiberEntryPoint(LPVOID lpParameter)
+{
+	auto* impl = reinterpret_cast<FiberImpl*>(lpParameter);
+	impl->entryPointFunc_(impl->userData_);
+	auto callingFiber = impl->callingFiber_;
+	impl->callingFiber_ = nullptr;
+	::SwitchToFiber(callingFiber);
+}
+
+Fiber::Fiber(EntryPointFunc entryPointFunc, void* userData, i32 stackSize)
+{
+	DBG_ASSERT(entryPointFunc);
+	impl_ = new FiberImpl();
+	impl_->entryPointFunc_ = entryPointFunc;
+	impl_->userData_ = userData;
+	impl_->fiber_ = ::CreateFiber(stackSize, FiberEntryPoint, impl_);
+	DBG_ASSERT_MSG(impl_->fiber_, "Unable to create fiber.");
+	if(impl_->fiber_ == nullptr)
+	{
+		delete impl_;
+		impl_ = nullptr;
+	}
+}
+
+Fiber::Fiber(ThisThread)
+{
+	impl_ = new FiberImpl();
+	impl_->entryPointFunc_ = nullptr;
+	impl_->userData_ = nullptr;
+	impl_->fiber_ = ::ConvertThreadToFiber(impl_);
+	DBG_ASSERT_MSG(impl_->fiber_, "Unable to create fiber. Is there already one for this thread?");
+	if(impl_->fiber_ == nullptr)
+	{
+		delete impl_;
+		impl_ = nullptr;
+	}
+}
+
+Fiber::~Fiber()
+{
+	if(impl_)
+	{
+		DBG_ASSERT_MSG(impl_->callingFiber_ == nullptr, "Destructing whilst still active.");
+		if(impl_->entryPointFunc_)
+		{
+			::DeleteFiber(impl_->fiber_);
+		}
+		else
+		{
+			::ConvertFiberToThread();
+		}
+		delete impl_;
+	}
+}
+
+Fiber::Fiber(Fiber&& other)
+{
+	using std::swap;
+	swap(impl_, other.impl_);
+}
+
+Fiber& Fiber::operator=(Fiber&& other)
+{
+	using std::swap;
+	swap(impl_, other.impl_);
+	return *this;
+}
+
+void Fiber::SwitchTo(Fiber& caller)
+{
+	DBG_ASSERT(impl_);
+	DBG_ASSERT(caller.impl_);
+	if(impl_)
+	{
+		impl_->callingFiber_ = caller.impl_->fiber_;
+		::SwitchToFiber(impl_->fiber_);
+		impl_->callingFiber_ = nullptr;
+	}
 }
 
 
@@ -141,3 +230,33 @@ void Mutex::Unlock()
 {
 	::LeaveCriticalSection(&impl_->critSec_);
 }
+
+struct TLSImpl
+{
+	DWORD handle_ = 0;
+};
+
+TLS::TLS()
+{
+	impl_ = new TLSImpl();
+}
+
+TLS::~TLS()
+{
+	::TlsFree(impl_->handle_);
+	delete impl_;
+}
+
+bool TLS::Set(void* data)
+{
+	return !!::TlsSetValue(impl_->handle_, data);
+}
+
+void* TLS::Get() const
+{
+	return ::TlsGetValue(impl_->handle_);
+}
+
+#else
+#error "Not implemented for platform!""
+#endif

@@ -82,6 +82,7 @@ public:
 	 * @param entryPointFunc Entry point for thread to call.
 	 * @param userData User data to pass to thread.
 	 * @param stackSize Size of stack for thread.
+	 * @pre entryPointFunc != nullptr.
 	 */
 	Thread(EntryPointFunc entryPointFunc, void* userData, i32 stackSize = DEFAULT_STACK_SIZE);
 
@@ -106,6 +107,55 @@ public:
 private:
 	Thread(const Thread&) = delete;
 	struct ThreadImpl* impl_ = nullptr;
+};
+
+/**
+ * Fiber.
+ */
+class Fiber final
+{
+public:
+	typedef void (*EntryPointFunc)(void*);
+	static const i32 DEFAULT_STACK_SIZE = 16 * 1024;
+
+	enum ThisThread
+	{
+		THIS_THREAD
+	};
+
+	/**
+	 * Create fiber.
+	 * @param entryPointFunc Entry point for thread to call.
+	 * @param userData User data to pass to thread.
+	 * @param stackSize Size of stack for thread.
+	 * @pre entryPointFunc != nullptr.
+	 */
+	Fiber(EntryPointFunc entryPointFunc, void* userData, i32 stackSize = DEFAULT_STACK_SIZE);
+
+	/**
+	 * Create fiber from this thread.
+	 */
+	Fiber(ThisThread);
+
+	Fiber() = default;
+	~Fiber();
+	Fiber(Fiber&&);
+	Fiber& operator=(Fiber&&);
+
+	/**
+	 * Switch to this fiber.
+	 * @param caller Fiber we are calling from.
+	 */
+	void SwitchTo(Fiber& caller);
+
+	/**
+	 * @return Is thread valid?
+	 */
+	operator bool() const { return impl_ != nullptr; }
+
+private:
+	Fiber(const Fiber&) = delete;
+	struct FiberImpl* impl_ = nullptr;
 };
 
 /**
@@ -195,6 +245,43 @@ private:
 
 	Mutex& mutex_;
 };
+
+/**
+ * Thread local storage.
+ */
+class TLS
+{
+public:
+	TLS();
+	~TLS();
+
+	/**
+	 * Set data.
+	 * @param data Data to set.
+	 * @return Success.
+	 */
+	bool Set(void* data);
+
+	/**
+	 * Get data.
+	 * @param data
+	 * @return Data. nullptr if none set.
+	 */
+	void* Get() const;
+
+	/**
+	 * @return Is valid?
+	 */
+	operator bool() { return impl_ != nullptr; }
+
+private:
+	TLS(TLS&&) = delete;
+	TLS& operator=(TLS&&) = delete;
+	TLS(const TLS&) = delete;
+
+	struct TLSImpl* impl_ = nullptr;
+};
+
 
 #if CODE_INLINE
 #include "core/private/concurrency.inl"
