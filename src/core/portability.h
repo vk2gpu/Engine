@@ -134,9 +134,29 @@
 #endif
 
 //////////////////////////////////////////////////////////////////////////
+// Inlining.
+#ifdef _DEBUG
+#define CODE_INLINE 0
+#define INLINE
+#else
+#define CODE_INLINE 1
+#define INLINE inline
+#endif
+
+//////////////////////////////////////////////////////////////////////////
 // Deprecated markers.
 #if COMPILER_MSVC
 #define DEPRECATED(_m) __declspec(deprecated)
 #else
 #define DEPRECATED(_m) [[deprecated(_m)]]
+#endif
+
+//////////////////////////////////////////////////////////////////////////
+// Build type.
+#ifdef _DEBUG
+#define DEBUG
+#endif
+
+#ifdef NDEBUG
+#define RELEASE
 #endif

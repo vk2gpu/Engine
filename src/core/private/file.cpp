@@ -2,6 +2,8 @@
 #include "core/array.h"
 #include "core/misc.h"
 
+#include <utility>
+
 #if PLATFORM_LINUX || PLATFORM_OSX
 #include <dirent.h>
 #elif PLATFORM_WINDOWS
@@ -278,6 +280,20 @@ File::~File()
 	}
 }
 
+File::File(File&& other)
+{
+	using std::swap;
+	swap(impl_, other.impl_);
+}
+
+File& File::operator=(File&& other)
+{
+	using std::swap;
+	swap(impl_, other.impl_);
+	return *this;
+}
+
+
 i64 File::Read(void* buffer, i64 bytes)
 {
 	DBG_ASSERT(ContainsAllFlags(GetFlags(), FileFlags::READ));
@@ -319,7 +335,7 @@ i64 File::Tell() const
 
 i64 File::Size() const
 {
-	DBG_ASSERT(*impl_);
+	DBG_ASSERT(impl_);
 	i64 size = 0;
 	struct stat attrib;
 	if(0 == fstat(impl_->fileDescriptor_, &attrib))

@@ -2,6 +2,7 @@
 
 SET(SOURCES_PUBLIC 
 	"array.h"
+	"concurrency.h"
 	"debug.h"
 	"file.h"
 	"hash.h"
@@ -16,6 +17,8 @@ SET(SOURCES_PUBLIC
 )
 
 SET(SOURCES_PRIVATE 
+	"private/concurrency.cpp"
+	"private/concurrency.inl"
 	"private/debug.cpp"
 	"private/file.cpp"
 	"private/hash.cpp"
@@ -25,6 +28,7 @@ SET(SOURCES_PRIVATE
 
 SET(SOURCES_TESTS
 	"tests/array_tests.cpp"
+	"tests/concurrency_tests.cpp"
 	"tests/map_tests.cpp"
 	"tests/test_entry.cpp"
 	"tests/vector_tests.cpp"

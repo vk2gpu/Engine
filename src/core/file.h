@@ -79,20 +79,22 @@ DEFINE_ENUM_CLASS_FLAG_OPERATOR(FileFlags, &);
 /**
  * File class.
  */
-class File
+class File final
 {
 public:
 	File() = default;
-	File(File&& other) = default;
 
 	/**
 	 * Open file.
 	 * @param path Path to open.
 	 * @param
-
 	 */
 	File(const char* path, FileFlags flags);
 	~File();
+
+	/// Move operators.
+	File(File&&);
+	File& operator=(File&&);
 
 	/**
 	 * Read bytes from file.

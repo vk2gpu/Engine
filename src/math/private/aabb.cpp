@@ -217,7 +217,7 @@ AABB AABB::Transform(const Mat44& Transform) const
 	NewAABB.ExpandBy(Corner(6) * Transform);
 	NewAABB.ExpandBy(Corner(7) * Transform);
 
-	DBG_ASSERT(!NewAABB.isEmpty());
+	DBG_ASSERT(!NewAABB.IsEmpty());
 	return NewAABB;
 }
 

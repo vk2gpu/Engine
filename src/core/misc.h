@@ -12,26 +12,26 @@ TYPE Max(TYPE a, TYPE b)
 	return a > b ? a : b;
 }
 
-template< typename _Enum >
-inline bool ContainsAllFlags( _Enum Value, _Enum Flags )
+template<typename ENUM>
+inline bool ContainsAllFlags(ENUM Value, ENUM Flags)
 {
-	static_assert( sizeof( _Enum ) <= sizeof( int ), "Enum size too large." );
-	return ( (int)Value & (int)Flags ) == (int)Flags;
+	static_assert(sizeof(ENUM) <= sizeof(int), "Enum size too large.");
+	return ((int)Value & (int)Flags) == (int)Flags;
 }
 
-inline bool ContainsAllFlags( int Value, int Flags )
+inline bool ContainsAllFlags(int Value, int Flags)
 {
-	return ( (int)Value & (int)Flags ) == (int)Flags;
+	return ((int)Value & (int)Flags) == (int)Flags;
 }
 
-template< typename _Enum >
-inline bool ContainsAnyFlags( _Enum Value, _Enum Flags )
+template<typename ENUM>
+inline bool ContainsAnyFlags(ENUM Value, ENUM Flags)
 {
-	static_assert( sizeof( _Enum ) <= sizeof( int ), "Enum size too large." );
-	return ( (int)Value & (int)Flags ) != 0;
+	static_assert(sizeof(ENUM) <= sizeof(int), "Enum size too large.");
+	return ((int)Value & (int)Flags) != 0;
 }
 
-inline bool ContainsAnyFlags( int Value, int Flags )
+inline bool ContainsAnyFlags(int Value, int Flags)
 {
-	return ( (int)Value & (int)Flags ) != 0;
+	return ((int)Value & (int)Flags) != 0;
 }
