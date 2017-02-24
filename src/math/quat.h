@@ -1,20 +1,20 @@
 #pragma once
 
+#include "math/dll.h"
 #include "math/vec3.h"
 #include "math/vec4.h"
 #include "math/mat44.h"
 
 //////////////////////////////////////////////////////////////////////////
 // Quat
-class Quat : public Vec4
+class MATH_DLL Quat : public Vec4
 {
 public:
 	// ctor
 	Quat();
 	Quat(f32* Val);
 	Quat(f32 lX, f32 lY, f32 lZ, f32 lW);
-	Quat(const char* pString);
-
+	
 	// Arithmetic
 	Quat operator*(const Quat& rhs) const;
 	Quat operator~() const;

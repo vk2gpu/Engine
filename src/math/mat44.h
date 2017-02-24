@@ -1,12 +1,13 @@
 #pragma once
 
+#include "math/dll.h"
 #include "math/vec2.h"
 #include "math/vec3.h"
 #include "math/vec4.h"
 
 //////////////////////////////////////////////////////////////////////////
 // Mat44
-class Mat44
+class MATH_DLL Mat44
 {
 private:
 	Vec4 Row0_;

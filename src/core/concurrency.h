@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/types.h"
+#include "core/dll.h"
 
 /**
  * Atomic operations.
@@ -11,67 +12,67 @@
  */
 
 /// @return Return incremented result.
-i32 AtomicInc(volatile i32* dest);
-i32 AtomicIncAcq(volatile i32* dest);
-i32 AtomicIncRel(volatile i32* dest);
+CORE_DLL_INLINE i32 AtomicInc(volatile i32* dest);
+CORE_DLL_INLINE i32 AtomicIncAcq(volatile i32* dest);
+CORE_DLL_INLINE i32 AtomicIncRel(volatile i32* dest);
 /// @return Return incremented result.
-i32 AtomicDec(volatile i32* dest);
-i32 AtomicDecAcq(volatile i32* dest);
-i32 AtomicDecRel(volatile i32* dest);
+CORE_DLL_INLINE i32 AtomicDec(volatile i32* dest);
+CORE_DLL_INLINE i32 AtomicDecAcq(volatile i32* dest);
+CORE_DLL_INLINE i32 AtomicDecRel(volatile i32* dest);
 /// @return Return result of @a dest + value.
-i32 AtomicAdd(volatile i32* dest, i32 value);
-i32 AtomicAddAcq(volatile i32* dest, i32 value);
-i32 AtomicAddRel(volatile i32* dest, i32 value);
+CORE_DLL_INLINE i32 AtomicAdd(volatile i32* dest, i32 value);
+CORE_DLL_INLINE i32 AtomicAddAcq(volatile i32* dest, i32 value);
+CORE_DLL_INLINE i32 AtomicAddRel(volatile i32* dest, i32 value);
 /// @return Return original value of @a dest, set @dest to @a dest & @a value.
-i32 AtomicAnd(volatile i32* dest, i32 value);
-i32 AtomicAndAcq(volatile i32* dest, i32 value);
-i32 AtomicAndRel(volatile i32* dest, i32 value);
+CORE_DLL_INLINE i32 AtomicAnd(volatile i32* dest, i32 value);
+CORE_DLL_INLINE i32 AtomicAndAcq(volatile i32* dest, i32 value);
+CORE_DLL_INLINE i32 AtomicAndRel(volatile i32* dest, i32 value);
 /// @return Return original value of @a dest, set @dest to @a dest | @a value.
-i32 AtomicOr(volatile i32* dest, i32 value);
-i32 AtomicOrAcq(volatile i32* dest, i32 value);
-i32 AtomicOrRel(volatile i32* dest, i32 value);
+CORE_DLL_INLINE i32 AtomicOr(volatile i32* dest, i32 value);
+CORE_DLL_INLINE i32 AtomicOrAcq(volatile i32* dest, i32 value);
+CORE_DLL_INLINE i32 AtomicOrRel(volatile i32* dest, i32 value);
 /// @return Return original value of @a dest, set @dest to @a dest ^ @a value.
-i32 AtomicXor(volatile i32* dest, i32 value);
-i32 AtomicXorAcq(volatile i32* dest, i32 value);
-i32 AtomicXorRel(volatile i32* dest, i32 value);
+CORE_DLL_INLINE i32 AtomicXor(volatile i32* dest, i32 value);
+CORE_DLL_INLINE i32 AtomicXorAcq(volatile i32* dest, i32 value);
+CORE_DLL_INLINE i32 AtomicXorRel(volatile i32* dest, i32 value);
 /// @return Original value of dest, and if original value matches @a comp, set @dest to @exchg.
-i32 AtomicCmpExchg(volatile i32* dest, i32 exchg, i32 comp);
-i32 AtomicCmpExchgAcq(volatile i32* dest, i32 exchg, i32 comp);
-i32 AtomicCmpExchgRel(volatile i32* dest, i32 exchg, i32 comp);
+CORE_DLL_INLINE i32 AtomicCmpExchg(volatile i32* dest, i32 exchg, i32 comp);
+CORE_DLL_INLINE i32 AtomicCmpExchgAcq(volatile i32* dest, i32 exchg, i32 comp);
+CORE_DLL_INLINE i32 AtomicCmpExchgRel(volatile i32* dest, i32 exchg, i32 comp);
 
 /// @return Return incremented result.
-i64 AtomicInc(volatile i64* dest);
-i64 AtomicIncAcq(volatile i64* dest);
-i64 AtomicIncRel(volatile i64* dest);
+CORE_DLL_INLINE i64 AtomicInc(volatile i64* dest);
+CORE_DLL_INLINE i64 AtomicIncAcq(volatile i64* dest);
+CORE_DLL_INLINE i64 AtomicIncRel(volatile i64* dest);
 /// @return Return incremented result.
-i64 AtomicDec(volatile i64* dest);
-i64 AtomicDecAcq(volatile i64* dest);
-i64 AtomicDecRel(volatile i64* dest);
+CORE_DLL_INLINE i64 AtomicDec(volatile i64* dest);
+CORE_DLL_INLINE i64 AtomicDecAcq(volatile i64* dest);
+CORE_DLL_INLINE i64 AtomicDecRel(volatile i64* dest);
 /// @return Return result of @a dest + value.
-i64 AtomicAdd(volatile i64* dest, i64 value);
-i64 AtomicAddAcq(volatile i64* dest, i64 value);
-i64 AtomicAddRel(volatile i64* dest, i64 value);
+CORE_DLL_INLINE i64 AtomicAdd(volatile i64* dest, i64 value);
+CORE_DLL_INLINE i64 AtomicAddAcq(volatile i64* dest, i64 value);
+CORE_DLL_INLINE i64 AtomicAddRel(volatile i64* dest, i64 value);
 /// @return Return original value of @a dest, set @dest to @a dest & @a value.
-i64 AtomicAnd(volatile i64* dest, i64 value);
-i64 AtomicAndAcq(volatile i64* dest, i64 value);
-i64 AtomicAndRel(volatile i64* dest, i64 value);
+CORE_DLL_INLINE i64 AtomicAnd(volatile i64* dest, i64 value);
+CORE_DLL_INLINE i64 AtomicAndAcq(volatile i64* dest, i64 value);
+CORE_DLL_INLINE i64 AtomicAndRel(volatile i64* dest, i64 value);
 /// @return Return original value of @a dest, set @dest to @a dest | @a value.
-i64 AtomicOr(volatile i64* dest, i64 value);
-i64 AtomicOrAcq(volatile i64* dest, i64 value);
-i64 AtomicOrRel(volatile i64* dest, i64 value);
+CORE_DLL_INLINE i64 AtomicOr(volatile i64* dest, i64 value);
+CORE_DLL_INLINE i64 AtomicOrAcq(volatile i64* dest, i64 value);
+CORE_DLL_INLINE i64 AtomicOrRel(volatile i64* dest, i64 value);
 /// @return Return original value of @a dest, set @dest to @a dest ^ @a value.
-i64 AtomicXor(volatile i64* dest, i64 value);
-i64 AtomicXorAcq(volatile i64* dest, i64 value);
-i64 AtomicXorRel(volatile i64* dest, i64 value);
+CORE_DLL_INLINE i64 AtomicXor(volatile i64* dest, i64 value);
+CORE_DLL_INLINE i64 AtomicXorAcq(volatile i64* dest, i64 value);
+CORE_DLL_INLINE i64 AtomicXorRel(volatile i64* dest, i64 value);
 /// @return Original value of dest, and if original value matches @a comp, set @dest to @exchg.
-i64 AtomicCmpExchg(volatile i64* dest, i64 exchg, i64 comp);
-i64 AtomicCmpExchgAcq(volatile i64* dest, i64 exchg, i64 comp);
-i64 AtomicCmpExchgRel(volatile i64* dest, i64 exchg, i64 comp);
+CORE_DLL_INLINE i64 AtomicCmpExchg(volatile i64* dest, i64 exchg, i64 comp);
+CORE_DLL_INLINE i64 AtomicCmpExchgAcq(volatile i64* dest, i64 exchg, i64 comp);
+CORE_DLL_INLINE i64 AtomicCmpExchgRel(volatile i64* dest, i64 exchg, i64 comp);
 
 /**
  * Thread.
  */
-class Thread
+class CORE_DLL Thread
 {
 public:
 	typedef int (*EntryPointFunc)(void*);
@@ -112,7 +113,7 @@ private:
 /**
  * Fiber.
  */
-class Fiber final
+class CORE_DLL Fiber final
 {
 public:
 	typedef void (*EntryPointFunc)(void*);
@@ -161,7 +162,7 @@ private:
 /**
  * Event.
  */
-class Event final
+class CORE_DLL Event final
 {
 public:
 	/**
@@ -201,7 +202,7 @@ private:
 /**
  * Mutex lock. Can be used recursively.
  */
-class Mutex final
+class CORE_DLL Mutex final
 {
 public:
 	Mutex();
@@ -233,7 +234,7 @@ private:
 /**
  * Scoped mutex. Will lock and unlock within scope.
  */
-class ScopedMutex final
+class CORE_DLL ScopedMutex final
 {
 public:
 	ScopedMutex(Mutex& mutex);
@@ -249,7 +250,7 @@ private:
 /**
  * Thread local storage.
  */
-class TLS
+class CORE_DLL TLS final
 {
 public:
 	TLS();

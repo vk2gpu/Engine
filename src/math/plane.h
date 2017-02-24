@@ -1,11 +1,12 @@
 #pragma once
 
+#include "math/dll.h"
 #include "math/vec3.h"
 #include "math/mat44.h"
 
 //////////////////////////////////////////////////////////////////////////
 // Plane
-class Plane
+class MATH_DLL Plane
 {
 public:
 	enum eClassify

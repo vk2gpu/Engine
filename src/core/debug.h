@@ -1,14 +1,15 @@
 #pragma once
 
+#include "core/dll.h"
 #include "core/types.h"
 
 //////////////////////////////////////////////////////////////////////////
 // Logging
-void DbgLog(const char* Text, ...);
+CORE_DLL void DbgLog(const char* Text, ...);
 
 //////////////////////////////////////////////////////////////////////////
 // DbgAssertInternal
-bool DbgAssertInternal(const char* pMessage, const char* pFile, int Line, ...);
+CORE_DLL bool DbgAssertInternal(const char* pMessage, const char* pFile, int Line, ...);
 
 //////////////////////////////////////////////////////////////////////////
 // Macros

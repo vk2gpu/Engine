@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/types.h"
+#include "client/dll.h"
 
 using WindowPlatformHandle = void*;
 struct WindowPlatformData
@@ -9,7 +10,7 @@ struct WindowPlatformData
 };
 
 
-class Window final
+class CLIENT_DLL Window final
 {
 public:
 	/**

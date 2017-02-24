@@ -222,7 +222,7 @@ namespace
 	std::string IdxToVal_string(index_type Idx)
 	{
 		char Buffer[1024] = {0};
-		sprintf_s(Buffer, sizeof(Buffer), "%u", Idx);
+		sprintf_s(Buffer, sizeof(Buffer), "%u", (int)Idx);
 		return Buffer;
 	}
 }

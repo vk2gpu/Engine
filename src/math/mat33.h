@@ -1,10 +1,11 @@
 #pragma once
 
-#include "Math/Vec3.h"
+#include "math/dll.h"
+#include "math/vec3.h"
 
 //////////////////////////////////////////////////////////////////////////
 // Mat33
-class Mat33
+class MATH_DLL Mat33
 {
 public:
 	Mat33() {}

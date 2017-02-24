@@ -1,10 +1,11 @@
 #pragma once
 
 #include "core/types.h"
+#include "core/dll.h"
 
 //////////////////////////////////////////////////////////////////////////
 // Definition
-class Timer
+class CORE_DLL Timer
 {
 public:
 	Timer() = default;
@@ -17,7 +18,7 @@ public:
 	/**
 	 * @return seconds since last call to Mark.
 	 */
-	f64 GetTime() { return GetTime() - start_; }
+	f64 GetTime() { return GetAbsoluteTime() - start_; }
 
 	/**
 	 * @return absolute time in seconds.

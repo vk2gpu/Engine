@@ -1,9 +1,10 @@
-
+ADD_DEFINITIONS("-DCORE_EXPORT=1")
 
 SET(SOURCES_PUBLIC 
 	"array.h"
 	"concurrency.h"
 	"debug.h"
+	"dll.h"
 	"file.h"
 	"hash.h"
 	"library.h"
@@ -36,7 +37,7 @@ SET(SOURCES_TESTS
 
 
 # Add core.
-ADD_LIBRARY(core STATIC ${SOURCES_PUBLIC} ${SOURCES_PRIVATE})
+ADD_LIBRARY(core SHARED ${SOURCES_PUBLIC} ${SOURCES_PRIVATE})
 SET_TARGET_PROPERTIES(core PROPERTIES FOLDER Libraries)
 
 SOURCE_GROUP("Public" FILES ${SOURCES_PUBLIC})

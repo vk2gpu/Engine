@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/types.h"
+#include "math/dll.h"
 #include "math/vec2.h"
 
 #define DECLARE_SWIZZLE2(T, X, Y)                                                                                      \
@@ -8,7 +9,7 @@
 
 //////////////////////////////////////////////////////////////////////////
 // Vec3
-struct Vec3
+struct MATH_DLL Vec3
 {
 public:
 	f32 x, y, z;

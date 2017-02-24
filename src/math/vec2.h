@@ -1,10 +1,11 @@
 #pragma once
 
 #include "core/types.h"
+#include "math/dll.h"
 
 //////////////////////////////////////////////////////////////////////////
 // Definition
-struct Vec2
+struct MATH_DLL Vec2
 {
 public:
 	f32 x, y;

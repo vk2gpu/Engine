@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/types.h"
+#include "math/dll.h"
 #include "math/vec3.h"
 
 #define DECLARE_SWIZZLE3(T, X, Y, Z)                                                                                   \
@@ -8,7 +9,7 @@
 
 //////////////////////////////////////////////////////////////////////////
 // Vec4
-struct Vec4
+struct MATH_DLL Vec4
 {
 public:
 	f32 x, y, z, w;
@@ -19,7 +20,6 @@ public:
 	Vec4(const Vec3& Rhs, f32 W);
 	Vec4(f32* Val);
 	Vec4(f32 X, f32 Y, f32 Z, f32 W);
-	Vec4(const char* pString);
 
 	Vec4 operator+(const Vec4& Rhs) const;
 	Vec4 operator-(const Vec4& Rhs) const;

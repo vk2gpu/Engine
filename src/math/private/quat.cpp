@@ -4,11 +4,6 @@
 
 #include <cmath>
 
-Quat::Quat(const char* pString)
-    : Vec4(pString)
-{
-}
-
 #define SLERP_EPSILON 0.001f
 
 Quat Quat::Slerp(const Quat& a, const Quat& b, f32 t)

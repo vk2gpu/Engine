@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/types.h"
+#include "core/dll.h"
 
 /**
  * Timestamp.
@@ -22,44 +23,44 @@ struct FileTimestamp
  * Get file or directory stats.
  * @return Success.
  */
-bool FileStats(const char* path, FileTimestamp* created, FileTimestamp* modified, i64* size);
+CORE_DLL bool FileStats(const char* path, FileTimestamp* created, FileTimestamp* modified, i64* size);
 
 /**
  * @return Does file exist?
  */
-bool FileExists(const char* path);
+CORE_DLL bool FileExists(const char* path);
 
 /**
  * Remove file.
  * @return Success.
  */
-bool FileRemove(const char* path);
+CORE_DLL bool FileRemove(const char* path);
 
 /**
  * Remove directory.
  * @pre Directory must be empty.
  * @return Success.
  */
-bool FileRemoveDir(const char* path);
+CORE_DLL bool FileRemoveDir(const char* path);
 
 /**
  * Rename file.
  * @return Success.
  */
-bool FileRename(const char* srcPath, const char* destPath);
+CORE_DLL bool FileRename(const char* srcPath, const char* destPath);
 
 /**
  * Create directories.
  * Will recursively create whole path.
  * @return Success.
  */
-bool FileCreateDir(const char* path);
+CORE_DLL bool FileCreateDir(const char* path);
 
 /**
  * Change current directory.
  * @return Success.
  */
-bool FileChangeDir(const char* path);
+CORE_DLL bool FileChangeDir(const char* path);
 
 /**
  * Flags which define behaviour or file.
@@ -79,7 +80,7 @@ DEFINE_ENUM_CLASS_FLAG_OPERATOR(FileFlags, &);
 /**
  * File class.
  */
-class File final
+class CORE_DLL File final
 {
 public:
 	File() = default;

@@ -1,11 +1,12 @@
 #pragma once
 
+#include "math/dll.h"
 #include "math/mat44.h"
 #include "math/plane.h"
 
 //////////////////////////////////////////////////////////////////////////
 // Definition
-class AABB
+class MATH_DLL AABB
 {
 public:
 	enum eClassify

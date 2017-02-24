@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/types.h"
+#include "core/dll.h"
 
 typedef void* LibHandle;
 
@@ -8,14 +9,14 @@ typedef void* LibHandle;
  * Open library (.so, .dll, .dylib).
  * @param libName Name of libtary.
  */
-LibHandle LibraryOpen(const char* libName);
+CORE_DLL LibHandle LibraryOpen(const char* libName);
 
 /**
  * Close library.
  */
-void LibraryClose(LibHandle handle);
+CORE_DLL void LibraryClose(LibHandle handle);
 
 /**
  * Get library symbol.
  */
-void* LibrarySymbol(LibHandle handle, const char* symbolName);
+CORE_DLL void* LibrarySymbol(LibHandle handle, const char* symbolName);

@@ -42,7 +42,6 @@ IF(MSVC)
     ADD_DEFINITIONS(/wd4100)	# disable unreferenced formal parameter
 ENDIF()
 
-
 # Include directories.
 INCLUDE_DIRECTORIES(
 	# 3rd party includes.
