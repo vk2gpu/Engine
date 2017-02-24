@@ -13,7 +13,7 @@ Some of the goals I intend to keep in mind for this engine:
 - Hot reloadable C++ support:
   - This builds on the previous point. In scenarios such as game jams it'd be very convenient to change code as it runs. Should also have the ability to statically link against the final build.
 - Very selective STL usage:
-  - STL headers weigh heavily on build times, and STL containers can be very slow in debug builds. Prefer C standard library and platform libraries where appropriate.
+  - STL headers weigh heavily on build times, and STL containers can be very slow in debug builds. Prefer C standard library, platform libraries, or custom code where appropriate.
 - High performance debug build:
   - Previous engine wasn't too bad, but could be improved upon.
 - Don't go as wide on platform support...yet:
