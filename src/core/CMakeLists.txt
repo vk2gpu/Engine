@@ -10,6 +10,7 @@ SET(SOURCES_PUBLIC
 	"library.h"
 	"map.h"
 	"misc.h"
+	"mpmc_bounded_queue.h"
 	"pair.h"
 	"portability.h"
 	"timer.h"
