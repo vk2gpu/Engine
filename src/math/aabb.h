@@ -9,7 +9,7 @@ namespace Math
 	/**
 	 * Axis aligned bounding box.
 	 */
-	class MATH_DLL AABB
+	class MATH_DLL AABB final
 	{
 	public:
 		enum eClassify

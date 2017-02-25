@@ -10,7 +10,7 @@ namespace Math
 	/**
 	 * 4x4 Matrix.
 	 */
-	class MATH_DLL Mat44
+	class MATH_DLL Mat44 final
 	{
 	private:
 		Vec4 Row0_;
@@ -84,8 +84,6 @@ namespace Math
 		bool IsIdentity() const;
 	};
 
-	//////////////////////////////////////////////////////////////////////////
-	// Inlines
 	inline Mat44::Mat44(const f32* pData)
 	{
 		Row0_ = Vec4(pData[0], pData[1], pData[2], pData[3]);

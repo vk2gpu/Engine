@@ -7,10 +7,14 @@
 
 namespace Math
 {
-	//////////////////////////////////////////////////////////////////////////
-	// Quat
-	class MATH_DLL Quat : public Vec4
+	/**
+	 * Quaternion.
+	 */
+	class MATH_DLL Quat final
 	{
+	public:
+		f32 x, y, z, w;
+
 	public:
 		// ctor
 		Quat();
@@ -25,6 +29,9 @@ namespace Math
 		// Additional stuff
 		void MakeIdentity();
 		f32 Magnitude();
+		f32 MagnitudeSquared() const { return Dot(*this); }
+		f32 Dot(const Quat& Rhs) const { return (x * Rhs.x) + (y * Rhs.y) + (z * Rhs.z) + (w * Rhs.w); }
+		void Normalise();
 		void Inverse();
 
 		// Interpolation
@@ -57,12 +64,18 @@ namespace Math
 	}
 
 	inline Quat::Quat(f32* Val)
-	    : Vec4(Val)
+	    : x(Val[0])
+		, y(Val[1])
+		, z(Val[2])
+		, w(Val[3])
 	{
 	}
 
 	inline Quat::Quat(f32 lX, f32 lY, f32 lZ, f32 lW)
-	    : Vec4(lX, lY, lZ, lW)
-	{
+	    : x(lX)
+		, y(lY)
+		, z(lZ)
+		, w(lW)
+    {
 	}
 } // namespace Math

@@ -5,9 +5,10 @@
 
 namespace Math
 {
-	//////////////////////////////////////////////////////////////////////////
-	// Definition
-	struct MATH_DLL Vec2
+	/**
+	 * 2D Vector.
+	 */
+	struct MATH_DLL Vec2 final
 	{
 	public:
 		f32 x, y;
@@ -38,8 +39,6 @@ namespace Math
 		void Normalise();
 	};
 
-	//////////////////////////////////////////////////////////////////////////
-	// Inlines
 	FORCEINLINE Vec2::Vec2(f32* Val)
 	    : x(Val[0])
 	    , y(Val[1])

@@ -257,7 +257,7 @@ namespace Math
 	// Return the magnitude
 	f32 Quat::Magnitude()
 	{ //
-		return sqrtf(Dot(*this));
+		return sqrtf(MagnitudeSquared());
 	}
 
 	void Quat::Inverse()

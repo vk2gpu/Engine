@@ -9,9 +9,10 @@
 
 namespace Math
 {
-	//////////////////////////////////////////////////////////////////////////
-	// Vec3
-	struct MATH_DLL Vec3
+	/**
+	 * 3D Vector.
+	 */
+	struct MATH_DLL Vec3 final
 	{
 	public:
 		f32 x, y, z;
@@ -60,8 +61,6 @@ namespace Math
 		DECLARE_SWIZZLE2(Vec2, z, z);
 	};
 
-	//////////////////////////////////////////////////////////////////////////
-	// Inlines
 	FORCEINLINE Vec3::Vec3(f32* Val)
 	    : x(Val[0])
 	    , y(Val[1])

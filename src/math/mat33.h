@@ -8,7 +8,7 @@ namespace Math
 	/**
 	 * 3x3 Matrix.
 	 */
-	class MATH_DLL Mat33
+	class MATH_DLL Mat33 final
 	{
 	public:
 		Mat33() {}

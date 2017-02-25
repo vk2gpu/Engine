@@ -9,7 +9,7 @@ namespace Math
 	/**
 	 * Plane
 	 */
-	class MATH_DLL Plane
+	class MATH_DLL Plane final
 	{
 	public:
 		enum eClassify
@@ -57,8 +57,6 @@ namespace Math
 		f32 D_;
 	};
 
-	//////////////////////////////////////////////////////////////////////////
-	// Inlines
 	inline Plane::Plane(const Vec3& Normal, f32 D)
 	{
 		Normal_ = Normal;
