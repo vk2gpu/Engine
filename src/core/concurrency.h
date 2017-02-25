@@ -82,6 +82,7 @@ namespace Core
 	 */
 	CORE_DLL_INLINE void Yield();
 	CORE_DLL_INLINE void Barrier();
+	CORE_DLL_INLINE void SwitchThread();
 
 	/**
 	 * Thread.

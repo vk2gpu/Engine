@@ -74,6 +74,7 @@ namespace Core
 #undef Yield
 	CORE_DLL_INLINE void Yield() { ::YieldProcessor(); }
 	CORE_DLL_INLINE void Barrier() { ::MemoryBarrier(); }
+	CORE_DLL_INLINE void SwitchThread() { ::SwitchToThread(); };
 	// clang-format on
 } // namespace Core
 

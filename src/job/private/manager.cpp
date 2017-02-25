@@ -1,6 +1,7 @@
 #include "job/manager.h"
 #include "core/concurrency.h"
 #include "core/mpmc_bounded_queue.h"
+#include "core/timer.h"
 #include "core/vector.h"
 
 #include <utility>
@@ -147,10 +148,10 @@ namespace Job
 					jobFiber->SwitchTo(&workerFiber);
 					worker->manager_->ReleaseFiber(jobFiber, jobFiber->job_.func_ == nullptr);
 				}
-				Core::Yield();
+				Core::SwitchThread();
 			}
 			while(!worker->exiting_)
-				Core::Yield();
+				Core::SwitchThread();
 			worker->exited_ = true;
 			return 0;
 		}
@@ -178,15 +179,32 @@ namespace Job
 		if(pendingJobs_.Dequeue(job))
 		{
 			DBG_ASSERT(job.func_);
+
+#if !defined(FINAL)
+			double startTime = Core::Timer::GetAbsoluteTime();
+			const double LOG_TIME_THRESHOLD = 100.0f / 1000000.0; // 100us.
+			const double LOG_TIME_REPEAT = 10000.0f / 1000.0;     // 1000ms.
+			double nextLogTime = startTime + LOG_TIME_THRESHOLD;
+#endif
 			while(!freeFibers_.Dequeue(fiber))
 			{
-				Core::Log("Unable to get free fiber. Increase numFibers.\n");
-				Core::Yield();
+#if !defined(FINAL)
+				double time = Core::Timer::GetAbsoluteTime();
+				if((time - startTime) > LOG_TIME_THRESHOLD)
+				{
+					if(time > nextLogTime)
+					{
+						Core::Log("Unable to get free fiber. Increase numFibers. (Total time waiting: %f ms)\n",
+						    (time - startTime) * 1000.0);
+						nextLogTime = time + LOG_TIME_REPEAT;
+					}
+				}
+#endif
+				Core::SwitchThread();
 			}
-				
+
 			*outFiber = fiber;
 			fiber->SetJob(job);
-
 		}
 
 		return !exiting_;
@@ -239,7 +257,7 @@ namespace Job
 			DBG_ASSERT(exitFiber);
 
 			while(impl_->jobCount_ > 0)
-				Core::Yield();
+				Core::SwitchThread();
 
 			Fiber* fiber = nullptr;
 			DBG_ASSERT(!impl_->waitingFibers_.Dequeue(fiber));
@@ -283,13 +301,30 @@ namespace Job
 		}
 		Core::AtomicAdd(&impl_->jobCount_, numJobDesc);
 
-		// Push jobs into pending job queue ready to be given fibers.
+// Push jobs into pending job queue ready to be given fibers.
+#if !defined(FINAL)
+		double startTime = Core::Timer::GetAbsoluteTime();
+		const double LOG_TIME_THRESHOLD = 100.0f / 1000000.0; // 100us.
+		const double LOG_TIME_REPEAT = 10000.0f / 1000.0;     // 1000ms.
+		double nextLogTime = startTime + LOG_TIME_THRESHOLD;
+#endif
 		for(i32 i = 0; i < numJobDesc; ++i)
 		{
 			while(!impl_->pendingJobs_.Enqueue(jobDescs[i]))
 			{
-				Core::Log("Unable to enqueue job. Increase maxJobs.\n");
-				Core::Yield();
+#if !defined(FINAL)
+				double time = Core::Timer::GetAbsoluteTime();
+				if((time - startTime) > LOG_TIME_THRESHOLD)
+				{
+					if(time > nextLogTime)
+					{
+						Core::Log("Unable to enqueue job, waiting. Increase maxJobs. (Total time waiting: %f ms)\n",
+						    (time - startTime) * 1000.0);
+						nextLogTime = time + LOG_TIME_REPEAT;
+					}
+				}
+#endif
+				Core::SwitchThread();
 			}
 		}
 	}
@@ -313,7 +348,7 @@ namespace Job
 			{
 				while(counter->value_ > value)
 				{
-					Core::Yield();
+					Core::SwitchThread();
 				}
 			}
 
