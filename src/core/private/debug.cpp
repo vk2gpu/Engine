@@ -9,73 +9,72 @@
 
 namespace Core
 {
-namespace
-{
-	char* GetMessageBuffer(i32& size)
+	namespace
 	{
-		static TLS tls;
-		size = 4096;
-		if(tls.Get() == nullptr)
+		char* GetMessageBuffer(i32& size)
 		{
-			char* buffer = new char[size];
-			tls.Set(buffer);
+			static TLS tls;
+			size = 4096;
+			if(tls.Get() == nullptr)
+			{
+				char* buffer = new char[size];
+				tls.Set(buffer);
+			}
+			return (char*)tls.Get();
 		}
-		return (char*)tls.Get();
 	}
-}
 
-void Log(const char* Text, ...)
-{
-	i32 MessageBufferSize = 0;
-	char* MessageBuffer = GetMessageBuffer(MessageBufferSize);	
+	void Log(const char* Text, ...)
+	{
+		i32 MessageBufferSize = 0;
+		char* MessageBuffer = GetMessageBuffer(MessageBufferSize);
 
-	va_list ArgList;
-	va_start(ArgList, Text);
+		va_list ArgList;
+		va_start(ArgList, Text);
 #if COMPILER_MSVC
-	vsprintf_s(MessageBuffer, 4096, Text, ArgList);
+		vsprintf_s(MessageBuffer, 4096, Text, ArgList);
 #else
-	vsprintf(MessageBuffer, Text, ArgList);
+		vsprintf(MessageBuffer, Text, ArgList);
 #endif
 
 #if PLATFORM_WINDOWS
-	::OutputDebugStringA(MessageBuffer);
+		::OutputDebugStringA(MessageBuffer);
 #endif
 
 #if PLATFORM_ANDROID
-	__android_log_print(ANDROID_LOG_INFO, "Engine", MessageBuffer);
+		__android_log_print(ANDROID_LOG_INFO, "Engine", MessageBuffer);
 #endif
-	printf("%s", MessageBuffer);
-}
+		printf("%s", MessageBuffer);
+	}
 
-bool AssertInternal(const char* Message, const char* File, int Line, ...)
-{
+	bool AssertInternal(const char* Message, const char* File, int Line, ...)
+	{
 #if defined(DEBUG) || defined(RELEASE)
-	i32 MessageBufferSize = 0;
-	char* MessageBuffer = GetMessageBuffer(MessageBufferSize);	
-	va_list ArgList;
-	va_start(ArgList, Line);
+		i32 MessageBufferSize = 0;
+		char* MessageBuffer = GetMessageBuffer(MessageBufferSize);
+		va_list ArgList;
+		va_start(ArgList, Line);
 #if COMPILER_MSVC
-	vsprintf_s(MessageBuffer, MessageBufferSize, Message, ArgList);
+		vsprintf_s(MessageBuffer, MessageBufferSize, Message, ArgList);
 #else
-	vsprintf(MessageBuffer, Message, ArgList);
+		vsprintf(MessageBuffer, Message, ArgList);
 #endif
-	va_end(ArgList);
+		va_end(ArgList);
 
-	Log("\"%s\" in %s on line %u.\n\nDo you wish to break?", MessageBuffer, File, Line);
+		Log("\"%s\" in %s on line %u.\n\nDo you wish to break?", MessageBuffer, File, Line);
 
-	return true;
+		return true;
 #else
-	return false;
+		return false;
 #endif
-}
+	}
 
-bool IsDebuggerAttached()
-{
+	bool IsDebuggerAttached()
+	{
 #if PLATFORM_WINDOWS
-	return !!::IsDebuggerPresent();
+		return !!::IsDebuggerPresent();
 #else
-	return false;
+		return false;
 #endif
-}
+	}
 } // namespace Core
-

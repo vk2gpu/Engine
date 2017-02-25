@@ -61,10 +61,7 @@ namespace Core
 		return *this;
 	}
 
-	u64 Thread::SetAffinity(u64 mask)
-	{
-		return ::SetThreadAffinityMask(impl_->threadHandle_, mask);
-	}
+	u64 Thread::SetAffinity(u64 mask) { return ::SetThreadAffinityMask(impl_->threadHandle_, mask); }
 
 	i32 Thread::Join()
 	{
@@ -85,6 +82,9 @@ namespace Core
 
 	struct FiberImpl
 	{
+		static const u64 SENTINAL = 0x11207CE82F00AA5ALL;
+		u64 sentinal_ = SENTINAL;
+		Fiber* parent_ = nullptr;
 		void* fiber_ = nullptr;
 		void* exitFiber_ = nullptr;
 		Fiber::EntryPointFunc entryPointFunc_ = nullptr;
@@ -104,11 +104,12 @@ namespace Core
 
 	Fiber::Fiber(EntryPointFunc entryPointFunc, void* userData, i32 stackSize, const char* debugName)
 #ifdef DEBUG
-		: debugName_(debugName)
+	    : debugName_(debugName)
 #endif
 	{
 		DBG_ASSERT(entryPointFunc);
 		impl_ = new FiberImpl();
+		impl_->parent_ = this;
 		impl_->entryPointFunc_ = entryPointFunc;
 		impl_->userData_ = userData;
 		impl_->fiber_ = ::CreateFiber(stackSize, FiberEntryPoint, impl_);
@@ -123,10 +124,11 @@ namespace Core
 
 	Fiber::Fiber(ThisThread, const char* debugName)
 #ifdef DEBUG
-		: debugName_(debugName)	
+	    : debugName_(debugName)
 #endif
 	{
 		impl_ = new FiberImpl();
+		impl_->parent_ = this;
 		impl_->entryPointFunc_ = nullptr;
 		impl_->userData_ = nullptr;
 		impl_->fiber_ = ::ConvertThreadToFiber(impl_);
@@ -160,6 +162,7 @@ namespace Core
 		using std::swap;
 		swap(impl_, other.impl_);
 		swap(debugName_, other.debugName_);
+		impl_->parent_ = this;
 	}
 
 	Fiber& Fiber::operator=(Fiber&& other)
@@ -167,12 +170,14 @@ namespace Core
 		using std::swap;
 		swap(impl_, other.impl_);
 		swap(debugName_, other.debugName_);
+		impl_->parent_ = this;
 		return *this;
 	}
 
 	void Fiber::SwitchTo()
 	{
 		DBG_ASSERT(impl_);
+		DBG_ASSERT(impl_->parent_ == this);
 		DBG_ASSERT(::GetCurrentFiber() != nullptr);
 		if(impl_)
 		{
@@ -184,9 +189,27 @@ namespace Core
 		}
 	}
 
-	bool Fiber::InFiber()
+	void* Fiber::GetUserData() const
 	{
-		return ::GetCurrentFiber() != nullptr;
+		DBG_ASSERT(impl_);
+		DBG_ASSERT(impl_->parent_ == this);
+		return impl_->userData_;
+	}
+
+	Fiber* Fiber::GetCurrentFiber()
+	{
+		if(auto fiber = ::GetCurrentFiber())
+		{
+			auto* impl = reinterpret_cast<FiberImpl*>(::GetFiberData());
+			if(impl != nullptr)
+			{
+				if(impl->sentinal_ == FiberImpl::SENTINAL)
+				{
+					return impl->parent_;
+				}
+			}
+		}
+		return nullptr;
 	}
 
 	struct EventImpl
@@ -291,4 +314,3 @@ namespace Core
 #else
 #error "Not implemented for platform!""
 #endif
-

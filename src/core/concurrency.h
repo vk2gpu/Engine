@@ -153,7 +153,8 @@ namespace Core
 		 * @param debugName Debug name of fiber.
 		 * @pre entryPointFunc != nullptr.
 		 */
-		Fiber(EntryPointFunc entryPointFunc, void* userData, i32 stackSize = DEFAULT_STACK_SIZE, const char* debugName = nullptr);
+		Fiber(EntryPointFunc entryPointFunc, void* userData, i32 stackSize = DEFAULT_STACK_SIZE,
+		    const char* debugName = nullptr);
 
 		/**
 		 * Create fiber from this thread.
@@ -172,9 +173,14 @@ namespace Core
 		void SwitchTo();
 
 		/**
-		 * @return Are we inside a fiber?
+		 * Get user data.
 		 */
-		static bool InFiber();
+		void* GetUserData() const;
+
+		/**
+		 * @return Currently executing fiber. nullptr if not in fiber.
+		 */
+		static Fiber* GetCurrentFiber();
 
 		/**
 		 * @return Is thread valid?
@@ -268,15 +274,12 @@ namespace Core
 	{
 	public:
 		ScopedMutex(Mutex& mutex)
-			: mutex_(mutex)
+		    : mutex_(mutex)
 		{
 			mutex_.Lock();
 		}
 
-		~ScopedMutex()
-		{
-			mutex_.Unlock();
-		}
+		~ScopedMutex() { mutex_.Unlock(); }
 
 	private:
 		ScopedMutex(const ScopedMutex&) = delete;
