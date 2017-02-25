@@ -63,8 +63,6 @@ namespace Core
 
 	i32 Thread::Join()
 	{
-		DBG_ASSERT(impl_);
-		DBG_ASSERT(impl_->threadHandle_);
 		if(impl_)
 		{
 			::WaitForSingleObject(impl_->threadHandle_, INFINITE);
@@ -82,28 +80,34 @@ namespace Core
 
 	struct FiberImpl
 	{
-		void* callingFiber_ = nullptr;
 		void* fiber_ = nullptr;
+		void* exitFiber_ = nullptr;
 		Fiber::EntryPointFunc entryPointFunc_ = nullptr;
 		void* userData_ = nullptr;
+#ifdef DEBUG
+		const char* debugName_ = nullptr;
+#endif
 	};
 
 	static void __stdcall FiberEntryPoint(LPVOID lpParameter)
 	{
 		auto* impl = reinterpret_cast<FiberImpl*>(lpParameter);
 		impl->entryPointFunc_(impl->userData_);
-		auto callingFiber = impl->callingFiber_;
-		impl->callingFiber_ = nullptr;
-		::SwitchToFiber(callingFiber);
+		DBG_ASSERT(impl->exitFiber_);
+		::SwitchToFiber(impl->exitFiber_);
 	}
 
-	Fiber::Fiber(EntryPointFunc entryPointFunc, void* userData, i32 stackSize)
+	Fiber::Fiber(EntryPointFunc entryPointFunc, void* userData, i32 stackSize, const char* debugName)
+#ifdef DEBUG
+		: debugName_(debugName)
+#endif
 	{
 		DBG_ASSERT(entryPointFunc);
 		impl_ = new FiberImpl();
 		impl_->entryPointFunc_ = entryPointFunc;
 		impl_->userData_ = userData;
 		impl_->fiber_ = ::CreateFiber(stackSize, FiberEntryPoint, impl_);
+		impl_->debugName_ = debugName_;
 		DBG_ASSERT_MSG(impl_->fiber_, "Unable to create fiber.");
 		if(impl_->fiber_ == nullptr)
 		{
@@ -112,12 +116,16 @@ namespace Core
 		}
 	}
 
-	Fiber::Fiber(ThisThread)
+	Fiber::Fiber(ThisThread, const char* debugName)
+#ifdef DEBUG
+		: debugName_(debugName)	
+#endif
 	{
 		impl_ = new FiberImpl();
 		impl_->entryPointFunc_ = nullptr;
 		impl_->userData_ = nullptr;
 		impl_->fiber_ = ::ConvertThreadToFiber(impl_);
+		impl_->debugName_ = debugName_;
 		DBG_ASSERT_MSG(impl_->fiber_, "Unable to create fiber. Is there already one for this thread?");
 		if(impl_->fiber_ == nullptr)
 		{
@@ -130,7 +138,6 @@ namespace Core
 	{
 		if(impl_)
 		{
-			DBG_ASSERT_MSG(impl_->callingFiber_ == nullptr, "Destructing whilst still active.");
 			if(impl_->entryPointFunc_)
 			{
 				::DeleteFiber(impl_->fiber_);
@@ -147,24 +154,28 @@ namespace Core
 	{
 		using std::swap;
 		swap(impl_, other.impl_);
+		swap(debugName_, other.debugName_);
 	}
 
 	Fiber& Fiber::operator=(Fiber&& other)
 	{
 		using std::swap;
 		swap(impl_, other.impl_);
+		swap(debugName_, other.debugName_);
 		return *this;
 	}
 
-	void Fiber::SwitchTo(Fiber& caller)
+	void Fiber::SwitchTo()
 	{
 		DBG_ASSERT(impl_);
-		DBG_ASSERT(caller.impl_);
+		DBG_ASSERT(::GetCurrentFiber() != nullptr);
 		if(impl_)
 		{
-			impl_->callingFiber_ = caller.impl_->fiber_;
+			DBG_ASSERT(::GetCurrentFiber() != impl_->fiber_);
+			void* lastExitFiber = impl_->exitFiber_;
+			impl_->exitFiber_ = impl_->entryPointFunc_ ? ::GetCurrentFiber() : nullptr;
 			::SwitchToFiber(impl_->fiber_);
-			impl_->callingFiber_ = nullptr;
+			impl_->exitFiber_ = lastExitFiber;
 		}
 	}
 
@@ -271,3 +282,4 @@ namespace Core
 #else
 #error "Not implemented for platform!""
 #endif
+

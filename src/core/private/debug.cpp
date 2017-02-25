@@ -1,4 +1,5 @@
 #include "core/debug.h"
+#include "core/concurrency.h"
 
 #include <cstdio>
 
@@ -8,13 +9,30 @@
 
 namespace Core
 {
+namespace
+{
+	char* GetMessageBuffer(i32& size)
+	{
+		static TLS tls;
+		size = 4096;
+		if(tls.Get() == nullptr)
+		{
+			char* buffer = new char[size];
+			tls.Set(buffer);
+		}
+		return (char*)tls.Get();
+	}
+}
+
 void Log(const char* Text, ...)
 {
-	static char MessageBuffer[4096];
+	i32 MessageBufferSize = 0;
+	char* MessageBuffer = GetMessageBuffer(MessageBufferSize);	
+
 	va_list ArgList;
 	va_start(ArgList, Text);
 #if COMPILER_MSVC
-	vsprintf_s(MessageBuffer, Text, ArgList);
+	vsprintf_s(MessageBuffer, 4096, Text, ArgList);
 #else
 	vsprintf(MessageBuffer, Text, ArgList);
 #endif
@@ -32,11 +50,12 @@ void Log(const char* Text, ...)
 bool AssertInternal(const char* Message, const char* File, int Line, ...)
 {
 #if defined(DEBUG) || defined(RELEASE)
-	static char MessageBuffer[4096] = {0};
+	i32 MessageBufferSize = 0;
+	char* MessageBuffer = GetMessageBuffer(MessageBufferSize);	
 	va_list ArgList;
 	va_start(ArgList, Line);
 #if COMPILER_MSVC
-	vsprintf_s(MessageBuffer, Message, ArgList);
+	vsprintf_s(MessageBuffer, MessageBufferSize, Message, ArgList);
 #else
 	vsprintf(MessageBuffer, Message, ArgList);
 #endif

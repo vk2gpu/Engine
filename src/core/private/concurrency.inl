@@ -64,6 +64,12 @@ namespace Core
 	CORE_DLL_INLINE i64 AtomicCmpExchg(volatile i64* dest, i64 exchg, i64 comp) { return ::InterlockedCompareExchange64(dest, exchg, comp); }
 	CORE_DLL_INLINE i64 AtomicCmpExchgAcq(volatile i64* dest, i64 exchg, i64 comp) { return ::InterlockedCompareExchangeAcquire64(dest, exchg, comp); }
 	CORE_DLL_INLINE i64 AtomicCmpExchgRel(volatile i64* dest, i64 exchg, i64 comp) { return ::InterlockedCompareExchangeRelease64(dest, exchg, comp); }
+
+#undef Yield
+	CORE_DLL_INLINE void Yield() { ::YieldProcessor(); }
+	CORE_DLL_INLINE void Barrier() { ::MemoryBarrier(); }
 	// clang-format on
 } // namespace Core
+
+
 #endif

@@ -72,6 +72,12 @@ namespace Core
 	CORE_DLL_INLINE i64 AtomicCmpExchgRel(volatile i64* dest, i64 exchg, i64 comp);
 
 	/**
+	 * Utility.
+	 */
+	CORE_DLL_INLINE void Yield();
+	CORE_DLL_INLINE void Barrier();
+
+	/**
 	 * Thread.
 	 */
 	class CORE_DLL Thread
@@ -97,7 +103,6 @@ namespace Core
 		/**
 		 * Wait for thread completion.
 		 * @return Return value from thread.
-		 * @pre Is valid.
 		 * @post Thread no longer valid.
 		 */
 		i32 Join();
@@ -131,14 +136,16 @@ namespace Core
 		 * @param entryPointFunc Entry point for thread to call.
 		 * @param userData User data to pass to thread.
 		 * @param stackSize Size of stack for thread.
+		 * @param debugName Debug name of fiber.
 		 * @pre entryPointFunc != nullptr.
 		 */
-		Fiber(EntryPointFunc entryPointFunc, void* userData, i32 stackSize = DEFAULT_STACK_SIZE);
+		Fiber(EntryPointFunc entryPointFunc, void* userData, i32 stackSize = DEFAULT_STACK_SIZE, const char* debugName = nullptr);
 
 		/**
 		 * Create fiber from this thread.
+		 * @param debugName Debug name.
 		 */
-		Fiber(ThisThread);
+		Fiber(ThisThread, const char* debugName = nullptr);
 
 		Fiber() = default;
 		~Fiber();
@@ -147,9 +154,8 @@ namespace Core
 
 		/**
 		 * Switch to this fiber.
-		 * @param caller Fiber we are calling from.
 		 */
-		void SwitchTo(Fiber& caller);
+		void SwitchTo();
 
 		/**
 		 * @return Is thread valid?
@@ -159,6 +165,9 @@ namespace Core
 	private:
 		Fiber(const Fiber&) = delete;
 		struct FiberImpl* impl_ = nullptr;
+#ifdef DEBUG
+		const char* debugName_ = nullptr;
+#endif
 	};
 
 	/**
@@ -239,8 +248,16 @@ namespace Core
 	class CORE_DLL ScopedMutex final
 	{
 	public:
-		ScopedMutex(Mutex& mutex);
-		~ScopedMutex();
+		ScopedMutex(Mutex& mutex)
+			: mutex_(mutex)
+		{
+			mutex_.Lock();
+		}
+
+		~ScopedMutex()
+		{
+			mutex_.Unlock();
+		}
 
 	private:
 		ScopedMutex(const ScopedMutex&) = delete;

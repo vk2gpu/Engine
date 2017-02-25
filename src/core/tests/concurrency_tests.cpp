@@ -361,12 +361,11 @@ TEST_CASE("concurrency-tests-fiber")
 
 	auto fiberFunc = [](void* inData) -> void {
 		auto* data = reinterpret_cast<SharedData*>(inData);
-		Fiber& currFiber = data->fibers_[data->currFiber_];
 		data->currFiber_++;
 		if(data->currFiber_ < data->fibers_.size())
 		{
 			Fiber& nextFiber = data->fibers_[data->currFiber_];
-			nextFiber.SwitchTo(currFiber);
+			nextFiber.SwitchTo();
 		}
 		data->exited_++;
 	};
@@ -377,7 +376,7 @@ TEST_CASE("concurrency-tests-fiber")
 	sharedData.fibers_.emplace_back(Fiber(fiberFunc, &sharedData));
 	sharedData.fibers_.emplace_back(Fiber(fiberFunc, &sharedData));
 
-	sharedData.fibers_[0].SwitchTo(primaryFiber);
+	sharedData.fibers_[0].SwitchTo();
 	REQUIRE(sharedData.currFiber_ == sharedData.fibers_.size());
 	REQUIRE(sharedData.exited_ == sharedData.fibers_.size());
 }

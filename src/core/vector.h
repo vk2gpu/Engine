@@ -3,6 +3,7 @@
 #include "core/types.h"
 #include "core/debug.h"
 
+
 namespace Core
 {
 	/**
@@ -48,6 +49,7 @@ namespace Core
 
 		void swap(Vector& Other)
 		{
+			// Include <utility> in your cpp.
 			std::swap(Data_, Other.Data_);
 			std::swap(Size_, Other.Size_);
 			std::swap(Capacity_, Other.Capacity_);
@@ -96,6 +98,17 @@ namespace Core
 			Data_[Size_++] = std::forward<TYPE>(value);
 		}
 
+		void insert(iterator Begin, iterator End)
+		{
+			i32 NumValues = (i32)(End - Begin);
+			if(Capacity_ < (Size_ + NumValues))
+				internalResize(Size_ + NumValues);
+			for(iterator It = Begin; It != End; ++It)
+			{
+				Data_[Size_++] = *It;
+			}
+		}
+		
 		void pop_back()
 		{
 			DBG_ASSERT_MSG(Size_ > 0, "No elements in vector.");
@@ -184,7 +197,7 @@ namespace Core
 			{
 				NewData = alloc(NewCapacity);
 				for(index_type Idx = 0; Idx < CopySize; ++Idx)
-					NewData[Idx] = std::move(Data_[Idx]);
+					NewData[Idx] = std::move(Data_[Idx]);	// Include <utility> in your cpp.
 			}
 			dealloc(Data_);
 			Data_ = NewData;

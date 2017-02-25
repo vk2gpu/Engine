@@ -1,0 +1,32 @@
+ADD_DEFINITIONS("-DJOB_EXPORT=1")
+
+SET(SOURCES_PUBLIC 
+	"dll.h"
+	"manager.h"
+)
+
+SET(SOURCES_PRIVATE 
+	"private/manager.cpp"
+)
+
+SET(SOURCES_TESTS
+	"tests/test_entry.cpp"
+	"tests/job_tests.cpp"
+)
+
+
+# Add job.
+ADD_LIBRARY(job SHARED ${SOURCES_PUBLIC} ${SOURCES_PRIVATE})
+SET_TARGET_PROPERTIES(job PROPERTIES FOLDER Libraries)
+TARGET_LINK_LIBRARIES(job core)
+
+SOURCE_GROUP("Public" FILES ${SOURCES_PUBLIC})
+SOURCE_GROUP("Private" FILES ${SOURCES_PRIVATE})
+
+# Add job_test.
+ADD_EXECUTABLE(job_test ${SOURCES_TESTS})
+TARGET_LINK_LIBRARIES(job_test job)
+
+SET_TARGET_PROPERTIES(job_test PROPERTIES FOLDER Tests)
+SOURCE_GROUP("Tests" FILES ${SOURCES_TESTS})
+
