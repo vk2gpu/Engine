@@ -504,7 +504,7 @@ TEST_CASE("concurrency-tests-tls")
 	struct SharedData
 	{
 		TLS tls_;
-		volatile i32 waitLock_ = 0;
+		volatile i32 waitLock_ = 4;
 		i32 numThreads_ = 4;
 	};
 
@@ -535,9 +535,8 @@ TEST_CASE("concurrency-tests-tls")
 		threadData->sharedData_->tls_.Set(&myVal);
 
 		// Wait until all threads have set their data in TLS.
-		AtomicIncAcq(&sharedData->waitLock_);
-		while(AtomicCmpExchg(&sharedData->waitLock_, sharedData->numThreads_, sharedData->numThreads_) !=
-		      sharedData->numThreads_)
+		AtomicDecAcq(&sharedData->waitLock_);
+		while(AtomicCmpExchg(&sharedData->waitLock_, 0, 0) != 0)
 			;
 
 		// Now get it and check it's the same value as the original set by the current thread.
