@@ -1,316 +1,258 @@
 #include "math/aabb.h"
+#include "math/float.h"
 #include "core/debug.h"
 #include "core/misc.h"
 
-AABB::AABB()
+namespace Math
 {
-	Empty();
-}
+	AABB::AABB() { Empty(); }
 
-AABB::AABB(const AABB& Other)
-    : Min_(Other.Min_)
-    , Max_(Other.Max_)
-{
-}
-
-AABB::AABB(const Vec3& Min, const Vec3& Max)
-    : Min_(Min)
-    , Max_(Max)
-{
-}
-
-AABB::~AABB()
-{
-}
-
-Plane AABB::FacePlane(u32 i) const
-{
-	Plane Plane;
-
-	switch(i)
+	AABB::AABB(const AABB& Other)
+	    : Min_(Other.Min_)
+	    , Max_(Other.Max_)
 	{
-	case FRONT:
-		Plane.FromPoints(Corner(LTF), Corner(LBF), Corner(RBF));
-		break;
-	case BACK:
-		Plane.FromPoints(Corner(RTB), Corner(RBB), Corner(LBB));
-		break;
-	case TOP:
-		Plane.FromPoints(Corner(LTF), Corner(RTF), Corner(RTB));
-		break;
-	case BOTTOM:
-		Plane.FromPoints(Corner(LBB), Corner(RBB), Corner(RBF));
-		break;
-	case LEFT:
-		Plane.FromPoints(Corner(LBB), Corner(LBF), Corner(LTF));
-		break;
-	case RIGHT:
-		Plane.FromPoints(Corner(RTB), Corner(RTF), Corner(RBF));
-		break;
-	default:
-		DBG_BREAK;
 	}
 
-	return Plane;
-}
-
-Vec3 AABB::FaceCentre(u32 i) const
-{
-	Vec3 FaceCentre = Centre();
-	switch(i)
+	AABB::AABB(const Vec3& Min, const Vec3& Max)
+	    : Min_(Min)
+	    , Max_(Max)
 	{
-	case FRONT:
-	case BACK:
-		FaceCentre += FacePlane(i).Normal() * (Depth() * 0.5f);
-		break;
-	case TOP:
-	case BOTTOM:
-		FaceCentre += FacePlane(i).Normal() * (Height() * 0.5f);
-		break;
-	case LEFT:
-	case RIGHT:
-		FaceCentre += FacePlane(i).Normal() * (Width() * 0.5f);
-		break;
-	default:
-		DBG_BREAK;
 	}
 
-	return FaceCentre;
-}
+	AABB::~AABB() {}
 
-bool AABB::LineIntersect(const Vec3& Start, const Vec3& End, Vec3* pIntersectionPoint, Vec3* pIntersectionNormal) const
-{
-	// Planes. Screw it.
-	// Totally inoptimal.
-	Plane Planes[6];
-	Vec3 Intersects[6];
-	f32 Distance;
-	for(u32 i = 0; i < 6; ++i)
+	Plane AABB::FacePlane(u32 i) const
 	{
-		Planes[i] = FacePlane(i);
-		if(!Planes[i].LineIntersection(Start, End, Distance, Intersects[i]))
+		Plane Plane;
+
+		switch(i)
 		{
-			Intersects[i] = Vec3(1e24f, 1e24f, 1e24f);
+		case FRONT:
+			Plane.FromPoints(Corner(LTF), Corner(LBF), Corner(RBF));
+			break;
+		case BACK:
+			Plane.FromPoints(Corner(RTB), Corner(RBB), Corner(LBB));
+			break;
+		case TOP:
+			Plane.FromPoints(Corner(LTF), Corner(RTF), Corner(RTB));
+			break;
+		case BOTTOM:
+			Plane.FromPoints(Corner(LBB), Corner(RBB), Corner(RBF));
+			break;
+		case LEFT:
+			Plane.FromPoints(Corner(LBB), Corner(LBF), Corner(LTF));
+			break;
+		case RIGHT:
+			Plane.FromPoints(Corner(RTB), Corner(RTF), Corner(RBF));
+			break;
+		default:
+			DBG_BREAK;
 		}
+
+		return Plane;
 	}
 
-	// Reject classified and find nearest.
-	f32 Nearest = 1e24f;
-	u32 iNearest = 0xffffffff;
-
-	for(u32 i = 0; i < 6; ++i)
+	Vec3 AABB::FaceCentre(u32 i) const
 	{
-		// For every point...
-		// ...check against planes.
-		bool Valid = true;
-		for(u32 j = 0; j < 6; ++j)
+		Vec3 FaceCentre = Centre();
+		switch(i)
 		{
-			if(Planes[j].Classify(Intersects[i]) == Plane::FRONT)
+		case FRONT:
+		case BACK:
+			FaceCentre += FacePlane(i).Normal() * (Depth() * 0.5f);
+			break;
+		case TOP:
+		case BOTTOM:
+			FaceCentre += FacePlane(i).Normal() * (Height() * 0.5f);
+			break;
+		case LEFT:
+		case RIGHT:
+			FaceCentre += FacePlane(i).Normal() * (Width() * 0.5f);
+			break;
+		default:
+			DBG_BREAK;
+		}
+
+		return FaceCentre;
+	}
+
+	bool AABB::LineIntersect(
+	    const Vec3& Start, const Vec3& End, Vec3* pIntersectionPoint, Vec3* pIntersectionNormal) const
+	{
+		// Planes. Screw it.
+		// Totally inoptimal.
+		Plane Planes[6];
+		Vec3 Intersects[6];
+		f32 Distance;
+		for(u32 i = 0; i < 6; ++i)
+		{
+			Planes[i] = FacePlane(i);
+			if(!Planes[i].LineIntersection(Start, End, Distance, Intersects[i]))
 			{
-				Valid = false;
-				break;
+				Intersects[i] = Vec3(1e24f, 1e24f, 1e24f);
 			}
 		}
 
-		// If its valid, check distance.
-		if(Valid)
-		{
-			Distance = (Start - Intersects[i]).MagnitudeSquared();
+		// Reject classified and find nearest.
+		f32 Nearest = 1e24f;
+		u32 iNearest = 0xffffffff;
 
-			if(Distance < Nearest)
+		for(u32 i = 0; i < 6; ++i)
+		{
+			// For every point...
+			// ...check against planes.
+			bool Valid = true;
+			for(u32 j = 0; j < 6; ++j)
 			{
-				Nearest = Distance;
-				iNearest = i;
+				if(Planes[j].Classify(Intersects[i]) == Plane::FRONT)
+				{
+					Valid = false;
+					break;
+				}
+			}
+
+			// If its valid, check distance.
+			if(Valid)
+			{
+				Distance = (Start - Intersects[i]).MagnitudeSquared();
+
+				if(Distance < Nearest)
+				{
+					Nearest = Distance;
+					iNearest = i;
+				}
 			}
 		}
+
+		//
+		if(iNearest != 0xffffffff)
+		{
+			if(pIntersectionPoint != NULL)
+			{
+				*pIntersectionPoint = Intersects[iNearest];
+			}
+
+			if(pIntersectionNormal != NULL)
+			{
+				*pIntersectionNormal = Planes[iNearest].Normal();
+			}
+
+			return true;
+		}
+		return false;
 	}
 
-	//
-	if(iNearest != 0xffffffff)
+	bool AABB::BoxIntersect(const AABB& Box, AABB* pIntersectionBox) const
 	{
-		if(pIntersectionPoint != NULL)
+		// Check for no overlap.
+		if((Min_.x > Box.Max_.x) || (Max_.x < Box.Min_.x) || (Min_.y > Box.Max_.y) || (Max_.y < Box.Min_.y) ||
+		    (Min_.z > Box.Max_.z) || (Max_.z < Box.Min_.z))
 		{
-			*pIntersectionPoint = Intersects[iNearest];
+			return false;
 		}
 
-		if(pIntersectionNormal != NULL)
+		// Overlap, compute AABB of intersection.
+		if(pIntersectionBox != NULL)
 		{
-			*pIntersectionNormal = Planes[iNearest].Normal();
+			pIntersectionBox->Min_.x = Core::Max(Min_.x, Box.Min_.x);
+			pIntersectionBox->Max_.x = Core::Min(Max_.x, Box.Max_.x);
+			pIntersectionBox->Min_.y = Core::Max(Min_.y, Box.Min_.y);
+			pIntersectionBox->Max_.y = Core::Min(Max_.y, Box.Max_.y);
+			pIntersectionBox->Min_.z = Core::Max(Min_.z, Box.Min_.z);
+			pIntersectionBox->Max_.z = Core::Min(Max_.z, Box.Max_.z);
 		}
 
 		return true;
 	}
-	return false;
-}
 
-bool AABB::BoxIntersect(const AABB& Box, AABB* pIntersectionBox) const
-{
-	// Check for no overlap.
-	if((Min_.x > Box.Max_.x) || (Max_.x < Box.Min_.x) || (Min_.y > Box.Max_.y) || (Max_.y < Box.Min_.y) ||
-	    (Min_.z > Box.Max_.z) || (Max_.z < Box.Min_.z))
+	AABB::eClassify AABB::Classify(const Vec3& Point) const
 	{
-		return false;
-	}
-
-	// Overlap, compute AABB of intersection.
-	if(pIntersectionBox != NULL)
-	{
-		pIntersectionBox->Min_.x = Max(Min_.x, Box.Min_.x);
-		pIntersectionBox->Max_.x = Min(Max_.x, Box.Max_.x);
-		pIntersectionBox->Min_.y = Max(Min_.y, Box.Min_.y);
-		pIntersectionBox->Max_.y = Min(Max_.y, Box.Max_.y);
-		pIntersectionBox->Min_.z = Max(Min_.z, Box.Min_.z);
-		pIntersectionBox->Max_.z = Min(Max_.z, Box.Max_.z);
-	}
-
-	return true;
-}
-
-AABB::eClassify AABB::Classify(const Vec3& Point) const
-{
-	if((Point.x >= Min_.x && Point.x <= Max_.x) && (Point.y >= Min_.y && Point.y <= Max_.y) &&
-	    (Point.z >= Min_.z && Point.z <= Max_.z))
-	{
-		return INSIDE;
-	}
-
-	return OUTSIDE;
-}
-
-AABB::eClassify AABB::Classify(const AABB& AABB) const
-{
-	u32 PointsInside = 0;
-	for(u32 i = 0; i < 8; ++i)
-	{
-		Vec3 Point = AABB.Corner(i);
 		if((Point.x >= Min_.x && Point.x <= Max_.x) && (Point.y >= Min_.y && Point.y <= Max_.y) &&
 		    (Point.z >= Min_.z && Point.z <= Max_.z))
 		{
-			PointsInside++;
+			return INSIDE;
 		}
+
+		return OUTSIDE;
 	}
 
-	if(PointsInside == 8)
+	AABB::eClassify AABB::Classify(const AABB& AABB) const
 	{
-		return INSIDE;
+		u32 PointsInside = 0;
+		for(u32 i = 0; i < 8; ++i)
+		{
+			Vec3 Point = AABB.Corner(i);
+			if((Point.x >= Min_.x && Point.x <= Max_.x) && (Point.y >= Min_.y && Point.y <= Max_.y) &&
+			    (Point.z >= Min_.z && Point.z <= Max_.z))
+			{
+				PointsInside++;
+			}
+		}
+
+		if(PointsInside == 8)
+		{
+			return INSIDE;
+		}
+
+		if(PointsInside > 0)
+		{
+			return SPANNING;
+		}
+
+		return OUTSIDE;
 	}
 
-	if(PointsInside > 0)
+	AABB AABB::Transform(const Mat44& Transform) const
 	{
-		return SPANNING;
+		AABB NewAABB;
+
+		// Add transformed corners.
+		NewAABB.ExpandBy(Corner(0) * Transform);
+		NewAABB.ExpandBy(Corner(1) * Transform);
+		NewAABB.ExpandBy(Corner(2) * Transform);
+		NewAABB.ExpandBy(Corner(3) * Transform);
+		NewAABB.ExpandBy(Corner(4) * Transform);
+		NewAABB.ExpandBy(Corner(5) * Transform);
+		NewAABB.ExpandBy(Corner(6) * Transform);
+		NewAABB.ExpandBy(Corner(7) * Transform);
+
+		DBG_ASSERT(!NewAABB.IsEmpty());
+		return NewAABB;
 	}
 
-	return OUTSIDE;
-}
+	Vec3 AABB::Corner(u32 i) const
+	{
+		return Vec3((i & 1) ? Min_.x : Max_.x, (i & 2) ? Min_.y : Max_.y, (i & 4) ? Min_.z : Max_.z);
+	}
 
-AABB AABB::Transform(const Mat44& Transform) const
-{
-	AABB NewAABB;
+	void AABB::Empty()
+	{
+		Min_ = Vec3(1e24f, 1e24f, 1e24f);
+		Max_ = Vec3(-1e24f, -1e24f, -1e24f);
+	}
 
-	// Add transformed corners.
-	NewAABB.ExpandBy(Corner(0) * Transform);
-	NewAABB.ExpandBy(Corner(1) * Transform);
-	NewAABB.ExpandBy(Corner(2) * Transform);
-	NewAABB.ExpandBy(Corner(3) * Transform);
-	NewAABB.ExpandBy(Corner(4) * Transform);
-	NewAABB.ExpandBy(Corner(5) * Transform);
-	NewAABB.ExpandBy(Corner(6) * Transform);
-	NewAABB.ExpandBy(Corner(7) * Transform);
 
-	DBG_ASSERT(!NewAABB.IsEmpty());
-	return NewAABB;
-}
+	void AABB::ExpandBy(const Vec3& Point)
+	{
+		Min_.x = Core::Min(Min_.x, Point.x);
+		Min_.y = Core::Min(Min_.y, Point.y);
+		Min_.z = Core::Min(Min_.z, Point.z);
 
-void AABB::Minimum(const Vec3& Min)
-{
-	Min_ = Min;
-}
+		Max_.x = Core::Max(Max_.x, Point.x);
+		Max_.y = Core::Max(Max_.y, Point.y);
+		Max_.z = Core::Max(Max_.z, Point.z);
+	}
 
-void AABB::Maximum(const Vec3& Max)
-{
-	Max_ = Max;
-}
+	void AABB::ExpandBy(const AABB& AABB)
+	{
+		DBG_ASSERT(!AABB.IsEmpty());
+		Min_.x = Core::Min(Min_.x, AABB.Min_.x);
+		Min_.y = Core::Min(Min_.y, AABB.Min_.y);
+		Min_.z = Core::Min(Min_.z, AABB.Min_.z);
 
-const Vec3& AABB::Minimum() const
-{
-	return Min_;
-}
+		Max_.x = Core::Max(Max_.x, AABB.Max_.x);
+		Max_.y = Core::Max(Max_.y, AABB.Max_.y);
+		Max_.z = Core::Max(Max_.z, AABB.Max_.z);
+	}
 
-const Vec3& AABB::Maximum() const
-{
-	return Max_;
-}
-
-Vec3 AABB::Corner(u32 i) const
-{
-	return Vec3((i & 1) ? Min_.x : Max_.x, (i & 2) ? Min_.y : Max_.y, (i & 4) ? Min_.z : Max_.z);
-}
-
-Vec3 AABB::Centre() const
-{
-	return ((Min_ + Max_) * 0.5f);
-}
-
-Vec3 AABB::Dimensions() const
-{
-	return (Max_ - Min_);
-}
-
-f32 AABB::Diameter() const
-{
-	return ((Max_ - Min_).Magnitude());
-}
-
-void AABB::Empty()
-{
-	Min_ = Vec3(1e24f, 1e24f, 1e24f);
-	Max_ = Vec3(-1e24f, -1e24f, -1e24f);
-}
-
-bool AABB::IsEmpty() const
-{
-	return ((Min_.x > Max_.x) || (Min_.y > Max_.y) || (Min_.z > Max_.z));
-}
-
-void AABB::ExpandBy(const Vec3& Point)
-{
-	Min_.x = Min(Min_.x, Point.x);
-	Min_.y = Min(Min_.y, Point.y);
-	Min_.z = Min(Min_.z, Point.z);
-
-	Max_.x = Max(Max_.x, Point.x);
-	Max_.y = Max(Max_.y, Point.y);
-	Max_.z = Max(Max_.z, Point.z);
-}
-
-void AABB::ExpandBy(const AABB& AABB)
-{
-	DBG_ASSERT(!AABB.IsEmpty());
-	Min_.x = Min(Min_.x, AABB.Min_.x);
-	Min_.y = Min(Min_.y, AABB.Min_.y);
-	Min_.z = Min(Min_.z, AABB.Min_.z);
-
-	Max_.x = Max(Max_.x, AABB.Max_.x);
-	Max_.y = Max(Max_.y, AABB.Max_.y);
-	Max_.z = Max(Max_.z, AABB.Max_.z);
-}
-
-f32 AABB::Width() const
-{
-	return Max_.x - Min_.x;
-}
-
-f32 AABB::Height() const
-{
-	return Max_.y - Min_.y;
-}
-
-f32 AABB::Depth() const
-{
-	return Max_.z - Min_.z;
-}
-
-f32 AABB::Volume() const
-{
-	return (Width() * Height() * Depth());
-}
+} // namespace Math

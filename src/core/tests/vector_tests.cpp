@@ -3,6 +3,8 @@
 
 #include "catch.hpp"
 
+using namespace Core;
+
 namespace
 {
 	typedef i32 index_type;

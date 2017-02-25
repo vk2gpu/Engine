@@ -3,28 +3,32 @@
 #include "core/types.h"
 #include "core/dll.h"
 
-//////////////////////////////////////////////////////////////////////////
-// Definition
-class CORE_DLL Timer
+namespace Core
 {
-public:
-	Timer() = default;
-
 	/**
-	 * Mark point of reference.
+	 * High precision timer.
 	 */
-	void Mark() { start_ = GetAbsoluteTime(); }
+	class CORE_DLL Timer
+	{
+	public:
+		Timer() = default;
 
-	/**
-	 * @return seconds since last call to Mark.
-	 */
-	f64 GetTime() { return GetAbsoluteTime() - start_; }
+		/**
+		 * Mark point of reference.
+		 */
+		void Mark() { start_ = GetAbsoluteTime(); }
 
-	/**
-	 * @return absolute time in seconds.
-	 */
-	static f64 GetAbsoluteTime();
+		/**
+		 * @return seconds since last call to Mark.
+		 */
+		f64 GetTime() { return GetAbsoluteTime() - start_; }
 
-private:
-	f64 start_ = 0;
-};
+		/**
+		 * @return absolute time in seconds.
+		 */
+		static f64 GetAbsoluteTime();
+
+	private:
+		f64 start_ = 0;
+	};
+} // namespace Core

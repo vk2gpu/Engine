@@ -3,155 +3,158 @@
 #include "core/types.h"
 #include "core/dll.h"
 
-/**
- * Timestamp.
- */
-struct FileTimestamp
+namespace Core
 {
-	u32 seconds_ = 0;
-	u32 minutes_ = 0;
-	u32 hours_ = 0;
-	u32 monthDay_ = 0;
-	u32 month_ = 0;
-	u32 year_ = 0;
-	u32 weekDay_ = 0;
-	u32 yearDay_ = 0;
-	u32 isDST_ = 0;
-};
-
-/**
- * Get file or directory stats.
- * @return Success.
- */
-CORE_DLL bool FileStats(const char* path, FileTimestamp* created, FileTimestamp* modified, i64* size);
-
-/**
- * @return Does file exist?
- */
-CORE_DLL bool FileExists(const char* path);
-
-/**
- * Remove file.
- * @return Success.
- */
-CORE_DLL bool FileRemove(const char* path);
-
-/**
- * Remove directory.
- * @pre Directory must be empty.
- * @return Success.
- */
-CORE_DLL bool FileRemoveDir(const char* path);
-
-/**
- * Rename file.
- * @return Success.
- */
-CORE_DLL bool FileRename(const char* srcPath, const char* destPath);
-
-/**
- * Create directories.
- * Will recursively create whole path.
- * @return Success.
- */
-CORE_DLL bool FileCreateDir(const char* path);
-
-/**
- * Change current directory.
- * @return Success.
- */
-CORE_DLL bool FileChangeDir(const char* path);
-
-/**
- * Flags which define behaviour or file.
- */
-enum class FileFlags : u32
-{
-	NONE = 0x0,
-	READ = 0x1,
-	WRITE = 0x2,
-	APPEND = 0x4,
-	CREATE = 0x8,
-};
-
-DEFINE_ENUM_CLASS_FLAG_OPERATOR(FileFlags, |);
-DEFINE_ENUM_CLASS_FLAG_OPERATOR(FileFlags, &);
-
-/**
- * File class.
- */
-class CORE_DLL File final
-{
-public:
-	File() = default;
+	/**
+	 * Timestamp.
+	 */
+	struct FileTimestamp
+	{
+		u32 seconds_ = 0;
+		u32 minutes_ = 0;
+		u32 hours_ = 0;
+		u32 monthDay_ = 0;
+		u32 month_ = 0;
+		u32 year_ = 0;
+		u32 weekDay_ = 0;
+		u32 yearDay_ = 0;
+		u32 isDST_ = 0;
+	};
 
 	/**
-	 * Open file.
-	 * @param path Path to open.
-	 * @param
+	 * Get file or directory stats.
+	 * @return Success.
 	 */
-	File(const char* path, FileFlags flags);
-	~File();
-
-	/// Move operators.
-	File(File&&);
-	File& operator=(File&&);
+	CORE_DLL bool FileStats(const char* path, FileTimestamp* created, FileTimestamp* modified, i64* size);
 
 	/**
-	 * Read bytes from file.
-	 * @param buffer Buffer to read into.
-	 * @param bytes Bytes to read.
-	 * @return Bytes read.
-	 * @pre GetFlags contains FileFlags::READ.
-	 * @pre buffer != nullptr.
-	 * @pre bytes > 0.
+	 * @return Does file exist?
 	 */
-	i64 Read(void* buffer, i64 bytes);
+	CORE_DLL bool FileExists(const char* path);
 
 	/**
-	 * Write bytes to end of file.
-	 * @param buffer Buffer to write.
-	 * @param bytes Bytes to write.
-	 * @return Bytes written.
-	 * @pre GetFlags contains FileFlags::WRITE.
-	 * @pre buffer != nullptr.
-	 * @pre bytes > 0.
+	 * Remove file.
+	 * @return Success.
 	 */
-	i64 Write(const void* buffer, i64 bytes);
+	CORE_DLL bool FileRemove(const char* path);
 
 	/**
-	 * Seek to location within file.
-	 * @param offset Offset in bytes.
-	 * @pre GetFlags contains FileFlags::READ or FileFlags::WRITE.
-	 * @pre offset >= 0.
-	 * @return Moved location successfully.
+	 * Remove directory.
+	 * @pre Directory must be empty.
+	 * @return Success.
 	 */
-	bool Seek(i64 offset);
+	CORE_DLL bool FileRemoveDir(const char* path);
 
 	/**
-	 * Get current read/write position in file..
-	 * @param offset Offset in bytes.
-	 * @pre GetFlags contains FileFlags::READ or FileFlags::WRITE.
+	 * Rename file.
+	 * @return Success.
 	 */
-	i64 Tell() const;
+	CORE_DLL bool FileRename(const char* srcPath, const char* destPath);
 
 	/**
-	 * @return File size.
+	 * Create directories.
+	 * Will recursively create whole path.
+	 * @return Success.
 	 */
-	i64 Size() const;
+	CORE_DLL bool FileCreateDir(const char* path);
 
 	/**
-	 * @return flags.
+	 * Change current directory.
+	 * @return Success.
 	 */
-	FileFlags GetFlags() const;
+	CORE_DLL bool FileChangeDir(const char* path);
 
 	/**
-	 * @return Is file valid?
+	 * Flags which define behaviour or file.
 	 */
-	operator bool() const { return impl_ != nullptr; }
+	enum class FileFlags : u32
+	{
+		NONE = 0x0,
+		READ = 0x1,
+		WRITE = 0x2,
+		APPEND = 0x4,
+		CREATE = 0x8,
+	};
 
-private:
-	File(const File&) = delete;
+	DEFINE_ENUM_CLASS_FLAG_OPERATOR(FileFlags, |);
+	DEFINE_ENUM_CLASS_FLAG_OPERATOR(FileFlags, &);
 
-	struct FileImpl* impl_ = nullptr;
-};
+	/**
+	 * File class.
+	 */
+	class CORE_DLL File final
+	{
+	public:
+		File() = default;
+
+		/**
+		 * Open file.
+		 * @param path Path to open.
+		 * @param
+		 */
+		File(const char* path, FileFlags flags);
+		~File();
+
+		/// Move operators.
+		File(File&&);
+		File& operator=(File&&);
+
+		/**
+		 * Read bytes from file.
+		 * @param buffer Buffer to read into.
+		 * @param bytes Bytes to read.
+		 * @return Bytes read.
+		 * @pre GetFlags contains FileFlags::READ.
+		 * @pre buffer != nullptr.
+		 * @pre bytes > 0.
+		 */
+		i64 Read(void* buffer, i64 bytes);
+
+		/**
+		 * Write bytes to end of file.
+		 * @param buffer Buffer to write.
+		 * @param bytes Bytes to write.
+		 * @return Bytes written.
+		 * @pre GetFlags contains FileFlags::WRITE.
+		 * @pre buffer != nullptr.
+		 * @pre bytes > 0.
+		 */
+		i64 Write(const void* buffer, i64 bytes);
+
+		/**
+		 * Seek to location within file.
+		 * @param offset Offset in bytes.
+		 * @pre GetFlags contains FileFlags::READ or FileFlags::WRITE.
+		 * @pre offset >= 0.
+		 * @return Moved location successfully.
+		 */
+		bool Seek(i64 offset);
+
+		/**
+		 * Get current read/write position in file..
+		 * @param offset Offset in bytes.
+		 * @pre GetFlags contains FileFlags::READ or FileFlags::WRITE.
+		 */
+		i64 Tell() const;
+
+		/**
+		 * @return File size.
+		 */
+		i64 Size() const;
+
+		/**
+		 * @return flags.
+		 */
+		FileFlags GetFlags() const;
+
+		/**
+		 * @return Is file valid?
+		 */
+		operator bool() const { return impl_ != nullptr; }
+
+	private:
+		File(const File&) = delete;
+
+		struct FileImpl* impl_ = nullptr;
+	};
+} // namespace Core

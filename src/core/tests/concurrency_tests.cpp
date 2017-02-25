@@ -3,6 +3,8 @@
 
 #include "catch.hpp"
 
+using namespace Core;
+
 TEST_CASE("concurrency-tests-atomic-inc")
 {
 	SECTION("relaxed")

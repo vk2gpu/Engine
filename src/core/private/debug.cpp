@@ -6,10 +6,9 @@
 #include <windows.h>
 #endif
 
-
-//////////////////////////////////////////////////////////////////////////
-// DbgLog
-void DbgLog(const char* Text, ...)
+namespace Core
+{
+void Log(const char* Text, ...)
 {
 	static char MessageBuffer[4096];
 	va_list ArgList;
@@ -30,9 +29,7 @@ void DbgLog(const char* Text, ...)
 	printf("%s", MessageBuffer);
 }
 
-//////////////////////////////////////////////////////////////////////////
-// DbgAssertInternal
-bool DbgAssertInternal(const char* Message, const char* File, int Line, ...)
+bool AssertInternal(const char* Message, const char* File, int Line, ...)
 {
 #if defined(DEBUG) || defined(RELEASE)
 	static char MessageBuffer[4096] = {0};
@@ -45,10 +42,21 @@ bool DbgAssertInternal(const char* Message, const char* File, int Line, ...)
 #endif
 	va_end(ArgList);
 
-	DbgLog("\"%s\" in %s on line %u.\n\nDo you wish to break?", MessageBuffer, File, Line);
+	Log("\"%s\" in %s on line %u.\n\nDo you wish to break?", MessageBuffer, File, Line);
 
 	return true;
 #else
 	return false;
 #endif
 }
+
+bool IsDebuggerAttached()
+{
+#if PLATFORM_WINDOWS
+	return !!::IsDebuggerPresent();
+#else
+	return false;
+#endif
+}
+} // namespace Core
+

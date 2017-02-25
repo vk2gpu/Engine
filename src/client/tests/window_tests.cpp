@@ -7,6 +7,9 @@
 #include <Windows.h>
 #endif
 
+using namespace Core;
+using namespace Client;
+
 namespace
 {
 }

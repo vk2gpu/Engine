@@ -17,19 +17,17 @@ typedef std::int8_t i8;
 typedef float f32;
 typedef double f64;
 
-#define DEFINE_ENUM_CLASS_FLAG_OPERATOR( _Type, _Operator ) \
-	inline _Type operator _Operator##= ( _Type& A, _Type B ) \
-	{ \
-		A = (_Type)( (int)A _Operator (int)B ); \
-		return A; \
-	} \
-	inline _Type operator _Operator ( _Type A, _Type B ) \
-	{ \
-		return (_Type)( (int)A _Operator (int)B ); \
-	} 
+#define DEFINE_ENUM_CLASS_FLAG_OPERATOR(_Type, _Operator)                                                              \
+	inline _Type operator _Operator##=(_Type& A, _Type B)                                                              \
+	{                                                                                                                  \
+		A = (_Type)((int)A _Operator(int) B);                                                                          \
+		return A;                                                                                                      \
+	}                                                                                                                  \
+	inline _Type operator _Operator(_Type A, _Type B) { return (_Type)((int)A _Operator(int) B); }
 
-#define DEFINE_ENUM_CLASS_UNARY_FLAG_OPERATOR( _Type, _Operator ) \
-	inline _Type operator _Operator ( _Type A ) \
-	{ \
-		return (_Type)( _Operator (int)A ); \
-	} 
+#define DEFINE_ENUM_CLASS_UNARY_FLAG_OPERATOR(_Type, _Operator)                                                        \
+	inline _Type operator _Operator(_Type A) { return (_Type)(_Operator(int) A); }
+
+namespace Core
+{
+}

@@ -2,19 +2,23 @@
 
 #include "core/types.h"
 
-//////////////////////////////////////////////////////////////////////////
-// Definition
-template<typename FIRST_TYPE, typename SECOND_TYPE>
-class Pair
+namespace Core
 {
-public:
-	Pair() {}
-	Pair(const FIRST_TYPE& First, const SECOND_TYPE& Second)
-	    : First_(First)
-	    , Second_(Second)
+	/**
+	 * Pair of values.
+	 */
+	template<typename FIRST_TYPE, typename SECOND_TYPE>
+	class Pair
 	{
-	}
+	public:
+		Pair() {}
+		Pair(const FIRST_TYPE& First, const SECOND_TYPE& Second)
+		    : First_(First)
+		    , Second_(Second)
+		{
+		}
 
-	FIRST_TYPE First_;
-	SECOND_TYPE Second_;
-};
+		FIRST_TYPE First_;
+		SECOND_TYPE Second_;
+	};
+} // namespace Core
