@@ -33,3 +33,10 @@ Notes about style choices:
   - I've usually kept to "One class, one cpp, one header" in the past, but realistically it just isn't always worth doing. For example, concurrency.h. In the past I'd have had a separate thread, mutex, atomic, etc header. The logic for grouping it all here in this case is if you need one of those constructs, you probably need another. Fewer source files where appropriate should also improve build times, as there are fewer compilation units overall.
 - American English:
   - As most APIs use American English for spelling rather than British English, in the name of consistency I will be trying to stick with American English spelling (synchronize, color, etc).
+
+
+References:
+- Bounded MPMC queue
+  - http://www.1024cores.net/home/lock-free-algorithms/queues/bounded-mpmc-queue
+- Parallelizing the Naughty Dog Engine Using Fibers
+  - http://www.gdcvault.com/play/1022186/Parallelizing-the-Naughty-Dog-Engine

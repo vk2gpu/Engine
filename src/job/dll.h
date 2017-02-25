@@ -13,7 +13,7 @@
 #endif
 
 #if CODE_INLINE
-#define JOB_DLL_INLINE
+#define JOB_DLL_INLINE INLINE
 #else
 #define JOB_DLL_INLINE JOB_DLL
 #endif

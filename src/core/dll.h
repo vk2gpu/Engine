@@ -13,7 +13,7 @@
 #endif
 
 #if CODE_INLINE
-#define CORE_DLL_INLINE
+#define CORE_DLL_INLINE INLINE
 #else
 #define CORE_DLL_INLINE CORE_DLL
 #endif

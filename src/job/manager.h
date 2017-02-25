@@ -5,6 +5,11 @@
 
 namespace Job
 {
+	/**
+	 * Job manager.
+	 * This is based upon the "Parallelizing the Naughty Dog Engine Using Fibers" talk found here:
+	 * http://www.gdcvault.com/play/1022186/Parallelizing-the-Naughty-Dog-Engine
+	 */
 	class JOB_DLL Manager final
 	{
 	public:

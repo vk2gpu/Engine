@@ -32,18 +32,20 @@ namespace Job
 		Core::Vector<class Worker*> workers_;
 		/// Free fibers.
 		Core::MPMCBoundedQueue<class Fiber*> freeFibers_;
-		/// Number of free fibers. ONLY FOR DEBUG PURPOSES.
-		volatile i32 numFreeFibers_ = 0;
 		/// Waiting fibers.
 		Core::MPMCBoundedQueue<class Fiber*> waitingFibers_;
-		/// Number of waiting fibers. ONLY FOR DEBUG PURPOSES.
-		volatile i32 numWaitingFibers_ = 0;
 		/// Jobs.
 		Core::MPMCBoundedQueue<JobDesc> pendingJobs_;
-		/// Number of pending jobs.
-		volatile i32 numPendingJobs_ = 0;
 		/// Out of fibers counter.
 		volatile i32 outOfFibers_ = 0;
+#ifdef DEBUG
+		/// Number of free fibers. ONLY FOR DEBUG PURPOSES.
+		volatile i32 numFreeFibers_ = 0;
+		/// Number of waiting fibers. ONLY FOR DEBUG PURPOSES.
+		volatile i32 numWaitingFibers_ = 0;
+		/// Number of pending jobs. ONLY FOR DEBUG PURPOSES.
+		volatile i32 numPendingJobs_ = 0;
+#endif
 		/// Fiber stack size.
 		i32 fiberStackSize_ = 0;
 		/// Are we exiting?
@@ -189,7 +191,9 @@ namespace Job
 		JobDesc job;
 		if(pendingJobs_.Dequeue(job))
 		{
+#ifdef DEBUG
 			Core::AtomicDec(&numPendingJobs_);
+#endif
 
 			DBG_ASSERT(job.func_);
 
@@ -238,7 +242,9 @@ namespace Job
 				}
 			}
 
+#ifdef DEBUG
 			Core::AtomicDec(&numFreeFibers_);
+#endif
 
 			*outFiber = fiber;
 			fiber->SetJob(job);
@@ -251,7 +257,9 @@ namespace Job
 		// First check for waiting fibers.
 		if(waitingFibers_.Dequeue(fiber))
 		{
+#ifdef DEBUG
 			Core::AtomicInc(&numWaitingFibers_);
+#endif
 			*outFiber = fiber;
 			DBG_ASSERT(fiber->job_.func_);
 #if VERBOSE_LOGGING >= 3
@@ -278,7 +286,9 @@ namespace Job
 #endif
 				Core::SwitchThread();
 			}
+#ifdef DEBUG
 			Core::AtomicInc(&numFreeFibers_);
+#endif
 		}
 		else
 		{
@@ -289,7 +299,9 @@ namespace Job
 #endif
 				Core::SwitchThread();
 			}
+#ifdef DEBUG
 			Core::AtomicInc(&numWaitingFibers_);
+#endif
 		}
 	}
 
@@ -313,7 +325,9 @@ namespace Job
 		for(i32 i = 0; i < numFibers; ++i)
 		{
 			bool retVal = impl_->freeFibers_.Enqueue(new Fiber(impl_));
+#ifdef DEBUG
 			Core::AtomicInc(&impl_->numFreeFibers_);
+#endif
 			DBG_ASSERT(retVal);
 		}
 	}
@@ -392,6 +406,10 @@ namespace Job
 #endif
 				Yield();
 			}
+
+#ifdef DEBUG
+			Core::AtomicInc(&impl_->numPendingJobs_);
+#endif
 		}
 
 		// If no counter is specified, wait on it.

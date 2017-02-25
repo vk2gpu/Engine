@@ -13,7 +13,7 @@
 #endif
 
 #if MATH_INLINE
-#define MATH_DLL_INLINE
+#define MATH_DLL_INLINE INLINE
 #else
 #define MATH_DLL_INLINE MATH_DLL
 #endif

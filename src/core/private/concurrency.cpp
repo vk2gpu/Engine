@@ -113,7 +113,9 @@ namespace Core
 		impl_->entryPointFunc_ = entryPointFunc;
 		impl_->userData_ = userData;
 		impl_->fiber_ = ::CreateFiber(stackSize, FiberEntryPoint, impl_);
+#ifdef DEBUG
 		impl_->debugName_ = debugName_;
+#endif
 		DBG_ASSERT_MSG(impl_->fiber_, "Unable to create fiber.");
 		if(impl_->fiber_ == nullptr)
 		{
@@ -132,7 +134,9 @@ namespace Core
 		impl_->entryPointFunc_ = nullptr;
 		impl_->userData_ = nullptr;
 		impl_->fiber_ = ::ConvertThreadToFiber(impl_);
+#ifdef DEBUG
 		impl_->debugName_ = debugName_;
+#endif
 		DBG_ASSERT_MSG(impl_->fiber_, "Unable to create fiber. Is there already one for this thread?");
 		if(impl_->fiber_ == nullptr)
 		{
@@ -161,7 +165,9 @@ namespace Core
 	{
 		using std::swap;
 		swap(impl_, other.impl_);
+#ifdef DEBUG
 		swap(debugName_, other.debugName_);
+#endif
 		impl_->parent_ = this;
 	}
 
@@ -169,7 +175,9 @@ namespace Core
 	{
 		using std::swap;
 		swap(impl_, other.impl_);
+#ifdef DEBUG
 		swap(debugName_, other.debugName_);
+#endif
 		impl_->parent_ = this;
 		return *this;
 	}
