@@ -17,7 +17,7 @@ namespace Core
 	CORE_DLL_INLINE i32 AtomicInc(volatile i32* dest);
 	CORE_DLL_INLINE i32 AtomicIncAcq(volatile i32* dest);
 	CORE_DLL_INLINE i32 AtomicIncRel(volatile i32* dest);
-	/// @return Return incremented result.
+	/// @return Return decremented result.
 	CORE_DLL_INLINE i32 AtomicDec(volatile i32* dest);
 	CORE_DLL_INLINE i32 AtomicDecAcq(volatile i32* dest);
 	CORE_DLL_INLINE i32 AtomicDecRel(volatile i32* dest);
@@ -37,7 +37,10 @@ namespace Core
 	CORE_DLL_INLINE i32 AtomicXor(volatile i32* dest, i32 value);
 	CORE_DLL_INLINE i32 AtomicXorAcq(volatile i32* dest, i32 value);
 	CORE_DLL_INLINE i32 AtomicXorRel(volatile i32* dest, i32 value);
-	/// @return Original value of dest, and if original value matches @a comp, set @dest to @exchg.
+	/// @return Original value of dest, and set @dest to @exchg.
+	CORE_DLL_INLINE i32 AtomicExchg(volatile i32* dest, i32 exchg);
+	CORE_DLL_INLINE i32 AtomicExchgAcq(volatile i32* dest, i32 exchg);
+	/// @return Original value of dest, and set @dest to @exchg.
 	CORE_DLL_INLINE i32 AtomicCmpExchg(volatile i32* dest, i32 exchg, i32 comp);
 	CORE_DLL_INLINE i32 AtomicCmpExchgAcq(volatile i32* dest, i32 exchg, i32 comp);
 	CORE_DLL_INLINE i32 AtomicCmpExchgRel(volatile i32* dest, i32 exchg, i32 comp);
@@ -46,7 +49,7 @@ namespace Core
 	CORE_DLL_INLINE i64 AtomicInc(volatile i64* dest);
 	CORE_DLL_INLINE i64 AtomicIncAcq(volatile i64* dest);
 	CORE_DLL_INLINE i64 AtomicIncRel(volatile i64* dest);
-	/// @return Return incremented result.
+	/// @return Return decremented result.
 	CORE_DLL_INLINE i64 AtomicDec(volatile i64* dest);
 	CORE_DLL_INLINE i64 AtomicDecAcq(volatile i64* dest);
 	CORE_DLL_INLINE i64 AtomicDecRel(volatile i64* dest);
@@ -66,6 +69,9 @@ namespace Core
 	CORE_DLL_INLINE i64 AtomicXor(volatile i64* dest, i64 value);
 	CORE_DLL_INLINE i64 AtomicXorAcq(volatile i64* dest, i64 value);
 	CORE_DLL_INLINE i64 AtomicXorRel(volatile i64* dest, i64 value);
+	/// @return Original value of dest, and set @dest to @exchg.
+	CORE_DLL_INLINE i64 AtomicExchg(volatile i64* dest, i64 exchg);
+	CORE_DLL_INLINE i64 AtomicExchgAcq(volatile i64* dest, i64 exchg);
 	/// @return Original value of dest, and if original value matches @a comp, set @dest to @exchg.
 	CORE_DLL_INLINE i64 AtomicCmpExchg(volatile i64* dest, i64 exchg, i64 comp);
 	CORE_DLL_INLINE i64 AtomicCmpExchgAcq(volatile i64* dest, i64 exchg, i64 comp);
@@ -99,6 +105,13 @@ namespace Core
 		~Thread();
 		Thread(Thread&&);
 		Thread& operator=(Thread&&);
+
+		/**
+		 * Set affinity.
+		 * Controls which cores the thread is allowed to run on.
+		 * @return Old mask.
+		 */
+		u64 SetAffinity(u64 mask);
 
 		/**
 		 * Wait for thread completion.
@@ -156,6 +169,11 @@ namespace Core
 		 * Switch to this fiber.
 		 */
 		void SwitchTo();
+
+		/**
+		 * @return Are we inside a fiber?
+		 */
+		static bool InFiber();
 
 		/**
 		 * @return Is thread valid?

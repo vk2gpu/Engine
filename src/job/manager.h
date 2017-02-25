@@ -12,9 +12,10 @@ namespace Job
 		 * Create job manager.
 		 * @param numWorkers Number of workers to create.
 		 * @param numFibers Number of fibers to allocate.
+		 * @param maxJobs Maximum number of jobs supported.
 		 * @param fiberStackSize Stack size for each fiber.
 		 */
-		Manager(i32 numWorkers, i32 numFibers, i32 fiberStackSize);
+		Manager(i32 numWorkers, i32 numFibers, i32 maxJobs, i32 fiberStackSize);
 		~Manager();
 
 		/**

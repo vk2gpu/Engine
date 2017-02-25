@@ -1,11 +1,24 @@
 #include "job/manager.h"
 #include "core/concurrency.h"
+#include "core/mpmc_bounded_queue.h"
 #include "core/vector.h"
 
 #include <utility>
 
 namespace Job
 {
+	/**
+	 * Counter internal details.
+	 */
+	struct Counter final
+	{
+		volatile i32 value_ = 0;
+		Core::Event* event_ = nullptr;
+
+		Counter() = default;
+		Counter(const Counter&) = delete;
+	};
+
 
 	/**
 	 * Private manager implementation.
@@ -15,13 +28,11 @@ namespace Job
 		/// Worker pool.
 		Core::Vector<class Worker*> workers_;
 		/// Free fibers.
-		Core::Vector<class Fiber*> freeFibers_;
+		Core::MPMCBoundedQueue<class Fiber*> freeFibers_;
 		/// Waiting fibers.
-		Core::Vector<class Fiber*> waitingFibers_;
-		/// Jobs. TODO USE A MPMC QUEUE INSTEAD.
-		Core::Vector<JobDesc> pendingJobs_;
-		/// TODO: MPMC queues.
-		Core::Mutex mutex_;
+		Core::MPMCBoundedQueue<class Fiber*> waitingFibers_;
+		/// Jobs.
+		Core::MPMCBoundedQueue<JobDesc> pendingJobs_;
 		/// Fiber stack size.
 		i32 fiberStackSize_ = 0;
 		/// Are we exiting?
@@ -57,7 +68,11 @@ namespace Job
 				// Tick counter down.
 				if(fiber->job_.counter_)
 				{
-					Core::AtomicDec(&fiber->job_.counter_->value_);
+					u32 counter = Core::AtomicDec(&fiber->job_.counter_->value_);
+					if(counter == 0)
+					{
+						fiber->job_.counter_->event_->Signal();
+					}
 				}
 
 				fiber->job_.func_ = nullptr;
@@ -100,7 +115,7 @@ namespace Job
 	class Worker final
 	{
 	public:
-		Worker(ManagerImpl* manager)
+		Worker(ManagerImpl* manager, i32 idx)
 		    : manager_(manager)
 		{
 			// Create thread.
@@ -150,32 +165,28 @@ namespace Job
 	{
 		*outFiber = nullptr;
 
-		// TODO: MPMC queues.
-		Core::ScopedMutex lock(mutex_);
-
 		// First check for waiting fibers.
-		if(waitingFibers_.size() > 0)
+		Fiber* fiber = nullptr;
+		if(waitingFibers_.Dequeue(fiber))
 		{
-			*outFiber = waitingFibers_.front();
-			waitingFibers_.erase(waitingFibers_.begin());
+			*outFiber = fiber;
 			return true;
 		}
 
 		// No waiting fibers, check pending jobs.
-		if(pendingJobs_.size() > 0)
+		JobDesc job;
+		if(pendingJobs_.Dequeue(job))
 		{
-			JobDesc job = pendingJobs_.front();
-			pendingJobs_.erase(pendingJobs_.begin());
-
-			// If we hit this busy-wait, more fibers are needed.
-			while(freeFibers_.size() == 0)
+			DBG_ASSERT(job.func_);
+			while(!freeFibers_.Dequeue(fiber))
+			{
+				Core::Log("Unable to get free fiber. Increase numFibers.\n");
 				Core::Yield();
+			}
+				
+			*outFiber = fiber;
+			fiber->SetJob(job);
 
-			// Grab a fiber.
-			*outFiber = freeFibers_.back();
-			freeFibers_.pop_back();		
-
-			(*outFiber)->SetJob(job);
 		}
 
 		return !exiting_;
@@ -183,22 +194,18 @@ namespace Job
 
 	void ManagerImpl::ReleaseFiber(Fiber* fiber, bool complete)
 	{
-		// TODO: MPMC queues.
-		Core::ScopedMutex lock(mutex_);
-
 		if(complete)
 		{
-			freeFibers_.push_back(fiber);
+			freeFibers_.Enqueue(fiber);
 		}
 		else
 		{
-			// TODO: Push front.
-			waitingFibers_.push_back(fiber);
+			waitingFibers_.Enqueue(fiber);
 		}
 	}
 
 
-	Manager::Manager(i32 numWorkers, i32 numFibers, i32 fiberStackSize)
+	Manager::Manager(i32 numWorkers, i32 numFibers, i32 maxJobs, i32 fiberStackSize)
 	{
 		DBG_ASSERT(numWorkers > 0);
 		DBG_ASSERT(numFibers > 0);
@@ -206,17 +213,19 @@ namespace Job
 
 		impl_ = new ManagerImpl();
 		impl_->workers_.reserve(numWorkers);
-		impl_->freeFibers_.reserve(numFibers);
-		impl_->waitingFibers_.reserve(numFibers);
+		impl_->freeFibers_ = Core::MPMCBoundedQueue<class Fiber*>(numFibers);
+		impl_->waitingFibers_ = Core::MPMCBoundedQueue<class Fiber*>(numFibers);
+		impl_->pendingJobs_ = Core::MPMCBoundedQueue<JobDesc>(maxJobs);
 		impl_->fiberStackSize_ = fiberStackSize;
 
 		for(i32 i = 0; i < numWorkers; ++i)
 		{
-			impl_->workers_.emplace_back(new Worker(impl_));
+			impl_->workers_.emplace_back(new Worker(impl_, i));
 		}
 		for(i32 i = 0; i < numFibers; ++i)
 		{
-			impl_->freeFibers_.emplace_back(new Fiber(impl_));
+			bool retVal = impl_->freeFibers_.Enqueue(new Fiber(impl_));
+			DBG_ASSERT(retVal);
 		}
 	}
 
@@ -232,10 +241,11 @@ namespace Job
 			while(impl_->jobCount_ > 0)
 				Core::Yield();
 
-			DBG_ASSERT(impl_->waitingFibers_.size() == 0);
+			Fiber* fiber = nullptr;
+			DBG_ASSERT(!impl_->waitingFibers_.Dequeue(fiber));
 
 			// Ensure all fibers exit.
-			for(auto* fiber : impl_->freeFibers_)
+			while(impl_->freeFibers_.Dequeue(fiber))
 			{
 				fiber->exiting_ = true;
 				fiber->SwitchTo(nullptr);
@@ -257,14 +267,12 @@ namespace Job
 
 	void Manager::RunJobs(JobDesc* jobDescs, i32 numJobDesc, Counter** waitCounter)
 	{
-		// TODO MPMC
-		Core::ScopedMutex lock(impl_->mutex_);
-
 		if(waitCounter)
 		{
 			// TODO: Pool.
 			(*waitCounter) = new Counter;
 			(*waitCounter)->value_ = numJobDesc;
+			(*waitCounter)->event_ = new Core::Event(true, false);
 
 			// Assign counter to incoming jobs.
 			for(i32 i = 0; i < numJobDesc; ++i)
@@ -276,23 +284,46 @@ namespace Job
 		Core::AtomicAdd(&impl_->jobCount_, numJobDesc);
 
 		// Push jobs into pending job queue ready to be given fibers.
-		impl_->pendingJobs_.insert(jobDescs, jobDescs + numJobDesc);
+		for(i32 i = 0; i < numJobDesc; ++i)
+		{
+			while(!impl_->pendingJobs_.Enqueue(jobDescs[i]))
+			{
+				Core::Log("Unable to enqueue job. Increase maxJobs.\n");
+				Core::Yield();
+			}
+		}
 	}
 
 	void Manager::WaitForCounter(Counter* counter, i32 value)
 	{
 		DBG_ASSERT(counter);
-		// TODO: If call is coming from a fiber, push into waiting list and switch back to worker.
-		while(counter->value_ > value)
-		{
-			Core::Yield();
-		}
 
-		// Free counter.
-		// TODO: Keep a pool of these?
-		if(value == 0)
+		// If we're waiting from within a fiber, we need to move it into the waiting list.
+		if(Core::Fiber::InFiber())
 		{
-			delete counter;
+			DBG_BREAK;
+		}
+		else
+		{
+			if(value == 0)
+			{
+				counter->event_->Wait();
+			}
+			else
+			{
+				while(counter->value_ > value)
+				{
+					Core::Yield();
+				}
+			}
+
+			// Free counter.
+			// TODO: Keep a pool of these?
+			if(value == 0)
+			{
+				delete counter->event_;
+				delete counter;
+			}
 		}
 	}
 

@@ -3,6 +3,7 @@ ADD_DEFINITIONS("-DJOB_EXPORT=1")
 SET(SOURCES_PUBLIC 
 	"dll.h"
 	"manager.h"
+	"types.h"
 )
 
 SET(SOURCES_PRIVATE 

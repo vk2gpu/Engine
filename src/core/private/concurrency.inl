@@ -33,6 +33,9 @@ namespace Core
 	CORE_DLL_INLINE i32 AtomicXorAcq(volatile i32* dest, i32 value) { return ::InterlockedXorAcquire((volatile LONG*)dest, value); }
 	CORE_DLL_INLINE i32 AtomicXorRel(volatile i32* dest, i32 value) { return ::InterlockedXorRelease((volatile LONG*)dest, value); }
 
+	CORE_DLL_INLINE i32 AtomicExchg(volatile i32* dest, i32 exchg) { return ::InterlockedExchange((volatile LONG*)dest, exchg); }
+	CORE_DLL_INLINE i32 AtomicExchgAcq(volatile i32* dest, i32 exchg) { return ::InterlockedExchangeAcquire((volatile LONG*)dest, exchg); }
+
 	CORE_DLL_INLINE i32 AtomicCmpExchg(volatile i32* dest, i32 exchg, i32 comp) { return ::InterlockedCompareExchange((volatile LONG*)dest, exchg, comp); }
 	CORE_DLL_INLINE i32 AtomicCmpExchgAcq(volatile i32* dest, i32 exchg, i32 comp) { return ::InterlockedCompareExchangeAcquire((volatile LONG*)dest, exchg, comp); }
 	CORE_DLL_INLINE i32 AtomicCmpExchgRel(volatile i32* dest, i32 exchg, i32 comp) { return ::InterlockedCompareExchangeRelease((volatile LONG*)dest, exchg, comp); }
@@ -61,10 +64,13 @@ namespace Core
 	CORE_DLL_INLINE i64 AtomicXorAcq(volatile i64* dest, i64 value) { return ::InterlockedXor64Acquire(dest, value); }
 	CORE_DLL_INLINE i64 AtomicXorRel(volatile i64* dest, i64 value) { return ::InterlockedXor64Release(dest, value); }
 
+	CORE_DLL_INLINE i64 AtomicExchg(volatile i64* dest, i64 exchg) { return ::InterlockedExchange64(dest, exchg); }
+	CORE_DLL_INLINE i64 AtomicExchgAcq(volatile i64* dest, i64 exchg) { return ::InterlockedExchangeAcquire64(dest, exchg); }
+
 	CORE_DLL_INLINE i64 AtomicCmpExchg(volatile i64* dest, i64 exchg, i64 comp) { return ::InterlockedCompareExchange64(dest, exchg, comp); }
 	CORE_DLL_INLINE i64 AtomicCmpExchgAcq(volatile i64* dest, i64 exchg, i64 comp) { return ::InterlockedCompareExchangeAcquire64(dest, exchg, comp); }
 	CORE_DLL_INLINE i64 AtomicCmpExchgRel(volatile i64* dest, i64 exchg, i64 comp) { return ::InterlockedCompareExchangeRelease64(dest, exchg, comp); }
-
+	
 #undef Yield
 	CORE_DLL_INLINE void Yield() { ::YieldProcessor(); }
 	CORE_DLL_INLINE void Barrier() { ::MemoryBarrier(); }

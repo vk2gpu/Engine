@@ -15,7 +15,7 @@ namespace Job
 	/**
 	 * Job descriptor.
 	 */
-	struct JobDesc
+	struct JobDesc final
 	{
 		/// Function to call to execute job.
 		JobFunc func_ = nullptr;
@@ -31,13 +31,9 @@ namespace Job
 	};
 
 	/**
-	 * Counter for waiting on jobs.
+	 * Counter used for waiting on jobs.
 	 */
-	struct Counter
-	{
-		volatile i32 value_;
-	};
-
+	struct Counter;
 
 } // namespace Job
 

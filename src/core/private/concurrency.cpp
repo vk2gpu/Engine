@@ -61,6 +61,11 @@ namespace Core
 		return *this;
 	}
 
+	u64 Thread::SetAffinity(u64 mask)
+	{
+		return ::SetThreadAffinityMask(impl_->threadHandle_, mask);
+	}
+
 	i32 Thread::Join()
 	{
 		if(impl_)
@@ -179,6 +184,10 @@ namespace Core
 		}
 	}
 
+	bool Fiber::InFiber()
+	{
+		return ::GetCurrentFiber() != nullptr;
+	}
 
 	struct EventImpl
 	{

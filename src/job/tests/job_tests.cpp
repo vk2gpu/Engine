@@ -42,8 +42,7 @@ namespace
 		for(i32 i = 0; i < numJobs; ++i)
 		{
 			Job::JobDesc jobDesc;
-			jobDesc.func_ = [](i32 param, void* data)
-			{
+			jobDesc.func_ = [](i32 param, void* data) {
 				CalculatePrimes(100);
 				*(i32*)data = param;
 			};
@@ -52,7 +51,7 @@ namespace
 			jobDesc.name_ = "testJob";
 			jobDescs.push_back(jobDesc);
 		}
-	
+
 		Job::Counter* counter = nullptr;
 
 		Timer timer;
@@ -60,8 +59,7 @@ namespace
 		jobManager.RunJobs(jobDescs.data(), jobDescs.size(), &counter);
 		jobManager.WaitForCounter(counter, 0);
 		double time = timer.GetTime();
-		Core::Log("\"%s\" Time taken: %f ms (%f ms. avg)\n", name,
-			time * 1000.0, time * 1000.0 / (double)numJobs);
+		Core::Log("\"%s\" Time taken: %f ms (%f ms. avg)\n", name, time * 1000.0, time * 1000.0 / (double)numJobs);
 
 		for(i32 i = 0; i < numJobs; ++i)
 			REQUIRE(jobDatas[i] == jobDescs[i].param_);
@@ -70,64 +68,64 @@ namespace
 
 TEST_CASE("job-tests-create-st-1")
 {
-	Job::Manager jobManager(1, 128, 16 * 1024);
+	Job::Manager jobManager(1, 128, 4096, 16 * 1024);
 }
 
 TEST_CASE("job-tests-create-mt-4")
 {
-	Job::Manager jobManager(4, 128, 16 * 1024);
+	Job::Manager jobManager(4, 128, 4096, 16 * 1024);
 }
 
 TEST_CASE("job-tests-run-job-1-st-1")
 {
-	Job::Manager jobManager(1, 128, 16 * 1024);
+	Job::Manager jobManager(1, 128, 16 * 1024, 16 * 1024);
 	RunJobTest(jobManager, 1, "job-tests-run-job-1-st-1");
 }
 
 TEST_CASE("job-tests-run-job-1-mt-4")
 {
-	Job::Manager jobManager(4, 128, 16 * 1024);
+	Job::Manager jobManager(4, 128, 16 * 1024, 16 * 1024);
 	RunJobTest(jobManager, 1, "job-tests-run-job-1-mt-4");
 }
 
 TEST_CASE("job-tests-run-job-1-mt-8")
 {
-	Job::Manager jobManager(8, 128, 16 * 1024);
+	Job::Manager jobManager(8, 128, 16 * 1024, 16 * 1024);
 	RunJobTest(jobManager, 1, "job-tests-run-job-1-mt-8");
 }
 
 TEST_CASE("job-tests-run-job-100-st-1")
 {
-	Job::Manager jobManager(1, 1, 16 * 1024);
+	Job::Manager jobManager(1, 128, 16 * 1024, 16 * 1024);
 	RunJobTest(jobManager, 100, "job-tests-run-job-100-st-1");
 }
 
 TEST_CASE("job-tests-run-job-100-mt-4")
 {
-	Job::Manager jobManager(4, 128, 16 * 1024);
+	Job::Manager jobManager(4, 128, 16 * 1024, 16 * 1024);
 	RunJobTest(jobManager, 100, "job-tests-run-job-100-mt-4");
 }
 
 TEST_CASE("job-tests-run-job-100-mt-8")
 {
-	Job::Manager jobManager(4, 128, 16 * 1024);
+	Job::Manager jobManager(4, 128, 16 * 1024, 16 * 1024);
 	RunJobTest(jobManager, 100, "job-tests-run-job-100-mt-8");
 }
 
 TEST_CASE("job-tests-run-job-10000-st-1")
 {
-	Job::Manager jobManager(1, 1, 16 * 1024);
+	Job::Manager jobManager(1, 128, 16 * 1024, 16 * 1024);
 	RunJobTest(jobManager, 10000, "job-tests-run-job-10000-st-1");
 }
 
 TEST_CASE("job-tests-run-job-10000-mt-4")
 {
-	Job::Manager jobManager(4, 128, 16 * 1024);
+	Job::Manager jobManager(4, 128, 16 * 1024, 16 * 1024);
 	RunJobTest(jobManager, 10000, "job-tests-run-job-10000-mt-4");
 }
 
 TEST_CASE("job-tests-run-job-10000-mt-8")
 {
-	Job::Manager jobManager(8, 128, 16 * 1024);
+	Job::Manager jobManager(8, 128, 16 * 1024, 16 * 1024);
 	RunJobTest(jobManager, 10000, "job-tests-run-job-10000-mt-8");
 }
