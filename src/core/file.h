@@ -5,20 +5,59 @@
 
 namespace Core
 {
+	/// Maximum path length supported. Platform may vary.
+	static const i32 MAX_PATH_LENGTH = 512;
+
 	/**
 	 * Timestamp.
 	 */
 	struct FileTimestamp
 	{
-		u32 seconds_ = 0;
-		u32 minutes_ = 0;
-		u32 hours_ = 0;
-		u32 monthDay_ = 0;
-		u32 month_ = 0;
-		u32 year_ = 0;
-		u32 weekDay_ = 0;
-		u32 yearDay_ = 0;
-		u32 isDST_ = 0;
+		/// years since 1900
+		i16 year_ = -1;
+		/// months since January - [0, 11]
+		i16 month_ = -1;
+		/// day of the month - [1, 31]
+		i16 day_ = -1;
+		/// hours since midnight - [0, 23]
+		i16 hours_ = -1;
+		/// minutes after the hour - [0, 59]
+		i16 minutes_ = -1;
+		/// seconds after the minute - [0, 60]
+		i16 seconds_ = -1;
+		/// milliseconds after the second - [0, 999]
+		i16 milliseconds_ = -1;
+	};
+
+	/**
+	 * File attributes.
+	 */
+	enum class FileAttribs : u32
+	{
+		NONE = 0x0,
+		DIRECTORY = 0x1,
+		READ_ONLY = 0x2,
+		HIDDEN = 0x4,
+	};
+
+	DEFINE_ENUM_CLASS_FLAG_OPERATOR(FileAttribs, |);
+	DEFINE_ENUM_CLASS_FLAG_OPERATOR(FileAttribs, &);
+
+	/**
+	 * File info structure.
+	 */
+	struct FileInfo
+	{
+		/// Created time.
+		FileTimestamp created_;
+		/// Modified time.
+		FileTimestamp modified_;
+		/// File size.
+		i64 fileSize_;
+		/// Attributes.
+		FileAttribs attribs_;
+		/// Filename in UTF-8.
+		char fileName_[MAX_PATH_LENGTH];
 	};
 
 	/**
@@ -63,6 +102,35 @@ namespace Core
 	 * @return Success.
 	 */
 	CORE_DLL bool FileChangeDir(const char* path);
+
+	/**
+	 * Normalize path slashes for current platform.
+	 * @param inoutPath Path to normalize.
+	 * @param maxLength Maximum length of path (can be 0 to avoid safety check).
+	 * @param stripTrailing Strip trailing slash.
+	 */
+	CORE_DLL void FileNormalizePath(char* inoutPath, i32 maxLength, bool stripTrailing);
+
+	/**
+	 * Find files in path.
+	 * @param path Path to search
+	 * @param extension Extensions to include. nullptr to ignore.
+	 * @param outInfos Output file infos. nullptr is valid.
+	 * @param maxInfo Maximum number of infos to fill in.
+	 * @param Number of files found.
+	 */
+	CORE_DLL i32 FileFindInPath(const char* path, const char* extension, FileInfo* outInfos, i32 maxInfos);
+
+	/**
+	 * Get path separator.
+	 */
+	CORE_DLL char FilePathSeparator();
+
+	/**
+	 * Get current directory.
+	 * Will return with trailing slash stripped and paths normalized for platform.
+	 */
+	CORE_DLL void FileGetCurrDir(char* buffer, i32 bufferLength);
 
 	/**
 	 * Flags which define behaviour or file.

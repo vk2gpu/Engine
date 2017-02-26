@@ -243,6 +243,8 @@ namespace Core
 	public:
 		Mutex();
 		~Mutex();
+		Mutex(Mutex&&);
+		Mutex& operator = (Mutex&& other);
 
 		/**
 		 * Lock.
@@ -262,8 +264,6 @@ namespace Core
 
 	private:
 		Mutex(const Mutex&) = delete;
-		Mutex(Mutex&&) = delete;
-
 		struct MutexImpl* impl_ = nullptr;
 	};
 

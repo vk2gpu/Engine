@@ -32,7 +32,6 @@ namespace Core
 		}
 
 		Map(Map&& Other) { swap(Other); }
-
 		~Map() {}
 
 		Map& operator=(const Map& Other)

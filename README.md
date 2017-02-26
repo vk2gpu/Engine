@@ -40,3 +40,5 @@ References used during development:
   - http://www.1024cores.net/home/lock-free-algorithms/queues/bounded-mpmc-queue
 - Parallelizing the Naughty Dog Engine Using Fibers
   - http://www.gdcvault.com/play/1022186/Parallelizing-the-Naughty-Dog-Engine
+- Hashing algorithms.
+  - https://github.com/B-Con/crypto-algorithms

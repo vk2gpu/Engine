@@ -9,6 +9,9 @@
 #elif PLATFORM_WINDOWS
 #include <direct.h>
 #pragma warning(disable : 4996) // '_open': This function or variable may be unsafe...
+
+#define WIN32_LEAN_AND_MEAN
+#include <Windows.h>
 #endif
 
 #include <io.h>
@@ -17,6 +20,7 @@
 #include <stdio.h>
 #include <sys/stat.h>
 #include <time.h>
+#include <wchar.h>
 
 #if PLATFORM_WINDOWS
 
@@ -43,6 +47,26 @@
 
 namespace Core
 {
+	namespace
+	{
+#if PLATFORM_WINDOWS
+	FileTimestamp GetTimestamp(FILETIME fileTime)
+	{
+		FileTimestamp timestamp;
+		SYSTEMTIME systemTime;
+		::FileTimeToSystemTime(&fileTime, &systemTime);
+		timestamp.year_ = systemTime.wYear - 1900;
+		timestamp.month_ = systemTime.wMonth - 1;
+		timestamp.day_ = systemTime.wDay;
+		timestamp.hours_ = systemTime.wHour;
+		timestamp.minutes_ = systemTime.wMinute;
+		timestamp.seconds_ = systemTime.wSecond;
+		timestamp.milliseconds_ = systemTime.wMilliseconds;	
+		return timestamp;
+	}
+#endif
+	}
+
 	bool FileStats(const char* path, FileTimestamp* created, FileTimestamp* modified, i64* size)
 	{
 		DBG_ASSERT(path);
@@ -54,30 +78,26 @@ namespace Core
 			{
 				struct tm* createdTime = nullptr;
 				createdTime = gmtime(&(attrib.st_ctime));
-				created->seconds_ = createdTime->tm_sec;
-				created->minutes_ = createdTime->tm_min;
-				created->hours_ = createdTime->tm_hour;
-				created->monthDay_ = createdTime->tm_mday;
-				created->month_ = createdTime->tm_mon;
-				created->year_ = createdTime->tm_year;
-				created->weekDay_ = createdTime->tm_wday;
-				created->yearDay_ = createdTime->tm_yday;
-				created->isDST_ = createdTime->tm_isdst;
+				created->year_ = (i16)createdTime->tm_year;
+				created->month_ = (i16)createdTime->tm_mon;
+				created->day_ = (i16)createdTime->tm_mday;
+				created->hours_ = (i16)createdTime->tm_hour;
+				created->minutes_ = (i16)createdTime->tm_min;
+				created->seconds_ = (i16)createdTime->tm_sec;
+				created->milliseconds_ = 0;
 			}
 
 			if(modified)
 			{
 				struct tm* modifiedTime = nullptr;
 				modifiedTime = gmtime(&(attrib.st_mtime));
-				modified->seconds_ = modifiedTime->tm_sec;
-				modified->minutes_ = modifiedTime->tm_min;
-				modified->hours_ = modifiedTime->tm_hour;
-				modified->monthDay_ = modifiedTime->tm_mday;
-				modified->month_ = modifiedTime->tm_mon;
-				modified->year_ = modifiedTime->tm_year;
-				modified->weekDay_ = modifiedTime->tm_wday;
-				modified->yearDay_ = modifiedTime->tm_yday;
-				modified->isDST_ = modifiedTime->tm_isdst;
+				modified->year_ = (i16)modifiedTime->tm_year;
+				modified->month_ = (i16)modifiedTime->tm_mon;
+				modified->day_ = (i16)modifiedTime->tm_mday;
+				modified->hours_ = (i16)modifiedTime->tm_hour;
+				modified->minutes_ = (i16)modifiedTime->tm_min;
+				modified->seconds_ = (i16)modifiedTime->tm_sec;
+				modified->milliseconds_ = 0;
 			}
 
 			if(size)
@@ -209,6 +229,110 @@ namespace Core
 #error "Unimplemented on this platform!";
 		return false;
 #endif
+	}
+
+	void FileNormalizePath(char* inoutPath, i32 maxLength, bool stripTrailing)
+	{
+		char platformSlash = FilePathSeparator();
+
+		i32 counter = 0;
+		while(auto& pathChar = *inoutPath++)
+		{
+			if(maxLength > 0)
+			{
+				if(counter >= maxLength)
+				{
+					break;
+				}
+			}
+			if(pathChar == '\\' || pathChar == '/')
+			{
+				pathChar = platformSlash;
+
+				if(stripTrailing)
+				{
+					if(*inoutPath == '\0')
+					{
+						pathChar = '\0';
+						break;
+					}
+				}
+			}
+			++counter;
+		}
+	}
+	i32 FileFindInPath(const char* path, const char* extension, FileInfo* outInfos, i32 maxInfos)
+	{
+#if PLATFORM_WINDOWS
+		char newPath[MAX_PATH_LENGTH] = { 0 };
+		strcpy_s(newPath, MAX_PATH_LENGTH, path);
+		FileNormalizePath(newPath, MAX_PATH_LENGTH, true);
+
+		if(extension)
+		{
+			strcat_s(newPath, "/*.");
+			strcat_s(newPath, extension);
+		}
+		else
+		{
+			strcat_s(newPath, "/*");
+		}
+
+		i32 numFound = 0;
+
+		WIN32_FIND_DATA findData;
+		memset(&findData, 0, sizeof(findData));
+		auto handle = ::FindFirstFileA(newPath, &findData);
+		BOOL foundFile = TRUE;
+		while(handle != INVALID_HANDLE_VALUE && foundFile)
+		{
+			if(outInfos)
+			{
+				FileInfo& outInfo = outInfos[numFound];
+				outInfo.created_ = GetTimestamp(findData.ftCreationTime);
+				outInfo.modified_ = GetTimestamp(findData.ftLastWriteTime);
+
+				outInfo.attribs_ = FileAttribs::NONE;
+				if(ContainsAllFlags(findData.dwFileAttributes, FILE_ATTRIBUTE_DIRECTORY))
+					outInfo.attribs_ |= FileAttribs::DIRECTORY;
+				if(ContainsAllFlags(findData.dwFileAttributes, FILE_ATTRIBUTE_READONLY))
+					outInfo.attribs_ |= FileAttribs::READ_ONLY;
+				if(ContainsAllFlags(findData.dwFileAttributes, FILE_ATTRIBUTE_HIDDEN))
+					outInfo.attribs_ |= FileAttribs::HIDDEN;
+
+				outInfo.fileSize_ = ((i64)findData.nFileSizeHigh << 32LL) | (i64)findData.nFileSizeLow;
+				strcpy_s(outInfo.fileName_, sizeof(outInfo.fileName_), findData.cFileName);
+			}
+
+			++numFound;
+
+			foundFile = ::FindNextFileA(handle, &findData);
+		}
+
+		if(handle != INVALID_HANDLE_VALUE)
+		{
+			::FindClose(handle);
+		}
+		return numFound;
+#else
+#error "Unimplemented on this platform!";
+		return 0;
+#endif
+	}
+
+	char FilePathSeparator()
+	{
+#if PLATFORM_WINDOWS
+		return '\\';
+#else
+		return '/';
+#endif
+	}
+
+	void FileGetCurrDir(char* buffer, i32 bufferLength)
+	{
+		i32 length = ::GetCurrentDirectoryA(bufferLength, buffer);
+		FileNormalizePath(buffer, length, true);
 	}
 
 	struct FileImpl

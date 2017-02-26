@@ -13,8 +13,11 @@ SET(SOURCES_PUBLIC
 	"mpmc_bounded_queue.h"
 	"pair.h"
 	"portability.h"
+	"random.h"
+	"string.h"
 	"timer.h"
 	"types.h"
+	"uuid.h"
 	"vector.h"
 )
 
@@ -25,12 +28,16 @@ SET(SOURCES_PRIVATE
 	"private/file.cpp"
 	"private/hash.cpp"
 	"private/library.cpp"
+	"private/random.cpp"
+	"private/string.cpp"
+	"private/uuid.cpp"
 	"private/timer.cpp"
 )
 
 SET(SOURCES_TESTS
 	"tests/array_tests.cpp"
 	"tests/concurrency_tests.cpp"
+	"tests/file_tests.cpp"
 	"tests/map_tests.cpp"
 	"tests/test_entry.cpp"
 	"tests/vector_tests.cpp"

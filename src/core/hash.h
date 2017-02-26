@@ -6,6 +6,37 @@
 namespace Core
 {
 	/**
+	 * MD5.
+	 */
+	struct CORE_DLL HashMD5Digest
+	{
+		union CORE_DLL
+		{
+			;
+			u8 data8_[16] = {0};
+			u32 data32_[4];
+			u64 data64_[2];
+		};
+	};
+
+	CORE_DLL HashMD5Digest HashMD5(const void* data, size_t size);
+
+	/**
+	 * SHA-1.
+	 */
+	struct CORE_DLL HashSHA1Digest
+	{
+		union CORE_DLL
+		{
+			;
+			u8 data8_[20] = {0};
+			u32 data32_[5];
+		};
+	};
+
+	CORE_DLL HashSHA1Digest HashSHA1(const void* data, size_t size);
+
+	/**
 	 * Core hashing algorithms.
 	 */
 	CORE_DLL u32 HashCRC32(u32 Input, const void* pInData, size_t Size);

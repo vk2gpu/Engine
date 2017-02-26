@@ -30,7 +30,7 @@ namespace Core
 
 		Vector(Vector&& Other) { swap(Other); }
 
-		~Vector() {}
+		~Vector() { internalResize(0); }
 
 		Vector& operator=(const Vector& Other)
 		{
@@ -108,7 +108,7 @@ namespace Core
 				Data_[Size_++] = *It;
 			}
 		}
-		
+
 		void pop_back()
 		{
 			DBG_ASSERT_MSG(Size_ > 0, "No elements in vector.");
@@ -197,7 +197,7 @@ namespace Core
 			{
 				NewData = alloc(NewCapacity);
 				for(index_type Idx = 0; Idx < CopySize; ++Idx)
-					NewData[Idx] = std::move(Data_[Idx]);	// Include <utility> in your cpp.
+					NewData[Idx] = std::move(Data_[Idx]); // Include <utility> in your cpp.
 			}
 			dealloc(Data_);
 			Data_ = NewData;

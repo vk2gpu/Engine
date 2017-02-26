@@ -17,6 +17,8 @@ typedef std::int8_t i8;
 typedef float f32;
 typedef double f64;
 
+typedef wchar_t wchar;
+
 #define DEFINE_ENUM_CLASS_FLAG_OPERATOR(_Type, _Operator)                                                              \
 	inline _Type operator _Operator##=(_Type& A, _Type B)                                                              \
 	{                                                                                                                  \

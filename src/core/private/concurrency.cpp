@@ -273,6 +273,19 @@ namespace Core
 		delete impl_;
 	}
 
+	Mutex::Mutex(Mutex&& other)
+	{
+		using std::swap;
+		std::swap(impl_, other.impl_);
+	}
+
+	Mutex& Mutex::operator = (Mutex&& other)
+	{
+		using std::swap;
+		std::swap(impl_, other.impl_);
+		return *this;
+	}
+
 	void Mutex::Lock()
 	{
 		DBG_ASSERT(impl_);

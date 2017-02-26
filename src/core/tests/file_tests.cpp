@@ -1,5 +1,6 @@
 #include "core/file.h"
 #include "core/debug.h"
+#include "core/vector.h"
 
 #include "catch.hpp"
 
@@ -13,19 +14,19 @@ namespace
 
 	void Cleanup()
 	{
-		if(FileExists(fileName))
+		if(Core::FileExists(fileName))
 		{
-			REQUIRE(FileRemove(fileName));
+			REQUIRE(Core::FileRemove(fileName));
 		}
 
-		if(FileExists(folder2))
+		if(Core::FileExists(folder2))
 		{
-			REQUIRE(FileRemoveDir(folder2));
+			REQUIRE(Core::FileRemoveDir(folder2));
 		}
 
-		if(FileExists(folder1))
+		if(Core::FileExists(folder1))
 		{
-			REQUIRE(FileRemoveDir(folder1));
+			REQUIRE(Core::FileRemoveDir(folder1));
 		}
 	}
 
@@ -36,7 +37,7 @@ namespace
 		~ScopedCleanup() { Cleanup(); }
 	};
 
-	void WriteTestData(File& file, i64 offset, i64 bytes)
+	void WriteTestData(Core::File& file, i64 offset, i64 bytes)
 	{
 		DBG_ASSERT(bytes <= 8);
 		if(offset == 0)
@@ -53,7 +54,7 @@ namespace
 		}
 	}
 
-	void ReadTestData(File& file, i64 offset, i64 bytes)
+	void ReadTestData(Core::File& file, i64 offset, i64 bytes)
 	{
 		DBG_ASSERT(bytes <= 8);
 		u8 readData[8] = {0};
@@ -71,10 +72,10 @@ TEST_CASE("file-tests-create")
 	ScopedCleanup scopedCleanup;
 
 	{
-		File file(fileName, FileFlags::CREATE | FileFlags::WRITE);
+		Core::File file(fileName, Core::FileFlags::CREATE | Core::FileFlags::WRITE);
 	}
 
-	REQUIRE(FileExists(fileName));
+	REQUIRE(Core::FileExists(fileName));
 }
 
 TEST_CASE("file-tests-write")
@@ -82,13 +83,13 @@ TEST_CASE("file-tests-write")
 	ScopedCleanup scopedCleanup;
 
 	{
-		File file(fileName, FileFlags::CREATE | FileFlags::WRITE);
+		Core::File file(fileName, Core::FileFlags::CREATE | Core::FileFlags::WRITE);
 		WriteTestData(file, 0, 8);
 	}
 
-	REQUIRE(FileExists(fileName));
+	REQUIRE(Core::FileExists(fileName));
 	{
-		File file(fileName, FileFlags::READ);
+		Core::File file(fileName, Core::FileFlags::READ);
 		ReadTestData(file, 0, 8);
 	}
 }
@@ -98,16 +99,16 @@ TEST_CASE("file-tests-tell")
 	ScopedCleanup scopedCleanup;
 
 	{
-		File file(fileName, FileFlags::CREATE | FileFlags::WRITE);
+		Core::File file(fileName, Core::FileFlags::CREATE | Core::FileFlags::WRITE);
 		WriteTestData(file, 0, 4);
 		REQUIRE(file.Tell() == 4);
 		WriteTestData(file, 4, 4);
 		REQUIRE(file.Tell() == 8);
 	}
 
-	REQUIRE(FileExists(fileName));
+	REQUIRE(Core::FileExists(fileName));
 	{
-		File file(fileName, FileFlags::READ);
+		Core::File file(fileName, Core::FileFlags::READ);
 		ReadTestData(file, 0, 4);
 		REQUIRE(file.Tell() == 4);
 		ReadTestData(file, 4, 4);
@@ -120,7 +121,7 @@ TEST_CASE("file-tests-seek")
 	ScopedCleanup scopedCleanup;
 
 	{
-		File file(fileName, FileFlags::CREATE | FileFlags::WRITE);
+		Core::File file(fileName, Core::FileFlags::CREATE | Core::FileFlags::WRITE);
 		WriteTestData(file, 0, 8);
 		REQUIRE(file.Seek(4));
 		WriteTestData(file, 0, 4);
@@ -128,9 +129,9 @@ TEST_CASE("file-tests-seek")
 		REQUIRE(file.Tell() == 16);
 	}
 
-	REQUIRE(FileExists(fileName));
+	REQUIRE(Core::FileExists(fileName));
 	{
-		File file(fileName, FileFlags::READ);
+		Core::File file(fileName, Core::FileFlags::READ);
 		ReadTestData(file, 0, 4);
 		ReadTestData(file, 0, 4);
 		ReadTestData(file, 0, 8);
@@ -144,27 +145,27 @@ TEST_CASE("file-tests-size")
 	ScopedCleanup scopedCleanup;
 
 	{
-		File file(fileName, FileFlags::CREATE | FileFlags::WRITE);
+		Core::File file(fileName, Core::FileFlags::CREATE | Core::FileFlags::WRITE);
 		WriteTestData(file, 0, 8);
 	}
 
-	REQUIRE(FileExists(fileName));
+	REQUIRE(Core::FileExists(fileName));
 
 	{
-		File file(fileName, FileFlags::READ);
+		Core::File file(fileName, Core::FileFlags::READ);
 		REQUIRE(file.Size() == 8);
 	}
 
 	{
-		File file(fileName, FileFlags::CREATE | FileFlags::WRITE);
+		Core::File file(fileName, Core::FileFlags::CREATE | Core::FileFlags::WRITE);
 		WriteTestData(file, 0, 8);
 		WriteTestData(file, 0, 8);
 	}
 
-	REQUIRE(FileExists(fileName));
+	REQUIRE(Core::FileExists(fileName));
 
 	{
-		File file(fileName, FileFlags::READ);
+		Core::File file(fileName, Core::FileFlags::READ);
 		REQUIRE(file.Size() == 16);
 	}
 }
@@ -173,15 +174,27 @@ TEST_CASE("file-tests-create-dir")
 {
 	ScopedCleanup scopedCleanup;
 
-	REQUIRE(FileCreateDir(folder1));
-	REQUIRE(FileExists(folder1));
-	REQUIRE(FileRemoveDir(folder1));
+	REQUIRE(Core::FileCreateDir(folder1));
+	REQUIRE(Core::FileExists(folder1));
+	REQUIRE(Core::FileRemoveDir(folder1));
 
-	REQUIRE(FileCreateDir(folder2));
-	REQUIRE(FileExists(folder1));
-	REQUIRE(FileExists(folder2));
-	REQUIRE(FileRemoveDir(folder2));
-	REQUIRE(!FileExists(folder2));
-	REQUIRE(FileRemoveDir(folder1));
-	REQUIRE(!FileExists(folder1));
+	REQUIRE(Core::FileCreateDir(folder2));
+	REQUIRE(Core::FileExists(folder1));
+	REQUIRE(Core::FileExists(folder2));
+	REQUIRE(Core::FileRemoveDir(folder2));
+	REQUIRE(!Core::FileExists(folder2));
+	REQUIRE(Core::FileRemoveDir(folder1));
+	REQUIRE(!Core::FileExists(folder1));
 }
+
+TEST_CASE("file-tests-find-files")
+{
+	i32 foundFiles = Core::FileFindInPath(".", nullptr, nullptr, 0);
+	REQUIRE(foundFiles > 0);
+
+	Core::Vector<Core::FileInfo> fileInfos;
+	fileInfos.resize(foundFiles);
+
+	foundFiles = Core::FileFindInPath(".", nullptr, fileInfos.data(), fileInfos.size());	
+}
+

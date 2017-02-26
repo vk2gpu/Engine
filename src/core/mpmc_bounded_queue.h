@@ -62,6 +62,11 @@ namespace Core
 			delete [] buffer_;
 		}
 
+
+		/**
+		 * Enqueue data.
+		 * @return Successfully queued.
+		 */
 		bool Enqueue(const TYPE& data)
 		{
 			Cell* cell = nullptr;
@@ -87,6 +92,10 @@ namespace Core
 			return true;
 		}
 
+		/**
+		 * Dequeue data.
+		 * @return Successfully dequeued.
+		 */
 		bool Dequeue(TYPE& data)
 		{
 			Cell* cell = nullptr;

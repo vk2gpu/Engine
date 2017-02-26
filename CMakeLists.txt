@@ -57,4 +57,4 @@ ADD_SUBDIRECTORY("src/core")
 ADD_SUBDIRECTORY("src/client")
 ADD_SUBDIRECTORY("src/job")
 ADD_SUBDIRECTORY("src/math")
-
+ADD_SUBDIRECTORY("src/plugin")
