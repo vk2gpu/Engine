@@ -3,7 +3,6 @@ ADD_DEFINITIONS("-DMATH_EXPORT=1")
 SET(SOURCES_PUBLIC 
 	"aabb.h"
 	"dll.h"
-	"float.h"
 	"interpolation.h"
 	"mat33.h"
 	"mat44.h"
@@ -16,7 +15,6 @@ SET(SOURCES_PUBLIC
 
 SET(SOURCES_PRIVATE 
 	"private/aabb.cpp"
-	"private/float.cpp"
 	"private/mat33.cpp"
 	"private/mat44.cpp"
 	"private/plane.cpp"

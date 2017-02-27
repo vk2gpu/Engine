@@ -1,7 +1,6 @@
-#include "math/float.h"
+#include "core/float.h"
 
-
-namespace Math
+namespace Core
 {
 	bool CheckFloat(f32 T)
 	{

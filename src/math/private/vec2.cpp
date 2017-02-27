@@ -1,6 +1,6 @@
 #include "math/vec2.h"
 
-#include "math/float.h"
+#include "core/float.h"
 
 #include <cmath>
 
@@ -8,7 +8,7 @@ namespace Math
 {
 	bool Vec2::operator==(const Vec2& Rhs) const
 	{
-		return ((fabs(x - Rhs.x) < F32_EPSILON) && (fabs(y - Rhs.y) < F32_EPSILON));
+		return ((fabs(x - Rhs.x) < Core::F32_EPSILON) && (fabs(y - Rhs.y) < Core::F32_EPSILON));
 	}
 
 	f32 Vec2::Magnitude() const { return sqrtf(MagnitudeSquared()); }
@@ -42,6 +42,6 @@ namespace Math
 
 	bool CheckFloat(Vec2 T)
 	{ //
-		return CheckFloat(T.x) && CheckFloat(T.x);
+		return Core::CheckFloat(T.x) && Core::CheckFloat(T.x);
 	}
 } // namespace Math

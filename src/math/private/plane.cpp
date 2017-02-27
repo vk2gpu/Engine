@@ -1,5 +1,5 @@
 #include "math/plane.h"
-#include "math/float.h"
+#include "core/float.h"
 
 #include <cmath>
 
@@ -58,7 +58,7 @@ namespace Math
 	{
 		const f32 Denom = A.Normal_.Dot((B.Normal_.Cross(C.Normal_)));
 
-		if(std::abs(Denom) < (F32_EPSILON))
+		if(std::abs(Denom) < Core::F32_EPSILON)
 		{
 			return false;
 		}

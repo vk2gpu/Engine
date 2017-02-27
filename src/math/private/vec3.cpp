@@ -1,6 +1,6 @@
 #include "math/vec3.h"
 
-#include "math/float.h"
+#include "core/float.h"
 #include "math/vec2.h"
 
 #include <cmath>
@@ -9,7 +9,8 @@ namespace Math
 {
 	bool Vec3::operator==(const Vec3& Rhs) const
 	{
-		return ((fabs(x - Rhs.x) < F32_EPSILON) && (fabs(y - Rhs.y) < F32_EPSILON) && (fabs(z - Rhs.z) < F32_EPSILON));
+		return ((fabs(x - Rhs.x) < Core::F32_EPSILON) && (fabs(y - Rhs.y) < Core::F32_EPSILON) &&
+		        (fabs(z - Rhs.z) < Core::F32_EPSILON));
 	}
 
 	f32 Vec3::Magnitude() const
@@ -47,6 +48,6 @@ namespace Math
 
 	bool CheckFloat(Vec3 T)
 	{ //
-		return CheckFloat(T.x) && CheckFloat(T.y) && CheckFloat(T.z);
+		return Core::CheckFloat(T.x) && Core::CheckFloat(T.y) && Core::CheckFloat(T.z);
 	}
 } // namespace Math

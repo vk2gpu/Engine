@@ -130,10 +130,12 @@ namespace Core
 
 		void resize(index_type Size, const TYPE& Default)
 		{
+			i32 OldSize = Size_;
 			if(Size_ != Size)
 				internalResize(Size);
 			Size_ = Size;
-			fill(Default);
+			for(index_type Idx = OldSize; Idx < Size_; ++Idx)
+				Data_[Idx] = Default;
 		}
 
 		void shrink_to_fit()

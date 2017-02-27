@@ -1,6 +1,6 @@
 #include "math/vec4.h"
 
-#include "math/float.h"
+#include "core/float.h"
 
 #include <cmath>
 
@@ -82,12 +82,12 @@ namespace Math
 
 	bool Vec4::operator==(const Vec4& Rhs) const
 	{
-		return ((std::abs(x - Rhs.x) < F32_EPSILON) && (std::abs(y - Rhs.y) < F32_EPSILON) &&
-		        (std::abs(z - Rhs.z) < F32_EPSILON) && (std::abs(w - Rhs.w) < F32_EPSILON));
+		return ((abs(x - Rhs.x) < Core::F32_EPSILON) && (abs(y - Rhs.y) < Core::F32_EPSILON) &&
+		        (abs(z - Rhs.z) < Core::F32_EPSILON) && (abs(w - Rhs.w) < Core::F32_EPSILON));
 	}
 
 	bool CheckFloat(Vec4 T)
 	{ //
-		return CheckFloat(T.x) && CheckFloat(T.y) && CheckFloat(T.z) && CheckFloat(T.w);
+		return Core::CheckFloat(T.x) && Core::CheckFloat(T.y) && Core::CheckFloat(T.z) && Core::CheckFloat(T.w);
 	}
 } // namespace Math

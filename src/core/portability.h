@@ -161,3 +161,8 @@
 #define RELEASE
 #endif
 
+//////////////////////////////////////////////////////////////////////////
+// Disable warnings.
+#if COMPILER_MSVC
+#pragma warning(disable : 4201) // nonstandard extension used: nameless struct/union
+#endif

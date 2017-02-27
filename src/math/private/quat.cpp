@@ -1,6 +1,6 @@
 #include "math/quat.h"
 
-#include "math/float.h"
+#include "core/float.h"
 
 #include <cmath>
 
@@ -192,9 +192,9 @@ namespace Math
 		//
 		f32 Sp = -2.0f * (y * z - w * x);
 
-		if(std::abs(Sp) > 0.9999f)
+		if(abs(Sp) > 0.9999f)
 		{
-			f32 Pitch = (F32_PI * 0.5f) * Sp;
+			f32 Pitch = (Core::F32_PI * 0.5f) * Sp;
 			f32 Yaw = atan2f(-x * z + w * y, 0.5f - y * y - z * z);
 			f32 Roll = 0.0f;
 
