@@ -29,6 +29,11 @@ namespace Core
 		 */
 		i32 GetType() const { return type_; }
 
+		/**
+		 * Get combined type & index.
+		 */
+		i32 GetCombined() const { return type_ << 16 | index_; }
+
 		bool operator<(const Handle& other) { return handle_ < other.handle_; }
 		bool operator==(const Handle& other) { return handle_ == other.handle_; }
 		bool operator!=(const Handle& other) { return handle_ != other.handle_; }
@@ -62,6 +67,17 @@ namespace Core
 		 * @param numTypes Maximum number of types to support.
 		 */
 		HandleAllocator(i32 numTypes);
+
+		/**
+		 * Create handle allocator.
+		 * @param numTypes Maximum number of types to support.
+		 */
+		template<typename TYPE_ENUM>
+		HandleAllocator(TYPE_ENUM numTypes)
+			: HandleAllocator((i32)numTypes)
+		{
+		}
+
 		~HandleAllocator();
 
 		/**

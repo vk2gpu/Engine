@@ -10,9 +10,11 @@ TEST_CASE("uuid-tests-string")
 	char outBuffer[128] = { 0 };
 
 	uuid = Core::UUID("uuid-tests-string::test_uuid_0");
+	uuid.AsString(outBuffer);
 	REQUIRE(strcmp(outBuffer, "4e7e8817-9538-562a-167c-dd649f04ead3") == 0);
 
 	uuid = Core::UUID("uuid-tests-string::test_uuid_1");
+	uuid.AsString(outBuffer);
 	REQUIRE(strcmp(outBuffer, "102dffdb-5b8e-5511-016f-b9452eadbd85") == 0);
 }
 

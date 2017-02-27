@@ -50,6 +50,7 @@ namespace Plugin
 				}
 				else
 				{
+					uuid_ = Core::UUID(name_);
 					plugin_ = createPlugin_();
 				}
 			}
@@ -86,6 +87,7 @@ namespace Plugin
 			swap(version_, other.version_);
 			swap(name_, other.name_);
 			swap(desc_, other.desc_);
+			swap(uuid_, other.uuid_);
 			swap(plugin_, other.plugin_);
 		}
 
@@ -101,15 +103,15 @@ namespace Plugin
 		i32 version_ = 0;
 		const char* name_ = nullptr;
 		const char* desc_ = nullptr;
+		Core::UUID uuid_;
 
 		IPlugin* plugin_ = nullptr;
-
-		Core::Mutex mutex_;
 	};
 
 	struct ManagerImpl
 	{
 		Core::Vector<PluginDesc> plugins_;
+		Core::Mutex mutex_;
 	};
 
 	Manager::Manager()
@@ -124,6 +126,7 @@ namespace Plugin
 
 	i32 Manager::Scan(const char* path)
 	{
+		Core::ScopedMutex lock(impl_->mutex_);
 #if PLATFORM_WINDOWS
 		const char* libExt = "dll";
 #elif PLATFORM_LINUX || PLATFORM_OSX

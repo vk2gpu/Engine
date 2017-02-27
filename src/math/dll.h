@@ -3,13 +3,13 @@
 #include "core/portability.h"
 
 #if COMPILER_MSVC
-#  if MATH_EXPORT
-#    define MATH_DLL __declspec(dllexport)
-#  else
-#    define MATH_DLL __declspec(dllimport)
-#  endif
+#if MATH_EXPORT
+#define MATH_DLL __declspec(dllexport)
 #else
-#  define MATH_DLL
+#define MATH_DLL __declspec(dllimport)
+#endif
+#else
+#define MATH_DLL
 #endif
 
 #if MATH_INLINE

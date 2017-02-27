@@ -177,7 +177,8 @@ namespace Core
 			{
 				Collisions = false;
 
-				Indices_.resize(Size, INVALID_INDEX);
+				Indices_.resize(Size);
+				Indices_.fill(INVALID_INDEX);
 				MaxIndex_ = Size;
 				Mask_ = Size - 1;
 
