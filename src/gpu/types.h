@@ -19,6 +19,63 @@ namespace GPU
 	static const i32 MAX_BOUND_RTVS = 8;
 	/// Maximum number of vertex elements in a pipeline state.
 	static const i32 MAX_VERTEX_ELEMENTS = 16;
+	/// Maximum number of vertex streams in the draw binding set.
+	static const i32 MAX_VERTEX_STREAMS = 16;
+	/// Maximum number of SRV bindings.
+	static const i32 MAX_SRV_BINDINGS = 16;
+	/// Maximum number of UAV bindings.
+	static const i32 MAX_UAV_BINDINGS = 8;
+	/// Maximum number of CBV bindings.
+	static const i32 MAX_CBV_BINDINGS = 16;
+	/// Maximum number of sampler bindings.
+	static const i32 MAX_SAMPLER_BINDINGS = 16;
+
+	/**
+	 * Error codes.
+	 */
+	enum class ErrorCode : i32
+	{
+		OK = 0,
+		FAIL = -1,
+	};
+
+	/**
+	 * Adapter info.
+	 */
+	struct AdapterInfo
+	{
+		char description_[512];
+		u32 vendorId_;
+		u32 deviceId_;
+		u32 subSysId_;
+		u32 revision_;
+		i64 dedicatedVideoMemory_;
+		i64 dedicatedSystemMemory_;
+		i64 sharedSystemMemory_;
+	};
+
+	/**
+	 * Box.
+	 */
+	struct Box
+	{
+		i32 x_ = 0;
+		i32 y_ = 0;
+		i32 z_ = 0;
+		i32 w_ = 0;
+		i32 h_ = 0;
+		i32 d_ = 0;
+	};
+
+	/**
+	 * Point.
+	 */
+	struct Point
+	{
+		i32 x_ = 0;
+		i32 y_ = 0;
+		i32 z_ = 0;
+	};
 
 	/**
 	 * Supported formats for resources.

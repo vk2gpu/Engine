@@ -2,9 +2,7 @@
 
 #include "core/types.h"
 #include "gpu/dll.h"
-#include "gpu/types.h"
 #include "gpu/resources.h"
-#include "gpu/sampler_state.h"
 
 namespace GPU
 {
@@ -17,6 +15,14 @@ namespace GPU
 		 */
 		Manager(void* deviceWindow);
 		~Manager();
+
+		/**
+		 * Enumerate adapters.
+		 * @param outAdapters Pointer to adapter info structure array.
+		 * @param maxAdapters Maximum number to enumerate.
+		 * @return Total number of adapters.
+		 */
+		i32 EnumerateAdapters(AdapterInfo* outAdapters, i32 maxAdapters);
 
 		/**
 		 * Create swapchain.
@@ -39,9 +45,9 @@ namespace GPU
 		 * @param desc Texture descriptor.
 		 * @param initialData Data to create texture with.
 		 * @param debugName Debug name.
-		 * @pre initialData == nullptr, allocated size matches one in @a desc
+		 * @pre initialData == nullptr, or has enough for (levels * elements).
 		 */
-		Handle CreateTexture(const BufferDesc& desc, const TextureSubResourceData* initialData, const char* debugName);
+		Handle CreateTexture(const TextureDesc& desc, const TextureSubResourceData* initialData, const char* debugName);
 
 		/**
 		 * Create sample state.
@@ -69,10 +75,30 @@ namespace GPU
 		/**
 		 * Create pipeline binding set.
 		 */
-		Handle CreatePipelineBindingSet(const PipelineBindingSetDesc& desc, const char debugName);
+		Handle CreatePipelineBindingSet(const PipelineBindingSetDesc& desc, const char* debugName);
 
+		/**
+		 * Create draw binding set.
+		 */
+		Handle CreateDrawBindingSet(const DrawBindingSetDesc& desc, const char* debugName);
 
-		 /**
+		/**
+		 * Create command list.
+		 */
+		Handle CreateCommandList(const char* debugName);
+
+		/**
+		 * Create fence.
+		 * Used for synchronisation in and around queues.
+		 */
+		Handle CreateFence(const char* debugName);
+
+		/**
+		 * Destroy resource.
+		 */
+		void DestroyResource(Handle handle);
+
+		/**
 		 * Is valid handle?
 		 */
 		bool IsValidHandle(Handle handle) const;

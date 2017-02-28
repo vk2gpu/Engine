@@ -90,10 +90,10 @@ namespace Core
 		 * Allocate handle using type enum.
 		 * @param type Type of handle.
 		 */
-		template<typename TYPE_ENUM>
-		Handle Alloc(TYPE_ENUM type)
+		template<typename HANDLE_TYPE, typename TYPE_ENUM>
+		HANDLE_TYPE Alloc(TYPE_ENUM type)
 		{
-			return Alloc((i32)type);
+			return HANDLE_TYPE(Alloc((i32)type));
 		}
 
 		/**
