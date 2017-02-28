@@ -1,5 +1,6 @@
-#include "gpu/format.h"
+#include "gpu/utils.h"
 #include "core/debug.h"
+#include "core/misc.h"
 
 namespace GPU
 {
@@ -313,5 +314,38 @@ namespace GPU
 
 		return info;
 	}
+
+	GPU_DLL TextureLayoutInfo GetTextureLayoutInfo(Format format, i32 width, i32 height)
+	{
+		TextureLayoutInfo texLayoutInfo;
+
+		FormatInfo formatInfo = GetFormatInfo(format);
+		i32 widthByBlock = Core::Max(1, width / formatInfo.blockW_);
+		i32 heightByBlock = Core::Max(1, height / formatInfo.blockH_);
+		texLayoutInfo.pitch_ = (widthByBlock * formatInfo.blockBits_) / 8;
+		texLayoutInfo.slicePitch_ = (widthByBlock * heightByBlock * formatInfo.blockBits_) / 8;
+
+		return texLayoutInfo;
+	}
+
+	GPU_DLL i64 GetTextureSize(Format format, i32 width, i32 height, i32 depth, i32 levels, i32 elements)
+	{
+		i64 size = 0;
+		FormatInfo formatInfo = GetFormatInfo(format);
+		for(i32 i = 0; i < levels; ++i)
+		{
+			i32 blocksW = Core::PotRoundUp(width, formatInfo.blockW_) / formatInfo.blockW_;
+			i32 blocksH = Core::PotRoundUp(height, formatInfo.blockH_) / formatInfo.blockH_;
+			i32 blocksD = depth;
+
+			size += (formatInfo.blockBits_ * blocksW * blocksH * blocksD) / 8;
+			width = Core::Max(width / 2, 1);
+			height = Core::Max(height / 2, 1);
+			depth = Core::Max(depth / 2, 1);
+		}
+		size *= elements;
+		return size;
+	}
+
 
 } // namespace GPU

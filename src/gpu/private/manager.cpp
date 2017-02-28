@@ -10,12 +10,14 @@ namespace GPU
 {
 	struct ManagerImpl
 	{
+		void* deviceWindow_ = nullptr;
 		Core::HandleAllocator handles_ = Core::HandleAllocator(ResourceType::MAX);
 	};
 
-	Manager::Manager()
+	Manager::Manager(void* deviceWindow)
 	{ //
 		impl_ = new ManagerImpl();
+		impl_->deviceWindow_ = deviceWindow;
 	}
 
 	Manager::~Manager()

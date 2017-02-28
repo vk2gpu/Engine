@@ -1,7 +1,7 @@
 #pragma once
 
 #include "gpu/dll.h"
-#include "core/types.h"
+#include "gpu/types.h"
 
 namespace GPU
 {
@@ -121,7 +121,7 @@ namespace GPU
 	struct RenderState
 	{
 		// Blend state.
-		BlendState blendStates_[8];
+		BlendState blendStates_[MAX_BOUND_RTVS];
 
 		// Depth stencil.
 		StencilFaceState StencilFront_;
@@ -142,7 +142,5 @@ namespace GPU
 		u32 DepthClipEnable_ = 0;
 		u32 AntialiasedLineEnable_ = 0;
 	};
-};
-
 
 } // namespace GPU

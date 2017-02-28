@@ -1,5 +1,5 @@
 #include "gpu/manager.h"
-#include "gpu/format.h"
+#include "gpu/utils.h"
 #include "client/window.h"
 
 #include "catch.hpp"

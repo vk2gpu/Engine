@@ -3,6 +3,7 @@
 #include "gpu/dll.h"
 #include "gpu/types.h"
 #include "gpu/format.h"
+#include "gpu/render_state.h"
 
 namespace GPU
 {
@@ -26,9 +27,11 @@ namespace GPU
 	enum class ResourceType : i32
 	{
 		INVALID = -1,
-		BUFFER = 0,
+		SWAP_CHAIN = 0,
+		BUFFER,
 		TEXTURE,
 		SAMPLER_STATE,
+		SHADER,
 		GRAPHICS_PIPELINE_STATE,
 		COMPUTE_PIPELINE_STATE,
 
@@ -65,5 +68,56 @@ namespace GPU
 		i32 elements_ = 0;
 	};
 
+	/**
+	 * Texture data.
+	 * Defines a single subresource of a texture.
+	 */
+	struct TextureSubResourceData
+	{
+		void* data_ = nullptr;
+		i32 rowPitch_ = 0;
+		i32 slicePitch_ = 0;
+	};
 
+	/**
+	 * SwapChainDesc.
+	 */
+	struct SwapChainDesc
+	{
+		Format format_ = Format::INVALID;
+		i32 bufferCount_ = 0;
+		void* outputWindow_ = 0;
+	};
+
+	/**
+	 * ShaderDesc.
+	 */
+	struct ShaderDesc
+	{
+		ShaderType type_ = ShaderType::INVALID;
+		const void* data_ = nullptr;
+		i32 dataSize_ = 0;
+	};
+
+	/**
+	 * GraphicsPipelineStateDesc
+	 */
+	struct GraphicsPipelineStateDesc
+	{
+		Handle shaders_[5];
+		RenderState renderState_;
+		VertexElement vertexElements_[MAX_VERTEX_ELEMENTS];
+		PrimitiveTopology topology_ = PrimitiveTopology::INVALID;
+		i32 numRTs_ = 0;
+		Format rtvFormats_[MAX_BOUND_RTVS] = { Format::INVALID };
+		Format dsvFormat_ = Format::INVALID;
+	};
+
+	/**
+	 * ComputePipelineStateDesc
+	 */
+	struct ComputePipelineStateDesc
+	{
+		Handle shader_;
+	};
 } // namespace GPU

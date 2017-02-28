@@ -1,17 +1,34 @@
 #pragma once
 
+#include "core/dll.h"
+#include "core/types.h"
+#include "core/debug.h"
+
 namespace Core
 {
-	template<typename TYPE>
-	TYPE Min(TYPE a, TYPE b)
+	template<typename TYPE, typename TYPE2>
+	TYPE Min(TYPE a, TYPE2 b)
 	{
-		return a < b ? a : b;
+		return a < (TYPE)b ? a : (TYPE)b;
+	}
+
+	template<typename TYPE, typename TYPE2>
+	TYPE Max(TYPE a, TYPE2 b)
+	{
+		return a > (TYPE)b ? a : (TYPE)b;
 	}
 
 	template<typename TYPE>
-	TYPE Max(TYPE a, TYPE b)
+	bool Pot(TYPE T)
 	{
-		return a > b ? a : b;
+		return ((T & (T - 1)) == 0) || (T == 1);
+	}
+
+	template<typename TYPE, typename TYPE2>
+	TYPE PotRoundUp(TYPE Value, TYPE2 RoundUpTo)
+	{
+		DBG_ASSERT(Pot(RoundUpTo));
+		return (Value + (((TYPE)RoundUpTo) - 1)) & ~((TYPE)RoundUpTo - 1);
 	}
 
 	template<typename ENUM>

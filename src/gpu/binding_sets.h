@@ -53,7 +53,9 @@ namespace GPU
 	};
 
 	/**
-	 * Binding set.
+	 * Pipeline binding set.
+	 * Common parameters shared by both graphics and compute
+	 * pipeline states.
 	 */
 	struct PipelineBindingSetDesc
 	{

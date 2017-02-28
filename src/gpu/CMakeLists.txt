@@ -3,16 +3,16 @@ ADD_DEFINITIONS("-DGPU_EXPORT=1")
 SET(SOURCES_PUBLIC 
 	"binding_sets.h"
 	"dll.h"
-	"format.h"
 	"manager.h"
 	"render_state.h"
 	"sampler_state.h"
 	"types.h"
+	"utils.h"
 )
 
 SET(SOURCES_PRIVATE 
-	"private/format.cpp"
 	"private/manager.cpp"
+	"private/utils.cpp"
 )
 
 SET(SOURCES_TESTS
