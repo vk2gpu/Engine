@@ -55,29 +55,6 @@ namespace GPU
 	};
 
 	/**
-	 * Box.
-	 */
-	struct Box
-	{
-		i32 x_ = 0;
-		i32 y_ = 0;
-		i32 z_ = 0;
-		i32 w_ = 0;
-		i32 h_ = 0;
-		i32 d_ = 0;
-	};
-
-	/**
-	 * Point.
-	 */
-	struct Point
-	{
-		i32 x_ = 0;
-		i32 y_ = 0;
-		i32 z_ = 0;
-	};
-
-	/**
 	 * Supported formats for resources.
 	 */
 	enum class Format : i32
@@ -255,15 +232,35 @@ namespace GPU
 	};
 
 	/**
-	 * Primitive topology.
+	 * Topology type.
 	 */
-	enum class PrimitiveTopology : i32
+	enum class TopologyType : i32
 	{
 		INVALID = -1,
 		POINT = 0,
 		LINE,
 		TRIANGLE,
 		PATCH,
+		MAX
+	};
+
+	/**
+	 * Primitive topology.
+	 */
+	enum class PrimitiveTopology : i32
+	{
+		INVALID = -1,
+		POINT_LIST = 0,
+		LINE_LIST,
+		LINE_STRIP,
+		LINE_LIST_ADJ,
+		LINE_STRIP_ADJ,
+		TRIANGLE_LIST,
+		TRIANGLE_STRIP,
+		TRIANGLE_LIST_ADJ,
+		TRIANGLE_STRIP_ADJ,
+		TRIANGLE_FAN,
+		PATCH_LIST,
 		MAX
 	};
 
@@ -292,9 +289,32 @@ namespace GPU
 	};
 
 	/**
+	 * Box.
+	 */
+	struct GPU_DLL Box
+	{
+		i32 x_ = 0;
+		i32 y_ = 0;
+		i32 z_ = 0;
+		i32 w_ = 0;
+		i32 h_ = 0;
+		i32 d_ = 0;
+	};
+
+	/**
+	 * Point.
+	 */
+	struct GPU_DLL Point
+	{
+		i32 x_ = 0;
+		i32 y_ = 0;
+		i32 z_ = 0;
+	};
+
+	/**
 	 * Vertex element.
 	 */
-	struct VertexElement
+	struct GPU_DLL VertexElement
 	{
 		i32 streamIdx_ = -1;
 		i32 offset_ = -1;
@@ -306,7 +326,7 @@ namespace GPU
 	/**
 	 * Scissor rect.
 	 */
-	struct ScissorRect
+	struct GPU_DLL ScissorRect
 	{
 		i32 x_ = 0;
 		i32 y_ = 0;
@@ -318,7 +338,7 @@ namespace GPU
 	 * Viewport.
 	 * Must be inside of the render target.
 	 */
-	struct Viewport
+	struct GPU_DLL Viewport
 	{
 		f32 x_ = 0.0f;
 		f32 y_ = 0.0f;

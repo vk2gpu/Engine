@@ -2,6 +2,7 @@ ADD_DEFINITIONS("-DGPU_EXPORT=1")
 
 SET(SOURCES_PUBLIC 
 	"commands.h"
+	"command_list.h"
 	"dll.h"
 	"manager.h"
 	"resources.h"
@@ -10,6 +11,8 @@ SET(SOURCES_PUBLIC
 )
 
 SET(SOURCES_PRIVATE 
+	"private/command_list.cpp"
+	"private/command_list.inl"
 	"private/interface.h"
 	"private/manager.cpp"
 	"private/utils.cpp"
@@ -17,6 +20,7 @@ SET(SOURCES_PRIVATE
 
 SET(SOURCES_TESTS
 	"tests/test_entry.cpp"
+	"tests/command_list_tests.cpp"
 	"tests/gpu_tests.cpp"
 )
 
@@ -31,7 +35,7 @@ SOURCE_GROUP("Private" FILES ${SOURCES_PRIVATE})
 
 # Add gpu_test.
 ADD_EXECUTABLE(gpu_test ${SOURCES_TESTS})
-TARGET_LINK_LIBRARIES(gpu_test client gpu)
+TARGET_LINK_LIBRARIES(gpu_test core client gpu)
 
 SET_TARGET_PROPERTIES(gpu_test PROPERTIES FOLDER Tests)
 SOURCE_GROUP("Tests" FILES ${SOURCES_TESTS})

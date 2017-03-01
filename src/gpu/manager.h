@@ -83,6 +83,11 @@ namespace GPU
 		Handle CreateDrawBindingSet(const DrawBindingSetDesc& desc, const char* debugName);
 
 		/**
+		 * Create frame binding set.
+		 */
+		Handle CreateFrameBindingSet(const FrameBindingSetDesc& desc, const char* debugName);
+
+		/**
 		 * Create command list.
 		 */
 		Handle CreateCommandList(const char* debugName);

@@ -8,23 +8,6 @@
 namespace GPU
 {
 	/**
-	 * Implement our own handle type. This will help to
-	 * enforce type safety, and prevent other handles
-	 * being passed into this library.
-	 */
-	class Handle : public Core::Handle
-	{
-	public:
-		Handle() = default;
-		Handle(const Handle&) = default;
-		explicit Handle(const Core::Handle& handle)
-		    : Core::Handle(handle)
-		{
-		}
-		operator Core::Handle() const { return *this; }
-	};
-
-	/**
 	 * All the resource types we represent.
 	 */
 	enum class ResourceType : i32
@@ -49,9 +32,27 @@ namespace GPU
 	};
 
 	/**
+	 * Implement our own handle type. This will help to
+	 * enforce type safety, and prevent other handles
+	 * being passed into this library.
+	 */
+	class GPU_DLL Handle : public Core::Handle
+	{
+	public:
+		Handle() = default;
+		Handle(const Handle&) = default;
+		explicit Handle(const Core::Handle& handle)
+		    : Core::Handle(handle)
+		{
+		}
+		operator Core::Handle() const { return *this; }
+		ResourceType GetType() const { return (ResourceType)Core::Handle::GetType(); }
+	};
+
+	/**
 	 * SwapChainDesc.
 	 */
-	struct SwapChainDesc
+	struct GPU_DLL SwapChainDesc
 	{
 		Format format_ = Format::INVALID;
 		i32 bufferCount_ = 0;
@@ -63,7 +64,7 @@ namespace GPU
 	 * Structure is used when creating a buffer resource.
 	 * Easier to extend than function calls.
 	 */
-	struct BufferDesc
+	struct GPU_DLL BufferDesc
 	{
 		BindFlags bindFlags_ = BindFlags::NONE;
 		i64 size_ = 0;
@@ -73,7 +74,7 @@ namespace GPU
 	/**
 	 * TextureDesc.
 	 */
-	struct TextureDesc
+	struct GPU_DLL TextureDesc
 	{
 		TextureType type_ = TextureType::INVALID;
 		BindFlags bindFlags_ = BindFlags::NONE;
@@ -89,7 +90,7 @@ namespace GPU
 	 * Texture data.
 	 * Defines a single subresource of a texture.
 	 */
-	struct TextureSubResourceData
+	struct GPU_DLL TextureSubResourceData
 	{
 		const void* data_ = nullptr;
 		i32 rowPitch_ = 0;
@@ -124,7 +125,7 @@ namespace GPU
 	/**
 	 * Sampler state.
 	 */
-	struct SamplerState
+	struct GPU_DLL SamplerState
 	{
 		AddressingMode AddressU_ = AddressingMode::WRAP;
 		AddressingMode AddressV_ = AddressingMode::WRAP;
@@ -142,7 +143,7 @@ namespace GPU
 	/**
 	 * ShaderDesc.
 	 */
-	struct ShaderDesc
+	struct GPU_DLL ShaderDesc
 	{
 		ShaderType type_ = ShaderType::INVALID;
 		const void* data_ = nullptr;
@@ -234,7 +235,7 @@ namespace GPU
 	 * Blend state.
 	 * One for each RT.
 	 */
-	struct BlendState
+	struct GPU_DLL BlendState
 	{
 		u32 Enable_ = 0;
 		BlendType SrcBlend_ = BlendType::ONE;
@@ -250,7 +251,7 @@ namespace GPU
 	 * Stencil face state.
 	 * One front, one back.
 	 */
-	struct StencilFaceState
+	struct GPU_DLL StencilFaceState
 	{
 		StencilFunc Fail_ = StencilFunc::KEEP;
 		StencilFunc DepthFail_ = StencilFunc::KEEP;
@@ -262,7 +263,7 @@ namespace GPU
 	/**
 	 * Render state.
 	 */
-	struct RenderState
+	struct GPU_DLL RenderState
 	{
 		// Blend state.
 		BlendState blendStates_[MAX_BOUND_RTVS];
@@ -290,12 +291,12 @@ namespace GPU
 	/**
 	 * GraphicsPipelineStateDesc
 	 */
-	struct GraphicsPipelineStateDesc
+	struct GPU_DLL GraphicsPipelineStateDesc
 	{
 		Handle shaders_[5];
 		RenderState renderState_;
 		VertexElement vertexElements_[MAX_VERTEX_ELEMENTS];
-		PrimitiveTopology topology_ = PrimitiveTopology::INVALID;
+		TopologyType topology_ = TopologyType::INVALID;
 		i32 numRTs_ = 0;
 		Format rtvFormats_[MAX_BOUND_RTVS] = {Format::INVALID};
 		Format dsvFormat_ = Format::INVALID;
@@ -304,7 +305,7 @@ namespace GPU
 	/**
 	 * ComputePipelineStateDesc
 	 */
-	struct ComputePipelineStateDesc
+	struct GPU_DLL ComputePipelineStateDesc
 	{
 		Handle shader_;
 	};
@@ -325,7 +326,7 @@ namespace GPU
 	/**
 	 * Binding for a render target view.
 	 */
-	struct BindingRTV
+	struct GPU_DLL BindingRTV
 	{
 		Handle resource_;
 		Format format_ = Format::INVALID;
@@ -339,7 +340,7 @@ namespace GPU
 	/**
 	 * Binding for a depth stencil view.
 	 */
-	struct BindingDSV
+	struct GPU_DLL BindingDSV
 	{
 		Handle resource_;
 		Format format_ = Format::INVALID;
@@ -351,7 +352,7 @@ namespace GPU
 	/**
 	 * Binding for a shader resource view.
 	 */
-	struct BindingSRV
+	struct GPU_DLL BindingSRV
 	{
 		Handle resource_;
 		Format format_ = Format::INVALID;
@@ -364,7 +365,7 @@ namespace GPU
 	/**
 	 * Binding for an unordered access view.
 	 */
-	struct BindingUAV
+	struct GPU_DLL BindingUAV
 	{
 		Handle resource_;
 		Format format_ = Format::INVALID;
@@ -377,7 +378,7 @@ namespace GPU
 	/**
 	 * Binding for a buffer.
 	 */
-	struct BindingBuffer
+	struct GPU_DLL BindingBuffer
 	{
 		Handle resource_;
 		i32 offset_ = 0;
@@ -387,7 +388,7 @@ namespace GPU
 	/**
 	 * Binding for a sampler.
 	 */
-	struct BindingSampler
+	struct GPU_DLL BindingSampler
 	{
 		Handle resource_;
 	};
@@ -397,7 +398,7 @@ namespace GPU
 	 * Common parameters shared by both graphics and compute
 	 * pipeline states.
 	 */
-	struct PipelineBindingSetDesc
+	struct GPU_DLL PipelineBindingSetDesc
 	{
 		i32 numSRVs_ = 0;
 		i32 numUAVs_ = 0;
@@ -412,7 +413,7 @@ namespace GPU
 	/**
 	 * Draw binding set.
 	 */
-	struct DrawBindingSetDesc
+	struct GPU_DLL DrawBindingSetDesc
 	{
 		i32 numVertexBuffers_ = 0;
 		BindingBuffer vbs_[16];
@@ -422,11 +423,10 @@ namespace GPU
 	/**
 	 * Draw frame binding set.
 	 */
-	struct FrameBindingSetDesc
+	struct GPU_DLL FrameBindingSetDesc
 	{
-		i32 numVertexBuffers_ = 0;
-		BindingBuffer vbs_[16];
-		BindingBuffer ib_;
+		BindingRTV rtvs_[MAX_BOUND_RTVS];
+		BindingDSV dsv_;
 	};
 
 } // namespace GPU
