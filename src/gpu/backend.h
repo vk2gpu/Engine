@@ -18,7 +18,8 @@ namespace GPU
 		 */
 		virtual i32 EnumerateAdapters(AdapterInfo* outAdapters, i32 maxAdapters) = 0;
 
-		virtual ErrorCode InitializeAdapter(i32 adapterIdx) = 0;
+		virtual bool IsInitialized() const = 0;
+		virtual ErrorCode Initialize(i32 adapterIdx) = 0;
 
 		/**
 		 * Resource creation/destruction.
@@ -44,5 +45,4 @@ namespace GPU
 		virtual ErrorCode CreateFence(Handle handle, const char* debugName) = 0;
 		virtual ErrorCode DestroyResource(Handle handle) = 0;
 	};
-
 } // namespace GPU

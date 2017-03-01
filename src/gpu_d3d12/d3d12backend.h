@@ -1,8 +1,8 @@
 #pragma once
 
 #include "gpu/dll.h"
-#include "gpu/d3d12/d3d12types.h"
-#include "gpu/private/backend.h"
+#include "gpu/backend.h"
+#include "gpu_d3d12/d3d12types.h"
 
 #include "core/library.h"
 #include "core/vector.h"
@@ -21,9 +21,14 @@ namespace GPU
 		i32 EnumerateAdapters(AdapterInfo* outAdapters, i32 maxAdapters) override;
 
 		/**
-		 * Initialize adapter.
+		 * @return Is initialized?
 		 */
-		ErrorCode InitializeAdapter(i32 adapterIdx) override;
+		bool IsInitialized() const;
+
+		/**
+		 * Initialize.
+		 */
+		ErrorCode Initialize(i32 adapterIdx) override;
 
 		/**
 		 * Resource creation/destruction.
@@ -61,7 +66,7 @@ namespace GPU
 		ComPtr<IDXGIFactory1> dxgiFactory_;
 
 		/// Cached adapter infos.
-		Core::Vector<ComPtr<IDXGIAdapter>> adapters_; 
+		Core::Vector<ComPtr<IDXGIAdapter1>> adapters_; 
 		Core::Vector<GPU::AdapterInfo> adapterInfos_;
 
 		/// D3D12 devices.

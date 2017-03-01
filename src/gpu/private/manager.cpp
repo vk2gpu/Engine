@@ -2,7 +2,7 @@
 #include "gpu/types.h"
 #include "gpu/resources.h"
 
-#include "gpu/private/backend.h"
+#include "gpu/backend.h"
 
 #include "core/array.h"
 #include "core/concurrency.h"
@@ -91,9 +91,16 @@ namespace GPU
 		return impl_->backend_->EnumerateAdapters(outAdapters, maxAdapters);
 	}
 
-	ErrorCode Manager::InitializeAdapter(i32 adapterIdx)
+	ErrorCode Manager::Initialize(i32 adapterIdx)
 	{
-		return impl_->backend_->InitializeAdapter(adapterIdx);
+		DBG_ASSERT(!IsInitialized());
+		DBG_ASSERT(impl_->backend_);
+		return impl_->backend_->Initialize(adapterIdx);
+	}
+
+	bool Manager::IsInitialized() const
+	{
+		return impl_->backend_ && impl_->backend_->IsInitialized();
 	}
 
 	Handle Manager::CreateSwapChain(const SwapChainDesc& desc, const char* debugName)

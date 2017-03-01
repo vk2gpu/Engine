@@ -1,4 +1,4 @@
-#include "gpu/d3d12/d3d12backend.h"
+#include "gpu_d3d12/d3d12backend.h"
 #include "core/debug.h"
 #include "core/string.h"
 
@@ -92,11 +92,11 @@ namespace GPU
 	{
 		if(adapterInfos_.size() == 0)
 		{
-			ComPtr<IDXGIAdapter> adapter;
-			while(SUCCEEDED(dxgiFactory_->EnumAdapters(adapters_.size(), adapter.ReleaseAndGetAddressOf())))
+			ComPtr<IDXGIAdapter1> adapter;
+			while(SUCCEEDED(dxgiFactory_->EnumAdapters1(adapters_.size(), adapter.ReleaseAndGetAddressOf())))
 			{
-				DXGI_ADAPTER_DESC desc;
-				adapter->GetDesc(&desc);
+				DXGI_ADAPTER_DESC1 desc;
+				adapter->GetDesc1(&desc);
 
 				AdapterInfo outAdapter;
 				Core::StringConvertUTF16toUTF8(desc.Description, 128, outAdapter.description_, sizeof(outAdapter));
@@ -121,7 +121,12 @@ namespace GPU
 		return adapterInfos_.size();
 	}
 
-	ErrorCode D3D12Backend::InitializeAdapter(i32 adapterIdx)
+	bool D3D12Backend::IsInitialized() const
+	{
+		return device_;
+	}
+
+	ErrorCode D3D12Backend::Initialize(i32 adapterIdx)
 	{
 		D3D_FEATURE_LEVEL featureLevel = D3D_FEATURE_LEVEL::D3D_FEATURE_LEVEL_11_0;
 		ComPtr<ID3D12Device> device;

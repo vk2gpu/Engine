@@ -38,6 +38,11 @@ namespace Core
 		 */
 		i32 GetCombined() const { return type_ << 16 | index_; }
 
+		/**
+		 * Validity check.
+		 */
+		operator bool() const { return handle_ != 0; }
+
 		bool operator<(const Handle& other) { return handle_ < other.handle_; }
 		bool operator==(const Handle& other) { return handle_ == other.handle_; }
 		bool operator!=(const Handle& other) { return handle_ != other.handle_; }

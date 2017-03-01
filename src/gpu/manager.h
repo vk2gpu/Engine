@@ -25,10 +25,16 @@ namespace GPU
 		i32 EnumerateAdapters(AdapterInfo* outAdapters, i32 maxAdapters);
 
 		/**
-		 * Initialize adapter.
-		 * @param adapterIdx Adapter index.
+		 * Is initialized?
 		 */
-		ErrorCode InitializeAdapter(i32 adapterIdx);
+		bool IsInitialized() const;
+
+		/**
+		 * Initialize.
+		 * @param adapterIdx Adapter index.
+		 * @pre !IsInitialized()
+		 */
+		ErrorCode Initialize(i32 adapterIdx);
 
 		/**
 		 * Create swapchain.

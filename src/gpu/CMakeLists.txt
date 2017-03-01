@@ -1,4 +1,5 @@
 SET(SOURCES_PUBLIC 
+	"backend.h"
 	"commands.h"
 	"command_list.h"
 	"dll.h"
@@ -11,19 +12,8 @@ SET(SOURCES_PUBLIC
 SET(SOURCES_PRIVATE 
 	"private/command_list.cpp"
 	"private/command_list.inl"
-	"private/backend.h"
 	"private/manager.cpp"
 	"private/utils.cpp"
-)
-
-SET(SOURCES_D3D12_PUBLIC 
-	"d3d12/d3d12backend.h"
-	"d3d12/d3d12types.h"
-	"d3d12/dll.h"
-)
-
-SET(SOURCES_D3D12_PRIVATE 
-	"d3d12/private/d3d12backend.cpp"
 )
 
 SET(SOURCES_TESTS
@@ -41,15 +31,6 @@ TARGET_COMPILE_DEFINITIONS(gpu PRIVATE GPU_EXPORT=1)
 
 SOURCE_GROUP("Public" FILES ${SOURCES_PUBLIC})
 SOURCE_GROUP("Private" FILES ${SOURCES_PRIVATE})
-
-# Add gpu_d3d12
-ADD_LIBRARY(gpu_d3d12 SHARED ${SOURCES_D3D12_PUBLIC} ${SOURCES_D3D12_PRIVATE})
-SET_TARGET_PROPERTIES(gpu_d3d12 PROPERTIES FOLDER Libraries)
-TARGET_LINK_LIBRARIES(gpu_d3d12 core gpu)
-TARGET_COMPILE_DEFINITIONS(gpu PRIVATE GPU_D3D12_EXPORT=1)
-
-SOURCE_GROUP("Public" FILES ${SOURCES_D3D12_PUBLIC})
-SOURCE_GROUP("Private" FILES ${SOURCES_D3D12_PRIVATE})
 
 # Add gpu_test.
 ADD_EXECUTABLE(gpu_test ${SOURCES_TESTS})

@@ -8,6 +8,7 @@
 
 namespace
 {
+	
 }
 
 TEST_CASE("gpu-tests-formats")
@@ -37,6 +38,9 @@ TEST_CASE("gpu-tests-enumerate")
 	Core::Vector<GPU::AdapterInfo> adapterInfos;
 	adapterInfos.resize(numAdapters);
 	manager.EnumerateAdapters(adapterInfos.data(), adapterInfos.size());
+	Core::Log("gpu-tests-enumerate: Adapters:\n");
+	for(const auto& adapterInfo : adapterInfos)
+		Core::Log(" - %s\n", adapterInfo.description_);
 }
 
 TEST_CASE("gpu-tests-initialize")
@@ -47,5 +51,17 @@ TEST_CASE("gpu-tests-initialize")
 	i32 numAdapters = manager.EnumerateAdapters(nullptr, 0);
 	REQUIRE(numAdapters > 0);
 
-	REQUIRE(manager.InitializeAdapter(0) == GPU::ErrorCode::OK);
+	REQUIRE(manager.Initialize(0) == GPU::ErrorCode::OK);
+}
+
+TEST_CASE("gpu-tests-create-commandlist")
+{
+	Client::Window window("gpu_tests", 0, 0, 640, 480);
+	GPU::Manager manager(window.GetPlatformData().handle_);
+	
+	i32 numAdapters = manager.EnumerateAdapters(nullptr, 0);
+	REQUIRE(numAdapters > 0);
+
+	REQUIRE(manager.Initialize(0) == GPU::ErrorCode::OK);
+	REQUIRE(manager.CreateCommandList("gpu-tests-create-commandlist"));
 }
