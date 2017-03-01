@@ -2,14 +2,10 @@
 
 #include "core/portability.h"
 
-#if COMPILER_MSVC
-#  if PLUGIN_EXPORT
-#    define PLUGIN_DLL __declspec(dllexport)
-#  else
-#    define PLUGIN_DLL __declspec(dllimport)
-#  endif
+#if PLUGIN_EXPORT
+#define PLUGIN_DLL EXPORT
 #else
-#  define PLUGIN_DLL
+#define PLUGIN_DLL IMPORT
 #endif
 
 #if CODE_INLINE

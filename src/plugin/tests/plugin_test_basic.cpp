@@ -3,27 +3,27 @@
 
 extern "C" 
 {
-	PLUGIN_DLL const char* GetPluginName()
+	__declspec(dllexport) const char* GetPluginName()
 	{
 		return "plugin_test_basic";
 	}
 
-	PLUGIN_DLL const char* GetPluginDesc()
+	EXPORT const char* GetPluginDesc()
 	{
 		return "Basic test for plugins.";
 	}
 
-	PLUGIN_DLL i32 GetPluginVersion()
+	EXPORT i32 GetPluginVersion()
 	{
 		return Plugin::PLUGIN_VERSION;
 	}
 
-	PLUGIN_DLL Plugin::IPlugin* CreatePlugin()
+	EXPORT Plugin::IPlugin* CreatePlugin()
 	{
 		return nullptr;
 	}
 
-	PLUGIN_DLL void DestroyPlugin(Plugin::IPlugin*)
+	EXPORT void DestroyPlugin(Plugin::IPlugin*)
 	{
 
 	}

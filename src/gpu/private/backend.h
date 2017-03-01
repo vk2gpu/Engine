@@ -8,15 +8,17 @@
 
 namespace GPU
 {
-	class Interface
+	class IBackend
 	{
 	public:
-		virtual ~Interface() {}
+		virtual ~IBackend() {}
 
 		/**
 		 * Device operations.
 		 */
 		virtual i32 EnumerateAdapters(AdapterInfo* outAdapters, i32 maxAdapters) = 0;
+
+		virtual ErrorCode InitializeAdapter(i32 adapterIdx) = 0;
 
 		/**
 		 * Resource creation/destruction.

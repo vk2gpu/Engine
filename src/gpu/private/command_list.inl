@@ -233,7 +233,7 @@ namespace GPU
 		DBG_ASSERT(dstTexture.GetType() == ResourceType::TEXTURE);
 		DBG_ASSERT(dstSubResourceIdx >= 0);
 		DBG_ASSERT(dstPoint.x_ >= 0);
-		DBG_ASSERT(dstPoint.y_ >= 0);		
+		DBG_ASSERT(dstPoint.y_ >= 0);
 		DBG_ASSERT(srcTexture != dstTexture || srcSubResourceIdx != dstSubResourceIdx);
 
 

@@ -2,14 +2,10 @@
 
 #include "core/portability.h"
 
-#if COMPILER_MSVC
 #if CORE_EXPORT
-#define CORE_DLL __declspec(dllexport)
+#define CORE_DLL EXPORT
 #else
-#define CORE_DLL __declspec(dllimport)
-#endif
-#else
-#define CORE_DLL
+#define CORE_DLL IMPORT
 #endif
 
 #if CODE_INLINE

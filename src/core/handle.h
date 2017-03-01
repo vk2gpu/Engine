@@ -11,9 +11,13 @@ namespace Core
 	class CORE_DLL Handle
 	{
 	public:
-		static const i32 MAX_INDEX = 65536;
-		static const i32 MAX_MAGIC = 4096;
-		static const i32 MAX_TYPE = 16;
+		enum
+		{
+			MAX_INDEX = 65536,
+			MAX_MAGIC = 4096,
+			MAX_TYPE = 16,
+		};
+
 		Handle()
 		    : handle_(0)
 		{
@@ -44,7 +48,8 @@ namespace Core
 		union
 		{
 			struct
-			{;
+			{
+				;
 				u32 index_ : 16;
 				u32 magic_ : 12;
 				u32 type_ : 4;
@@ -74,7 +79,7 @@ namespace Core
 		 */
 		template<typename TYPE_ENUM>
 		HandleAllocator(TYPE_ENUM numTypes)
-			: HandleAllocator((i32)numTypes)
+		    : HandleAllocator((i32)numTypes)
 		{
 		}
 

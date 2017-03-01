@@ -2,14 +2,10 @@
 
 #include "core/portability.h"
 
-#if COMPILER_MSVC
 #if GPU_EXPORT
-#define GPU_DLL __declspec(dllexport)
+#define GPU_DLL EXPORT
 #else
-#define GPU_DLL __declspec(dllimport)
-#endif
-#else
-#define GPU_DLL
+#define GPU_DLL IMPORT
 #endif
 
 #if CODE_INLINE

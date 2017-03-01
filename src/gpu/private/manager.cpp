@@ -2,12 +2,13 @@
 #include "gpu/types.h"
 #include "gpu/resources.h"
 
-#include "gpu/private/interface.h"
+#include "gpu/private/backend.h"
 
 #include "core/array.h"
 #include "core/concurrency.h"
 #include "core/debug.h"
 #include "core/handle.h"
+#include "core/library.h"
 #include "core/vector.h"
 
 #include <utility>
@@ -18,7 +19,7 @@ namespace GPU
 	{
 		void* deviceWindow_ = nullptr;
 
-		Interface* interface_ = nullptr;
+		IBackend* backend_ = nullptr;
 
 		Core::Mutex mutex_;
 		Core::HandleAllocator handles_ = Core::HandleAllocator(ResourceType::MAX);
@@ -51,12 +52,28 @@ namespace GPU
 				handle = Handle();
 			}
 		}
+
+		// TODO: Proper API look up.
+		typedef GPU::IBackend*(*CreateBackendFn)(void*);
+		void CreateBackend()
+		{
+			Core::LibHandle handle = Core::LibraryOpen("gpu_d3d12.dll");
+			if(handle)
+			{
+				auto createBackendFn = (CreateBackendFn)Core::LibrarySymbol(handle, "CreateBackend");
+				if(createBackendFn)
+				{
+					backend_ = createBackendFn(deviceWindow_);
+				}
+			}
+		}
 	};
 
 	Manager::Manager(void* deviceWindow)
 	{ //
 		impl_ = new ManagerImpl();
 		impl_->deviceWindow_ = deviceWindow;
+		impl_->CreateBackend();
 	}
 
 	Manager::~Manager()
@@ -70,96 +87,101 @@ namespace GPU
 
 	i32 Manager::EnumerateAdapters(AdapterInfo* outAdapters, i32 maxAdapters)
 	{
-		DBG_ASSERT(impl_->interface_);
-		return impl_->interface_->EnumerateAdapters(outAdapters, maxAdapters);
+		DBG_ASSERT(impl_->backend_);
+		return impl_->backend_->EnumerateAdapters(outAdapters, maxAdapters);
+	}
+
+	ErrorCode Manager::InitializeAdapter(i32 adapterIdx)
+	{
+		return impl_->backend_->InitializeAdapter(adapterIdx);
 	}
 
 	Handle Manager::CreateSwapChain(const SwapChainDesc& desc, const char* debugName)
 	{
-		DBG_ASSERT(impl_->interface_);
+		DBG_ASSERT(impl_->backend_);
 		Handle handle = impl_->AllocHandle(ResourceType::SWAP_CHAIN);
-		impl_->HandleErrorCode(handle, impl_->interface_->CreateSwapChain(handle, desc, debugName));
+		impl_->HandleErrorCode(handle, impl_->backend_->CreateSwapChain(handle, desc, debugName));
 		return handle;
 	}
 
 	Handle Manager::CreateBuffer(const BufferDesc& desc, const void* initialData, const char* debugName)
 	{
-		DBG_ASSERT(impl_->interface_);
+		DBG_ASSERT(impl_->backend_);
 		Handle handle = impl_->AllocHandle(ResourceType::BUFFER);
-		impl_->HandleErrorCode(handle, impl_->interface_->CreateBuffer(handle, desc, initialData, debugName));
+		impl_->HandleErrorCode(handle, impl_->backend_->CreateBuffer(handle, desc, initialData, debugName));
 		return handle;
 	}
 
 	Handle Manager::CreateTexture(
 	    const TextureDesc& desc, const TextureSubResourceData* initialData, const char* debugName)
 	{
-		DBG_ASSERT(impl_->interface_);
+		DBG_ASSERT(impl_->backend_);
 		Handle handle = impl_->AllocHandle(ResourceType::TEXTURE);
-		impl_->HandleErrorCode(handle, impl_->interface_->CreateTexture(handle, desc, initialData, debugName));
+		impl_->HandleErrorCode(handle, impl_->backend_->CreateTexture(handle, desc, initialData, debugName));
 		return handle;
 	}
 
 	Handle Manager::CreateSamplerState(const SamplerState& state, const char* debugName)
 	{
-		DBG_ASSERT(impl_->interface_);
+		DBG_ASSERT(impl_->backend_);
 		Handle handle = impl_->AllocHandle(ResourceType::SAMPLER_STATE);
-		impl_->HandleErrorCode(handle, impl_->interface_->CreateSamplerState(handle, state, debugName));
+		impl_->HandleErrorCode(handle, impl_->backend_->CreateSamplerState(handle, state, debugName));
 		return handle;
 	}
 
 	Handle Manager::CreateShader(const ShaderDesc& desc, const char* debugName)
 	{
-		DBG_ASSERT(impl_->interface_);
+		DBG_ASSERT(impl_->backend_);
 		Handle handle = impl_->AllocHandle(ResourceType::SHADER);
-		impl_->HandleErrorCode(handle, impl_->interface_->CreateShader(handle, desc, debugName));
+		impl_->HandleErrorCode(handle, impl_->backend_->CreateShader(handle, desc, debugName));
 		return handle;
 	}
 
 	Handle Manager::CreateGraphicsPipelineState(const GraphicsPipelineStateDesc& desc, const char* debugName)
 	{
-		DBG_ASSERT(impl_->interface_);
+		DBG_ASSERT(impl_->backend_);
 		Handle handle = impl_->AllocHandle(ResourceType::GRAPHICS_PIPELINE_STATE);
-		impl_->HandleErrorCode(handle, impl_->interface_->CreateGraphicsPipelineState(handle, desc, debugName));
+		impl_->HandleErrorCode(handle, impl_->backend_->CreateGraphicsPipelineState(handle, desc, debugName));
 		return handle;
 	}
 
 	Handle Manager::CreateComputePipelineState(const ComputePipelineStateDesc& desc, const char* debugName)
 	{
-		DBG_ASSERT(impl_->interface_);
+		DBG_ASSERT(impl_->backend_);
 		Handle handle = impl_->AllocHandle(ResourceType::COMPUTE_PIPELINE_STATE);
-		impl_->HandleErrorCode(handle, impl_->interface_->CreateComputePipelineState(handle, desc, debugName));
+		impl_->HandleErrorCode(handle, impl_->backend_->CreateComputePipelineState(handle, desc, debugName));
 		return handle;
 	}
 
 	Handle Manager::CreatePipelineBindingSet(const PipelineBindingSetDesc& desc, const char* debugName)
 	{
-		DBG_ASSERT(impl_->interface_);
+		DBG_ASSERT(impl_->backend_);
 		Handle handle = impl_->AllocHandle(ResourceType::PIPELINE_BINDING_SET);
-		impl_->HandleErrorCode(handle, impl_->interface_->CreatePipelineBindingSet(handle, desc, debugName));
+		impl_->HandleErrorCode(handle, impl_->backend_->CreatePipelineBindingSet(handle, desc, debugName));
 		return handle;
 	}
 
 	Handle Manager::CreateDrawBindingSet(const DrawBindingSetDesc& desc, const char* debugName)
 	{
-		DBG_ASSERT(impl_->interface_);
+		DBG_ASSERT(impl_->backend_);
 		Handle handle = impl_->AllocHandle(ResourceType::DRAW_BINDING_SET);
-		impl_->HandleErrorCode(handle, impl_->interface_->CreateDrawBindingSet(handle, desc, debugName));
+		impl_->HandleErrorCode(handle, impl_->backend_->CreateDrawBindingSet(handle, desc, debugName));
 		return handle;
 	}
 
 	Handle Manager::CreateCommandList(const char* debugName)
 	{
-		DBG_ASSERT(impl_->interface_);
+		DBG_ASSERT(impl_->backend_);
 		Handle handle = impl_->AllocHandle(ResourceType::COMMAND_LIST);
-		impl_->HandleErrorCode(handle, impl_->interface_->CreateCommandList(handle, debugName));
+		impl_->HandleErrorCode(handle, impl_->backend_->CreateCommandList(handle, debugName));
 		return handle;
 	}
 
 	Handle Manager::CreateFence(const char* debugName)
 	{
-		DBG_ASSERT(impl_->interface_);
+		DBG_ASSERT(impl_->backend_);
 		Handle handle = impl_->AllocHandle(ResourceType::FENCE);
-		impl_->HandleErrorCode(handle, impl_->interface_->CreateFence(handle, debugName));
+		impl_->HandleErrorCode(handle, impl_->backend_->CreateFence(handle, debugName));
 		return handle;
 	}
 

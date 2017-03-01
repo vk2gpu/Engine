@@ -2,14 +2,10 @@
 
 #include "core/portability.h"
 
-#if COMPILER_MSVC
-#  if CLIENT_EXPORT
-#    define CLIENT_DLL __declspec(dllexport)
-#  else
-#    define CLIENT_DLL __declspec(dllimport)
-#  endif
+#if CLIENT_EXPORT
+#define CLIENT_DLL EXPORT
 #else
-#  define CLIENT_DLL
+#define CLIENT_DLL IMPORT
 #endif
 
 #if CODE_INLINE

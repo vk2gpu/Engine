@@ -37,6 +37,8 @@ namespace GPU
 	{
 		OK = 0,
 		FAIL = -1,
+		UNIMPLEMENTED = -2,
+		UNSUPPORTED = -3,
 	};
 
 	/**
@@ -44,6 +46,7 @@ namespace GPU
 	 */
 	struct AdapterInfo
 	{
+		i32 deviceIdx_ = 0;
 		char description_[512];
 		u32 vendorId_;
 		u32 deviceId_;

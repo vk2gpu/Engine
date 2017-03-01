@@ -25,6 +25,12 @@ namespace GPU
 		i32 EnumerateAdapters(AdapterInfo* outAdapters, i32 maxAdapters);
 
 		/**
+		 * Initialize adapter.
+		 * @param adapterIdx Adapter index.
+		 */
+		ErrorCode InitializeAdapter(i32 adapterIdx);
+
+		/**
 		 * Create swapchain.
 		 * @param desc Swapchain descriptor.
 		 * @param debugName Debug name.

@@ -166,3 +166,14 @@
 #if COMPILER_MSVC
 #pragma warning(disable : 4201) // nonstandard extension used: nameless struct/union
 #endif
+
+//////////////////////////////////////////////////////////////////////////
+// Symbol exporting.
+#if COMPILER_MSVC
+#define EXPORT __declspec(dllexport)
+#define IMPORT __declspec(dllimport)
+#else
+#define EXPORT
+#define IMPORT
+#endif
+

@@ -2,14 +2,10 @@
 
 #include "core/portability.h"
 
-#if COMPILER_MSVC
 #if JOB_EXPORT
-#define JOB_DLL __declspec(dllexport)
+#define JOB_DLL EXPORT
 #else
-#define JOB_DLL __declspec(dllimport)
-#endif
-#else
-#define JOB_DLL
+#define JOB_DLL IMPORT
 #endif
 
 #if CODE_INLINE
