@@ -37,6 +37,8 @@ namespace GPU
 	 */
 	D3D12_RESOURCE_FLAGS GetResourceFlags(BindFlags bindFlags);
 	D3D12_RESOURCE_STATES GetResourceStates(BindFlags bindFlags);
+	D3D12_RESOURCE_STATES GetDefaultResourceState(BindFlags bindFlags);
+	D3D12_RESOURCE_DIMENSION GetResourceDimension(TextureType type);
 	DXGI_FORMAT GetFormat(Format format);
 
 } // namespace GPU

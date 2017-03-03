@@ -131,15 +131,25 @@ namespace GPU
 	ErrorCode D3D12Backend::CreateBuffer(
 	    Handle handle, const BufferDesc& desc, const void* initialData, const char* debugName)
 	{
-		//
-		return ErrorCode::UNIMPLEMENTED;
+		D3D12Resource buffer;
+		ErrorCode retVal = device_->CreateBuffer(buffer, desc, initialData, debugName);
+		if(retVal != ErrorCode::OK)
+			return retVal;
+		Core::ScopedMutex lock(resourceMutex_);
+		bufferResources_[handle.GetIndex()] = buffer;
+		return ErrorCode::OK;
 	}
 
 	ErrorCode D3D12Backend::CreateTexture(
 	    Handle handle, const TextureDesc& desc, const TextureSubResourceData* initialData, const char* debugName)
 	{
-		//
-		return ErrorCode::UNIMPLEMENTED;
+		D3D12Resource texture;
+		ErrorCode retVal = device_->CreateTexture(texture, desc, initialData, debugName);
+		if(retVal != ErrorCode::OK)
+			return retVal;
+		Core::ScopedMutex lock(resourceMutex_);
+		textureResources_[handle.GetIndex()] = texture;
+		return ErrorCode::OK;
 	}
 
 	ErrorCode D3D12Backend::CreateSamplerState(Handle handle, const SamplerState& state, const char* debugName)
@@ -189,8 +199,10 @@ namespace GPU
 
 	ErrorCode D3D12Backend::CreateCommandList(Handle handle, const char* debugName)
 	{
-		//
-		return ErrorCode::UNIMPLEMENTED;
+		D3D12CommandList* commandList = new D3D12CommandList(*device_, 0x0, D3D12_COMMAND_LIST_TYPE_DIRECT);
+		Core::ScopedMutex lock(resourceMutex_);
+		commandLists_[handle.GetIndex()] = commandList;
+		return ErrorCode::OK;
 	}
 
 	ErrorCode D3D12Backend::CreateFence(Handle handle, const char* debugName)
@@ -212,6 +224,11 @@ namespace GPU
 		case ResourceType::TEXTURE:
 			textureResources_[handle.GetIndex()] = D3D12Resource();
 			break;
+		case ResourceType::COMMAND_LIST:
+			delete commandLists_[handle.GetIndex()];
+			commandLists_[handle.GetIndex()] = nullptr;
+			break;
+
 		}
 		//
 		return ErrorCode::UNIMPLEMENTED;

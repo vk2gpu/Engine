@@ -43,6 +43,7 @@ namespace GPU
 	{
 		ComPtr<ID3D12Resource> resource_;
 		D3D12_RESOURCE_STATES supportedStates_ = D3D12_RESOURCE_STATE_COMMON;
+		D3D12_RESOURCE_STATES defaultState_ = D3D12_RESOURCE_STATE_COMMON;
 	};
 
 	struct D3D12SwapChainResource

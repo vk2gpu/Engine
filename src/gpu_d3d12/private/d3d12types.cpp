@@ -114,6 +114,47 @@ namespace GPU
 		return retVal;
 	}
 
+	D3D12_RESOURCE_STATES GetDefaultResourceState(BindFlags bindFlags)
+	{
+		D3D12_RESOURCE_STATES retVal = D3D12_RESOURCE_STATE_COMMON;
+		if(Core::ContainsAnyFlags(bindFlags, BindFlags::VERTEX_BUFFER | BindFlags::CONSTANT_BUFFER))
+			retVal = D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER;
+		if(Core::ContainsAllFlags(bindFlags, BindFlags::INDEX_BUFFER))
+			retVal = D3D12_RESOURCE_STATE_INDEX_BUFFER;
+		if(Core::ContainsAllFlags(bindFlags, BindFlags::INDIRECT_BUFFER))
+			retVal = D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT;
+		if(Core::ContainsAllFlags(bindFlags, BindFlags::SHADER_RESOURCE))
+			retVal = D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+		if(Core::ContainsAllFlags(bindFlags, BindFlags::STREAM_OUTPUT))
+			retVal = D3D12_RESOURCE_STATE_STREAM_OUT;
+		if(Core::ContainsAllFlags(bindFlags, BindFlags::RENDER_TARGET))
+			retVal = D3D12_RESOURCE_STATE_RENDER_TARGET;
+		if(Core::ContainsAllFlags(bindFlags, BindFlags::DEPTH_STENCIL))
+			retVal = D3D12_RESOURCE_STATE_DEPTH_WRITE;
+		if(Core::ContainsAllFlags(bindFlags, BindFlags::UNORDERED_ACCESS))
+			retVal = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
+		if(Core::ContainsAllFlags(bindFlags, BindFlags::PRESENT))
+			retVal = D3D12_RESOURCE_STATE_PRESENT;
+		return retVal;
+	}
+
+	D3D12_RESOURCE_DIMENSION GetResourceDimension(TextureType type)
+	{
+		switch(type)
+		{
+		case TextureType::TEX1D:
+			return D3D12_RESOURCE_DIMENSION_TEXTURE1D;
+		case TextureType::TEX2D:
+			return D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+		case TextureType::TEX3D:
+			return D3D12_RESOURCE_DIMENSION_TEXTURE3D;
+		case TextureType::TEXCUBE:
+			return D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+		default:
+			return D3D12_RESOURCE_DIMENSION_UNKNOWN;
+		}
+	}
+
 	DXGI_FORMAT GetFormat(Format format)
 	{
 #define CASE(FORMAT)                                                                                                   \

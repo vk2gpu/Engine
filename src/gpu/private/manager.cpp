@@ -82,7 +82,7 @@ namespace GPU
 
 #if !defined(FINAL)
 		for(i32 i = 0; i < (i32)ResourceType::MAX; ++i)
-			DBG_ASSERT_MSG(impl_->handles_.GetTotalHandles(i) == 0, "Handles still remain allocated.");
+			DBG_ASSERT_MSG(impl_->handles_.GetTotalHandles(i) == 0, "Handles still remain allocated for resource type %u", i);
 #endif
 		delete impl_;
 	}
@@ -194,7 +194,10 @@ namespace GPU
 		return handle;
 	}
 
-	void Manager::DestroyResource(Handle handle) { impl_->deferredDeletions_.push_back(handle); }
+	void Manager::DestroyResource(Handle handle)
+	{ //
+		impl_->deferredDeletions_.push_back(handle);
+	}
 
 	bool Manager::IsValidHandle(Handle handle) const
 	{ //

@@ -77,7 +77,98 @@ TEST_CASE("gpu-tests-create-swapchain")
 	manager.DestroyResource(handle);
 }
 
-#if 0
+TEST_CASE("gpu-tests-create-buffer")
+{
+	Client::Window window("gpu_tests", 0, 0, 640, 480);
+	GPU::Manager manager(window.GetPlatformData().handle_);
+
+	i32 numAdapters = manager.EnumerateAdapters(nullptr, 0);
+	REQUIRE(numAdapters > 0);
+
+	REQUIRE(manager.Initialize(0) == GPU::ErrorCode::OK);
+
+	GPU::BufferDesc desc;
+	desc.bindFlags_ = GPU::BindFlags::VERTEX_BUFFER;
+	desc.size_ = 32 * 1024;
+	desc.stride_ = 0;
+
+	GPU::Handle handle;
+	handle = manager.CreateBuffer(desc, nullptr, "gpu-tests-create-buffer");
+	REQUIRE(handle);
+
+	manager.DestroyResource(handle);
+}
+
+TEST_CASE("gpu-tests-create-texture")
+{
+	Client::Window window("gpu_tests", 0, 0, 640, 480);
+	GPU::Manager manager(window.GetPlatformData().handle_);
+
+	i32 numAdapters = manager.EnumerateAdapters(nullptr, 0);
+	REQUIRE(numAdapters > 0);
+
+	REQUIRE(manager.Initialize(0) == GPU::ErrorCode::OK);
+
+	SECTION("1d")
+	{
+		GPU::TextureDesc desc;
+		desc.type_ = GPU::TextureType::TEX1D;
+		desc.format_ = GPU::Format::R8G8B8A8_TYPELESS;
+		desc.bindFlags_ = GPU::BindFlags::SHADER_RESOURCE;
+		desc.width_ = 256;
+
+		GPU::Handle handle;
+		handle = manager.CreateTexture(desc, nullptr, "gpu-tests-create-texture-1d");
+		REQUIRE(handle);
+		manager.DestroyResource(handle);
+	}
+
+	SECTION("2d")
+	{
+		GPU::TextureDesc desc;
+		desc.type_ = GPU::TextureType::TEX2D;
+		desc.format_ = GPU::Format::R8G8B8A8_TYPELESS;
+		desc.bindFlags_ = GPU::BindFlags::SHADER_RESOURCE;
+		desc.width_ = 256;
+		desc.height_ = 256;
+
+		GPU::Handle handle;
+		handle = manager.CreateTexture(desc, nullptr, "gpu-tests-create-texture-2d");
+		REQUIRE(handle);
+		manager.DestroyResource(handle);
+	}
+
+	SECTION("3d")
+	{
+		GPU::TextureDesc desc;
+		desc.type_ = GPU::TextureType::TEX3D;
+		desc.format_ = GPU::Format::R8G8B8A8_TYPELESS;
+		desc.bindFlags_ = GPU::BindFlags::SHADER_RESOURCE;
+		desc.width_ = 256;
+		desc.height_ = 256;
+		desc.depth_ = 256;
+
+		GPU::Handle handle;
+		handle = manager.CreateTexture(desc, nullptr, "gpu-tests-create-texture-3d");
+		REQUIRE(handle);
+		manager.DestroyResource(handle);
+	}
+
+	SECTION("cube")
+	{
+		GPU::TextureDesc desc;
+		desc.type_ = GPU::TextureType::TEXCUBE;
+		desc.format_ = GPU::Format::R8G8B8A8_TYPELESS;
+		desc.bindFlags_ = GPU::BindFlags::SHADER_RESOURCE;
+		desc.width_ = 256;
+
+		GPU::Handle handle;
+		handle = manager.CreateTexture(desc, nullptr, "gpu-tests-create-texture-cube");
+		REQUIRE(handle);
+		manager.DestroyResource(handle);
+	}
+}
+
 TEST_CASE("gpu-tests-create-commandlist")
 {
 	Client::Window window("gpu_tests", 0, 0, 640, 480);
@@ -87,7 +178,9 @@ TEST_CASE("gpu-tests-create-commandlist")
 	REQUIRE(numAdapters > 0);
 
 	REQUIRE(manager.Initialize(0) == GPU::ErrorCode::OK);
-	REQUIRE(manager.CreateCommandList("gpu-tests-create-commandlist"));
-}
 
-#endif
+	GPU::Handle handle;
+	handle = manager.CreateCommandList("gpu-tests-create-commandlist");
+	REQUIRE(handle);
+	manager.DestroyResource(handle);
+}

@@ -16,8 +16,8 @@ namespace GPU
 
 		ErrorCode CreateSwapChain(
 		    D3D12SwapChainResource& outResource, const SwapChainDesc& desc, const char* debugName);
-		ErrorCode CreateBuffer(D3D12Resource& outResource, const BufferDesc& desc, const char* debugName);
-		ErrorCode CreateTexture(D3D12Resource& outResource, const TextureDesc& desc, const char* debugName);
+		ErrorCode CreateBuffer(D3D12Resource& outResource, const BufferDesc& desc, const void* initialData, const char* debugName);
+		ErrorCode CreateTexture(D3D12Resource& outResource, const TextureDesc& desc, const TextureSubResourceData* initialData, const char* debugName);
 
 		operator bool() const { return !!device_; }
 

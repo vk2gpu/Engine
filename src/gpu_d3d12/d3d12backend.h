@@ -2,7 +2,7 @@
 
 #include "gpu/dll.h"
 #include "gpu/backend.h"
-#include "gpu_d3d12/d3d12types.h"
+#include "gpu_d3d12/d3d12commandlist.h"
 #include "gpu_d3d12/d3d12resources.h"
 
 #include "core/concurrency.h"
@@ -69,6 +69,7 @@ namespace GPU
 		ResourceVector<D3D12SwapChainResource> swapchainResources_;
 		ResourceVector<D3D12Resource> bufferResources_;
 		ResourceVector<D3D12Resource> textureResources_;
+		ResourceVector<D3D12CommandList*> commandLists_;
 	};
 
 } // namespace GPU

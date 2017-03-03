@@ -81,11 +81,11 @@ namespace GPU
 		TextureType type_ = TextureType::INVALID;
 		BindFlags bindFlags_ = BindFlags::NONE;
 		enum class Format format_ = Format::INVALID;
-		i32 width_ = 0;
-		i32 height_ = 0;
-		i32 depth_ = 0;
-		i32 levels_ = 0;
-		i32 elements_ = 0;
+		i32 width_ = 1;
+		i32 height_ = 1;
+		i16 depth_ = 1;
+		i16 levels_ = 1;
+		i16 elements_ = 1;
 	};
 
 	/**
