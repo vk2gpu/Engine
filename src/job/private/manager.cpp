@@ -404,7 +404,7 @@ namespace Job
 					}
 				}
 #endif
-				Yield();
+				YieldCPU();
 			}
 
 #ifdef DEBUG
@@ -429,7 +429,7 @@ namespace Job
 
 		while(counter->value_ > value)
 		{
-			Yield();
+			YieldCPU();
 		}
 
 		// Free counter.
@@ -442,7 +442,7 @@ namespace Job
 		}
 	}
 
-	void Manager::Yield()
+	void Manager::YieldCPU()
 	{
 		auto* callingFiber = Core::Fiber::GetCurrentFiber();
 		if(callingFiber)

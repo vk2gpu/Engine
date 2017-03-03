@@ -8,7 +8,6 @@
 
 namespace
 {
-	
 }
 
 TEST_CASE("gpu-tests-formats")
@@ -18,7 +17,7 @@ TEST_CASE("gpu-tests-formats")
 		auto info = GPU::GetFormatInfo((GPU::Format)i);
 		REQUIRE(info.blockW_ > 0);
 		REQUIRE(info.blockH_ > 0);
-		REQUIRE(info.blockBits_> 0);
+		REQUIRE(info.blockBits_ > 0);
 	}
 }
 
@@ -32,7 +31,7 @@ TEST_CASE("gpu-tests-enumerate")
 {
 	Client::Window window("gpu_tests", 0, 0, 640, 480);
 	GPU::Manager manager(window.GetPlatformData().handle_);
-	
+
 	i32 numAdapters = manager.EnumerateAdapters(nullptr, 0);
 	REQUIRE(numAdapters > 0);
 	Core::Vector<GPU::AdapterInfo> adapterInfos;
@@ -47,13 +46,38 @@ TEST_CASE("gpu-tests-initialize")
 {
 	Client::Window window("gpu_tests", 0, 0, 640, 480);
 	GPU::Manager manager(window.GetPlatformData().handle_);
-	
+
 	i32 numAdapters = manager.EnumerateAdapters(nullptr, 0);
 	REQUIRE(numAdapters > 0);
 
 	REQUIRE(manager.Initialize(0) == GPU::ErrorCode::OK);
 }
 
+TEST_CASE("gpu-tests-create-swapchain")
+{
+	Client::Window window("gpu_tests", 0, 0, 640, 480);
+	GPU::Manager manager(window.GetPlatformData().handle_);
+
+	i32 numAdapters = manager.EnumerateAdapters(nullptr, 0);
+	REQUIRE(numAdapters > 0);
+
+	REQUIRE(manager.Initialize(0) == GPU::ErrorCode::OK);
+
+	GPU::SwapChainDesc desc;
+	desc.width_ = 640;
+	desc.height_ = 480;
+	desc.format_ = GPU::Format::R8G8B8A8_UNORM;
+	desc.bufferCount_ = 2;
+	desc.outputWindow_ = window.GetPlatformData().handle_;
+
+	GPU::Handle handle;
+	handle = manager.CreateSwapChain(desc, "gpu-tests-create-swapchain");
+	REQUIRE(handle);
+
+	manager.DestroyResource(handle);
+}
+
+#if 0
 TEST_CASE("gpu-tests-create-commandlist")
 {
 	Client::Window window("gpu_tests", 0, 0, 640, 480);
@@ -65,3 +89,5 @@ TEST_CASE("gpu-tests-create-commandlist")
 	REQUIRE(manager.Initialize(0) == GPU::ErrorCode::OK);
 	REQUIRE(manager.CreateCommandList("gpu-tests-create-commandlist"));
 }
+
+#endif

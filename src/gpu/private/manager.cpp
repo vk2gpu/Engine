@@ -78,6 +78,8 @@ namespace GPU
 
 	Manager::~Manager()
 	{
+		impl_->ProcessDeletions();
+
 #if !defined(FINAL)
 		for(i32 i = 0; i < (i32)ResourceType::MAX; ++i)
 			DBG_ASSERT_MSG(impl_->handles_.GetTotalHandles(i) == 0, "Handles still remain allocated.");

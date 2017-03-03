@@ -43,7 +43,7 @@ namespace Job
 		/**
 		 * Yield execution.
 		 */
-		void Yield();
+		void YieldCPU();
 
 
 	private:

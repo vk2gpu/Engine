@@ -8,6 +8,7 @@ SET(SOURCES_PUBLIC
 SET(SOURCES_PRIVATE 
 	"private/d3d12backend.cpp"
 	"private/d3d12commandlist.cpp"
+	"private/d3d12types.cpp"
 )
 
 SET(SOURCES_TESTS

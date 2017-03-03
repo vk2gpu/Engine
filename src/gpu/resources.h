@@ -54,6 +54,8 @@ namespace GPU
 	 */
 	struct GPU_DLL SwapChainDesc
 	{
+		i32 width_ = 0;
+		i32 height_ = 0;
 		Format format_ = Format::INVALID;
 		i32 bufferCount_ = 0;
 		void* outputWindow_ = 0;

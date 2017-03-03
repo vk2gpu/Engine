@@ -3,7 +3,9 @@
 #include "gpu/dll.h"
 #include "gpu/backend.h"
 #include "gpu_d3d12/d3d12types.h"
+#include "gpu_d3d12/d3d12resources.h"
 
+#include "core/concurrency.h"
 #include "core/library.h"
 #include "core/vector.h"
 
@@ -16,18 +18,10 @@ namespace GPU
 		~D3D12Backend();
 
 		/**
-		 * Device operations.
+		 * device operations.
 		 */
 		i32 EnumerateAdapters(AdapterInfo* outAdapters, i32 maxAdapters) override;
-
-		/**
-		 * @return Is initialized?
-		 */
-		bool IsInitialized() const;
-
-		/**
-		 * Initialize.
-		 */
+		bool IsInitialized() const override;
 		ErrorCode Initialize(i32 adapterIdx) override;
 
 		/**
@@ -53,24 +47,28 @@ namespace GPU
 		ErrorCode DestroyResource(Handle handle) override;
 
 	private:
-		ErrorCode LoadLibraries();
+		ComPtr<IDXGIDebug> dxgiDebug_;
+		ComPtr<ID3D12Debug> d3dDebug_;
 
-		/// DXGI & D3D12 DLL funcs.
-		Core::LibHandle dxgiHandle_ = 0;
-		Core::LibHandle d3d12Handle_ = 0;
-		PFN_CREATE_DXGI_FACTORY dxgiCreateDXGIFactory1Fn_ = 0;
-		PFN_D3D12_CREATE_DEVICE d3d12CreateDeviceFn_ = 0;
-		PFN_D3D12_GET_DEBUG_INTERFACE d3d12GetDebugInterfaceFn_ = 0;
-		PFN_D3D12_SERIALIZE_ROOT_SIGNATURE d3d12SerializeRootSignatureFn_ = 0;
-
-		ComPtr<IDXGIFactory1> dxgiFactory_;
+		ComPtr<IDXGIFactory4> dxgiFactory_;
 
 		/// Cached adapter infos.
-		Core::Vector<ComPtr<IDXGIAdapter1>> adapters_; 
+		Core::Vector<ComPtr<IDXGIAdapter1>> adapters_;
 		Core::Vector<GPU::AdapterInfo> adapterInfos_;
 
 		/// D3D12 devices.
-		ComPtr<ID3D12Device> device_;
+		class D3D12Device* device_ = nullptr;
+
+		/// Allocator for uploading data to the GPU.
+		class D3D12LinearHeapAllocator* uploadAllocator_ = nullptr;
+		/// Allocator for reading data back from the GPU.
+		class D3D12LinearHeapAllocator* readbackAllocator_ = nullptr;
+
+		/// Resources.
+		Core::Mutex resourceMutex_;
+		ResourceVector<D3D12SwapChainResource> swapchainResources_;
+		ResourceVector<D3D12Resource> bufferResources_;
+		ResourceVector<D3D12Resource> textureResources_;
 	};
 
 } // namespace GPU
