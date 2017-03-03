@@ -1,9 +1,5 @@
 os: Visual Studio 2015
 
-environment:
-  matrix:
-  - TOOLSET: vs2015
-
 platform: x64
 
 configuration:
@@ -12,7 +8,6 @@ configuration:
 
 build:
   project: build/Engine.sln
-
 
 before_build:
   - echo Running cmake...
