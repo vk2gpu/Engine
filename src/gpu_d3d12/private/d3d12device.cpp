@@ -131,6 +131,31 @@ namespace GPU
 			parameters[base + 2].ShaderVisibility = visibility;
 		};
 
+		// VS
+		{
+			// Setup sampler, srv, and cbv for all stages.
+			SetupParams(0, D3D12_SHADER_VISIBILITY_VERTEX);
+
+			// Now shared UAV for all.
+			parameters[3].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+			parameters[3].DescriptorTable.NumDescriptorRanges = 1;
+			parameters[3].DescriptorTable.pDescriptorRanges = &descriptorRanges[3];
+			parameters[3].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
+
+			D3D12_ROOT_SIGNATURE_DESC rootSignatureDesc;
+			rootSignatureDesc.NumParameters = 4;
+			rootSignatureDesc.NumStaticSamplers = 0;
+			rootSignatureDesc.pParameters = parameters;
+			rootSignatureDesc.pStaticSamplers = nullptr;
+			rootSignatureDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
+			                          D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
+			                          D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS |
+			                          D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS |
+			                          D3D12_ROOT_SIGNATURE_FLAG_DENY_PIXEL_SHADER_ROOT_ACCESS;
+
+			CreateRootSignature(rootSignatureDesc, RootSignatureType::VS);
+		}
+
 		// VS_PS
 		{
 			// Setup sampler, srv, and cbv for all stages.
@@ -211,47 +236,45 @@ namespace GPU
 	{
 		HRESULT hr = S_OK;
 		D3D12_GRAPHICS_PIPELINE_STATE_DESC defaultPSO = {};
-		memset(&defaultPSO, 0, sizeof( defaultPSO ) );
+		memset(&defaultPSO, 0, sizeof(defaultPSO));
 
-		auto CreateGraphicsPSO = [&](RootSignatureType type)
-		{
-			D3D12_INPUT_ELEMENT_DESC InputElementDescs[] =
-			{
-				{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+		auto CreateGraphicsPSO = [&](RootSignatureType type) {
+			D3D12_INPUT_ELEMENT_DESC InputElementDescs[] = {
+			    {"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
 			};
 			D3D12_GRAPHICS_PIPELINE_STATE_DESC defaultPSO = {};
 			defaultPSO.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-			defaultPSO.InputLayout.NumElements = ARRAYSIZE( InputElementDescs );
+			defaultPSO.InputLayout.NumElements = ARRAYSIZE(InputElementDescs);
 			defaultPSO.InputLayout.pInputElementDescs = InputElementDescs;
 			defaultPSO.VS.pShaderBytecode = g_VShader;
-			defaultPSO.VS.BytecodeLength = ARRAYSIZE( g_VShader );
+			defaultPSO.VS.BytecodeLength = ARRAYSIZE(g_VShader);
 			defaultPSO.pRootSignature = rootSignatures_[(i32)type].Get();
 			defaultPSO.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;
 			defaultPSO.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
 			defaultPSO.NumRenderTargets = 1;
 			defaultPSO.SampleDesc.Count = 1;
 			defaultPSO.SampleDesc.Quality = 0;
-			defaultPSO.RTVFormats[ 0 ] = DXGI_FORMAT_R8G8B8A8_UNORM;
+			defaultPSO.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
 
 			ComPtr<ID3D12PipelineState> pipelineState;
-			CHECK_D3D(hr = device_->CreateGraphicsPipelineState( &defaultPSO, 
-				IID_ID3D12PipelineState, (void**)pipelineState.GetAddressOf()));
+			CHECK_D3D(hr = device_->CreateGraphicsPipelineState(
+			              &defaultPSO, IID_ID3D12PipelineState, (void**)pipelineState.GetAddressOf()));
 			defaultPSOs_.push_back(pipelineState);
 		};
 
-		auto CreateComputePSO = [&](RootSignatureType type)
-		{
+		auto CreateComputePSO = [&](RootSignatureType type) {
 			D3D12_COMPUTE_PIPELINE_STATE_DESC defaultPSO = {};
 			defaultPSO.CS.pShaderBytecode = g_CShader;
-			defaultPSO.CS.BytecodeLength = ARRAYSIZE( g_CShader );
+			defaultPSO.CS.BytecodeLength = ARRAYSIZE(g_CShader);
 			defaultPSO.pRootSignature = rootSignatures_[(i32)type].Get();
 
 			ComPtr<ID3D12PipelineState> pipelineState;
-			CHECK_D3D(hr = device_->CreateComputePipelineState( &defaultPSO, 
-				IID_ID3D12PipelineState, (void**)pipelineState.GetAddressOf()));
+			CHECK_D3D(hr = device_->CreateComputePipelineState(
+			              &defaultPSO, IID_ID3D12PipelineState, (void**)pipelineState.GetAddressOf()));
 			defaultPSOs_.push_back(pipelineState);
 		};
 
+		CreateGraphicsPSO(RootSignatureType::VS);
 		CreateGraphicsPSO(RootSignatureType::VS_PS);
 		CreateGraphicsPSO(RootSignatureType::VS_GS_HS_DS_PS);
 		CreateComputePSO(RootSignatureType::CS);

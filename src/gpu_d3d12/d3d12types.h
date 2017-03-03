@@ -38,6 +38,7 @@ namespace GPU
 	enum class RootSignatureType
 	{
 		INVALID = -1,
+		VS,
 		VS_PS,
 		VS_GS_HS_DS_PS,
 		CS,
