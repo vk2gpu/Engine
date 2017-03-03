@@ -33,6 +33,19 @@ namespace GPU
 	ErrorCode LoadLibraries();
 
 	/**
+	 * Enums.
+	 */
+	enum class RootSignatureType
+	{
+		INVALID = -1,
+		VS_PS,
+		VS_GS_HS_DS_PS,
+		CS,
+		MAX
+	};
+
+
+	/**
 	 * Conversion.
 	 */
 	D3D12_RESOURCE_FLAGS GetResourceFlags(BindFlags bindFlags);

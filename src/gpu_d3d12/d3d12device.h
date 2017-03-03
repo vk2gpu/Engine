@@ -13,6 +13,8 @@ namespace GPU
 		~D3D12Device();
 
 		void CreateCommandQueues();
+		void CreateRootSignatures();
+		void CreateDefaultPSOs();
 
 		ErrorCode CreateSwapChain(
 		    D3D12SwapChainResource& outResource, const SwapChainDesc& desc, const char* debugName);
@@ -27,5 +29,10 @@ namespace GPU
 		ComPtr<ID3D12CommandQueue> directQueue_;
 		ComPtr<ID3D12CommandQueue> copyQueue_;
 		ComPtr<ID3D12CommandQueue> asyncComputeQueue_;
+
+		// Root signatures.
+		Core::Vector<ComPtr<ID3D12RootSignature>> rootSignatures_;
+
+		Core::Vector<ComPtr<ID3D12PipelineState>> defaultPSOs_;
 	};
 } // namespace GPU

@@ -26,7 +26,7 @@ namespace GPU
 	/// Maximum number of UAV bindings.
 	static const i32 MAX_UAV_BINDINGS = 8;
 	/// Maximum number of CBV bindings.
-	static const i32 MAX_CBV_BINDINGS = 16;
+	static const i32 MAX_CBV_BINDINGS = 14;
 	/// Maximum number of sampler bindings.
 	static const i32 MAX_SAMPLER_BINDINGS = 16;
 
