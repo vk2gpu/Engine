@@ -1,13 +1,18 @@
 SET(SOURCES_PUBLIC 
 	"d3d12backend.h"
 	"d3d12commandlist.h"
+	"d3d12device.h"
+	"d3d12linearheapallocator.h"
+	"d3d12resources.h"
 	"d3d12types.h"
 	"dll.h"
 )
 
 SET(SOURCES_PRIVATE 
 	"private/d3d12backend.cpp"
+	"private/d3d12device.cpp"
 	"private/d3d12commandlist.cpp"
+	"private/d3d12linearheapallocator.cpp"
 	"private/d3d12types.cpp"
 )
 
