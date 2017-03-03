@@ -1,9 +1,5 @@
 CMAKE_MINIMUM_REQUIRED(VERSION 3.2.3)
 
-IF(MSVC)
-	FindWindowsSDK()
-ENDIF()
-
 # Engine project is C++
 PROJECT(Engine CXX)
 
@@ -54,6 +50,9 @@ INCLUDE_DIRECTORIES(
 	# 3rd party includes.
 	"3rdparty/Catch/include"
 	"3rdparty/SDL-mirror/include"
+
+	# DXSDK.
+	"3rdparty/dxsdk/include"
 
 	# Source.
 	"src"
