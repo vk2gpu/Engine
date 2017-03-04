@@ -14,7 +14,8 @@ namespace GPU
 	/**
 	 * Constants.
 	 */
-
+	/// Number of frames to buffer ahead.
+	static const i32 MAX_GPU_FRAMES = 4;
 	/// Maximum number of RTVs that can be bound simultaneously.
 	static const i32 MAX_BOUND_RTVS = 8;
 	/// Maximum number of vertex elements in a pipeline state.

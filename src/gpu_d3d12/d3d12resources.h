@@ -34,6 +34,11 @@ namespace GPU
 			return storage_[idx];
 		}
 
+		i32 size() const
+		{
+			return storage_.size();
+		}
+
 	private:
 		Core::Vector<TYPE> storage_;
 	};

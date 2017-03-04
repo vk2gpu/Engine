@@ -234,4 +234,39 @@ namespace GPU
 		return ErrorCode::UNIMPLEMENTED;
 	}
 
+	ErrorCode D3D12Backend::CompileCommandList(Handle handle, const CommandList& commandList)
+	{
+		DBG_ASSERT(handle.GetIndex() < commandLists_.size());
+		D3D12CommandList* outCommandList = commandLists_[handle.GetIndex()];
+		(void)outCommandList;
+
+		for(const auto* command : commandList)
+		{
+			switch(command->type_)
+			{
+			case CommandType::DRAW:
+			case CommandType::DRAW_INDIRECT:
+			case CommandType::DISPATCH:
+			case CommandType::DISPATCH_INDIRECT:
+			case CommandType::CLEAR_RTV:
+			case CommandType::CLEAR_DSV:
+			case CommandType::CLEAR_UAV:
+			case CommandType::UPDATE_BUFFER:
+			case CommandType::UPDATE_TEXTURE_SUBRESOURCE:
+			case CommandType::COPY_BUFFER:
+			case CommandType::COPY_TEXTURE_SUBRESOURCE:
+			case CommandType::UPDATE_RTV:
+			case CommandType::UPDATE_DSV:
+			case CommandType::UPDATE_SRV:
+			case CommandType::UPDATE_UAV:
+			case CommandType::UPDATE_CBV:
+				break;
+			default:
+				DBG_BREAK;
+			}
+		}
+
+		return ErrorCode::UNIMPLEMENTED;
+	}
+
 } // namespace GPU

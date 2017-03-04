@@ -2,6 +2,7 @@
 
 #include "core/types.h"
 #include "gpu/dll.h"
+#include "gpu/command_list.h"
 #include "gpu/resources.h"
 
 namespace GPU
@@ -116,9 +117,19 @@ namespace GPU
 		void DestroyResource(Handle handle);
 
 		/**
+		 * Compile command list.
+		 * @param handle Handle to command list.
+		 * @param commandList Input software command list.
+		 * @return Success.
+		 */
+		bool CompileCommandList(Handle handle, const CommandList& commandList);
+
+		/**
 		 * Is valid handle?
 		 */
 		bool IsValidHandle(Handle handle) const;
+
+
 
 
 	private:

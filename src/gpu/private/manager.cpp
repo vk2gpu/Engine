@@ -40,16 +40,18 @@ namespace GPU
 			}
 		}
 
-		void HandleErrorCode(Handle& handle, ErrorCode errorCode)
+		bool HandleErrorCode(Handle& handle, ErrorCode errorCode)
 		{
 			switch(errorCode)
 			{
 			case ErrorCode::OK:
+				return true;
 				break;
 			default:
 				// TODO: log error.
 				handles_.Free(handle);
 				handle = Handle();
+				return false;
 			}
 		}
 
@@ -195,8 +197,16 @@ namespace GPU
 	}
 
 	void Manager::DestroyResource(Handle handle)
-	{ //
+	{
+		DBG_ASSERT(impl_->backend_);
 		impl_->deferredDeletions_.push_back(handle);
+	}
+
+	bool Manager::CompileCommandList(Handle handle, const CommandList& commandList)
+	{
+		DBG_ASSERT(impl_->backend_);
+		DBG_ASSERT(handle.GetType() == ResourceType::COMMAND_LIST);
+		return impl_->HandleErrorCode(handle, impl_->backend_->CompileCommandList(handle, commandList));
 	}
 
 	bool Manager::IsValidHandle(Handle handle) const

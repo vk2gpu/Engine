@@ -46,7 +46,9 @@ namespace GPU
 		ErrorCode CreateFence(Handle handle, const char* debugName) override;
 		ErrorCode DestroyResource(Handle handle) override;
 
+		ErrorCode CompileCommandList(Handle handle, const CommandList& commandList) override;
 	private:
+
 		ComPtr<IDXGIDebug> dxgiDebug_;
 		ComPtr<ID3D12Debug> d3dDebug_;
 

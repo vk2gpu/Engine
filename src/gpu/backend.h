@@ -1,7 +1,7 @@
 #pragma once
 
 #include "gpu/dll.h"
-#include "gpu/types.h"
+#include "gpu/command_list.h"
 #include "gpu/resources.h"
 #include "core/types.h"
 #include "core/handle.h"
@@ -44,5 +44,10 @@ namespace GPU
 		virtual ErrorCode CreateCommandList(Handle handle, const char* debugName) = 0;
 		virtual ErrorCode CreateFence(Handle handle, const char* debugName) = 0;
 		virtual ErrorCode DestroyResource(Handle handle) = 0;
+
+		/**
+		 * Command list management.
+		 */
+		virtual ErrorCode CompileCommandList(Handle handle, const CommandList& commandList) = 0;
 	};
 } // namespace GPU
