@@ -1,19 +1,19 @@
 SET(SOURCES_PUBLIC 
-	"d3d12backend.h"
-	"d3d12commandlist.h"
-	"d3d12device.h"
-	"d3d12linearheapallocator.h"
-	"d3d12resources.h"
-	"d3d12types.h"
+	"d3d12_backend.h"
+	"d3d12_command_list.h"
+	"d3d12_device.h"
+	"d3d12_linear_heap_allocator.h"
+	"d3d12_resources.h"
+	"d3d12_types.h"
 	"dll.h"
 )
 
 SET(SOURCES_PRIVATE 
-	"private/d3d12backend.cpp"
-	"private/d3d12device.cpp"
-	"private/d3d12commandlist.cpp"
-	"private/d3d12linearheapallocator.cpp"
-	"private/d3d12types.cpp"
+	"private/d3d12_backend.cpp"
+	"private/d3d12_device.cpp"
+	"private/d3d12_command_list.cpp"
+	"private/d3d12_linear_heap_allocator.cpp"
+	"private/d3d12_types.cpp"
 )
 
 SET(SOURCES_TESTS

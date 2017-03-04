@@ -1,4 +1,4 @@
-#include "gpu_d3d12/d3d12types.h"
+#include "gpu_d3d12/d3d12_types.h"
 #include "core/concurrency.h"
 #include "core/debug.h"
 #include "core/misc.h"

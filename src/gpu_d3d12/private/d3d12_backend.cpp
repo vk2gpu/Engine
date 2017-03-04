@@ -1,6 +1,6 @@
-#include "gpu_d3d12/d3d12backend.h"
-#include "gpu_d3d12/d3d12device.h"
-#include "gpu_d3d12/d3d12linearheapallocator.h"
+#include "gpu_d3d12/d3d12_backend.h"
+#include "gpu_d3d12/d3d12_device.h"
+#include "gpu_d3d12/d3d12_linear_heap_allocator.h"
 #include "core/debug.h"
 #include "core/string.h"
 

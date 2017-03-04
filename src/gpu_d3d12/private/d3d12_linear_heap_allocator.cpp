@@ -1,4 +1,4 @@
-#include "gpu_d3d12/d3d12linearheapallocator.h"
+#include "gpu_d3d12/d3d12_linear_heap_allocator.h"
 #include "core/misc.h"
 
 #include <utility>

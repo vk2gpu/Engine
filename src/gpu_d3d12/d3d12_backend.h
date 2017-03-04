@@ -2,8 +2,8 @@
 
 #include "gpu/dll.h"
 #include "gpu/backend.h"
-#include "gpu_d3d12/d3d12commandlist.h"
-#include "gpu_d3d12/d3d12resources.h"
+#include "gpu_d3d12/d3d12_command_list.h"
+#include "gpu_d3d12/d3d12_resources.h"
 
 #include "core/concurrency.h"
 #include "core/library.h"

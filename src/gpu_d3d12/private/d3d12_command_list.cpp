@@ -1,5 +1,5 @@
-#include "gpu_d3d12/d3d12commandlist.h"
-#include "gpu_d3d12/d3d12device.h"
+#include "gpu_d3d12/d3d12_command_list.h"
+#include "gpu_d3d12/d3d12_device.h"
 #include "core/debug.h"
 
 #include <utility>
@@ -11,6 +11,7 @@ namespace GPU
 	{
 		HRESULT hr = S_OK;
 
+		d3dCommandAllocators_.resize(MAX_GPU_FRAMES);
 		for(i32 i = 0; i < MAX_GPU_FRAMES; ++i)
 		{
 			CHECK_D3D(hr = device.device_->CreateCommandAllocator(

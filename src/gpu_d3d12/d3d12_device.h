@@ -1,7 +1,7 @@
 #pragma once
 
-#include "gpu_d3d12/d3d12types.h"
-#include "gpu_d3d12/d3d12resources.h"
+#include "gpu_d3d12/d3d12_types.h"
+#include "gpu_d3d12/d3d12_resources.h"
 #include "gpu/resources.h"
 
 namespace GPU

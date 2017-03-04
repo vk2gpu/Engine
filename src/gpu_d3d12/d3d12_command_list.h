@@ -1,7 +1,7 @@
 #pragma once
 
 #include "gpu_d3d12/dll.h"
-#include "gpu_d3d12/d3d12types.h"
+#include "gpu_d3d12/d3d12_types.h"
 #include "gpu/command_list.h"
 #include "core/vector.h"
 
