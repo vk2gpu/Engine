@@ -57,7 +57,7 @@ namespace GPU
 		}
 
 		// TODO: Proper API look up.
-		typedef GPU::IBackend*(*CreateBackendFn)(void*);
+		typedef GPU::IBackend* (*CreateBackendFn)(void*);
 		void CreateBackend()
 		{
 			Core::LibHandle handle = Core::LibraryOpen("gpu_d3d12.dll");
@@ -85,7 +85,8 @@ namespace GPU
 
 #if !defined(FINAL)
 		for(i32 i = 0; i < (i32)ResourceType::MAX; ++i)
-			DBG_ASSERT_MSG(impl_->handles_.GetTotalHandles(i) == 0, "Handles still remain allocated for resource type %u", i);
+			DBG_ASSERT_MSG(
+			    impl_->handles_.GetTotalHandles(i) == 0, "Handles still remain allocated for resource type %u", i);
 #endif
 		delete impl_;
 	}
@@ -103,10 +104,7 @@ namespace GPU
 		return impl_->backend_->Initialize(adapterIdx);
 	}
 
-	bool Manager::IsInitialized() const
-	{
-		return impl_->backend_ && impl_->backend_->IsInitialized();
-	}
+	bool Manager::IsInitialized() const { return impl_->backend_ && impl_->backend_->IsInitialized(); }
 
 	Handle Manager::CreateSwapChain(const SwapChainDesc& desc, const char* debugName)
 	{

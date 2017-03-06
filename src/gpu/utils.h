@@ -46,8 +46,8 @@ namespace GPU
 	 */
 	struct TextureLayoutInfo
 	{
-		i64 pitch_ = 0;
-		i64 slicePitch_ = 0;
+		i32 pitch_ = 0;
+		i32 slicePitch_ = 0;
 	};
 
 	/**

@@ -286,4 +286,14 @@ namespace GPU
 #endif
 	}
 
+	void WaitOnFence(ID3D12Fence* fence, HANDLE event, u64 value)
+	{
+		if(fence->GetCompletedValue() < value)
+		{
+			fence->SetEventOnCompletion(value, event);
+			::WaitForSingleObject(event, INFINITE);
+		}
+	}
+
+
 } // namespace GPU

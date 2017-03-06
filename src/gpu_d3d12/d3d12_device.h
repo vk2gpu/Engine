@@ -1,6 +1,7 @@
 #pragma once
 
 #include "gpu_d3d12/d3d12_types.h"
+#include "gpu_d3d12/d3d12_command_list.h"
 #include "gpu_d3d12/d3d12_resources.h"
 #include "gpu/resources.h"
 #include "core/array.h"
@@ -16,7 +17,7 @@ namespace GPU
 		void CreateCommandQueues();
 		void CreateRootSignatures();
 		void CreateDefaultPSOs();
-		void CreateAllocators();
+		void CreateUploadAllocators();
 
 		void NextFrame();
 
@@ -24,6 +25,8 @@ namespace GPU
 		    D3D12SwapChainResource& outResource, const SwapChainDesc& desc, const char* debugName);
 		ErrorCode CreateBuffer(D3D12Resource& outResource, const BufferDesc& desc, const void* initialData, const char* debugName);
 		ErrorCode CreateTexture(D3D12Resource& outResource, const TextureDesc& desc, const TextureSubResourceData* initialData, const char* debugName);
+
+		ErrorCode SubmitCommandList(D3D12CommandList& commandList);
 
 
 		operator bool() const { return !!d3dDevice_; }
@@ -42,6 +45,9 @@ namespace GPU
 		/// TODO: Replace this with a circular buffer instead of array of allocators.
 		Core::Array<class D3D12LinearHeapAllocator*, MAX_GPU_FRAMES> uploadAllocators_;
 		class D3D12CommandList* uploadCommandList_;
+		ComPtr<ID3D12Fence> d3dUploadFence_;
+		HANDLE uploadFenceEvent_ = 0;
+		volatile i64 uploadFenceIdx_ = 0;
 
 		D3D12LinearHeapAllocator& GetUploadAllocator() { return *uploadAllocators_[frameIdx_ % MAX_GPU_FRAMES]; }
 

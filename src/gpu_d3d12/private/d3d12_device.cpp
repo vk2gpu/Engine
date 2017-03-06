@@ -48,14 +48,16 @@ namespace GPU
 		// setup default PSOs.
 		CreateDefaultPSOs();
 
-		// setup allocator.
-		CreateAllocators();
+		// setup upload allocator.
+		CreateUploadAllocators();
 	}
 
 	D3D12Device::~D3D12Device()
 	{ //
-		for(auto& uploadAllocator : uploadAllocators_)
-			delete uploadAllocator;
+		::CloseHandle(uploadFenceEvent_);
+		delete uploadCommandList_;
+		for(auto& d3dUploadAllocator : uploadAllocators_)
+			delete d3dUploadAllocator;
 	}
 
 	void D3D12Device::CreateCommandQueues()
@@ -71,6 +73,10 @@ namespace GPU
 		              &copyDesc, IID_ID3D12CommandQueue, (void**)d3dCopyQueue_.ReleaseAndGetAddressOf()));
 		CHECK_D3D(hr = d3dDevice_->CreateCommandQueue(
 		              &asyncDesc, IID_ID3D12CommandQueue, (void**)d3dAsyncComputeQueue_.ReleaseAndGetAddressOf()));
+
+		SetObjectName(d3dDirectQueue_.Get(), "Direct Command Queue");
+		SetObjectName(d3dCopyQueue_.Get(), "Copy Command Queue");
+		SetObjectName(d3dAsyncComputeQueue_.Get(), "Async Compute Command Queue");
 	}
 
 	void D3D12Device::CreateRootSignatures()
@@ -285,11 +291,14 @@ namespace GPU
 		CreateComputePSO(RootSignatureType::CS);
 	}
 
-	void D3D12Device::CreateAllocators()
-	{		
-		for(auto& uploadAllocator : uploadAllocators_)
-			uploadAllocator = new D3D12LinearHeapAllocator(d3dDevice_.Get(), D3D12_HEAP_TYPE_UPLOAD, 1024 * 1024);
+	void D3D12Device::CreateUploadAllocators()
+	{
+		for(auto& d3dUploadAllocator : uploadAllocators_)
+			d3dUploadAllocator = new D3D12LinearHeapAllocator(d3dDevice_.Get(), D3D12_HEAP_TYPE_UPLOAD, 1024 * 1024);
 		uploadCommandList_ = new D3D12CommandList(*this, 0, D3D12_COMMAND_LIST_TYPE_COPY);
+
+		d3dDevice_->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_ID3D12Fence, (void**)d3dUploadFence_.GetAddressOf());
+		uploadFenceEvent_ = ::CreateEvent(nullptr, FALSE, FALSE, "Upload fence");
 	}
 
 
@@ -358,13 +367,12 @@ namespace GPU
 	ErrorCode D3D12Device::CreateBuffer(
 	    D3D12Resource& outResource, const BufferDesc& desc, const void* initialData, const char* debugName)
 	{
-		D3D12Resource res;
-		res.supportedStates_ = GetResourceStates(desc.bindFlags_);
-		res.defaultState_ = GetDefaultResourceState(desc.bindFlags_);
+		outResource.supportedStates_ = GetResourceStates(desc.bindFlags_);
+		outResource.defaultState_ = GetDefaultResourceState(desc.bindFlags_);
 
 		// Add on copy src/dest flags to supported flags, copy dest to default.
-		res.supportedStates_ |= D3D12_RESOURCE_STATE_COPY_SOURCE;
-		res.supportedStates_ |= D3D12_RESOURCE_STATE_COPY_DEST;
+		outResource.supportedStates_ |= D3D12_RESOURCE_STATE_COPY_SOURCE;
+		outResource.supportedStates_ |= D3D12_RESOURCE_STATE_COPY_DEST;
 
 		D3D12_HEAP_PROPERTIES heapProperties;
 		heapProperties.Type = D3D12_HEAP_TYPE_DEFAULT;
@@ -390,14 +398,14 @@ namespace GPU
 		ErrorCode errorCode = ErrorCode::OK;
 		HRESULT hr = S_OK;
 		CHECK_D3D(hr = d3dDevice_->CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE, &resourceDesc,
-		              res.defaultState_, nullptr, IID_PPV_ARGS(d3dResource.GetAddressOf())));
+		              outResource.defaultState_, nullptr, IID_PPV_ARGS(d3dResource.GetAddressOf())));
 		if(FAILED(hr))
 			return ErrorCode::FAIL;
 
-		d3dResource.As(&res.resource_);
+		outResource.resource_ = d3dResource;
 		SetObjectName(d3dResource.Get(), debugName);
 
-		// TODO: InitialData via copy queue.
+		// Use copy queue to upload resource initial data.
 		if(initialData)
 		{
 			auto& uploadAllocator = GetUploadAllocator();
@@ -406,18 +414,21 @@ namespace GPU
 
 			if(auto* d3dCommandList = uploadCommandList_->Open())
 			{
-				D3D12ScopedResourceBarrier copyBarrier(d3dCommandList, d3dResource.Get(), 0, res.defaultState_, D3D12_RESOURCE_STATE_COPY_DEST);
-				d3dCommandList->CopyBufferRegion(d3dResource.Get(), 0, resAlloc.baseResource_.Get(), resAlloc.offsetInBaseResource_, resourceDesc.Width);
+				D3D12ScopedResourceBarrier copyBarrier(
+				    d3dCommandList, d3dResource.Get(), 0, outResource.defaultState_, D3D12_RESOURCE_STATE_COPY_DEST);
+				d3dCommandList->CopyBufferRegion(d3dResource.Get(), 0, resAlloc.baseResource_.Get(),
+				    resAlloc.offsetInBaseResource_, resourceDesc.Width);
 			}
 			else
 			{
+				errorCode = ErrorCode::FAIL;
 				DBG_BREAK;
 			}
 
 			CHECK_ERRORCODE(errorCode = uploadCommandList_->Close());
-
-			::Sleep(100);
 			CHECK_ERRORCODE(errorCode = uploadCommandList_->Submit(d3dCopyQueue_.Get()));
+
+			d3dCopyQueue_->Signal(d3dUploadFence_.Get(), Core::AtomicInc(&uploadFenceIdx_));
 
 			return errorCode;
 		}
@@ -428,13 +439,12 @@ namespace GPU
 	ErrorCode D3D12Device::CreateTexture(D3D12Resource& outResource, const TextureDesc& desc,
 	    const TextureSubResourceData* initialData, const char* debugName)
 	{
-		D3D12Resource res;
-		res.supportedStates_ = GetResourceStates(desc.bindFlags_);
-		res.defaultState_ = GetDefaultResourceState(desc.bindFlags_);
+		outResource.supportedStates_ = GetResourceStates(desc.bindFlags_);
+		outResource.defaultState_ = GetDefaultResourceState(desc.bindFlags_);
 
 		// Add on copy src/dest flags to supported flags, copy dest to default.
-		res.supportedStates_ |= D3D12_RESOURCE_STATE_COPY_SOURCE;
-		res.supportedStates_ |= D3D12_RESOURCE_STATE_COPY_DEST;
+		outResource.supportedStates_ |= D3D12_RESOURCE_STATE_COPY_SOURCE;
+		outResource.supportedStates_ |= D3D12_RESOURCE_STATE_COPY_DEST;
 
 		D3D12_HEAP_PROPERTIES heapProperties;
 		heapProperties.Type = D3D12_HEAP_TYPE_DEFAULT;
@@ -458,7 +468,7 @@ namespace GPU
 
 		if(desc.type_ == TextureType::TEXCUBE)
 		{
-			resourceDesc.DepthOrArraySize = 6;
+			resourceDesc.DepthOrArraySize *= 6;
 		}
 
 		// Set default clear.
@@ -481,24 +491,106 @@ namespace GPU
 		}
 
 		ComPtr<ID3D12Resource> d3dResource;
+		ErrorCode errorCode = ErrorCode::OK;
 		HRESULT hr = S_OK;
 		CHECK_D3D(hr = d3dDevice_->CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE, &resourceDesc,
-		              res.defaultState_, setClearValue, IID_PPV_ARGS(d3dResource.GetAddressOf())));
+		              outResource.defaultState_, setClearValue, IID_PPV_ARGS(d3dResource.GetAddressOf())));
 		if(FAILED(hr))
 			return ErrorCode::FAIL;
 
-		d3dResource.As(&res.resource_);
+		outResource.resource_ = d3dResource;
 		SetObjectName(d3dResource.Get(), debugName);
 
 		// TODO: InitialData via copy queue.
 		if(initialData)
 		{
-			DBG_BREAK;
-			return ErrorCode::UNIMPLEMENTED;
+			i32 numSubRsc = desc.levels_ * desc.elements_;
+			if(desc.type_ == TextureType::TEXCUBE)
+			{
+				numSubRsc *= 6;
+			}
+
+			Core::Vector<D3D12_PLACED_SUBRESOURCE_FOOTPRINT> layouts;
+			Core::Vector<i32> numRows;
+			Core::Vector<i64> rowSizeInBytes;
+			i64 totalBytes = 0;
+
+			layouts.resize(numSubRsc);
+			numRows.resize(numSubRsc);
+			rowSizeInBytes.resize(numSubRsc);
+
+			d3dDevice_->GetCopyableFootprints(&resourceDesc, 0, numSubRsc, 0, layouts.data(), (u32*)numRows.data(),
+			    (u64*)rowSizeInBytes.data(), (u64*)&totalBytes);
+
+
+			auto& uploadAllocator = GetUploadAllocator();
+			auto resAlloc = uploadAllocator.Alloc(totalBytes, D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT);
+			u8* dstData = (u8*)resAlloc.address_;
+			for(i32 i = 0; i < numSubRsc; ++i)
+			{
+				auto& srcLayout = initialData[i];
+				auto& dstLayout = layouts[i];
+				u8* srcData = (u8*)srcLayout.data_;
+
+				DBG_ASSERT(srcLayout.rowPitch_ <= rowSizeInBytes[i]);
+
+				dstData = (u8*)resAlloc.address_ + dstLayout.Offset;
+				for(i32 slice = 0; slice < desc.depth_; ++slice)
+				{
+					u8* rowSrcData = srcData;
+					for(i32 row = 0; row < numRows[i]; ++row)
+					{
+						memcpy(dstData, srcData, srcLayout.rowPitch_);
+						dstData += rowSizeInBytes[i];
+						rowSrcData += srcLayout.rowPitch_;
+					}
+					rowSrcData += srcLayout.slicePitch_;
+				}
+			}
+
+			// Do upload.
+			if(auto* d3dCommandList = uploadCommandList_->Open())
+			{
+				D3D12ScopedResourceBarrier copyBarrier(
+				    d3dCommandList, d3dResource.Get(), 0, outResource.defaultState_, D3D12_RESOURCE_STATE_COPY_DEST);
+
+				for(i32 i = 0; i < numSubRsc; ++i)
+				{
+					D3D12_TEXTURE_COPY_LOCATION dst;
+					dst.pResource = d3dResource.Get();
+					dst.SubresourceIndex = i;
+					dst.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+
+					D3D12_TEXTURE_COPY_LOCATION src;
+					src.pResource = resAlloc.baseResource_.Get();
+					src.PlacedFootprint = layouts[i];
+					src.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
+
+					d3dCommandList->CopyTextureRegion(&dst, 0, 0, 0, &src, nullptr);
+				}
+			}
+			else
+			{
+				errorCode = ErrorCode::FAIL;
+				DBG_BREAK;
+			}
+
+			CHECK_ERRORCODE(errorCode = uploadCommandList_->Close());
+			CHECK_ERRORCODE(errorCode = uploadCommandList_->Submit(d3dCopyQueue_.Get()));
+
+			d3dCopyQueue_->Signal(d3dUploadFence_.Get(), Core::AtomicInc(&uploadFenceIdx_));
+
+			return errorCode;
 		}
 
-		return ErrorCode::OK;
+		return errorCode;
 	}
 
+	ErrorCode D3D12Device::SubmitCommandList(D3D12CommandList& commandList)
+	{
+		d3dDirectQueue_->Wait(d3dUploadFence_.Get(), uploadFenceIdx_);
+		commandList.Submit(d3dDirectQueue_.Get());
+		return ErrorCode::OK;
+	}
 
 } // namespace GPU

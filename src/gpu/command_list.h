@@ -19,8 +19,7 @@ namespace GPU
 		 * @param handleAllocator Used to validate handles passed in.
 		 * @param bufferSize Buffer size to allocate.
 		 */
-		GPU_DLL CommandList(Core::HandleAllocator& handleAllocator,
-			i32 bufferSize = 1024 * 1024 );
+		GPU_DLL CommandList(Core::HandleAllocator& handleAllocator, i32 bufferSize = 1024 * 1024);
 
 		/**
 		 * Allocate from command list.
@@ -43,7 +42,7 @@ namespace GPU
 		 * Reset command list.
 		 */
 		GPU_DLL void Reset();
-		
+
 		/**
 		 * See @a CommandDraw.
 		 * @pre @a pipelineBinding is valid.
@@ -56,8 +55,8 @@ namespace GPU
 		 * @pre @a noofInstances > 0.
 		 * @return Draw command. nullptr if failure.
 		 */
-		GPU_DLL CommandDraw* Draw(Handle pipelineBinding, Handle drawBinding, PrimitiveTopology primitive, i32 indexOffset,
-		    i32 vertexOffset, i32 noofVertices, i32 firstInstance, i32 noofInstances);
+		GPU_DLL CommandDraw* Draw(Handle pipelineBinding, Handle drawBinding, PrimitiveTopology primitive,
+		    i32 indexOffset, i32 vertexOffset, i32 noofVertices, i32 firstInstance, i32 noofInstances);
 
 		/**
 		 * See @a CommandDrawIndirect.
@@ -87,7 +86,8 @@ namespace GPU
 		 * @pre @a argByteOffset >= 0.
 		 * @return Dispatch command. nullptr if failure.
 		 */
-		GPU_DLL CommandDispatchIndirect* DispatchIndirect(Handle pipelineBinding, Handle indirectBuffer, i32 argByteOffset);
+		GPU_DLL CommandDispatchIndirect* DispatchIndirect(
+		    Handle pipelineBinding, Handle indirectBuffer, i32 argByteOffset);
 
 		/**
 		 * See @a CommandClearRTV.
@@ -149,7 +149,8 @@ namespace GPU
 		 * @pre @a srcBuffer != @a dstBuffer.
 		 * @return Copy command. nullptr if failure.
 		 */
-		GPU_DLL CommandCopyBuffer* CopyBuffer(Handle srcBuffer, i32 srcOffset, i32 srcSize, Handle dstBuffer, i32 dstOffset);
+		GPU_DLL CommandCopyBuffer* CopyBuffer(
+		    Handle srcBuffer, i32 srcOffset, i32 srcSize, Handle dstBuffer, i32 dstOffset);
 
 		/**
 		 * See @a CommandCopyTextureSubResource.

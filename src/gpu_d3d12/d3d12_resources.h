@@ -36,10 +36,7 @@ namespace GPU
 			return storage_[idx];
 		}
 
-		i32 size() const
-		{
-			return storage_.size();
-		}
+		i32 size() const { return storage_.size(); }
 
 	private:
 		Core::Vector<TYPE> storage_;
@@ -48,8 +45,9 @@ namespace GPU
 	class D3D12ScopedResourceBarrier
 	{
 	public:
-		D3D12ScopedResourceBarrier(ID3D12GraphicsCommandList* commandList, ID3D12Resource* resource, u32 subresource, D3D12_RESOURCE_STATES oldState, D3D12_RESOURCE_STATES newState)
-			: commandList_(commandList)
+		D3D12ScopedResourceBarrier(ID3D12GraphicsCommandList* commandList, ID3D12Resource* resource, u32 subresource,
+		    D3D12_RESOURCE_STATES oldState, D3D12_RESOURCE_STATES newState)
+		    : commandList_(commandList)
 		{
 			barrier_.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
 			barrier_.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;

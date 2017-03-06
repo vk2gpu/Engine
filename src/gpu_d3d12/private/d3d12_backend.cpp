@@ -58,9 +58,7 @@ namespace GPU
 		DXGICreateDXGIFactory2Fn(flags, IID_IDXGIFactory4, (void**)dxgiFactory_.ReleaseAndGetAddressOf());
 	}
 
-	D3D12Backend::~D3D12Backend()
-	{
-	}
+	D3D12Backend::~D3D12Backend() {}
 
 	i32 D3D12Backend::EnumerateAdapters(AdapterInfo* outAdapters, i32 maxAdapters)
 	{
@@ -220,7 +218,6 @@ namespace GPU
 			delete commandLists_[handle.GetIndex()];
 			commandLists_[handle.GetIndex()] = nullptr;
 			break;
-
 		}
 		//
 		return ErrorCode::UNIMPLEMENTED;
@@ -260,5 +257,13 @@ namespace GPU
 
 		return ErrorCode::UNIMPLEMENTED;
 	}
+
+	ErrorCode D3D12Backend::SubmitCommandList(Handle handle)
+	{
+		D3D12CommandList* commandList = commandLists_[handle.GetIndex()];
+		DBG_ASSERT(commandList);
+		return device_->SubmitCommandList(*commandList);
+	}
+
 
 } // namespace GPU

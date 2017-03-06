@@ -47,8 +47,9 @@ namespace GPU
 		ErrorCode DestroyResource(Handle handle) override;
 
 		ErrorCode CompileCommandList(Handle handle, const CommandList& commandList) override;
-	private:
+		ErrorCode SubmitCommandList(Handle handle) override;
 
+	private:
 		ComPtr<IDXGIDebug> dxgiDebug_;
 		ComPtr<ID3D12Debug> d3dDebug_;
 

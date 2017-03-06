@@ -59,6 +59,7 @@ namespace GPU
 	 * Utility.
 	 */
 	void SetObjectName(ID3D12Object* object, const char* name);
+	void WaitOnFence(ID3D12Fence* fence, HANDLE event, u64 value);
 
 
 } // namespace GPU

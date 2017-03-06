@@ -49,5 +49,6 @@ namespace GPU
 		 * Command list management.
 		 */
 		virtual ErrorCode CompileCommandList(Handle handle, const CommandList& commandList) = 0;
+		virtual ErrorCode SubmitCommandList(Handle handle) = 0;
 	};
 } // namespace GPU
