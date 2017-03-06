@@ -8,9 +8,9 @@
 
 #pragma warning(disable : 4189)
 
-namespace
-{
-}
+typedef u8 BYTE;
+#include "gpu_d3d12/private/shaders/default_cs.h"
+#include "gpu_d3d12/private/shaders/default_vs.h"
 
 TEST_CASE("gpu-tests-formats")
 {
@@ -312,4 +312,89 @@ TEST_CASE("gpu-tests-create-commandlist")
 	handle = manager.CreateCommandList("gpu-tests-create-commandlist");
 	REQUIRE(handle);
 	manager.DestroyResource(handle);
+}
+
+TEST_CASE("gpu-tests-create-shader")
+{
+	Client::Window window("gpu_tests", 0, 0, 640, 480, false);
+	GPU::Manager manager(window.GetPlatformData().handle_);
+
+	i32 numAdapters = manager.EnumerateAdapters(nullptr, 0);
+	REQUIRE(numAdapters > 0);
+
+	REQUIRE(manager.Initialize(0) == GPU::ErrorCode::OK);
+
+	GPU::ShaderDesc desc;
+	desc.type_ = GPU::ShaderType::COMPUTE;
+	desc.dataSize_ = sizeof(g_CShader);
+	desc.data_ = g_CShader;
+
+	GPU::Handle handle = manager.CreateShader(desc, "gpu-tests-create-shader");
+	REQUIRE(handle);
+	manager.DestroyResource(handle);
+}
+
+
+TEST_CASE("gpu-tests-create-compute-pipeline-state")
+{
+	Client::Window window("gpu_tests", 0, 0, 640, 480, false);
+	GPU::Manager manager(window.GetPlatformData().handle_);
+
+	i32 numAdapters = manager.EnumerateAdapters(nullptr, 0);
+	REQUIRE(numAdapters > 0);
+
+	REQUIRE(manager.Initialize(0) == GPU::ErrorCode::OK);
+
+	GPU::ShaderDesc shaderDesc;
+	shaderDesc.type_ = GPU::ShaderType::COMPUTE;
+	shaderDesc.dataSize_ = sizeof(g_CShader);
+	shaderDesc.data_ = g_CShader;
+
+	GPU::Handle shaderHandle = manager.CreateShader(shaderDesc, "gpu-tests-create-compute-pipeline-state");
+	REQUIRE(shaderHandle);
+
+	GPU::ComputePipelineStateDesc pipelineDesc;
+	pipelineDesc.shader_ = shaderHandle;
+	GPU::Handle pipelineHandle =
+	    manager.CreateComputePipelineState(pipelineDesc, "gpu-tests-create-compute-pipeline-state");
+
+	manager.DestroyResource(pipelineHandle);
+	manager.DestroyResource(shaderHandle);
+}
+
+TEST_CASE("gpu-tests-create-graphics-pipeline-state")
+{
+	Client::Window window("gpu_tests", 0, 0, 640, 480, false);
+	GPU::Manager manager(window.GetPlatformData().handle_);
+
+	i32 numAdapters = manager.EnumerateAdapters(nullptr, 0);
+	REQUIRE(numAdapters > 0);
+
+	REQUIRE(manager.Initialize(0) == GPU::ErrorCode::OK);
+
+	GPU::ShaderDesc shaderDesc;
+	shaderDesc.type_ = GPU::ShaderType::VERTEX;
+	shaderDesc.dataSize_ = sizeof(g_VShader);
+	shaderDesc.data_ = g_VShader;
+
+	GPU::Handle shaderHandle = manager.CreateShader(shaderDesc, "gpu-tests-create-graphics-pipeline-state");
+	REQUIRE(shaderHandle);
+
+	GPU::GraphicsPipelineStateDesc pipelineDesc;
+	pipelineDesc.shaders_[(i32)GPU::ShaderType::VERTEX] = shaderHandle;
+	pipelineDesc.renderState_ = GPU::RenderState();
+	pipelineDesc.numVertexElements_ = 1;
+	pipelineDesc.vertexElements_[0].streamIdx_ = 0;
+	pipelineDesc.vertexElements_[0].offset_ = 0;
+	pipelineDesc.vertexElements_[0].format_ = GPU::Format::R32G32B32A32_FLOAT;
+	pipelineDesc.vertexElements_[0].usage_ = GPU::VertexUsage::POSITION;
+	pipelineDesc.vertexElements_[0].usageIdx_ = 0;
+	pipelineDesc.topology_ = GPU::TopologyType::TRIANGLE;
+	pipelineDesc.numRTs_ = 0;
+	pipelineDesc.dsvFormat_ = GPU::Format::D24_UNORM_S8_UINT;
+	GPU::Handle pipelineHandle =
+	    manager.CreateGraphicsPipelineState(pipelineDesc, "gpu-tests-create-graphics-pipeline-state");
+
+	manager.DestroyResource(pipelineHandle);
+	manager.DestroyResource(shaderHandle);
 }

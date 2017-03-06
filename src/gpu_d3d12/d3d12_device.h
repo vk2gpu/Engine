@@ -5,6 +5,7 @@
 #include "gpu_d3d12/d3d12_resources.h"
 #include "gpu/resources.h"
 #include "core/array.h"
+#include "core/concurrency.h"
 
 namespace GPU
 {
@@ -21,10 +22,16 @@ namespace GPU
 
 		void NextFrame();
 
-		ErrorCode CreateSwapChain(
-		    D3D12SwapChainResource& outResource, const SwapChainDesc& desc, const char* debugName);
-		ErrorCode CreateBuffer(D3D12Resource& outResource, const BufferDesc& desc, const void* initialData, const char* debugName);
-		ErrorCode CreateTexture(D3D12Resource& outResource, const TextureDesc& desc, const TextureSubResourceData* initialData, const char* debugName);
+		ErrorCode CreateSwapChain(D3D12SwapChain& outResource, const SwapChainDesc& desc, const char* debugName);
+		ErrorCode CreateBuffer(
+		    D3D12Resource& outResource, const BufferDesc& desc, const void* initialData, const char* debugName);
+		ErrorCode CreateTexture(D3D12Resource& outResource, const TextureDesc& desc,
+		    const TextureSubResourceData* initialData, const char* debugName);
+
+		ErrorCode CreateGraphicsPipelineState(
+		    D3D12GraphicsPipelineState& outGps, D3D12_GRAPHICS_PIPELINE_STATE_DESC desc, const char* debugName);
+		ErrorCode CreateComputePipelineState(
+		    D3D12ComputePipelineState& outCps, D3D12_COMPUTE_PIPELINE_STATE_DESC desc, const char* debugName);
 
 		ErrorCode SubmitCommandList(D3D12CommandList& commandList);
 
@@ -41,8 +48,8 @@ namespace GPU
 		/// Frame counter.
 		i32 frameIdx_ = 0;
 
-		/// Allocator for uploading data to the GPU.
-		/// TODO: Replace this with a circular buffer instead of array of allocators.
+		// Upload management.
+		Core::Mutex uploadMutex_;
 		Core::Array<class D3D12LinearHeapAllocator*, MAX_GPU_FRAMES> uploadAllocators_;
 		class D3D12CommandList* uploadCommandList_;
 		ComPtr<ID3D12Fence> d3dUploadFence_;

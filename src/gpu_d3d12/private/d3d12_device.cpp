@@ -311,7 +311,7 @@ namespace GPU
 
 
 	ErrorCode D3D12Device::CreateSwapChain(
-	    D3D12SwapChainResource& outResource, const SwapChainDesc& desc, const char* debugName)
+	    D3D12SwapChain& outResource, const SwapChainDesc& desc, const char* debugName)
 	{
 		DXGI_SWAP_CHAIN_DESC1 swapChainDesc;
 		memset(&swapChainDesc, 0, sizeof(swapChainDesc));
@@ -327,7 +327,7 @@ namespace GPU
 		swapChainDesc.Flags = 0;
 
 		HRESULT hr = S_OK;
-		D3D12SwapChainResource swapChainRes;
+		D3D12SwapChain swapChainRes;
 		ComPtr<IDXGISwapChain1> swapChain;
 		CHECK_D3D(hr = dxgiFactory_->CreateSwapChainForHwnd(d3dDirectQueue_.Get(), (HWND)desc.outputWindow_,
 		              &swapChainDesc, nullptr, nullptr, swapChain.GetAddressOf()));
@@ -367,6 +367,7 @@ namespace GPU
 	ErrorCode D3D12Device::CreateBuffer(
 	    D3D12Resource& outResource, const BufferDesc& desc, const void* initialData, const char* debugName)
 	{
+		ErrorCode errorCode = ErrorCode::OK;
 		outResource.supportedStates_ = GetResourceStates(desc.bindFlags_);
 		outResource.defaultState_ = GetDefaultResourceState(desc.bindFlags_);
 
@@ -395,7 +396,6 @@ namespace GPU
 		resourceDesc.Flags = GetResourceFlags(desc.bindFlags_);
 
 		ComPtr<ID3D12Resource> d3dResource;
-		ErrorCode errorCode = ErrorCode::OK;
 		HRESULT hr = S_OK;
 		CHECK_D3D(hr = d3dDevice_->CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE, &resourceDesc,
 		              outResource.defaultState_, nullptr, IID_PPV_ARGS(d3dResource.GetAddressOf())));
@@ -412,6 +412,8 @@ namespace GPU
 			auto resAlloc = uploadAllocator.Alloc(resourceDesc.Width);
 			memcpy(resAlloc.address_, initialData, desc.size_);
 
+			// Do upload.
+			Core::ScopedMutex lock(uploadMutex_);
 			if(auto* d3dCommandList = uploadCommandList_->Open())
 			{
 				D3D12ScopedResourceBarrier copyBarrier(
@@ -439,6 +441,7 @@ namespace GPU
 	ErrorCode D3D12Device::CreateTexture(D3D12Resource& outResource, const TextureDesc& desc,
 	    const TextureSubResourceData* initialData, const char* debugName)
 	{
+		ErrorCode errorCode = ErrorCode::OK;
 		outResource.supportedStates_ = GetResourceStates(desc.bindFlags_);
 		outResource.defaultState_ = GetDefaultResourceState(desc.bindFlags_);
 
@@ -491,7 +494,6 @@ namespace GPU
 		}
 
 		ComPtr<ID3D12Resource> d3dResource;
-		ErrorCode errorCode = ErrorCode::OK;
 		HRESULT hr = S_OK;
 		CHECK_D3D(hr = d3dDevice_->CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE, &resourceDesc,
 		              outResource.defaultState_, setClearValue, IID_PPV_ARGS(d3dResource.GetAddressOf())));
@@ -501,7 +503,7 @@ namespace GPU
 		outResource.resource_ = d3dResource;
 		SetObjectName(d3dResource.Get(), debugName);
 
-		// TODO: InitialData via copy queue.
+		// Use copy queue to upload resource initial data.
 		if(initialData)
 		{
 			i32 numSubRsc = desc.levels_ * desc.elements_;
@@ -549,6 +551,7 @@ namespace GPU
 			}
 
 			// Do upload.
+			Core::ScopedMutex lock(uploadMutex_);
 			if(auto* d3dCommandList = uploadCommandList_->Open())
 			{
 				D3D12ScopedResourceBarrier copyBarrier(
@@ -584,6 +587,50 @@ namespace GPU
 		}
 
 		return errorCode;
+	}
+
+	ErrorCode D3D12Device::CreateGraphicsPipelineState(
+	    D3D12GraphicsPipelineState& outGps, D3D12_GRAPHICS_PIPELINE_STATE_DESC desc, const char* debugName)
+	{
+		if(desc.VS.pShaderBytecode && desc.GS.pShaderBytecode && desc.HS.pShaderBytecode && desc.DS.pShaderBytecode &&
+		    desc.PS.pShaderBytecode)
+		{
+			desc.pRootSignature = d3dRootSignatures_[(i32)RootSignatureType::VS].Get();
+		}
+		else if(desc.VS.pShaderBytecode && desc.PS.pShaderBytecode)
+		{
+			desc.pRootSignature = d3dRootSignatures_[(i32)RootSignatureType::VS_PS].Get();
+		}
+		else if(desc.VS.pShaderBytecode)
+		{
+			desc.pRootSignature = d3dRootSignatures_[(i32)RootSignatureType::VS_GS_HS_DS_PS].Get();
+		}
+		else
+		{
+			return ErrorCode::FAIL;
+		}
+
+		HRESULT hr = S_OK;
+		CHECK_D3D(hr = d3dDevice_->CreateGraphicsPipelineState(
+		              &desc, IID_ID3D12PipelineState, (void**)outGps.pipelineState_.ReleaseAndGetAddressOf()));
+		if(FAILED(hr))
+			return ErrorCode::FAIL;
+
+		return ErrorCode::OK;
+	}
+
+	ErrorCode D3D12Device::CreateComputePipelineState(
+	    D3D12ComputePipelineState& outCps, D3D12_COMPUTE_PIPELINE_STATE_DESC desc, const char* debugName)
+	{
+		desc.pRootSignature = d3dRootSignatures_[(i32)RootSignatureType::CS].Get();
+
+		HRESULT hr = S_OK;
+		CHECK_D3D(hr = d3dDevice_->CreateComputePipelineState(
+		              &desc, IID_ID3D12PipelineState, (void**)outCps.pipelineState_.ReleaseAndGetAddressOf()));
+		if(FAILED(hr))
+			return ErrorCode::FAIL;
+
+		return ErrorCode::OK;
 	}
 
 	ErrorCode D3D12Device::SubmitCommandList(D3D12CommandList& commandList)

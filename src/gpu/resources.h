@@ -129,16 +129,16 @@ namespace GPU
 	 */
 	struct GPU_DLL SamplerState
 	{
-		AddressingMode AddressU_ = AddressingMode::WRAP;
-		AddressingMode AddressV_ = AddressingMode::WRAP;
-		AddressingMode AddressW_ = AddressingMode::WRAP;
-		FilteringMode MinFilter_ = FilteringMode::NEAREST;
-		FilteringMode MagFilter_ = FilteringMode::NEAREST;
-		f32 MipLODBias_ = 0.0f;
-		u32 MaxAnisotropy_ = 1;
-		float BorderColour_[4] = {0.0f, 0.0f, 0.0f, 0.0f};
-		f32 MinLOD_ = -Core::F32_MAX;
-		f32 MaxLOD_ = Core::F32_MAX;
+		AddressingMode addressU_ = AddressingMode::WRAP;
+		AddressingMode addressV_ = AddressingMode::WRAP;
+		AddressingMode addressW_ = AddressingMode::WRAP;
+		FilteringMode minFilter_ = FilteringMode::NEAREST;
+		FilteringMode magFilter_ = FilteringMode::NEAREST;
+		f32 mipLODBias_ = 0.0f;
+		u32 maxAnisotropy_ = 1;
+		float borderColor_[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+		f32 minLOD_ = -Core::F32_MAX;
+		f32 maxLOD_ = Core::F32_MAX;
 	};
 
 
@@ -179,12 +179,12 @@ namespace GPU
 		INVALID = -1,
 		ZERO = 0,
 		ONE,
-		SRC_COLOUR,
-		INV_SRC_COLOUR,
+		SRC_COLOR,
+		INV_SRC_COLOR,
 		SRC_ALPHA,
 		INV_SRC_ALPHA,
-		DEST_COLOUR,
-		INV_DEST_COLOUR,
+		DEST_COLOR,
+		INV_DEST_COLOR,
 		DEST_ALPHA,
 		INV_DEST_ALPHA,
 
@@ -209,10 +209,10 @@ namespace GPU
 		NEVER = 0,
 		LESS,
 		EQUAL,
-		LESSEQUAL,
+		LESS_EQUAL,
 		GREATER,
-		NOTEQUAL,
-		GREATEREQUAL,
+		NOT_EQUAL,
+		GREATER_EQUAL,
 		ALWAYS,
 
 		MAX,
@@ -239,14 +239,14 @@ namespace GPU
 	 */
 	struct GPU_DLL BlendState
 	{
-		u32 Enable_ = 0;
-		BlendType SrcBlend_ = BlendType::ONE;
-		BlendType DestBlend_ = BlendType::ONE;
-		BlendFunc BlendOp_ = BlendFunc::ADD;
-		BlendType SrcBlendAlpha_ = BlendType::ONE;
-		BlendType DestBlendAlpha_ = BlendType::ONE;
-		BlendFunc BlendOpAlpha_ = BlendFunc::ADD;
-		u32 WriteMask_ = 0xf;
+		u32 enable_ = 0;
+		BlendType srcBlend_ = BlendType::ONE;
+		BlendType destBlend_ = BlendType::ONE;
+		BlendFunc blendOp_ = BlendFunc::ADD;
+		BlendType srcBlendAlpha_ = BlendType::ONE;
+		BlendType destBlendAlpha_ = BlendType::ONE;
+		BlendFunc blendOpAlpha_ = BlendFunc::ADD;
+		u8 writeMask_ = 0xf;
 	};
 
 	/**
@@ -255,11 +255,10 @@ namespace GPU
 	 */
 	struct GPU_DLL StencilFaceState
 	{
-		StencilFunc Fail_ = StencilFunc::KEEP;
-		StencilFunc DepthFail_ = StencilFunc::KEEP;
-		StencilFunc Pass_ = StencilFunc::KEEP;
-		CompareMode Func_ = CompareMode::ALWAYS;
-		u32 Mask_ = 0;
+		StencilFunc fail_ = StencilFunc::KEEP;
+		StencilFunc depthFail_ = StencilFunc::KEEP;
+		StencilFunc pass_ = StencilFunc::KEEP;
+		CompareMode func_ = CompareMode::ALWAYS;
 	};
 
 	/**
@@ -269,25 +268,25 @@ namespace GPU
 	{
 		// Blend state.
 		BlendState blendStates_[MAX_BOUND_RTVS];
+		i32 numRenderTargets_ = 0;
 
 		// Depth stencil.
-		StencilFaceState StencilFront_;
-		StencilFaceState StencilBack_;
-		u32 DepthTestEnable_ = 0;
-		u32 DepthWriteEnable_ = 0;
-		CompareMode DepthFunc_ = CompareMode::GREATEREQUAL;
-		u32 StencilEnable_ = 0;
-		u32 StencilRef_ = 0;
-		u8 StencilRead_ = 0;
-		u8 StencilWrite_ = 0;
+		StencilFaceState stencilFront_;
+		StencilFaceState stencilBack_;
+		u32 depthEnable_ = 0;
+		u32 depthWriteMask_ = 0;
+		CompareMode depthFunc_ = CompareMode::GREATER_EQUAL;
+		u32 stencilEnable_ = 0;
+		u32 stencilRef_ = 0;
+		u8 stencilRead_ = 0;
+		u8 stencilWrite_ = 0;
 
 		// Rasterizer.
-		FillMode FillMode_ = FillMode::SOLID;
-		CullMode CullMode_ = CullMode::CCW;
-		f32 DepthBias_ = 0.0f;
-		f32 SlopeScaledDepthBias_ = 0.0f;
-		u32 DepthClipEnable_ = 0;
-		u32 AntialiasedLineEnable_ = 0;
+		FillMode fillMode_ = FillMode::SOLID;
+		CullMode cullMode_ = CullMode::CCW;
+		f32 depthBias_ = 0.0f;
+		f32 slopeScaledDepthBias_ = 0.0f;
+		u32 antialiasedLineEnable_ = 0;
 	};
 
 	/**
@@ -297,6 +296,7 @@ namespace GPU
 	{
 		Handle shaders_[5];
 		RenderState renderState_;
+		i32 numVertexElements_ = 0;
 		VertexElement vertexElements_[MAX_VERTEX_ELEMENTS];
 		TopologyType topology_ = TopologyType::INVALID;
 		i32 numRTs_ = 0;

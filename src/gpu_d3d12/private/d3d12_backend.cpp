@@ -109,7 +109,7 @@ namespace GPU
 
 	ErrorCode D3D12Backend::CreateSwapChain(Handle handle, const SwapChainDesc& desc, const char* debugName)
 	{
-		D3D12SwapChainResource swapChain;
+		D3D12SwapChain swapChain;
 		ErrorCode retVal = device_->CreateSwapChain(swapChain, desc, debugName);
 		if(retVal != ErrorCode::OK)
 			return retVal;
@@ -144,28 +144,395 @@ namespace GPU
 
 	ErrorCode D3D12Backend::CreateSamplerState(Handle handle, const SamplerState& state, const char* debugName)
 	{
-		//
-		return ErrorCode::UNIMPLEMENTED;
+		D3D12SamplerState samplerState;
+
+		auto GetAddessingMode = [](AddressingMode addressMode) {
+			switch(addressMode)
+			{
+			case AddressingMode::WRAP:
+				return D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+			case AddressingMode::MIRROR:
+				return D3D12_TEXTURE_ADDRESS_MODE_MIRROR;
+			case AddressingMode::CLAMP:
+				return D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+			case AddressingMode::BORDER:
+				return D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+			default:
+				DBG_BREAK;
+				return D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+			}
+		};
+
+		auto GetFilteringMode = [](FilteringMode min, FilteringMode mag, u32 anisotropy) {
+			if(min == FilteringMode::NEAREST && mag == FilteringMode::NEAREST)
+			{
+				return D3D12_FILTER_MIN_MAG_MIP_POINT;
+			}
+			else if(min == FilteringMode::NEAREST_MIPMAP_LINEAR && mag == FilteringMode::NEAREST)
+			{
+				return D3D12_FILTER_MIN_MAG_POINT_MIP_LINEAR;
+			}
+			else if(min == FilteringMode::LINEAR && mag == FilteringMode::NEAREST)
+			{
+				return D3D12_FILTER_MIN_POINT_MAG_LINEAR_MIP_POINT;
+			}
+			else if(min == FilteringMode::LINEAR_MIPMAP_LINEAR && mag == FilteringMode::NEAREST)
+			{
+				return D3D12_FILTER_MIN_POINT_MAG_MIP_LINEAR;
+			}
+			else if(min == FilteringMode::LINEAR && mag == FilteringMode::LINEAR)
+			{
+				return D3D12_FILTER_MIN_MAG_MIP_LINEAR;
+			}
+			else if(min == FilteringMode::LINEAR_MIPMAP_LINEAR && mag == FilteringMode::LINEAR)
+			{
+				if(anisotropy > 1)
+				{
+					return D3D12_FILTER_ANISOTROPIC;
+				}
+				else
+				{
+					return D3D12_FILTER_MIN_MAG_MIP_LINEAR;
+				}
+			}
+			return D3D12_FILTER_MIN_MAG_MIP_POINT;
+		};
+
+		memset(&samplerState, 0, sizeof(samplerState));
+		samplerState.desc_.AddressU = GetAddessingMode(state.addressU_);
+		samplerState.desc_.AddressV = GetAddessingMode(state.addressV_);
+		samplerState.desc_.AddressW = GetAddessingMode(state.addressW_);
+		samplerState.desc_.Filter = GetFilteringMode(state.minFilter_, state.magFilter_, state.maxAnisotropy_);
+		samplerState.desc_.MipLODBias = state.mipLODBias_;
+		samplerState.desc_.MaxAnisotropy = state.maxAnisotropy_;
+		samplerState.desc_.BorderColor[0] = state.borderColor_[0];
+		samplerState.desc_.BorderColor[1] = state.borderColor_[1];
+		samplerState.desc_.BorderColor[2] = state.borderColor_[2];
+		samplerState.desc_.BorderColor[3] = state.borderColor_[3];
+		samplerState.desc_.MinLOD = state.minLOD_;
+		samplerState.desc_.MaxLOD = state.maxLOD_;
+
+		Core::ScopedMutex lock(resourceMutex_);
+		samplerStates_[handle.GetIndex()] = samplerState;
+		return ErrorCode::OK;
 	}
 
 	ErrorCode D3D12Backend::CreateShader(Handle handle, const ShaderDesc& desc, const char* debugName)
 	{
-		//
-		return ErrorCode::UNIMPLEMENTED;
+		D3D12Shader shader;
+		shader.byteCode_ = new u8[desc.dataSize_];
+		shader.byteCodeSize_ = desc.dataSize_;
+		memcpy(shader.byteCode_, desc.data_, desc.dataSize_);
+		Core::ScopedMutex lock(resourceMutex_);
+		shaders_[handle.GetIndex()] = shader;
+		return ErrorCode::OK;
 	}
 
 	ErrorCode D3D12Backend::CreateGraphicsPipelineState(
 	    Handle handle, const GraphicsPipelineStateDesc& desc, const char* debugName)
 	{
-		//
-		return ErrorCode::UNIMPLEMENTED;
+		D3D12GraphicsPipelineState gps;
+		D3D12_GRAPHICS_PIPELINE_STATE_DESC gpsDesc = {};
+
+		auto GetShaderBytecode = [&](ShaderType shaderType) {
+			D3D12_SHADER_BYTECODE byteCode = {};
+			auto shaderHandle = desc.shaders_[(i32)shaderType];
+			if(shaderHandle)
+			{
+				const auto& shader = shaders_[shaderHandle.GetIndex()];
+				byteCode.pShaderBytecode = shader.byteCode_;
+				byteCode.BytecodeLength = shader.byteCodeSize_;
+			}
+			return byteCode;
+		};
+
+		auto GetBlendState = [](BlendState blendState) {
+			auto GetBlend = [](BlendType type) {
+				switch(type)
+				{
+				case BlendType::ZERO:
+					return D3D12_BLEND_ZERO;
+				case BlendType::ONE:
+					return D3D12_BLEND_ONE;
+				case BlendType::SRC_COLOR:
+					return D3D12_BLEND_SRC_COLOR;
+				case BlendType::INV_SRC_COLOR:
+					return D3D12_BLEND_INV_SRC_COLOR;
+				case BlendType::SRC_ALPHA:
+					return D3D12_BLEND_SRC_ALPHA;
+				case BlendType::INV_SRC_ALPHA:
+					return D3D12_BLEND_INV_SRC_ALPHA;
+				case BlendType::DEST_COLOR:
+					return D3D12_BLEND_DEST_COLOR;
+				case BlendType::INV_DEST_COLOR:
+					return D3D12_BLEND_INV_DEST_COLOR;
+				case BlendType::DEST_ALPHA:
+					return D3D12_BLEND_DEST_ALPHA;
+				case BlendType::INV_DEST_ALPHA:
+					return D3D12_BLEND_INV_DEST_ALPHA;
+				default:
+					DBG_BREAK;
+					return D3D12_BLEND_ZERO;
+				}
+			};
+
+			auto GetBlendOp = [](BlendFunc func) {
+				switch(func)
+				{
+				case BlendFunc::ADD:
+					return D3D12_BLEND_OP_ADD;
+				case BlendFunc::SUBTRACT:
+					return D3D12_BLEND_OP_SUBTRACT;
+				case BlendFunc::REV_SUBTRACT:
+					return D3D12_BLEND_OP_REV_SUBTRACT;
+				case BlendFunc::MINIMUM:
+					return D3D12_BLEND_OP_MIN;
+				case BlendFunc::MAXIMUM:
+					return D3D12_BLEND_OP_MAX;
+				default:
+					DBG_BREAK;
+					return D3D12_BLEND_OP_ADD;
+				}
+			};
+
+			D3D12_RENDER_TARGET_BLEND_DESC state;
+			state.BlendEnable = blendState.enable_ ? TRUE : FALSE;
+			state.LogicOpEnable = FALSE;
+			state.SrcBlend = GetBlend(blendState.srcBlend_);
+			state.DestBlend = GetBlend(blendState.destBlend_);
+			state.BlendOp = GetBlendOp(blendState.blendOp_);
+			state.SrcBlendAlpha = GetBlend(blendState.srcBlendAlpha_);
+			state.DestBlendAlpha = GetBlend(blendState.destBlendAlpha_);
+			state.BlendOpAlpha = GetBlendOp(blendState.blendOpAlpha_);
+			state.LogicOp = D3D12_LOGIC_OP_CLEAR;
+			state.RenderTargetWriteMask = blendState.writeMask_;
+			return state;
+		};
+
+		auto GetRasterizerState = [](const RenderState& renderState) {
+			auto GetFillMode = [](FillMode fillMode) {
+				switch(fillMode)
+				{
+				case FillMode::SOLID:
+					return D3D12_FILL_MODE_SOLID;
+				case FillMode::WIREFRAME:
+					return D3D12_FILL_MODE_WIREFRAME;
+				default:
+					DBG_BREAK;
+					return D3D12_FILL_MODE_SOLID;
+				}
+			};
+
+			auto GetCullMode = [](CullMode cullMode) {
+				switch(cullMode)
+				{
+				case CullMode::NONE:
+					return D3D12_CULL_MODE_NONE;
+				case CullMode::CCW:
+					return D3D12_CULL_MODE_FRONT;
+				case CullMode::CW:
+					return D3D12_CULL_MODE_BACK;
+				default:
+					DBG_BREAK;
+					return D3D12_CULL_MODE_NONE;
+				}
+			};
+
+			D3D12_RASTERIZER_DESC desc;
+			desc.FillMode = GetFillMode(renderState.fillMode_);
+			desc.CullMode = GetCullMode(renderState.cullMode_);
+			desc.FrontCounterClockwise = TRUE;
+			desc.DepthBias = (u32)(renderState.depthBias_ * 0xffffff); // TODO: Use depth format.
+			desc.SlopeScaledDepthBias = renderState.slopeScaledDepthBias_;
+			desc.DepthClipEnable = FALSE;
+			desc.DepthBiasClamp = 0.0f;
+			desc.MultisampleEnable = FALSE; // TODO:
+			desc.AntialiasedLineEnable = renderState.antialiasedLineEnable_ ? TRUE : FALSE;
+			desc.ForcedSampleCount = 0;
+			desc.ConservativeRaster = D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF;
+
+			return desc;
+		};
+
+		auto GetDepthStencilState = [](const RenderState& renderState) {
+			auto GetCompareMode = [](CompareMode mode) {
+				switch(mode)
+				{
+				case CompareMode::NEVER:
+					return D3D12_COMPARISON_FUNC_NEVER;
+				case CompareMode::LESS:
+					return D3D12_COMPARISON_FUNC_LESS;
+				case CompareMode::EQUAL:
+					return D3D12_COMPARISON_FUNC_EQUAL;
+				case CompareMode::LESS_EQUAL:
+					return D3D12_COMPARISON_FUNC_LESS_EQUAL;
+				case CompareMode::GREATER:
+					return D3D12_COMPARISON_FUNC_GREATER;
+				case CompareMode::NOT_EQUAL:
+					return D3D12_COMPARISON_FUNC_NOT_EQUAL;
+				case CompareMode::GREATER_EQUAL:
+					return D3D12_COMPARISON_FUNC_GREATER_EQUAL;
+				case CompareMode::ALWAYS:
+					return D3D12_COMPARISON_FUNC_ALWAYS;
+				default:
+					DBG_BREAK;
+					return D3D12_COMPARISON_FUNC_NEVER;
+				}
+			};
+
+			auto GetStencilFaceState = [&GetCompareMode](StencilFaceState stencilFaceState) {
+				auto GetStencilOp = [](StencilFunc func) {
+					switch(func)
+					{
+					case StencilFunc::KEEP:
+						return D3D12_STENCIL_OP_KEEP;
+					case StencilFunc::ZERO:
+						return D3D12_STENCIL_OP_ZERO;
+					case StencilFunc::REPLACE:
+						return D3D12_STENCIL_OP_REPLACE;
+					case StencilFunc::INCR:
+						return D3D12_STENCIL_OP_INCR_SAT;
+					case StencilFunc::INCR_WRAP:
+						return D3D12_STENCIL_OP_INCR;
+					case StencilFunc::DECR:
+						return D3D12_STENCIL_OP_DECR_SAT;
+					case StencilFunc::DECR_WRAP:
+						return D3D12_STENCIL_OP_DECR;
+					case StencilFunc::INVERT:
+						return D3D12_STENCIL_OP_INVERT;
+					default:
+						DBG_BREAK;
+						return D3D12_STENCIL_OP_KEEP;
+					}
+				};
+
+				D3D12_DEPTH_STENCILOP_DESC desc;
+				desc.StencilFailOp = GetStencilOp(stencilFaceState.fail_);
+				desc.StencilDepthFailOp = GetStencilOp(stencilFaceState.depthFail_);
+				desc.StencilPassOp = GetStencilOp(stencilFaceState.pass_);
+				desc.StencilFunc = GetCompareMode(stencilFaceState.func_);
+
+				return desc;
+			};
+
+			D3D12_DEPTH_STENCIL_DESC desc;
+
+			desc.DepthEnable = renderState.depthEnable_;
+			desc.DepthWriteMask =
+			    renderState.depthWriteMask_ ? D3D12_DEPTH_WRITE_MASK_ALL : D3D12_DEPTH_WRITE_MASK_ZERO;
+			desc.DepthFunc = GetCompareMode(renderState.depthFunc_);
+			desc.StencilEnable = renderState.stencilEnable_;
+			desc.StencilReadMask = renderState.stencilRead_;
+			desc.StencilWriteMask = renderState.stencilWrite_;
+			desc.BackFace = GetStencilFaceState(renderState.stencilBack_);
+			desc.FrontFace = GetStencilFaceState(renderState.stencilFront_);
+
+			return desc;
+		};
+
+		auto GetTopologyType = [](TopologyType type) {
+			switch(type)
+			{
+			case TopologyType::POINT:
+				return D3D12_PRIMITIVE_TOPOLOGY_TYPE_POINT;
+			case TopologyType::LINE:
+				return D3D12_PRIMITIVE_TOPOLOGY_TYPE_LINE;
+			case TopologyType::TRIANGLE:
+				return D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+			case TopologyType::PATCH:
+				return D3D12_PRIMITIVE_TOPOLOGY_TYPE_PATCH;
+			default:
+				DBG_BREAK;
+				return D3D12_PRIMITIVE_TOPOLOGY_TYPE_POINT;
+			}
+		};
+
+		auto GetSemanticName = [](VertexUsage usage) {
+			switch(usage)
+			{
+			case VertexUsage::POSITION:
+				return "POSITION";
+			case VertexUsage::BLENDWEIGHTS:
+				return "BLENDWEIGHTS";
+			case VertexUsage::BLENDINDICES:
+				return "BLENDINDICES";
+			case VertexUsage::NORMAL:
+				return "NORMAL";
+			case VertexUsage::TEXCOORD:
+				return "TEXCOORD";
+			case VertexUsage::TANGENT:
+				return "TANGENT";
+			case VertexUsage::BINORMAL:
+				return "BINORMAL";
+			case VertexUsage::COLOR:
+				return "COLOR";
+			default:
+				DBG_BREAK;
+				return "";
+			}
+		};
+
+		gpsDesc.VS = GetShaderBytecode(ShaderType::VERTEX);
+		gpsDesc.GS = GetShaderBytecode(ShaderType::GEOMETRY);
+		gpsDesc.HS = GetShaderBytecode(ShaderType::HULL);
+		gpsDesc.DS = GetShaderBytecode(ShaderType::DOMAIN);
+		gpsDesc.PS = GetShaderBytecode(ShaderType::PIXEL);
+
+		gpsDesc.NodeMask = 0x0;
+
+		gpsDesc.NumRenderTargets = desc.renderState_.numRenderTargets_;
+		gpsDesc.BlendState.AlphaToCoverageEnable = FALSE;
+		gpsDesc.BlendState.IndependentBlendEnable = TRUE;
+		for(i32 i = 0; i < MAX_BOUND_RTVS; ++i)
+			gpsDesc.BlendState.RenderTarget[i] = GetBlendState(desc.renderState_.blendStates_[i]);
+
+		gpsDesc.RasterizerState = GetRasterizerState(desc.renderState_);
+		gpsDesc.DepthStencilState = GetDepthStencilState(desc.renderState_);
+
+		gpsDesc.PrimitiveTopologyType = GetTopologyType(desc.topology_);
+
+		Core::Array<D3D12_INPUT_ELEMENT_DESC, 16> elementDesc;
+		gpsDesc.InputLayout.NumElements = desc.numVertexElements_;
+		gpsDesc.InputLayout.pInputElementDescs = elementDesc.data();
+		for(i32 i = 0; i < desc.numVertexElements_; ++i)
+		{
+			elementDesc[i].SemanticName = GetSemanticName(desc.vertexElements_[i].usage_);
+			elementDesc[i].SemanticIndex = desc.vertexElements_[i].usageIdx_;
+			elementDesc[i].Format = GetFormat(desc.vertexElements_[i].format_);
+			elementDesc[i].InputSlot = desc.vertexElements_[i].streamIdx_;
+			elementDesc[i].InputSlotClass = D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA; // TODO: expose outside of here.
+			elementDesc[i].InstanceDataStepRate = 0;                                    // TODO: expose outside of here.
+		}
+		gps.stencilRef_ = desc.renderState_.stencilRef_;
+
+		ErrorCode retVal = device_->CreateGraphicsPipelineState(gps, gpsDesc, debugName);
+		if(retVal != ErrorCode::OK)
+			return retVal;
+
+		Core::ScopedMutex lock(resourceMutex_);
+		graphicsPipelineStates_[handle.GetIndex()] = gps;
+		return ErrorCode::OK;
 	}
 
 	ErrorCode D3D12Backend::CreateComputePipelineState(
 	    Handle handle, const ComputePipelineStateDesc& desc, const char* debugName)
 	{
-		//
-		return ErrorCode::UNIMPLEMENTED;
+		D3D12ComputePipelineState cps;
+		D3D12_COMPUTE_PIPELINE_STATE_DESC cpsDesc = {};
+
+		const auto& shader = shaders_[desc.shader_.GetIndex()];
+		cpsDesc.CS.BytecodeLength = shader.byteCodeSize_;
+		cpsDesc.CS.pShaderBytecode = shader.byteCode_;
+		cpsDesc.NodeMask = 0x0;
+
+		ErrorCode retVal = device_->CreateComputePipelineState(cps, cpsDesc, debugName);
+		if(retVal != ErrorCode::OK)
+			return retVal;
+
+
+		Core::ScopedMutex lock(resourceMutex_);
+		computePipelineStates_[handle.GetIndex()] = cps;
+		return ErrorCode::OK;
 	}
 
 	ErrorCode D3D12Backend::CreatePipelineBindingSet(
@@ -206,13 +573,20 @@ namespace GPU
 		switch(handle.GetType())
 		{
 		case ResourceType::SWAP_CHAIN:
-			swapchainResources_[handle.GetIndex()] = D3D12SwapChainResource();
+			swapchainResources_[handle.GetIndex()] = D3D12SwapChain();
 			break;
 		case ResourceType::BUFFER:
 			bufferResources_[handle.GetIndex()] = D3D12Resource();
 			break;
 		case ResourceType::TEXTURE:
 			textureResources_[handle.GetIndex()] = D3D12Resource();
+			break;
+		case ResourceType::SHADER:
+			delete[] shaders_[handle.GetIndex()].byteCode_;
+			shaders_[handle.GetIndex()] = D3D12Shader();
+			break;
+		case ResourceType::SAMPLER_STATE:
+			samplerStates_[handle.GetIndex()] = D3D12SamplerState();
 			break;
 		case ResourceType::COMMAND_LIST:
 			delete commandLists_[handle.GetIndex()];

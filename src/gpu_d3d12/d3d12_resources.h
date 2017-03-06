@@ -77,9 +77,33 @@ namespace GPU
 		D3D12_RESOURCE_STATES defaultState_ = D3D12_RESOURCE_STATE_COMMON;
 	};
 
-	struct D3D12SwapChainResource
+	struct D3D12SwapChain
 	{
 		ComPtr<IDXGISwapChain3> swapChain_;
 		Core::Vector<D3D12Resource> textures_;
+	};
+
+	struct D3D12Shader
+	{
+		u8* byteCode_ = nullptr;
+		u32 byteCodeSize_ = 0;
+	};
+
+	struct D3D12SamplerState
+	{
+		D3D12_SAMPLER_DESC desc_;
+	};
+
+	struct D3D12GraphicsPipelineState
+	{
+		RootSignatureType rootSignature_ = RootSignatureType::INVALID;
+		u32 stencilRef_ = 0; // TODO: Make part of draw?
+		ComPtr<ID3D12PipelineState> pipelineState_;
+	};
+
+	struct D3D12ComputePipelineState
+	{
+		RootSignatureType rootSignature_ = RootSignatureType::INVALID;
+		ComPtr<ID3D12PipelineState> pipelineState_;
 	};
 }
