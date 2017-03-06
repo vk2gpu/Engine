@@ -6,8 +6,8 @@
 namespace GPU
 {
 	D3D12LinearHeapAllocator::D3D12LinearHeapAllocator(
-	    ID3D12Device* device, D3D12_HEAP_TYPE heapType, i64 minResourceBlockSize)
-	    : device_(device)
+	    ID3D12Device* d3dDevice, D3D12_HEAP_TYPE heapType, i64 minResourceBlockSize)
+	    : d3dDevice_(d3dDevice)
 	    , heapType_(heapType)
 	    , minResourceBlockSize_(minResourceBlockSize)
 	    , blocks_()
@@ -113,9 +113,9 @@ namespace GPU
 		// Setup heap properties.
 		D3D12_HEAP_PROPERTIES heapProperties;
 		heapProperties.Type = heapType_;
-		heapProperties.CPUPageProperty = (heapType_ == D3D12_HEAP_TYPE_UPLOAD) ? D3D12_CPU_PAGE_PROPERTY_WRITE_COMBINE
-		                                                                       : D3D12_CPU_PAGE_PROPERTY_WRITE_BACK;
-		heapProperties.MemoryPoolPreference = D3D12_MEMORY_POOL::D3D12_MEMORY_POOL_L0;
+		heapProperties.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+		heapProperties.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+		heapProperties.CreationNodeMask = 0x0;
 		heapProperties.VisibleNodeMask = 0x0;
 
 		D3D12_RESOURCE_DESC resourceDesc;
@@ -138,8 +138,11 @@ namespace GPU
 		// Committed resource.
 		HRESULT hr = S_OK;
 
-		CHECK_D3D(hr = device_->CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE, &resourceDesc,
+		CHECK_D3D(hr = d3dDevice_->CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE, &resourceDesc,
 		              resourceUsage, nullptr, IID_PPV_ARGS(block.resource_.GetAddressOf())));
+#ifdef DEBUG
+		SetObjectName(block.resource_.Get(), "D3D12LinearHeapAllocator");
+#endif
 
 		// Persistently map.
 		CHECK_D3D(hr = block.resource_->Map(0, nullptr, &block.baseAddress_));

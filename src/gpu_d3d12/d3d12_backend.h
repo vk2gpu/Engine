@@ -55,16 +55,11 @@ namespace GPU
 		ComPtr<IDXGIFactory4> dxgiFactory_;
 
 		/// Cached adapter infos.
-		Core::Vector<ComPtr<IDXGIAdapter1>> adapters_;
+		Core::Vector<ComPtr<IDXGIAdapter1>> dxgiAdapters_;
 		Core::Vector<GPU::AdapterInfo> adapterInfos_;
 
 		/// D3D12 devices.
 		class D3D12Device* device_ = nullptr;
-
-		/// Allocator for uploading data to the GPU.
-		class D3D12LinearHeapAllocator* uploadAllocator_ = nullptr;
-		/// Allocator for reading data back from the GPU.
-		class D3D12LinearHeapAllocator* readbackAllocator_ = nullptr;
 
 		/// Resources.
 		Core::Mutex resourceMutex_;

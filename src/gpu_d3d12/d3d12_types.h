@@ -55,10 +55,18 @@ namespace GPU
 	D3D12_RESOURCE_DIMENSION GetResourceDimension(TextureType type);
 	DXGI_FORMAT GetFormat(Format format);
 
+	/**
+	 * Utility.
+	 */
+	void SetObjectName(ID3D12Object* object, const char* name);
+
+
 } // namespace GPU
 
 #ifdef DEBUG
+#define CHECK_ERRORCODE(a) DBG_ASSERT((a) == ErrorCode::OK)
 #define CHECK_D3D(a) DBG_ASSERT((a) == S_OK)
 #else
+#define CHECK_ERRORCODE(a)
 #define CHECK_D3D(a) a
 #endif

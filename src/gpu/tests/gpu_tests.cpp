@@ -23,16 +23,15 @@ TEST_CASE("gpu-tests-formats")
 
 TEST_CASE("gpu-tests-manager")
 {
-	Client::Window window("gpu_tests", 0, 0, 640, 480);
+	Client::Window window("gpu_tests", 0, 0, 640, 480, false);
 	GPU::Manager manager(window.GetPlatformData().handle_);
 }
 
 TEST_CASE("gpu-tests-enumerate")
 {
-	Client::Window window("gpu_tests", 0, 0, 640, 480);
+	Client::Window window("gpu_tests", 0, 0, 640, 480, false);
 	GPU::Manager manager(window.GetPlatformData().handle_);
-
-	i32 numAdapters = manager.EnumerateAdapters(nullptr, 0);
+		i32 numAdapters = manager.EnumerateAdapters(nullptr, 0);
 	REQUIRE(numAdapters > 0);
 	Core::Vector<GPU::AdapterInfo> adapterInfos;
 	adapterInfos.resize(numAdapters);
@@ -44,8 +43,9 @@ TEST_CASE("gpu-tests-enumerate")
 
 TEST_CASE("gpu-tests-initialize")
 {
-	Client::Window window("gpu_tests", 0, 0, 640, 480);
+	Client::Window window("gpu_tests", 0, 0, 640, 480, false);
 	GPU::Manager manager(window.GetPlatformData().handle_);
+
 
 	i32 numAdapters = manager.EnumerateAdapters(nullptr, 0);
 	REQUIRE(numAdapters > 0);
@@ -55,7 +55,7 @@ TEST_CASE("gpu-tests-initialize")
 
 TEST_CASE("gpu-tests-create-swapchain")
 {
-	Client::Window window("gpu_tests", 0, 0, 640, 480);
+	Client::Window window("gpu_tests", 0, 0, 640, 480, false);
 	GPU::Manager manager(window.GetPlatformData().handle_);
 
 	i32 numAdapters = manager.EnumerateAdapters(nullptr, 0);
@@ -79,7 +79,7 @@ TEST_CASE("gpu-tests-create-swapchain")
 
 TEST_CASE("gpu-tests-create-buffer")
 {
-	Client::Window window("gpu_tests", 0, 0, 640, 480);
+	Client::Window window("gpu_tests", 0, 0, 640, 480, false);
 	GPU::Manager manager(window.GetPlatformData().handle_);
 
 	i32 numAdapters = manager.EnumerateAdapters(nullptr, 0);
@@ -87,21 +87,44 @@ TEST_CASE("gpu-tests-create-buffer")
 
 	REQUIRE(manager.Initialize(0) == GPU::ErrorCode::OK);
 
-	GPU::BufferDesc desc;
-	desc.bindFlags_ = GPU::BindFlags::VERTEX_BUFFER;
-	desc.size_ = 32 * 1024;
-	desc.stride_ = 0;
+	SECTION("no-data")
+	{
+		GPU::BufferDesc desc;
+		desc.bindFlags_ = GPU::BindFlags::VERTEX_BUFFER;
+		desc.size_ = 32 * 1024;
+		desc.stride_ = 0;
 
-	GPU::Handle handle;
-	handle = manager.CreateBuffer(desc, nullptr, "gpu-tests-create-buffer");
-	REQUIRE(handle);
+		GPU::Handle handle;
+		handle = manager.CreateBuffer(desc, nullptr, "gpu-tests-create-buffer-no-data");
+		REQUIRE(handle);
 
-	manager.DestroyResource(handle);
+		manager.DestroyResource(handle);
+	}
+
+	SECTION("data")
+	{
+		for(i32 i = 0; i < 32; ++i)
+		{
+			GPU::BufferDesc desc;
+			desc.bindFlags_ = GPU::BindFlags::VERTEX_BUFFER;
+			desc.size_ = 32 * 1024;
+			desc.stride_ = 0;
+
+			Core::Vector<u32> data;
+			data.resize((i32)desc.size_);
+
+			GPU::Handle handle;
+			handle = manager.CreateBuffer(desc, data.data(), "gpu-tests-create-buffer-data");
+			REQUIRE(handle);
+
+			//manager.DestroyResource(handle);
+		}
+	}
 }
 
 TEST_CASE("gpu-tests-create-texture")
 {
-	Client::Window window("gpu_tests", 0, 0, 640, 480);
+	Client::Window window("gpu_tests", 0, 0, 640, 480, false);
 	GPU::Manager manager(window.GetPlatformData().handle_);
 
 	i32 numAdapters = manager.EnumerateAdapters(nullptr, 0);
@@ -171,7 +194,7 @@ TEST_CASE("gpu-tests-create-texture")
 
 TEST_CASE("gpu-tests-create-commandlist")
 {
-	Client::Window window("gpu_tests", 0, 0, 640, 480);
+	Client::Window window("gpu_tests", 0, 0, 640, 480, false);
 	GPU::Manager manager(window.GetPlatformData().handle_);
 	
 	i32 numAdapters = manager.EnumerateAdapters(nullptr, 0);

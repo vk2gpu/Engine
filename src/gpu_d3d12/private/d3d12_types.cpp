@@ -2,6 +2,7 @@
 #include "core/concurrency.h"
 #include "core/debug.h"
 #include "core/misc.h"
+#include "core/string.h"
 
 // clang-format off
 const GUID IID_ID3D12CommandAllocator = {0x6102dee4, 0xaf59, 0x4b09, {0xb9, 0x99, 0xb4, 0x4d, 0x73, 0xf0, 0x9b, 0x24}};
@@ -135,6 +136,10 @@ namespace GPU
 			retVal = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
 		if(Core::ContainsAllFlags(bindFlags, BindFlags::PRESENT))
 			retVal = D3D12_RESOURCE_STATE_PRESENT;
+
+		// TODO: proper state.
+		retVal = D3D12_RESOURCE_STATE_COMMON;
+
 		return retVal;
 	}
 
@@ -270,6 +275,15 @@ namespace GPU
 			return DXGI_FORMAT_UNKNOWN;
 		}
 #undef FORMAT
+	}
+
+	void SetObjectName(ID3D12Object* object, const char* name)
+	{
+#if !defined(FINAL)
+		wchar wName[512] = { 0 };
+		Core::StringConvertUTF8toUTF16(name, (i32)strlen(name), wName, 512);
+		object->SetName(wName);
+#endif
 	}
 
 } // namespace GPU

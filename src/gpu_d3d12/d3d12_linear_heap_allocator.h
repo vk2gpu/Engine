@@ -47,7 +47,7 @@ namespace GPU
 
 	private:
 		/// device to use.
-		ComPtr<ID3D12Device> device_;
+		ComPtr<ID3D12Device> d3dDevice_;
 		/// Heap type we are allocating for.
 		D3D12_HEAP_TYPE heapType_ = D3D12_HEAP_TYPE_DEFAULT;
 		/// Minimum resource block size.

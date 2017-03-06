@@ -4,6 +4,8 @@
 #include "core/misc.h"
 #include "core/vector.h"
 
+#include <utility>
+
 namespace GPU
 {
 	/**
@@ -41,6 +43,32 @@ namespace GPU
 
 	private:
 		Core::Vector<TYPE> storage_;
+	};
+
+	class D3D12ScopedResourceBarrier
+	{
+	public:
+		D3D12ScopedResourceBarrier(ID3D12GraphicsCommandList* commandList, ID3D12Resource* resource, u32 subresource, D3D12_RESOURCE_STATES oldState, D3D12_RESOURCE_STATES newState)
+			: commandList_(commandList)
+		{
+			barrier_.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+			barrier_.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+			barrier_.Transition.pResource = resource;
+			barrier_.Transition.Subresource = subresource;
+			barrier_.Transition.StateBefore = oldState;
+			barrier_.Transition.StateAfter = newState;
+			commandList_->ResourceBarrier(1, &barrier_);
+		}
+
+		~D3D12ScopedResourceBarrier()
+		{
+			std::swap(barrier_.Transition.StateBefore, barrier_.Transition.StateAfter);
+			commandList_->ResourceBarrier(1, &barrier_);
+		}
+
+	private:
+		ID3D12GraphicsCommandList* commandList_ = nullptr;
+		D3D12_RESOURCE_BARRIER barrier_;
 	};
 
 

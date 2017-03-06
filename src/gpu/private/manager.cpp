@@ -49,6 +49,7 @@ namespace GPU
 				break;
 			default:
 				// TODO: log error.
+				DBG_BREAK;
 				handles_.Free(handle);
 				handle = Handle();
 				return false;

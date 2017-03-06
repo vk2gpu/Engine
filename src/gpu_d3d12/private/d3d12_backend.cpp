@@ -60,23 +60,21 @@ namespace GPU
 
 	D3D12Backend::~D3D12Backend()
 	{
-		delete uploadAllocator_;
-		delete readbackAllocator_;
 	}
 
 	i32 D3D12Backend::EnumerateAdapters(AdapterInfo* outAdapters, i32 maxAdapters)
 	{
 		if(adapterInfos_.size() == 0)
 		{
-			ComPtr<IDXGIAdapter1> adapter;
-			while(SUCCEEDED(dxgiFactory_->EnumAdapters1(adapters_.size(), adapter.ReleaseAndGetAddressOf())))
+			ComPtr<IDXGIAdapter1> dxgiAdapter;
+			while(SUCCEEDED(dxgiFactory_->EnumAdapters1(dxgiAdapters_.size(), dxgiAdapter.ReleaseAndGetAddressOf())))
 			{
 				DXGI_ADAPTER_DESC1 desc;
-				adapter->GetDesc1(&desc);
+				dxgiAdapter->GetDesc1(&desc);
 
 				AdapterInfo outAdapter;
 				Core::StringConvertUTF16toUTF8(desc.Description, 128, outAdapter.description_, sizeof(outAdapter));
-				outAdapter.deviceIdx_ = adapters_.size();
+				outAdapter.deviceIdx_ = dxgiAdapters_.size();
 				outAdapter.vendorId_ = desc.VendorId;
 				outAdapter.deviceId_ = desc.DeviceId;
 				outAdapter.subSysId_ = desc.SubSysId;
@@ -85,7 +83,7 @@ namespace GPU
 				outAdapter.dedicatedSystemMemory_ = desc.DedicatedSystemMemory;
 				outAdapter.sharedSystemMemory_ = desc.SharedSystemMemory;
 				adapterInfos_.push_back(outAdapter);
-				adapters_.push_back(adapter);
+				dxgiAdapters_.push_back(dxgiAdapter);
 			}
 		}
 
@@ -101,19 +99,13 @@ namespace GPU
 
 	ErrorCode D3D12Backend::Initialize(i32 adapterIdx)
 	{
-		device_ = new D3D12Device(dxgiFactory_.Get(), adapters_[adapterIdx].Get());
+		device_ = new D3D12Device(dxgiFactory_.Get(), dxgiAdapters_[adapterIdx].Get());
 		if(*device_ == false)
 		{
 			delete device_;
 			device_ = nullptr;
 			return ErrorCode::FAIL;
 		}
-
-		// Setup heap allocators.
-		uploadAllocator_ = new D3D12LinearHeapAllocator(device_->device_.Get(), D3D12_HEAP_TYPE_UPLOAD, 1024 * 1024);
-		readbackAllocator_ =
-		    new D3D12LinearHeapAllocator(device_->device_.Get(), D3D12_HEAP_TYPE_READBACK, 1024 * 1024);
-
 		return ErrorCode::OK;
 	}
 

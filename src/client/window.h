@@ -21,14 +21,20 @@ namespace Client
 		 * @param y y position of window.
 		 * @param w width of window.
 		 * @param h height of window.
+		 * @param visible Should show window.
 		 * @pre title != nullptr.
 		 * @pre w >= 0.
 		 * @pre h >= 0.
 		 * @return New window.
 		 */
-		Window(const char* title, i32 x, i32 y, i32 w, i32 h);
+		Window(const char* title, i32 x, i32 y, i32 w, i32 h, bool visible = true);
 
 		~Window();
+
+		/**
+		 * Show/hide window..
+		 */
+		void SetVisible(bool isVisible);
 
 		/**
 		 * Set window position.

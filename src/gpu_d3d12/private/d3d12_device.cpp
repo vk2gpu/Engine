@@ -1,10 +1,10 @@
 #include "gpu_d3d12/d3d12_device.h"
+#include "gpu_d3d12/d3d12_command_list.h"
+#include "gpu_d3d12/d3d12_linear_heap_allocator.h"
 #include "gpu_d3d12/private/shaders/default_cs.h"
 #include "gpu_d3d12/private/shaders/default_vs.h"
 
 #include "core/debug.h"
-
-#include <utility>
 
 namespace GPU
 {
@@ -20,7 +20,7 @@ namespace GPU
 		for(i32 i = 0; i < 4; ++i)
 		{
 			hr = D3D12CreateDeviceFn(
-			    adapter, featureLevels[i], IID_ID3D12Device, (void**)device_.ReleaseAndGetAddressOf());
+			    adapter, featureLevels[i], IID_ID3D12Device, (void**)d3dDevice_.ReleaseAndGetAddressOf());
 			if(SUCCEEDED(hr))
 				break;
 		}
@@ -29,13 +29,13 @@ namespace GPU
 
 #if !defined(FINAL)
 		// Setup break on error + corruption.
-		ComPtr<ID3D12InfoQueue> infoQueue;
-		hr = device_.As(&infoQueue);
+		ComPtr<ID3D12InfoQueue> d3dInfoQueue;
+		hr = d3dDevice_.As(&d3dInfoQueue);
 		if(SUCCEEDED(hr))
 		{
-			CHECK_D3D(infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, TRUE));
-			CHECK_D3D(infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, TRUE));
-			CHECK_D3D(infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, FALSE));
+			CHECK_D3D(d3dInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, TRUE));
+			CHECK_D3D(d3dInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, TRUE));
+			CHECK_D3D(d3dInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, FALSE));
 		}
 #endif
 
@@ -47,10 +47,15 @@ namespace GPU
 
 		// setup default PSOs.
 		CreateDefaultPSOs();
+
+		// setup allocator.
+		CreateAllocators();
 	}
 
 	D3D12Device::~D3D12Device()
 	{ //
+		for(auto& uploadAllocator : uploadAllocators_)
+			delete uploadAllocator;
 	}
 
 	void D3D12Device::CreateCommandQueues()
@@ -60,12 +65,12 @@ namespace GPU
 		D3D12_COMMAND_QUEUE_DESC asyncDesc = {D3D12_COMMAND_LIST_TYPE_COMPUTE, 0, D3D12_COMMAND_QUEUE_FLAG_NONE, 0x0};
 
 		HRESULT hr = S_OK;
-		CHECK_D3D(hr = device_->CreateCommandQueue(
-		              &directDesc, IID_ID3D12CommandQueue, (void**)directQueue_.ReleaseAndGetAddressOf()));
-		CHECK_D3D(hr = device_->CreateCommandQueue(
-		              &copyDesc, IID_ID3D12CommandQueue, (void**)copyQueue_.ReleaseAndGetAddressOf()));
-		CHECK_D3D(hr = device_->CreateCommandQueue(
-		              &asyncDesc, IID_ID3D12CommandQueue, (void**)asyncComputeQueue_.ReleaseAndGetAddressOf()));
+		CHECK_D3D(hr = d3dDevice_->CreateCommandQueue(
+		              &directDesc, IID_ID3D12CommandQueue, (void**)d3dDirectQueue_.ReleaseAndGetAddressOf()));
+		CHECK_D3D(hr = d3dDevice_->CreateCommandQueue(
+		              &copyDesc, IID_ID3D12CommandQueue, (void**)d3dCopyQueue_.ReleaseAndGetAddressOf()));
+		CHECK_D3D(hr = d3dDevice_->CreateCommandQueue(
+		              &asyncDesc, IID_ID3D12CommandQueue, (void**)d3dAsyncComputeQueue_.ReleaseAndGetAddressOf()));
 	}
 
 	void D3D12Device::CreateRootSignatures()
@@ -99,7 +104,7 @@ namespace GPU
 		descriptorRanges[3].RegisterSpace = 0;
 		descriptorRanges[3].OffsetInDescriptorsFromTableStart = 0;
 
-		rootSignatures_.resize((i32)RootSignatureType::MAX);
+		d3dRootSignatures_.resize((i32)RootSignatureType::MAX);
 
 		auto CreateRootSignature = [&](D3D12_ROOT_SIGNATURE_DESC& desc, RootSignatureType type) {
 			hr = D3D12SerializeRootSignatureFn(
@@ -109,8 +114,8 @@ namespace GPU
 				const void* bufferData = errorBlob->GetBufferPointer();
 				Core::Log(reinterpret_cast<const char*>(bufferData));
 			}
-			CHECK_D3D(hr = device_->CreateRootSignature(0, outBlob->GetBufferPointer(), outBlob->GetBufferSize(),
-			              IID_PPV_ARGS(rootSignatures_[(i32)type].GetAddressOf())));
+			CHECK_D3D(hr = d3dDevice_->CreateRootSignature(0, outBlob->GetBufferPointer(), outBlob->GetBufferSize(),
+			              IID_PPV_ARGS(d3dRootSignatures_[(i32)type].GetAddressOf())));
 		};
 
 		D3D12_ROOT_PARAMETER parameters[16];
@@ -248,7 +253,7 @@ namespace GPU
 			defaultPSO.InputLayout.pInputElementDescs = InputElementDescs;
 			defaultPSO.VS.pShaderBytecode = g_VShader;
 			defaultPSO.VS.BytecodeLength = ARRAYSIZE(g_VShader);
-			defaultPSO.pRootSignature = rootSignatures_[(i32)type].Get();
+			defaultPSO.pRootSignature = d3dRootSignatures_[(i32)type].Get();
 			defaultPSO.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;
 			defaultPSO.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
 			defaultPSO.NumRenderTargets = 1;
@@ -257,21 +262,21 @@ namespace GPU
 			defaultPSO.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
 
 			ComPtr<ID3D12PipelineState> pipelineState;
-			CHECK_D3D(hr = device_->CreateGraphicsPipelineState(
+			CHECK_D3D(hr = d3dDevice_->CreateGraphicsPipelineState(
 			              &defaultPSO, IID_ID3D12PipelineState, (void**)pipelineState.GetAddressOf()));
-			defaultPSOs_.push_back(pipelineState);
+			d3dDefaultPSOs_.push_back(pipelineState);
 		};
 
 		auto CreateComputePSO = [&](RootSignatureType type) {
 			D3D12_COMPUTE_PIPELINE_STATE_DESC defaultPSO = {};
 			defaultPSO.CS.pShaderBytecode = g_CShader;
 			defaultPSO.CS.BytecodeLength = ARRAYSIZE(g_CShader);
-			defaultPSO.pRootSignature = rootSignatures_[(i32)type].Get();
+			defaultPSO.pRootSignature = d3dRootSignatures_[(i32)type].Get();
 
 			ComPtr<ID3D12PipelineState> pipelineState;
-			CHECK_D3D(hr = device_->CreateComputePipelineState(
+			CHECK_D3D(hr = d3dDevice_->CreateComputePipelineState(
 			              &defaultPSO, IID_ID3D12PipelineState, (void**)pipelineState.GetAddressOf()));
-			defaultPSOs_.push_back(pipelineState);
+			d3dDefaultPSOs_.push_back(pipelineState);
 		};
 
 		CreateGraphicsPSO(RootSignatureType::VS);
@@ -279,6 +284,22 @@ namespace GPU
 		CreateGraphicsPSO(RootSignatureType::VS_GS_HS_DS_PS);
 		CreateComputePSO(RootSignatureType::CS);
 	}
+
+	void D3D12Device::CreateAllocators()
+	{		
+		for(auto& uploadAllocator : uploadAllocators_)
+			uploadAllocator = new D3D12LinearHeapAllocator(d3dDevice_.Get(), D3D12_HEAP_TYPE_UPLOAD, 1024 * 1024);
+		uploadCommandList_ = new D3D12CommandList(*this, 0, D3D12_COMMAND_LIST_TYPE_COPY);
+	}
+
+
+	void D3D12Device::NextFrame()
+	{
+		frameIdx_++;
+
+		// TODO: Other end of frame work?
+	}
+
 
 	ErrorCode D3D12Device::CreateSwapChain(
 	    D3D12SwapChainResource& outResource, const SwapChainDesc& desc, const char* debugName)
@@ -299,7 +320,7 @@ namespace GPU
 		HRESULT hr = S_OK;
 		D3D12SwapChainResource swapChainRes;
 		ComPtr<IDXGISwapChain1> swapChain;
-		CHECK_D3D(hr = dxgiFactory_->CreateSwapChainForHwnd(directQueue_.Get(), (HWND)desc.outputWindow_,
+		CHECK_D3D(hr = dxgiFactory_->CreateSwapChainForHwnd(d3dDirectQueue_.Get(), (HWND)desc.outputWindow_,
 		              &swapChainDesc, nullptr, nullptr, swapChain.GetAddressOf()));
 		if(hr != S_OK)
 			return ErrorCode::FAIL;
@@ -355,7 +376,7 @@ namespace GPU
 		D3D12_RESOURCE_DESC resourceDesc;
 		resourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
 		resourceDesc.Alignment = D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT;
-		resourceDesc.Width = desc.size_;
+		resourceDesc.Width = Core::PotRoundUp(desc.size_, D3D12_TEXTURE_DATA_PITCH_ALIGNMENT);
 		resourceDesc.Height = 1;
 		resourceDesc.DepthOrArraySize = 1;
 		resourceDesc.MipLevels = 1;
@@ -366,19 +387,39 @@ namespace GPU
 		resourceDesc.Flags = GetResourceFlags(desc.bindFlags_);
 
 		ComPtr<ID3D12Resource> d3dResource;
+		ErrorCode errorCode = ErrorCode::OK;
 		HRESULT hr = S_OK;
-		CHECK_D3D(hr = device_->CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE, &resourceDesc,
+		CHECK_D3D(hr = d3dDevice_->CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE, &resourceDesc,
 		              res.defaultState_, nullptr, IID_PPV_ARGS(d3dResource.GetAddressOf())));
 		if(FAILED(hr))
 			return ErrorCode::FAIL;
 
 		d3dResource.As(&res.resource_);
+		SetObjectName(d3dResource.Get(), debugName);
 
 		// TODO: InitialData via copy queue.
 		if(initialData)
 		{
-			DBG_BREAK;
-			return ErrorCode::UNIMPLEMENTED;
+			auto& uploadAllocator = GetUploadAllocator();
+			auto resAlloc = uploadAllocator.Alloc(resourceDesc.Width);
+			memcpy(resAlloc.address_, initialData, desc.size_);
+
+			if(auto* d3dCommandList = uploadCommandList_->Open())
+			{
+				D3D12ScopedResourceBarrier copyBarrier(d3dCommandList, d3dResource.Get(), 0, res.defaultState_, D3D12_RESOURCE_STATE_COPY_DEST);
+				d3dCommandList->CopyBufferRegion(d3dResource.Get(), 0, resAlloc.baseResource_.Get(), resAlloc.offsetInBaseResource_, resourceDesc.Width);
+			}
+			else
+			{
+				DBG_BREAK;
+			}
+
+			CHECK_ERRORCODE(errorCode = uploadCommandList_->Close());
+
+			::Sleep(100);
+			CHECK_ERRORCODE(errorCode = uploadCommandList_->Submit(d3dCopyQueue_.Get()));
+
+			return errorCode;
 		}
 
 		return ErrorCode::OK;
@@ -441,12 +482,13 @@ namespace GPU
 
 		ComPtr<ID3D12Resource> d3dResource;
 		HRESULT hr = S_OK;
-		CHECK_D3D(hr = device_->CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE, &resourceDesc,
+		CHECK_D3D(hr = d3dDevice_->CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE, &resourceDesc,
 		              res.defaultState_, setClearValue, IID_PPV_ARGS(d3dResource.GetAddressOf())));
 		if(FAILED(hr))
 			return ErrorCode::FAIL;
 
 		d3dResource.As(&res.resource_);
+		SetObjectName(d3dResource.Get(), debugName);
 
 		// TODO: InitialData via copy queue.
 		if(initialData)

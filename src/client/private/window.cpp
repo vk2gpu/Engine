@@ -11,14 +11,20 @@ namespace Client
 		SDL_Window* window_ = nullptr;
 	};
 
-	Window::Window(const char* title, i32 x, i32 y, i32 w, i32 h)
+	Window::Window(const char* title, i32 x, i32 y, i32 w, i32 h, bool visible)
 	{
 		DBG_ASSERT(title);
 		DBG_ASSERT(w >= 0);
 		DBG_ASSERT(h >= 0)
 
+		u32 flags = 0;
+		if(visible)
+			flags |= SDL_WINDOW_SHOWN;
+		else
+			flags |= SDL_WINDOW_HIDDEN;
+
 		impl_ = new WindowImpl();
-		impl_->window_ = SDL_CreateWindow(title, x, y, w, h, 0);
+		impl_->window_ = SDL_CreateWindow(title, x, y, w, h, flags);
 		SDL_SetWindowData(impl_->window_, "owner", this);
 	}
 
@@ -26,6 +32,14 @@ namespace Client
 	{
 		SDL_DestroyWindow(impl_->window_);
 		delete impl_;
+	}
+
+	void Window::SetVisible(bool isVisible)
+	{
+		if(isVisible)
+			SDL_ShowWindow(impl_->window_);
+		else
+			SDL_HideWindow(impl_->window_);
 	}
 
 	void Window::SetPosition(i32 x, i32 y)

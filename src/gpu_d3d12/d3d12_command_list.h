@@ -12,24 +12,35 @@ namespace GPU
 	class D3D12CommandList
 	{
 	public:
-		D3D12CommandList(D3D12Device& device, u32 nodeMask, D3D12_COMMAND_LIST_TYPE type);
+		D3D12CommandList(D3D12Device& d3dDevice, u32 nodeMask, D3D12_COMMAND_LIST_TYPE type);
 		~D3D12CommandList();
+
+		/**
+		 * Open a command list for use.
+		 */
+		ID3D12GraphicsCommandList* Open();
+
+		/**
+		 * Close command list.
+		 */
+		ErrorCode Close();
+
+		/**
+		 * Submit command list to queue.
+		 */
+		ErrorCode Submit(ID3D12CommandQueue* d3dCommandQueue);
 
 		D3D12Device& device_;
 		D3D12_COMMAND_LIST_TYPE type_;
 		Core::Vector<ComPtr<ID3D12CommandAllocator>> d3dCommandAllocators_;
 		ComPtr<ID3D12GraphicsCommandList> d3dCommandList_;
+		i32 listCount_ = MAX_GPU_FRAMES;
+		i32 listIdx_ = 0;
+		bool isOpen_ = false;
 
-		struct ResourceStateTracking
-		{
-			ComPtr<ID3D12Resource> d3dResource_;
-			D3D12_RESOURCE_STATES currentState_;
-			D3D12_RESOURCE_STATES defaultState_;
-		};
-
-		Core::Vector<ResourceStateTracking> swapchainResources_;
-		Core::Vector<ResourceStateTracking> textureResources_;
-		Core::Vector<ResourceStateTracking> bufferResources_;
+		/// Fence to wait on pending command lists to finish execution.
+		HANDLE fenceEvent_;
+		ComPtr<ID3D12Fence> d3dFence_;
 	};
 
 } // namespace GPU
