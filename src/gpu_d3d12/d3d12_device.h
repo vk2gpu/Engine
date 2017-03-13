@@ -19,6 +19,7 @@ namespace GPU
 		void CreateRootSignatures();
 		void CreateDefaultPSOs();
 		void CreateUploadAllocators();
+		void CreateDescriptorHeapAllocators();
 
 		void NextFrame();
 
@@ -32,6 +33,19 @@ namespace GPU
 		    D3D12GraphicsPipelineState& outGps, D3D12_GRAPHICS_PIPELINE_STATE_DESC desc, const char* debugName);
 		ErrorCode CreateComputePipelineState(
 		    D3D12ComputePipelineState& outCps, D3D12_COMPUTE_PIPELINE_STATE_DESC desc, const char* debugName);
+
+		ErrorCode CreatePipelineBindingSet(
+		    D3D12PipelineBindingSet& outPipelineBindingSet, const PipelineBindingSetDesc& desc, const char* debugName);
+		void DestroyPipelineBindingSet(D3D12PipelineBindingSet& pipelineBindingSet);
+
+		ErrorCode UpdateSRVs(
+		    D3D12PipelineBindingSet& pipelineBindingSet, i32 first, i32 num, ID3D12Resource** resources, D3D12_SHADER_RESOURCE_VIEW_DESC* descs);
+		ErrorCode UpdateUAVs(
+		    D3D12PipelineBindingSet& pipelineBindingSet, i32 first, i32 num, ID3D12Resource** resources, D3D12_UNORDERED_ACCESS_VIEW_DESC* descs);
+		ErrorCode UpdateCBVs(
+		    D3D12PipelineBindingSet& pipelineBindingSet, i32 first, i32 num, D3D12_CONSTANT_BUFFER_VIEW_DESC* descs);
+		ErrorCode UpdateSamplers(
+		    D3D12PipelineBindingSet& pipelineBindingSet, i32 first, i32 num, D3D12_SAMPLER_DESC* descs);
 
 		ErrorCode SubmitCommandList(D3D12CommandList& commandList);
 
@@ -55,6 +69,14 @@ namespace GPU
 		ComPtr<ID3D12Fence> d3dUploadFence_;
 		HANDLE uploadFenceEvent_ = 0;
 		volatile i64 uploadFenceIdx_ = 0;
+
+		// Descriptor heap allocators.
+		class D3D12DescriptorHeapAllocator* cbvAllocator_ = nullptr;
+		class D3D12DescriptorHeapAllocator* srvAllocator_ = nullptr;
+		class D3D12DescriptorHeapAllocator* uavAllocator_ = nullptr;
+		class D3D12DescriptorHeapAllocator* samplerAllocator_ = nullptr;
+		class D3D12DescriptorHeapAllocator* rtvAllocator_ = nullptr;
+		class D3D12DescriptorHeapAllocator* dsvAllocator_ = nullptr;
 
 		D3D12LinearHeapAllocator& GetUploadAllocator() { return *uploadAllocators_[frameIdx_ % MAX_GPU_FRAMES]; }
 

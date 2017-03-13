@@ -1,6 +1,7 @@
 #include "gpu_d3d12/d3d12_device.h"
 #include "gpu_d3d12/d3d12_command_list.h"
 #include "gpu_d3d12/d3d12_linear_heap_allocator.h"
+#include "gpu_d3d12/d3d12_descriptor_heap_allocator.h"
 #include "gpu_d3d12/private/shaders/default_cs.h"
 #include "gpu_d3d12/private/shaders/default_vs.h"
 
@@ -50,6 +51,9 @@ namespace GPU
 
 		// setup upload allocator.
 		CreateUploadAllocators();
+
+		// setup descriptor heap allocators.
+		CreateDescriptorHeapAllocators();
 	}
 
 	D3D12Device::~D3D12Device()
@@ -58,6 +62,13 @@ namespace GPU
 		delete uploadCommandList_;
 		for(auto& d3dUploadAllocator : uploadAllocators_)
 			delete d3dUploadAllocator;
+
+		delete cbvAllocator_;
+		delete srvAllocator_;
+		delete uavAllocator_;
+		delete samplerAllocator_;
+		delete rtvAllocator_;
+		delete dsvAllocator_;
 	}
 
 	void D3D12Device::CreateCommandQueues()
@@ -301,6 +312,30 @@ namespace GPU
 		uploadFenceEvent_ = ::CreateEvent(nullptr, FALSE, FALSE, "Upload fence");
 	}
 
+	void D3D12Device::CreateDescriptorHeapAllocators()
+	{
+#if 0
+		cbvAllocator_ = new D3D12DescriptorHeapAllocator(d3dDevice_.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, D3D12_MAX_SHADER_VISIBLE_DESCRIPTOR_HEAP_SIZE_TIER_1, "CBV Descriptor Heap");
+		srvAllocator_ = new D3D12DescriptorHeapAllocator(d3dDevice_.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, D3D12_MAX_SHADER_VISIBLE_DESCRIPTOR_HEAP_SIZE_TIER_1, "SRV Descriptor Heap");
+		uavAllocator_ = new D3D12DescriptorHeapAllocator(d3dDevice_.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, D3D12_MAX_SHADER_VISIBLE_DESCRIPTOR_HEAP_SIZE_TIER_1, "UAV Descriptor Heap");
+		samplerAllocator_ = new D3D12DescriptorHeapAllocator(d3dDevice_.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, D3D12_MAX_SHADER_VISIBLE_SAMPLER_HEAP_SIZE, "Sampler Descriptor Heap");
+		rtvAllocator_ = new D3D12DescriptorHeapAllocator(d3dDevice_.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 1024, "RTV Descriptor Heap");
+		dsvAllocator_ = new D3D12DescriptorHeapAllocator(d3dDevice_.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1024, "DSV Descriptor Heap");
+#else
+		cbvAllocator_ = new D3D12DescriptorHeapAllocator(
+		    d3dDevice_.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE, 64, "CBV Descriptor Heap");
+		srvAllocator_ = new D3D12DescriptorHeapAllocator(
+		    d3dDevice_.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE, 64, "SRV Descriptor Heap");
+		uavAllocator_ = new D3D12DescriptorHeapAllocator(
+		    d3dDevice_.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE, 64, "UAV Descriptor Heap");
+		samplerAllocator_ = new D3D12DescriptorHeapAllocator(
+		    d3dDevice_.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE, 64, "Sampler Descriptor Heap");
+		rtvAllocator_ = new D3D12DescriptorHeapAllocator(
+		    d3dDevice_.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_RTV, D3D12_DESCRIPTOR_HEAP_FLAG_NONE, 16, "RTV Descriptor Heap");
+		dsvAllocator_ = new D3D12DescriptorHeapAllocator(
+		    d3dDevice_.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_DSV, D3D12_DESCRIPTOR_HEAP_FLAG_NONE, 4, "DSV Descriptor Heap");
+#endif
+	}
 
 	void D3D12Device::NextFrame()
 	{
@@ -633,11 +668,89 @@ namespace GPU
 		return ErrorCode::OK;
 	}
 
+	ErrorCode D3D12Device::CreatePipelineBindingSet(D3D12PipelineBindingSet& outPipelineBindingSet,
+	    const PipelineBindingSetDesc& desc, const char* debugName)
+	{
+		outPipelineBindingSet.srvs_ = srvAllocator_->Alloc(desc.numSRVs_);
+		outPipelineBindingSet.uavs_ = uavAllocator_->Alloc(desc.numUAVs_);
+		outPipelineBindingSet.cbvs_ = cbvAllocator_->Alloc(desc.numCBVs_);
+		outPipelineBindingSet.samplers_ = samplerAllocator_->Alloc(desc.numSamplers_);
+
+		return ErrorCode::OK;
+	}
+
+	void D3D12Device::DestroyPipelineBindingSet(D3D12PipelineBindingSet& pipelineBindingSet)
+	{
+		srvAllocator_->Free(pipelineBindingSet.srvs_);
+		uavAllocator_->Free(pipelineBindingSet.uavs_);
+		cbvAllocator_->Free(pipelineBindingSet.cbvs_);
+		samplerAllocator_->Free(pipelineBindingSet.samplers_);
+	}
+
+	ErrorCode D3D12Device::UpdateSRVs(
+		D3D12PipelineBindingSet& pipelineBindingSet, i32 first, i32 num, ID3D12Resource** resources, D3D12_SHADER_RESOURCE_VIEW_DESC* descs)
+	{
+		ID3D12DescriptorHeap* descHeap = pipelineBindingSet.srvs_.d3dDescriptorHeap_.Get();
+		i32 incr = d3dDevice_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+		D3D12_CPU_DESCRIPTOR_HANDLE handle = descHeap->GetCPUDescriptorHandleForHeapStart();
+		handle.ptr += (pipelineBindingSet.srvs_.offset_ + first) * incr;
+		for(i32 i = 0; i < num; ++i)
+		{
+			d3dDevice_->CreateShaderResourceView(resources[i], &descs[i], handle);
+			handle.ptr += incr;
+		}
+		return ErrorCode::OK;
+	}
+
+	ErrorCode D3D12Device::UpdateUAVs(
+		D3D12PipelineBindingSet& pipelineBindingSet, i32 first, i32 num, ID3D12Resource** resources, D3D12_UNORDERED_ACCESS_VIEW_DESC* descs)
+	{
+		ID3D12DescriptorHeap* descHeap = pipelineBindingSet.srvs_.d3dDescriptorHeap_.Get();
+		i32 incr = d3dDevice_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+		D3D12_CPU_DESCRIPTOR_HANDLE handle = descHeap->GetCPUDescriptorHandleForHeapStart();
+		handle.ptr += (pipelineBindingSet.srvs_.offset_ + first) * incr;
+		for(i32 i = 0; i < num; ++i)
+		{
+			d3dDevice_->CreateUnorderedAccessView(resources[i], nullptr, &descs[i], handle);
+			handle.ptr += incr;
+		}
+		return ErrorCode::OK;
+	}
+
+	ErrorCode D3D12Device::UpdateCBVs(
+		D3D12PipelineBindingSet& pipelineBindingSet, i32 first, i32 num, D3D12_CONSTANT_BUFFER_VIEW_DESC* descs)
+	{
+		ID3D12DescriptorHeap* descHeap = pipelineBindingSet.srvs_.d3dDescriptorHeap_.Get();
+		i32 incr = d3dDevice_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+		D3D12_CPU_DESCRIPTOR_HANDLE handle = descHeap->GetCPUDescriptorHandleForHeapStart();
+		handle.ptr += (pipelineBindingSet.srvs_.offset_ + first) * incr;
+		for(i32 i = 0; i < num; ++i)
+		{
+			d3dDevice_->CreateConstantBufferView(&descs[i], handle);
+			handle.ptr += incr;
+		}
+		return ErrorCode::OK;
+	}
+
+	ErrorCode D3D12Device::UpdateSamplers(
+		D3D12PipelineBindingSet& pipelineBindingSet, i32 first, i32 num, D3D12_SAMPLER_DESC* descs)
+	{
+		ID3D12DescriptorHeap* descHeap = pipelineBindingSet.srvs_.d3dDescriptorHeap_.Get();
+		i32 incr = d3dDevice_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+		D3D12_CPU_DESCRIPTOR_HANDLE handle = descHeap->GetCPUDescriptorHandleForHeapStart();
+		handle.ptr += (pipelineBindingSet.srvs_.offset_ + first) * incr;
+		for(i32 i = 0; i < num; ++i)
+		{
+			d3dDevice_->CreateSampler(&descs[i], handle);
+			handle.ptr += incr;
+		}
+		return ErrorCode::OK;
+	}
+	
 	ErrorCode D3D12Device::SubmitCommandList(D3D12CommandList& commandList)
 	{
 		d3dDirectQueue_->Wait(d3dUploadFence_.Get(), uploadFenceIdx_);
-		commandList.Submit(d3dDirectQueue_.Get());
-		return ErrorCode::OK;
+		return commandList.Submit(d3dDirectQueue_.Get());
 	}
 
 } // namespace GPU

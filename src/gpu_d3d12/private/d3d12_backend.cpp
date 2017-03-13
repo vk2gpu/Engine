@@ -538,13 +538,189 @@ namespace GPU
 	ErrorCode D3D12Backend::CreatePipelineBindingSet(
 	    Handle handle, const PipelineBindingSetDesc& desc, const char* debugName)
 	{
+		Core::ScopedMutex lock(resourceMutex_);
+		D3D12PipelineBindingSet pbs;
+
+		// Grab all resources to create pipeline binding set with.
+		Core::Array<ID3D12Resource*, MAX_SRV_BINDINGS> srvResources;
+		Core::Array<D3D12_SHADER_RESOURCE_VIEW_DESC, MAX_UAV_BINDINGS> srvs;
+		Core::Array<ID3D12Resource*, MAX_SRV_BINDINGS> uavResources;
+		Core::Array<D3D12_UNORDERED_ACCESS_VIEW_DESC, MAX_UAV_BINDINGS> uavs;
+		Core::Array<D3D12_CONSTANT_BUFFER_VIEW_DESC, MAX_CBV_BINDINGS> cbvs;
+		Core::Array<D3D12_SAMPLER_DESC, MAX_SAMPLER_BINDINGS> samplers;
+
+		memset(srvResources.data(), 0, sizeof(srvResources));
+		memset(srvs.data(), 0, sizeof(srvs));
+		memset(uavResources.data(), 0, sizeof(uavResources));
+		memset(uavs.data(), 0, sizeof(uavs));
+		memset(cbvs.data(), 0, sizeof(cbvs));
+		memset(samplers.data(), 0, sizeof(samplers));
+
+		for(i32 i = 0; i < desc.numSRVs_; ++i)
+		{
+			auto srvHandle = desc.srvs_[i].resource_;
+			DBG_ASSERT(srvHandle.GetType() == ResourceType::BUFFER || srvHandle.GetType() == ResourceType::TEXTURE);
+			DBG_ASSERT(srvHandle);
+
+			if(srvHandle.GetType() == ResourceType::BUFFER)
+			{
+				srvResources[i] = bufferResources_[srvHandle.GetIndex()].resource_.Get();
+			}
+			else if(srvHandle.GetType() == ResourceType::TEXTURE)
+			{
+				srvResources[i] = textureResources_[srvHandle.GetIndex()].resource_.Get();
+			}
+			
+			const auto& srv = desc.srvs_[i];
+			srvs[i].Format = GetFormat(srv.format_);
+			srvs[i].ViewDimension = GetSRVDimension(srv.dimension_);
+			switch(srv.dimension_)
+			{
+			case ViewDimension::BUFFER:
+				srvs[i].Buffer.FirstElement = srv.mostDetailedMip_FirstElement_;
+				srvs[i].Buffer.NumElements = srv.mipLevels_NumElements_;
+				srvs[i].Buffer.StructureByteStride = 0;
+				srvs[i].Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
+				break;
+			case ViewDimension::TEX1D:
+				srvs[i].Texture1D.MostDetailedMip = srv.mostDetailedMip_FirstElement_;
+				srvs[i].Texture1D.MipLevels = srv.mipLevels_NumElements_;
+				srvs[i].Texture1D.ResourceMinLODClamp = srv.resourceMinLODClamp_;
+				break;
+			case ViewDimension::TEX1D_ARRAY:
+				srvs[i].Texture1DArray.MostDetailedMip = srv.mostDetailedMip_FirstElement_;
+				srvs[i].Texture1DArray.MipLevels = srv.mipLevels_NumElements_;
+				srvs[i].Texture1DArray.ArraySize = srv.arraySize_;
+				srvs[i].Texture1DArray.FirstArraySlice = srv.firstArraySlice_;
+				srvs[i].Texture1DArray.ResourceMinLODClamp = srv.resourceMinLODClamp_;
+				break;
+			case ViewDimension::TEX2D:
+				srvs[i].Texture2D.MostDetailedMip = srv.mostDetailedMip_FirstElement_;
+				srvs[i].Texture2D.MipLevels = srv.mipLevels_NumElements_;
+				srvs[i].Texture2D.PlaneSlice = srv.planeSlice_;
+				srvs[i].Texture2D.ResourceMinLODClamp = srv.resourceMinLODClamp_;
+				break;
+			case ViewDimension::TEX2D_ARRAY:
+				srvs[i].Texture2DArray.MostDetailedMip = srv.mostDetailedMip_FirstElement_;
+				srvs[i].Texture2DArray.MipLevels = srv.mipLevels_NumElements_;
+				srvs[i].Texture2DArray.ArraySize = srv.arraySize_;
+				srvs[i].Texture2DArray.FirstArraySlice = srv.firstArraySlice_;
+				srvs[i].Texture2DArray.PlaneSlice = srv.planeSlice_;
+				srvs[i].Texture2DArray.ResourceMinLODClamp = srv.resourceMinLODClamp_;
+				break;
+			case ViewDimension::TEX3D:
+				srvs[i].Texture3D.MostDetailedMip = srv.mostDetailedMip_FirstElement_;
+				srvs[i].Texture3D.MipLevels = srv.mipLevels_NumElements_;
+				srvs[i].Texture3D.ResourceMinLODClamp = srv.resourceMinLODClamp_;
+				break;
+			case ViewDimension::TEXCUBE:
+				srvs[i].TextureCube.MostDetailedMip = srv.mostDetailedMip_FirstElement_;
+				srvs[i].TextureCube.MipLevels = srv.mipLevels_NumElements_;
+				srvs[i].TextureCube.ResourceMinLODClamp = srv.resourceMinLODClamp_;
+				break;
+			case ViewDimension::TEXCUBE_ARRAY:
+				srvs[i].TextureCubeArray.MostDetailedMip = srv.mostDetailedMip_FirstElement_;
+				srvs[i].TextureCubeArray.MipLevels = srv.mipLevels_NumElements_;
+				srvs[i].TextureCubeArray.NumCubes = srv.arraySize_;
+				srvs[i].TextureCubeArray.First2DArrayFace = srv.firstArraySlice_;
+				srvs[i].TextureCubeArray.ResourceMinLODClamp = srv.resourceMinLODClamp_;
+				break;
+			default:
+				DBG_BREAK;
+				return ErrorCode::FAIL;
+				break;
+			}
+		}
+
+		for(i32 i = 0; i < desc.numUAVs_; ++i)
+		{
+			auto uavHandle = desc.uavs_[i].resource_;
+			DBG_ASSERT(uavHandle.GetType() == ResourceType::BUFFER || uavHandle.GetType() == ResourceType::TEXTURE);
+			DBG_ASSERT(uavHandle);
+
+			if(uavHandle.GetType() == ResourceType::BUFFER)
+			{
+				uavResources[i] = bufferResources_[uavHandle.GetIndex()].resource_.Get();
+			}
+			else if(uavHandle.GetType() == ResourceType::TEXTURE)
+			{
+				uavResources[i] = textureResources_[uavHandle.GetIndex()].resource_.Get();
+			}
+			
+			const auto& uav = desc.uavs_[i];
+			uavs[i].Format = GetFormat(uav.format_);
+			uavs[i].ViewDimension = GetUAVDimension(uav.dimension_);
+			switch(uav.dimension_)
+			{
+			case ViewDimension::BUFFER:
+				uavs[i].Buffer.FirstElement = uav.mipSlice_FirstElement_;
+				uavs[i].Buffer.NumElements = uav.firstArraySlice_FirstWSlice_NumElements_;
+				uavs[i].Buffer.StructureByteStride = 0;
+				break;
+			case ViewDimension::TEX1D:
+				uavs[i].Texture1D.MipSlice = uav.mipSlice_FirstElement_;
+				break;
+			case ViewDimension::TEX1D_ARRAY:
+				uavs[i].Texture1DArray.MipSlice = uav.mipSlice_FirstElement_;
+				uavs[i].Texture1DArray.ArraySize = uav.arraySize_PlaneSlice_WSize_;
+				uavs[i].Texture1DArray.FirstArraySlice = uav.firstArraySlice_FirstWSlice_NumElements_;
+				break;
+			case ViewDimension::TEX2D:
+				uavs[i].Texture2D.MipSlice = uav.mipSlice_FirstElement_;
+				uavs[i].Texture2D.PlaneSlice = uav.arraySize_PlaneSlice_WSize_;
+				break;
+			case ViewDimension::TEX2D_ARRAY:
+				uavs[i].Texture2DArray.MipSlice = uav.mipSlice_FirstElement_;
+				uavs[i].Texture2DArray.ArraySize = uav.arraySize_PlaneSlice_WSize_;
+				uavs[i].Texture2DArray.FirstArraySlice = uav.firstArraySlice_FirstWSlice_NumElements_;
+				uavs[i].Texture2DArray.PlaneSlice = uav.arraySize_PlaneSlice_WSize_;
+				break;
+			case ViewDimension::TEX3D:
+				uavs[i].Texture3D.MipSlice = uav.mipSlice_FirstElement_;
+				uavs[i].Texture3D.FirstWSlice = uav.firstArraySlice_FirstWSlice_NumElements_;
+				uavs[i].Texture3D.WSize = uav.arraySize_PlaneSlice_WSize_;
+				break;
+			default:
+				DBG_BREAK;
+				return ErrorCode::FAIL;
+				break;
+			}
+		}
+		
+		for(i32 i = 0; i < desc.numCBVs_; ++i)
+		{
+			auto cbvHandle = desc.cbvs_[i].resource_;
+			DBG_ASSERT(cbvHandle.GetType() == ResourceType::BUFFER);
+			DBG_ASSERT(cbvHandle);
+
+			const auto& cbv = desc.cbvs_[i];
+
+			cbvs[i].BufferLocation = bufferResources_[cbvHandle.GetIndex()].resource_->GetGPUVirtualAddress() + cbv.offset_;
+			cbvs[i].SizeInBytes = cbv.size_;
+		}
+
+		for(i32 i = 0; i < desc.numSamplers_; ++i)
+		{
+			auto samplerHandle = desc.samplers_[i].resource_;
+			DBG_ASSERT(samplerHandle);
+			samplers[i] = samplerStates_[samplerHandle.GetIndex()].desc_;
+		}
+
+		device_->CreatePipelineBindingSet(pbs, desc, debugName);
+
 		//
+		pipelineBindingSets_[handle.GetIndex()] = pbs;
 		return ErrorCode::UNIMPLEMENTED;
 	}
 
 	ErrorCode D3D12Backend::CreateDrawBindingSet(Handle handle, const DrawBindingSetDesc& desc, const char* debugName)
 	{
+		D3D12DrawBindingSet dbs;
+
+
 		//
+		Core::ScopedMutex lock(resourceMutex_);
+		drawBindingSets_[handle.GetIndex()] = dbs;
 		return ErrorCode::UNIMPLEMENTED;
 	}
 
@@ -588,6 +764,18 @@ namespace GPU
 		case ResourceType::SAMPLER_STATE:
 			samplerStates_[handle.GetIndex()] = D3D12SamplerState();
 			break;
+		case ResourceType::GRAPHICS_PIPELINE_STATE:
+			graphicsPipelineStates_[handle.GetIndex()] = D3D12GraphicsPipelineState();
+			break;
+		case ResourceType::COMPUTE_PIPELINE_STATE:
+			computePipelineStates_[handle.GetIndex()] = D3D12ComputePipelineState();
+			break;
+		case ResourceType::PIPELINE_BINDING_SET:
+			pipelineBindingSets_[handle.GetIndex()] = D3D12PipelineBindingSet();
+			break;
+		case ResourceType::DRAW_BINDING_SET:
+			drawBindingSets_[handle.GetIndex()] = D3D12DrawBindingSet();
+			break;
 		case ResourceType::COMMAND_LIST:
 			delete commandLists_[handle.GetIndex()];
 			commandLists_[handle.GetIndex()] = nullptr;
@@ -600,6 +788,10 @@ namespace GPU
 	ErrorCode D3D12Backend::CompileCommandList(Handle handle, const CommandList& commandList)
 	{
 		DBG_ASSERT(handle.GetIndex() < commandLists_.size());
+
+		// Lock resources during command list compilation.
+		Core::ScopedMutex resourceLock(resourceMutex_);
+
 		D3D12CommandList* outCommandList = commandLists_[handle.GetIndex()];
 		(void)outCommandList;
 

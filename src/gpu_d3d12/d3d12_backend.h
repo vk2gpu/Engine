@@ -71,6 +71,8 @@ namespace GPU
 		ResourceVector<D3D12SamplerState> samplerStates_;
 		ResourceVector<D3D12GraphicsPipelineState> graphicsPipelineStates_;
 		ResourceVector<D3D12ComputePipelineState> computePipelineStates_;
+		ResourceVector<D3D12PipelineBindingSet> pipelineBindingSets_;
+		ResourceVector<D3D12DrawBindingSet> drawBindingSets_;
 		ResourceVector<D3D12CommandList*> commandLists_;
 	};
 

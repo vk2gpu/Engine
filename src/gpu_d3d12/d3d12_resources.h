@@ -1,9 +1,10 @@
 #pragma once
 
 #include "gpu_d3d12/d3d12_types.h"
+#include "gpu_d3d12/d3d12_descriptor_heap_allocator.h"
+#include "core/array.h"
 #include "core/misc.h"
 #include "core/vector.h"
-
 #include <utility>
 
 namespace GPU
@@ -17,6 +18,7 @@ namespace GPU
 	class ResourceVector
 	{
 	public:
+		static const i32 RESIZE_ROUND_UP = 32; 
 		ResourceVector() = default;
 		~ResourceVector() = default;
 
@@ -24,7 +26,7 @@ namespace GPU
 		{
 			DBG_ASSERT(idx < Handle::MAX_INDEX);
 			if(idx >= storage_.size())
-				storage_.resize(Core::PotRoundUp(idx + 1, 32));
+				storage_.resize(Core::PotRoundUp(idx + 1, RESIZE_ROUND_UP));
 			return storage_[idx];
 		}
 
@@ -32,7 +34,7 @@ namespace GPU
 		{
 			DBG_ASSERT(idx < Handle::MAX_INDEX);
 			if(idx >= storage_.size())
-				storage_.resize(Core::PotRoundUp(idx + 1, 32));
+				storage_.resize(Core::PotRoundUp(idx + 1, RESIZE_ROUND_UP));
 			return storage_[idx];
 		}
 
@@ -91,7 +93,7 @@ namespace GPU
 
 	struct D3D12SamplerState
 	{
-		D3D12_SAMPLER_DESC desc_;
+		D3D12_SAMPLER_DESC desc_ = {};
 	};
 
 	struct D3D12GraphicsPipelineState
@@ -106,4 +108,22 @@ namespace GPU
 		RootSignatureType rootSignature_ = RootSignatureType::INVALID;
 		ComPtr<ID3D12PipelineState> pipelineState_;
 	};
+
+	struct D3D12PipelineBindingSet
+	{
+		RootSignatureType rootSignature_ = RootSignatureType::INVALID;
+		ComPtr<ID3D12PipelineState> pipelineState_;
+		D3D12DescriptorAllocation srvs_;
+		D3D12DescriptorAllocation uavs_;
+		D3D12DescriptorAllocation cbvs_;
+		D3D12DescriptorAllocation samplers_;
+	};
+
+	struct D3D12DrawBindingSet
+	{
+		DrawBindingSetDesc desc_;
+		Core::Array<D3D12Resource, MAX_VERTEX_STREAMS> vbs_;
+		D3D12Resource ib_;
+	};
+
 }

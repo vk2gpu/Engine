@@ -53,6 +53,8 @@ namespace GPU
 	D3D12_RESOURCE_STATES GetResourceStates(BindFlags bindFlags);
 	D3D12_RESOURCE_STATES GetDefaultResourceState(BindFlags bindFlags);
 	D3D12_RESOURCE_DIMENSION GetResourceDimension(TextureType type);
+	D3D12_SRV_DIMENSION GetSRVDimension(ViewDimension dim);
+	D3D12_UAV_DIMENSION GetUAVDimension(ViewDimension dim);
 	DXGI_FORMAT GetFormat(Format format);
 
 	/**

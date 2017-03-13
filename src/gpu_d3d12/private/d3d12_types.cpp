@@ -160,6 +160,53 @@ namespace GPU
 		}
 	}
 
+	D3D12_SRV_DIMENSION GetSRVDimension(ViewDimension dim)
+	{
+		switch(dim)
+		{
+		case ViewDimension::BUFFER:
+			return D3D12_SRV_DIMENSION_BUFFER;
+		case ViewDimension::TEX1D:
+			return D3D12_SRV_DIMENSION_TEXTURE1D;
+		case ViewDimension::TEX1D_ARRAY:
+			return D3D12_SRV_DIMENSION_TEXTURE1DARRAY;
+		case ViewDimension::TEX2D:
+			return D3D12_SRV_DIMENSION_TEXTURE2D;
+		case ViewDimension::TEX2D_ARRAY:
+			return D3D12_SRV_DIMENSION_TEXTURE2DARRAY;
+		case ViewDimension::TEX3D:
+			return D3D12_SRV_DIMENSION_TEXTURE3D;
+		case ViewDimension::TEXCUBE:
+			return D3D12_SRV_DIMENSION_TEXTURECUBE;
+		case ViewDimension::TEXCUBE_ARRAY:
+			return D3D12_SRV_DIMENSION_TEXTURECUBEARRAY;
+		default:
+			return D3D12_SRV_DIMENSION_UNKNOWN;
+		}
+	}
+
+	D3D12_UAV_DIMENSION GetUAVDimension(ViewDimension dim)
+	{
+		switch(dim)
+		{
+		case ViewDimension::BUFFER:
+			return D3D12_UAV_DIMENSION_BUFFER;
+		case ViewDimension::TEX1D:
+			return D3D12_UAV_DIMENSION_TEXTURE1D;
+		case ViewDimension::TEX1D_ARRAY:
+			return D3D12_UAV_DIMENSION_TEXTURE1DARRAY;
+		case ViewDimension::TEX2D:
+			return D3D12_UAV_DIMENSION_TEXTURE2D;
+		case ViewDimension::TEX2D_ARRAY:
+			return D3D12_UAV_DIMENSION_TEXTURE2DARRAY;
+		case ViewDimension::TEX3D:
+			return D3D12_UAV_DIMENSION_TEXTURE3D;
+		default:
+			return D3D12_UAV_DIMENSION_UNKNOWN;
+		}
+	}
+
+
 	DXGI_FORMAT GetFormat(Format format)
 	{
 #define CASE(FORMAT)                                                                                                   \
@@ -280,9 +327,12 @@ namespace GPU
 	void SetObjectName(ID3D12Object* object, const char* name)
 	{
 #if !defined(FINAL)
-		wchar wName[512] = { 0 };
-		Core::StringConvertUTF8toUTF16(name, (i32)strlen(name), wName, 512);
-		object->SetName(wName);
+		if(name)
+		{
+			wchar wName[512] = {0};
+			Core::StringConvertUTF8toUTF16(name, (i32)strlen(name), wName, 512);
+			object->SetName(wName);
+		}
 #endif
 	}
 

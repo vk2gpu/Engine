@@ -333,10 +333,10 @@ namespace GPU
 		Handle resource_;
 		Format format_ = Format::INVALID;
 		ViewDimension dimension_ = ViewDimension::INVALID;
-		i64 mipSlice_ = 0;
-		i64 planeSlice_FirstWSlice = 0;
-		i64 arraySize_ = 0;
-		i64 wSize_ = 0;
+		i32 mipSlice_ = 0;
+		i32 planeSlice_FirstWSlice = 0;
+		i32 arraySize_ = 0;
+		i32 wSize_ = 0;
 	};
 
 	/**
@@ -348,7 +348,7 @@ namespace GPU
 		Format format_ = Format::INVALID;
 		ViewDimension dimension_ = ViewDimension::INVALID;
 		DSVFlags flags_ = DSVFlags::NONE;
-		i64 mipSlice_ = 0;
+		i32 mipSlice_ = 0;
 	};
 
 	/**
@@ -359,9 +359,12 @@ namespace GPU
 		Handle resource_;
 		Format format_ = Format::INVALID;
 		ViewDimension dimension_ = ViewDimension::INVALID;
-		i64 mostDetailedMip_FirstElement_ = 0;
-		i64 mipLevels_NumElements_ = 0;
-		i64 arraySize_ = 0;
+		i32 mostDetailedMip_FirstElement_ = 0;
+		i32 mipLevels_NumElements_ = 0;
+		i32 firstArraySlice_ = 0;
+		i32 arraySize_ = 0;
+		i32 planeSlice_ = 0;
+		f32 resourceMinLODClamp_ = 0.0f;
 	};
 
 	/**
@@ -372,9 +375,9 @@ namespace GPU
 		Handle resource_;
 		Format format_ = Format::INVALID;
 		ViewDimension dimension_ = ViewDimension::INVALID;
-		i64 mipSlice_FirstElement_ = 0;
-		i64 firstArraySlice_NumElements_ = 0;
-		i64 arraySize_ = 0;
+		i32 mipSlice_FirstElement_ = 0;
+		i32 firstArraySlice_FirstWSlice_NumElements_ = 0;
+		i32 arraySize_PlaneSlice_WSize_ = 0;
 	};
 
 	/**
@@ -402,9 +405,10 @@ namespace GPU
 	 */
 	struct GPU_DLL PipelineBindingSetDesc
 	{
+		Handle pipelineState_;
 		i32 numSRVs_ = 0;
 		i32 numUAVs_ = 0;
-		i32 numCBs_ = 0;
+		i32 numCBVs_ = 0;
 		i32 numSamplers_ = 0;
 		BindingSRV srvs_[MAX_SRV_BINDINGS];
 		BindingUAV uavs_[MAX_UAV_BINDINGS];
@@ -418,7 +422,7 @@ namespace GPU
 	struct GPU_DLL DrawBindingSetDesc
 	{
 		i32 numVertexBuffers_ = 0;
-		BindingBuffer vbs_[16];
+		BindingBuffer vbs_[MAX_VERTEX_STREAMS];
 		BindingBuffer ib_;
 	};
 
