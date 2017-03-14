@@ -33,12 +33,12 @@ namespace GPU
 		const TYPE& operator[](i32 idx) const
 		{
 			DBG_ASSERT(idx < Handle::MAX_INDEX);
-			if(idx >= storage_.size())
-				storage_.resize(Core::PotRoundUp(idx + 1, RESIZE_ROUND_UP));
+			DBG_ASSERT(idx < storage_.size());
 			return storage_[idx];
 		}
 
 		i32 size() const { return storage_.size(); }
+		void clear() { storage_.clear(); }
 
 	private:
 		Core::Vector<TYPE> storage_;

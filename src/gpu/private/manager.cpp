@@ -25,6 +25,11 @@ namespace GPU
 		Core::HandleAllocator handles_ = Core::HandleAllocator(ResourceType::MAX);
 		Core::Vector<Handle> deferredDeletions_;
 
+		~ManagerImpl()
+		{
+			delete backend_;
+		}
+
 		Handle AllocHandle(ResourceType type)
 		{
 			Core::ScopedMutex lock(mutex_);
@@ -36,6 +41,7 @@ namespace GPU
 			Core::ScopedMutex lock(mutex_);
 			for(auto handle : deferredDeletions_)
 			{
+				backend_->DestroyResource(handle);
 				handles_.Free(handle);
 			}
 		}
@@ -58,6 +64,7 @@ namespace GPU
 
 		// TODO: Proper API look up.
 		typedef GPU::IBackend* (*CreateBackendFn)(void*);
+		typedef void (*DestroyBackendFn)(GPU::IBackend*);
 		void CreateBackend()
 		{
 			Core::LibHandle handle = Core::LibraryOpen("gpu_d3d12.dll");
@@ -67,6 +74,19 @@ namespace GPU
 				if(createBackendFn)
 				{
 					backend_ = createBackendFn(deviceWindow_);
+				}
+			}
+		}
+
+		void DestroyBackend()
+		{
+			Core::LibHandle handle = Core::LibraryOpen("gpu_d3d12.dll");
+			if(handle)
+			{
+				auto destroyBackendFn = (DestroyBackendFn)Core::LibrarySymbol(handle, "DestroyBackend");
+				if(destroyBackendFn)
+				{
+					destroyBackendFn(backend_);
 				}
 			}
 		}

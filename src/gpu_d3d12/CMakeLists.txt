@@ -11,6 +11,7 @@ SET(SOURCES_PUBLIC
 
 SET(SOURCES_PRIVATE 
 	"private/d3d12_backend.cpp"
+	"private/d3d12_descriptor_heap_allocator.cpp"
 	"private/d3d12_device.cpp"
 	"private/d3d12_command_list.cpp"
 	"private/d3d12_linear_heap_allocator.cpp"

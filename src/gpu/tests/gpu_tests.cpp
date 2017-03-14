@@ -362,6 +362,105 @@ TEST_CASE("gpu-tests-create-compute-pipeline-state")
 	manager.DestroyResource(shaderHandle);
 }
 
+TEST_CASE("gpu-tests-create-pipeline-binding-set")
+{
+	Client::Window window("gpu_tests", 0, 0, 640, 480, false);
+	GPU::Manager manager(window.GetPlatformData().handle_);
+
+	i32 numAdapters = manager.EnumerateAdapters(nullptr, 0);
+	REQUIRE(numAdapters > 0);
+
+	REQUIRE(manager.Initialize(0) == GPU::ErrorCode::OK);
+
+	GPU::ShaderDesc shaderDesc;
+	shaderDesc.type_ = GPU::ShaderType::COMPUTE;
+	shaderDesc.dataSize_ = sizeof(g_CShader);
+	shaderDesc.data_ = g_CShader;
+
+	// Create resources to text bindings.
+	GPU::Handle texHandle;
+	GPU::Handle cbHandle;
+	GPU::Handle samplerHandle;
+	{
+		GPU::TextureDesc desc;
+		desc.bindFlags_ = GPU::BindFlags::SHADER_RESOURCE | GPU::BindFlags::UNORDERED_ACCESS;
+		desc.type_ = GPU::TextureType::TEX2D;
+		desc.width_ = 256;
+		desc.height_ = 256;
+		desc.format_ = GPU::Format::R8G8B8A8_UNORM;
+		texHandle = manager.CreateTexture(desc, nullptr, "gpu-tests-create-pipeline-binding-set");
+		REQUIRE(texHandle);
+	}
+
+	{
+		GPU::BufferDesc desc;
+		desc.bindFlags_ = GPU::BindFlags::CONSTANT_BUFFER;
+		desc.size_ = 4096;
+		desc.stride_ = 0;
+		cbHandle = manager.CreateBuffer(desc, nullptr, "gpu-tests-create-pipeline-binding-set");
+		REQUIRE(cbHandle);
+	}
+
+	{
+		GPU::SamplerState desc;
+		samplerHandle = manager.CreateSamplerState(desc, "gpu-tests-create-pipeline-binding-set");
+		REQUIRE(samplerHandle);
+	}
+
+	GPU::Handle shaderHandle = manager.CreateShader(shaderDesc, "gpu-tests-create-pipeline-binding-set");
+	REQUIRE(shaderHandle);
+
+	GPU::ComputePipelineStateDesc pipelineDesc;
+	pipelineDesc.shader_ = shaderHandle;
+	GPU::Handle pipelineHandle =
+	    manager.CreateComputePipelineState(pipelineDesc, "gpu-tests-create-pipeline-binding-set");
+
+	SECTION("no-views")
+	{
+		GPU::PipelineBindingSetDesc pipelineBindingSetDesc;
+		pipelineBindingSetDesc.pipelineState_ = pipelineHandle;
+		GPU::Handle pipelineBindingSetHandle =
+			manager.CreatePipelineBindingSet(pipelineBindingSetDesc, "gpu-tests-create-pipeline-binding-set");
+
+		manager.DestroyResource(pipelineBindingSetHandle);
+	}
+
+	SECTION("srvs")
+	{
+		GPU::PipelineBindingSetDesc pipelineBindingSetDesc;
+		pipelineBindingSetDesc.pipelineState_ = pipelineHandle;
+		pipelineBindingSetDesc.numSRVs_ = 1;
+		pipelineBindingSetDesc.srvs_[0].resource_ = texHandle;
+		pipelineBindingSetDesc.srvs_[0].format_ = GPU::Format::R8G8B8A8_UNORM;
+		pipelineBindingSetDesc.srvs_[0].dimension_ = GPU::ViewDimension::TEX2D;
+		pipelineBindingSetDesc.srvs_[0].mipLevels_NumElements_ = -1;
+		GPU::Handle pipelineBindingSetHandle =
+			manager.CreatePipelineBindingSet(pipelineBindingSetDesc, "gpu-tests-create-pipeline-binding-set");
+
+		manager.DestroyResource(pipelineBindingSetHandle);
+	}
+
+	SECTION("cbvs")
+	{
+		GPU::PipelineBindingSetDesc pipelineBindingSetDesc;
+		pipelineBindingSetDesc.pipelineState_ = pipelineHandle;
+		pipelineBindingSetDesc.numCBVs_ = 1;
+		pipelineBindingSetDesc.cbvs_[0].resource_ = cbHandle;
+		pipelineBindingSetDesc.cbvs_[0].offset_ = 0;
+		pipelineBindingSetDesc.cbvs_[0].size_ = 4096;
+		GPU::Handle pipelineBindingSetHandle =
+			manager.CreatePipelineBindingSet(pipelineBindingSetDesc, "gpu-tests-create-pipeline-binding-set");
+
+		manager.DestroyResource(pipelineBindingSetHandle);
+	}
+
+	manager.DestroyResource(samplerHandle);
+	manager.DestroyResource(cbHandle);
+	manager.DestroyResource(texHandle);
+	manager.DestroyResource(pipelineHandle);
+	manager.DestroyResource(shaderHandle);
+}
+
 TEST_CASE("gpu-tests-create-graphics-pipeline-state")
 {
 	Client::Window window("gpu_tests", 0, 0, 640, 480, false);

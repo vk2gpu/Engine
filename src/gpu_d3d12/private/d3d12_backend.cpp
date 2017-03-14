@@ -11,6 +11,11 @@ EXPORT GPU::IBackend* CreateBackend(void* deviceWindow)
 {
 	return new GPU::D3D12Backend(deviceWindow);
 }
+
+EXPORT void DestroyBackend(GPU::IBackend* backend)
+{
+	delete backend;
+}
 }
 
 namespace GPU
@@ -58,7 +63,20 @@ namespace GPU
 		DXGICreateDXGIFactory2Fn(flags, IID_IDXGIFactory4, (void**)dxgiFactory_.ReleaseAndGetAddressOf());
 	}
 
-	D3D12Backend::~D3D12Backend() {}
+	D3D12Backend::~D3D12Backend()
+	{
+		delete device_;
+		dxgiAdapters_.clear();
+		adapterInfos_.clear();
+		dxgiFactory_ = nullptr;
+
+#if !defined(FINAL)
+		if(dxgiDebug_)
+		{
+			dxgiDebug_->ReportLiveObjects(DXGI_DEBUG_ALL, DXGI_DEBUG_RLO_ALL);
+		}
+#endif
+	}
 
 	i32 D3D12Backend::EnumerateAdapters(AdapterInfo* outAdapters, i32 maxAdapters)
 	{
@@ -529,7 +547,6 @@ namespace GPU
 		if(retVal != ErrorCode::OK)
 			return retVal;
 
-
 		Core::ScopedMutex lock(resourceMutex_);
 		computePipelineStates_[handle.GetIndex()] = cps;
 		return ErrorCode::OK;
@@ -706,11 +723,12 @@ namespace GPU
 			samplers[i] = samplerStates_[samplerHandle.GetIndex()].desc_;
 		}
 
-		device_->CreatePipelineBindingSet(pbs, desc, debugName);
+		ErrorCode retVal = device_->CreatePipelineBindingSet(pbs, desc, debugName);
+		if(retVal != ErrorCode::OK)
+			return retVal;
 
-		//
 		pipelineBindingSets_[handle.GetIndex()] = pbs;
-		return ErrorCode::UNIMPLEMENTED;
+		return ErrorCode::OK;
 	}
 
 	ErrorCode D3D12Backend::CreateDrawBindingSet(Handle handle, const DrawBindingSetDesc& desc, const char* debugName)
@@ -771,6 +789,7 @@ namespace GPU
 			computePipelineStates_[handle.GetIndex()] = D3D12ComputePipelineState();
 			break;
 		case ResourceType::PIPELINE_BINDING_SET:
+			device_->DestroyPipelineBindingSet(pipelineBindingSets_[handle.GetIndex()]);
 			pipelineBindingSets_[handle.GetIndex()] = D3D12PipelineBindingSet();
 			break;
 		case ResourceType::DRAW_BINDING_SET:

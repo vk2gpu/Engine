@@ -44,6 +44,12 @@ namespace GPU
 					block.freeAllocations_.erase(it);
 
 				block.usedAllocations_.emplace_back(std::move(alloc));
+
+				D3D12DescriptorAllocation retVal;
+				retVal.d3dDescriptorHeap_ = block.d3dDescriptorHeap_;
+				retVal.offset_ = alloc.offset_;
+				retVal.blockIdx_ = i;
+				return retVal;
 			}
 			// Ran out of blocks, add new block.
 			else if(i == (blocks_.size() - 1))

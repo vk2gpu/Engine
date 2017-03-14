@@ -56,7 +56,7 @@ namespace GPU
 			return ErrorCode::FAIL;
 		// Load symbols.
 		DXGIGetDebugInterface1Fn =
-		    (PFN_GET_DXGI_DEBUG_INTERFACE)Core::LibrarySymbol(DXGIDebugHandle, "DXGIGetDebugInterface1");
+		    (PFN_GET_DXGI_DEBUG_INTERFACE)Core::LibrarySymbol(DXGIHandle, "DXGIGetDebugInterface1");
 		DXGICreateDXGIFactory2Fn = (PFN_CREATE_DXGI_FACTORY)Core::LibrarySymbol(DXGIHandle, "CreateDXGIFactory2");
 		D3D12CreateDeviceFn = (PFN_D3D12_CREATE_DEVICE)Core::LibrarySymbol(D3D12Handle, "D3D12CreateDevice");
 		D3D12GetDebugInterfaceFn =
