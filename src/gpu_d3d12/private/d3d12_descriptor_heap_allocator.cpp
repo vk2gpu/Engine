@@ -81,6 +81,25 @@ namespace GPU
 		ConsolodateAllocations();
 	}
 
+	void D3D12DescriptorHeapAllocator::FreeAll()
+	{
+		Core::ScopedMutex lock(allocMutex_);
+
+		DescriptorBlock::Allocation allocation;
+		allocation.offset_ = 0;
+		allocation.size_ = blockSize_;
+
+		for(i32 i = 0; i < blocks_.size(); ++i)
+		{
+			auto& block = blocks_[i];
+			block.usedAllocations_.clear();
+			block.freeAllocations_.clear();
+			block.freeAllocations_.push_back(allocation);
+
+			ClearRange(block.d3dDescriptorHeap_.Get(), 0, blockSize_);
+		}
+	}
+
 	void D3D12DescriptorHeapAllocator::AddBlock()
 	{
 		DescriptorBlock block;

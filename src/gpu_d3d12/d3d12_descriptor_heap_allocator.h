@@ -26,6 +26,7 @@ namespace GPU
 
 		D3D12DescriptorAllocation Alloc(i32 numDescriptors);
 		void Free(D3D12DescriptorAllocation alloc);
+		void FreeAll();
 
 	private:
 		D3D12DescriptorHeapAllocator(const D3D12DescriptorHeapAllocator&) = delete;

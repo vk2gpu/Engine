@@ -76,16 +76,6 @@ TEST_CASE("commandlist-tests-commands")
 	REQUIRE(commandList.CopyBuffer(buffer0Handle, 0, sizeof(u), buffer1Handle, 0));
 	REQUIRE(commandList.CopyTextureSubResource(texture0Handle, 0, box, texture1Handle, 0, point));
 	REQUIRE(commandList.CopyTextureSubResource(texture0Handle, 0, box, texture0Handle, 1, point));
-	// Binding updates.
-	REQUIRE(commandList.UpdateRTV(frameBindingHandle, 0, 1));
-	REQUIRE(commandList.UpdateRTV(frameBindingHandle, 0, 2));
-	REQUIRE(commandList.UpdateDSV(frameBindingHandle, dsv));
-	REQUIRE(commandList.UpdateSRV(pipelineBindingHandle, 0, 1));
-	REQUIRE(commandList.UpdateSRV(pipelineBindingHandle, 0, 2));
-	REQUIRE(commandList.UpdateUAV(pipelineBindingHandle, 0, 1));
-	REQUIRE(commandList.UpdateUAV(pipelineBindingHandle, 0, 2));
-	REQUIRE(commandList.UpdateCBV(pipelineBindingHandle, 0, 1));
-	REQUIRE(commandList.UpdateCBV(pipelineBindingHandle, 0, 2));
 
 	// Check we have valid commands.
 	for(auto* command : commandList)
@@ -103,11 +93,6 @@ TEST_CASE("commandlist-tests-commands")
 		case GPU::CommandType::UPDATE_TEXTURE_SUBRESOURCE:
 		case GPU::CommandType::COPY_BUFFER:
 		case GPU::CommandType::COPY_TEXTURE_SUBRESOURCE:
-		case GPU::CommandType::UPDATE_RTV:
-		case GPU::CommandType::UPDATE_DSV:
-		case GPU::CommandType::UPDATE_SRV:
-		case GPU::CommandType::UPDATE_UAV:
-		case GPU::CommandType::UPDATE_CBV:
 			break;
 		default:
 			FAIL("Invalid command type.");

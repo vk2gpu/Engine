@@ -829,11 +829,6 @@ namespace GPU
 			case CommandType::UPDATE_TEXTURE_SUBRESOURCE:
 			case CommandType::COPY_BUFFER:
 			case CommandType::COPY_TEXTURE_SUBRESOURCE:
-			case CommandType::UPDATE_RTV:
-			case CommandType::UPDATE_DSV:
-			case CommandType::UPDATE_SRV:
-			case CommandType::UPDATE_UAV:
-			case CommandType::UPDATE_CBV:
 				break;
 			default:
 				DBG_BREAK;

@@ -377,7 +377,7 @@ TEST_CASE("gpu-tests-create-pipeline-binding-set")
 	shaderDesc.dataSize_ = sizeof(g_CShader);
 	shaderDesc.data_ = g_CShader;
 
-	// Create resources to text bindings.
+	// Create resources to test bindings.
 	GPU::Handle texHandle;
 	GPU::Handle cbHandle;
 	GPU::Handle samplerHandle;
@@ -420,7 +420,7 @@ TEST_CASE("gpu-tests-create-pipeline-binding-set")
 		GPU::PipelineBindingSetDesc pipelineBindingSetDesc;
 		pipelineBindingSetDesc.pipelineState_ = pipelineHandle;
 		GPU::Handle pipelineBindingSetHandle =
-			manager.CreatePipelineBindingSet(pipelineBindingSetDesc, "gpu-tests-create-pipeline-binding-set");
+			manager.CreatePipelineBindingSet(pipelineBindingSetDesc, "gpu-tests-create-pipeline-binding-set-no-views");
 
 		manager.DestroyResource(pipelineBindingSetHandle);
 	}
@@ -435,7 +435,7 @@ TEST_CASE("gpu-tests-create-pipeline-binding-set")
 		pipelineBindingSetDesc.srvs_[0].dimension_ = GPU::ViewDimension::TEX2D;
 		pipelineBindingSetDesc.srvs_[0].mipLevels_NumElements_ = -1;
 		GPU::Handle pipelineBindingSetHandle =
-			manager.CreatePipelineBindingSet(pipelineBindingSetDesc, "gpu-tests-create-pipeline-binding-set");
+			manager.CreatePipelineBindingSet(pipelineBindingSetDesc, "gpu-tests-create-pipeline-binding-set-srv");
 
 		manager.DestroyResource(pipelineBindingSetHandle);
 	}
@@ -449,7 +449,21 @@ TEST_CASE("gpu-tests-create-pipeline-binding-set")
 		pipelineBindingSetDesc.cbvs_[0].offset_ = 0;
 		pipelineBindingSetDesc.cbvs_[0].size_ = 4096;
 		GPU::Handle pipelineBindingSetHandle =
-			manager.CreatePipelineBindingSet(pipelineBindingSetDesc, "gpu-tests-create-pipeline-binding-set");
+			manager.CreatePipelineBindingSet(pipelineBindingSetDesc, "gpu-tests-create-pipeline-binding-set-cbv");
+
+		manager.DestroyResource(pipelineBindingSetHandle);
+	}
+
+	SECTION("uavs")
+	{
+		GPU::PipelineBindingSetDesc pipelineBindingSetDesc;
+		pipelineBindingSetDesc.pipelineState_ = pipelineHandle;
+		pipelineBindingSetDesc.numUAVs_ = 1;
+		pipelineBindingSetDesc.uavs_[0].resource_ = texHandle;
+		pipelineBindingSetDesc.uavs_[0].format_ = GPU::Format::R8G8B8A8_UNORM;
+		pipelineBindingSetDesc.uavs_[0].dimension_ = GPU::ViewDimension::TEX2D;
+		GPU::Handle pipelineBindingSetHandle =
+			manager.CreatePipelineBindingSet(pipelineBindingSetDesc, "gpu-tests-create-pipeline-binding-set-uav");
 
 		manager.DestroyResource(pipelineBindingSetHandle);
 	}

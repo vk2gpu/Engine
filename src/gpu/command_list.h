@@ -166,50 +166,6 @@ namespace GPU
 		GPU_DLL CommandCopyTextureSubResource* CopyTextureSubResource(Handle srcTexture, i32 srcSubResourceIdx,
 		    const Box& srcBox, Handle dstTexture, i32 dstSubResourceIdx, const Point& dstPoint);
 
-		/**
-		 * See @a CommandUpdateRTV.
-		 * @pre @a frameBinding is valid.
-		 * @pre @a firstRTV >= 0.
-		 * @pre @a numRTVs > 0.
-		 * @return Update command to be filled in with valid state information. nullptr if failure.
-		 */
-		GPU_DLL CommandUpdateRTV* UpdateRTV(Handle frameBinding, i32 firstRTV, i32 numRTVs);
-
-		/**
-		 * See @a CommandUpdateDSV.
-		 * @pre @a frameBinding is valid.
-		 * @pre @a dsv is valid.
-		 * @return Update command. nullptr if failure.
-		 */
-		GPU_DLL CommandUpdateDSV* UpdateDSV(Handle frameBinding, const BindingDSV& dsv);
-
-		/**
-		 * See @a CommandUpdateSRV.
-		 * @pre @a pipelineBinding is valid.
-		 * @pre @a firstSRV >= 0.
-		 * @pre @a numSRVs > 0.
-		 * @return Update command to be filled in with valid state information. nullptr if failure.
-		 */
-		GPU_DLL CommandUpdateSRV* UpdateSRV(Handle pipelineBinding, i32 firstSRV, i32 numSRVs);
-
-		/**
-		 * See @a CommandUpdateUAV.
-		 * @pre @a pipelineBinding is valid.
-		 * @pre @a firstUAV >= 0.
-		 * @pre @a numUAVs > 0.
-		 * @return Update command to be filled in with valid state information. nullptr if failure.
-		 */
-		GPU_DLL CommandUpdateUAV* UpdateUAV(Handle pipelineBinding, i32 firstUAV, i32 numUAVs);
-
-		/**
-		 * See @a CommandUpdateCBV.
-		 * @pre @a pipelineBinding is valid.
-		 * @pre @a firstCBV >= 0.
-		 * @pre @a numCBVs > 0.
-		 * @return Update command to be filled in with valid state information. nullptr if failure.
-		 */
-		GPU_DLL CommandUpdateCBV* UpdateCBV(Handle pipelineBinding, i32 firstCBV, i32 numCBVs);
-
 		/// for iterator support.
 		typedef Core::Vector<Command*> CommandVector;
 		typedef CommandVector::iterator iterator;

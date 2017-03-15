@@ -6,7 +6,7 @@
 
 namespace GPU
 {
-	enum class CommandType : i16
+	enum class CommandType : i8
 	{
 		INVALID = -1,
 
@@ -30,13 +30,6 @@ namespace GPU
 		// Transfers.
 		COPY_BUFFER,
 		COPY_TEXTURE_SUBRESOURCE,
-
-		// Binding updates.
-		UPDATE_RTV,
-		UPDATE_DSV,
-		UPDATE_SRV,
-		UPDATE_UAV,
-		UPDATE_CBV,
 	};
 
 	/**
@@ -230,77 +223,5 @@ namespace GPU
 		/// Destination point.
 		Point dstPoint_;
 	};
-
-	/**
-	 * Update RTVs within a frame binding.
-	 */
-	struct GPU_DLL CommandUpdateRTV : CommandTyped<CommandType::UPDATE_RTV>
-	{
-		/// Frame binding to update.
-		Handle frameBinding_;
-		/// First RTV to update.
-		i16 firstRTV_ = 0;
-		/// Number of RTVs to update.
-		i16 numRTVs_ = 0;
-		/// Binding data for RTVs.
-		BindingRTV* rtvs_ = nullptr;
-	};
-
-	/**
-	 * Update DSV within a frame binding.
-	 */
-	struct GPU_DLL CommandUpdateDSV : CommandTyped<CommandType::UPDATE_DSV>
-	{
-		/// Frame binding to update.
-		Handle frameBinding_;
-		/// Binding data for DSV.
-		BindingDSV dsv_;
-	};
-
-	/**
-	 * Update SRVs within pipeline binding.
-	 */
-	struct GPU_DLL CommandUpdateSRV : CommandTyped<CommandType::UPDATE_SRV>
-	{
-		/// Pipeline binding to update.
-		Handle pipelineBinding_;
-		/// First SRV to update.
-		i16 firstSRV_ = 0;
-		/// Number of SRVs to update.
-		i16 numSRVs_ = 0;
-		/// Binding data for SRVs.
-		BindingSRV* srvs_ = nullptr;
-	};
-
-	/**
-	 * Update UAVs within pipeline binding.
-	 */
-	struct GPU_DLL CommandUpdateUAV : CommandTyped<CommandType::UPDATE_UAV>
-	{
-		/// Pipeline binding to update.
-		Handle pipelineBinding_;
-		/// First UAV to update.
-		i16 firstUAV_ = 0;
-		/// Number of UAVs to update.
-		i16 numUAVs_ = 0;
-		/// Binding data for UAVs.
-		BindingUAV* uavs_ = nullptr;
-	};
-
-	/**
-	 * Update CBVs within pipeline binding.
-	 */
-	struct GPU_DLL CommandUpdateCBV : CommandTyped<CommandType::UPDATE_CBV>
-	{
-		/// Pipeline binding to update.
-		Handle pipelineBinding_;
-		/// First CBV to update.
-		i16 firstCBV_ = 0;
-		/// Number of CBVs to update.
-		i16 numCBVs_ = 0;
-		/// Binding data for CBVs.
-		BindingBuffer* cbvs_ = nullptr;
-	};
-
 
 } // namespace GPU
