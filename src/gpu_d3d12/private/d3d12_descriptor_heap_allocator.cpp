@@ -15,6 +15,7 @@ namespace GPU
 	    , blockSize_(blockSize)
 	    , debugName_(debugName)
 	{
+		handleIncrementSize_ = d3dDevice_->GetDescriptorHandleIncrementSize(heapType);
 		AddBlock();
 	}
 
@@ -49,6 +50,10 @@ namespace GPU
 				retVal.d3dDescriptorHeap_ = block.d3dDescriptorHeap_;
 				retVal.offset_ = alloc.offset_;
 				retVal.blockIdx_ = i;
+				retVal.cpuDescHandle_ = block.d3dDescriptorHeap_->GetCPUDescriptorHandleForHeapStart();
+				retVal.cpuDescHandle_.ptr += (alloc.offset_ * handleIncrementSize_);
+				retVal.gpuDescHandle_ = block.d3dDescriptorHeap_->GetGPUDescriptorHandleForHeapStart();
+				retVal.gpuDescHandle_.ptr += (alloc.offset_ * handleIncrementSize_);
 				return retVal;
 			}
 			// Ran out of blocks, add new block.

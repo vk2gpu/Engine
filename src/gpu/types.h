@@ -43,6 +43,16 @@ namespace GPU
 	};
 
 	/**
+	 * Utilities for handling error codes.
+	 */
+#define RETURN_ON_ERROR(ERRORCODE)\
+	{\
+		auto errorCode_Internal = ERRORCODE;\
+		if(errorCode_Internal != ErrorCode::OK) return errorCode_Internal;\
+	}
+
+
+	/**
 	 * Adapter info.
 	 */
 	struct AdapterInfo
@@ -264,7 +274,6 @@ namespace GPU
 		TRIANGLE_STRIP,
 		TRIANGLE_LIST_ADJ,
 		TRIANGLE_STRIP_ADJ,
-		TRIANGLE_FAN,
 		PATCH_LIST,
 		MAX
 	};

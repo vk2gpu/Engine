@@ -81,7 +81,7 @@ namespace Core
 		void clear()
 		{
 			Values_.clear();
-			Indices_.fill(MaxIndex_, INVALID_INDEX);
+			Indices_.fill(INVALID_INDEX);
 		}
 
 		iterator insert(const KEY_TYPE& Key, const VALUE_TYPE& Value)

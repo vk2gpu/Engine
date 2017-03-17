@@ -334,7 +334,8 @@ namespace GPU
 		Format format_ = Format::INVALID;
 		ViewDimension dimension_ = ViewDimension::INVALID;
 		i32 mipSlice_ = 0;
-		i32 planeSlice_FirstWSlice = 0;
+		i32 firstArraySlice_ = 0;
+		i32 planeSlice_FirstWSlice_ = 0;
 		i32 arraySize_ = 0;
 		i32 wSize_ = 0;
 	};
@@ -349,6 +350,8 @@ namespace GPU
 		ViewDimension dimension_ = ViewDimension::INVALID;
 		DSVFlags flags_ = DSVFlags::NONE;
 		i32 mipSlice_ = 0;
+		i32 firstArraySlice_ = 0;
+		i32 arraySize_ = 0;
 	};
 
 	/**
@@ -388,6 +391,7 @@ namespace GPU
 		Handle resource_;
 		i32 offset_ = 0;
 		i32 size_ = 0;
+		i32 stride_ = 0;
 	};
 
 	/**
@@ -421,7 +425,6 @@ namespace GPU
 	 */
 	struct GPU_DLL DrawBindingSetDesc
 	{
-		i32 numVertexBuffers_ = 0;
 		BindingBuffer vbs_[MAX_VERTEX_STREAMS];
 		BindingBuffer ib_;
 	};

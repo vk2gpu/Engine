@@ -1,6 +1,7 @@
 SET(SOURCES_PUBLIC 
 	"d3d12_backend.h"
 	"d3d12_command_list.h"
+	"d3d12_compile_context.h"
 	"d3d12_descriptor_heap_allocator.h"
 	"d3d12_device.h"
 	"d3d12_linear_heap_allocator.h"
@@ -14,6 +15,7 @@ SET(SOURCES_PRIVATE
 	"private/d3d12_descriptor_heap_allocator.cpp"
 	"private/d3d12_device.cpp"
 	"private/d3d12_command_list.cpp"
+	"private/d3d12_compile_context.cpp"
 	"private/d3d12_linear_heap_allocator.cpp"
 	"private/d3d12_types.cpp"
 )

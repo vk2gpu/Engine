@@ -125,10 +125,21 @@ namespace GPU
 		bool CompileCommandList(Handle handle, const CommandList& commandList);
 
 		/**
+		 * Submit command list.
+		 * @param handle Handle to command list.
+		 * @return Success.
+		 */
+		bool SubmitCommandList(Handle handle);
+
+		/**
 		 * Is valid handle?
 		 */
 		bool IsValidHandle(Handle handle) const;
 
+		/**
+		 * Get handle allocator.
+		 */
+		const Core::HandleAllocator& GetHandleAllocator() const;
 
 
 

@@ -25,10 +25,7 @@ namespace GPU
 		Core::HandleAllocator handles_ = Core::HandleAllocator(ResourceType::MAX);
 		Core::Vector<Handle> deferredDeletions_;
 
-		~ManagerImpl()
-		{
-			delete backend_;
-		}
+		~ManagerImpl() { delete backend_; }
 
 		Handle AllocHandle(ResourceType type)
 		{
@@ -199,6 +196,14 @@ namespace GPU
 		return handle;
 	}
 
+	Handle Manager::CreateFrameBindingSet(const FrameBindingSetDesc& desc, const char* debugName)
+	{
+		DBG_ASSERT(impl_->backend_);
+		Handle handle = impl_->AllocHandle(ResourceType::FRAME_BINDING_SET);
+		impl_->HandleErrorCode(handle, impl_->backend_->CreateFrameBindingSet(handle, desc, debugName));
+		return handle;
+	}
+
 	Handle Manager::CreateCommandList(const char* debugName)
 	{
 		DBG_ASSERT(impl_->backend_);
@@ -228,9 +233,22 @@ namespace GPU
 		return impl_->HandleErrorCode(handle, impl_->backend_->CompileCommandList(handle, commandList));
 	}
 
+	bool Manager::SubmitCommandList(Handle handle)
+	{
+		DBG_ASSERT(impl_->backend_);
+		DBG_ASSERT(handle.GetType() == ResourceType::COMMAND_LIST);
+		return impl_->HandleErrorCode(handle, impl_->backend_->SubmitCommandList(handle));
+	}
+
+
 	bool Manager::IsValidHandle(Handle handle) const
 	{ //
 		return impl_->handles_.IsValid(handle);
+	}
+
+	const Core::HandleAllocator& Manager::GetHandleAllocator() const
+	{ //
+		return impl_->handles_;
 	}
 
 } // namespace GPU

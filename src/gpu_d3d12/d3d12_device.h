@@ -38,14 +38,21 @@ namespace GPU
 		    D3D12PipelineBindingSet& outPipelineBindingSet, const PipelineBindingSetDesc& desc, const char* debugName);
 		void DestroyPipelineBindingSet(D3D12PipelineBindingSet& pipelineBindingSet);
 
+		ErrorCode CreateFrameBindingSet(
+		    D3D12FrameBindingSet& outFrameBindingSet, const FrameBindingSetDesc& desc, const char* debugName);
+		void DestroyFrameBindingSet(D3D12FrameBindingSet& frameBindingSet);
+
 		ErrorCode UpdateSRVs(
-		    D3D12PipelineBindingSet& pipelineBindingSet, i32 first, i32 num, ID3D12Resource** resources, D3D12_SHADER_RESOURCE_VIEW_DESC* descs);
+		    D3D12PipelineBindingSet& pipelineBindingSet, i32 first, i32 num, ID3D12Resource** resources, const D3D12_SHADER_RESOURCE_VIEW_DESC* descs);
 		ErrorCode UpdateUAVs(
-		    D3D12PipelineBindingSet& pipelineBindingSet, i32 first, i32 num, ID3D12Resource** resources, D3D12_UNORDERED_ACCESS_VIEW_DESC* descs);
+		    D3D12PipelineBindingSet& pipelineBindingSet, i32 first, i32 num, ID3D12Resource** resources, const D3D12_UNORDERED_ACCESS_VIEW_DESC* descs);
 		ErrorCode UpdateCBVs(
-		    D3D12PipelineBindingSet& pipelineBindingSet, i32 first, i32 num, D3D12_CONSTANT_BUFFER_VIEW_DESC* descs);
+		    D3D12PipelineBindingSet& pipelineBindingSet, i32 first, i32 num, const D3D12_CONSTANT_BUFFER_VIEW_DESC* descs);
 		ErrorCode UpdateSamplers(
-		    D3D12PipelineBindingSet& pipelineBindingSet, i32 first, i32 num, D3D12_SAMPLER_DESC* descs);
+		    D3D12PipelineBindingSet& pipelineBindingSet, i32 first, i32 num, const D3D12_SAMPLER_DESC* descs);
+		ErrorCode UpdateFrameBindingSet(D3D12FrameBindingSet& frameBindingSet,
+			ID3D12Resource** rtvResources, const D3D12_RENDER_TARGET_VIEW_DESC* rtvDescs,
+			ID3D12Resource* dsvResource, const D3D12_DEPTH_STENCIL_VIEW_DESC& dsvDesc);
 
 		ErrorCode SubmitCommandList(D3D12CommandList& commandList);
 

@@ -59,8 +59,8 @@ TEST_CASE("commandlist-tests-commands")
 
 	// Draws.
 	REQUIRE(commandList.Draw(
-	    pipelineBindingHandle, drawBindingHandle, GPU::PrimitiveTopology::TRIANGLE_LIST, 0, 0, 3, 0, 1));
-	REQUIRE(commandList.DrawIndirect(pipelineBindingHandle, drawBindingHandle, buffer0Handle, 0));
+	    pipelineBindingHandle, drawBindingHandle, frameBindingHandle, GPU::PrimitiveTopology::TRIANGLE_LIST, 0, 0, 3, 0, 1));
+	REQUIRE(commandList.DrawIndirect(pipelineBindingHandle, drawBindingHandle, frameBindingHandle, buffer0Handle, 0));
 	// Dispatches.
 	REQUIRE(commandList.Dispatch(pipelineBindingHandle, 1, 1, 1));
 	REQUIRE(commandList.DispatchIndirect(pipelineBindingHandle, buffer0Handle, 0));
@@ -71,7 +71,7 @@ TEST_CASE("commandlist-tests-commands")
 	REQUIRE(commandList.ClearUAV(pipelineBindingHandle, 0, u));
 	// Updates.
 	REQUIRE(commandList.UpdateBuffer(buffer0Handle, 0, sizeof(u), u));
-	REQUIRE(commandList.UpdateTextureSubresource(texture0Handle, 0, texSubRsc));
+	REQUIRE(commandList.UpdateTextureSubResource(texture0Handle, 0, texSubRsc));
 	// Copies.
 	REQUIRE(commandList.CopyBuffer(buffer0Handle, 0, sizeof(u), buffer1Handle, 0));
 	REQUIRE(commandList.CopyTextureSubResource(texture0Handle, 0, box, texture1Handle, 0, point));

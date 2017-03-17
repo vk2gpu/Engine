@@ -587,7 +587,7 @@ namespace GPU
 			{
 				srvResources[i] = textureResources_[srvHandle.GetIndex()].resource_.Get();
 			}
-			
+
 			const auto& srv = desc.srvs_[i];
 			srvs[i].Format = GetFormat(srv.format_);
 			srvs[i].ViewDimension = GetSRVDimension(srv.dimension_);
@@ -663,7 +663,7 @@ namespace GPU
 			{
 				uavResources[i] = textureResources_[uavHandle.GetIndex()].resource_.Get();
 			}
-			
+
 			const auto& uav = desc.uavs_[i];
 			uavs[i].Format = GetFormat(uav.format_);
 			uavs[i].ViewDimension = GetUAVDimension(uav.dimension_);
@@ -703,7 +703,7 @@ namespace GPU
 				break;
 			}
 		}
-		
+
 		for(i32 i = 0; i < desc.numCBVs_; ++i)
 		{
 			auto cbvHandle = desc.cbvs_[i].resource_;
@@ -712,7 +712,8 @@ namespace GPU
 
 			const auto& cbv = desc.cbvs_[i];
 
-			cbvs[i].BufferLocation = bufferResources_[cbvHandle.GetIndex()].resource_->GetGPUVirtualAddress() + cbv.offset_;
+			cbvs[i].BufferLocation =
+			    bufferResources_[cbvHandle.GetIndex()].resource_->GetGPUVirtualAddress() + cbv.offset_;
 			cbvs[i].SizeInBytes = cbv.size_;
 		}
 
@@ -723,9 +724,12 @@ namespace GPU
 			samplers[i] = samplerStates_[samplerHandle.GetIndex()].desc_;
 		}
 
-		ErrorCode retVal = device_->CreatePipelineBindingSet(pbs, desc, debugName);
-		if(retVal != ErrorCode::OK)
-			return retVal;
+		ErrorCode retVal;
+		RETURN_ON_ERROR(retVal = device_->CreatePipelineBindingSet(pbs, desc, debugName));
+		RETURN_ON_ERROR(retVal = device_->UpdateSRVs(pbs, 0, desc.numSRVs_, srvResources.data(), srvs.data()));
+		RETURN_ON_ERROR(retVal = device_->UpdateCBVs(pbs, 0, desc.numCBVs_, cbvs.data()));
+		RETURN_ON_ERROR(retVal = device_->UpdateUAVs(pbs, 0, desc.numUAVs_, uavResources.data(), uavs.data()));
+		RETURN_ON_ERROR(retVal = device_->UpdateSamplers(pbs, 0, desc.numSamplers_, samplers.data()));
 
 		pipelineBindingSets_[handle.GetIndex()] = pbs;
 		return ErrorCode::OK;
@@ -733,19 +737,176 @@ namespace GPU
 
 	ErrorCode D3D12Backend::CreateDrawBindingSet(Handle handle, const DrawBindingSetDesc& desc, const char* debugName)
 	{
+		Core::ScopedMutex lock(resourceMutex_);
 		D3D12DrawBindingSet dbs;
+		memset(&dbs.ib_, 0, sizeof(dbs.ib_));
+		memset(dbs.vbs_.data(), 0, sizeof(dbs.vbs_));
 
+		dbs.desc_ = desc;
+		if(desc.ib_.resource_)
+		{
+			DBG_ASSERT(desc.ib_.resource_.GetType() == ResourceType::BUFFER);
+			const auto& buffer = bufferResources_[desc.ib_.resource_.GetIndex()];
+			DBG_ASSERT(Core::ContainsAllFlags(buffer.supportedStates_, D3D12_RESOURCE_STATE_INDEX_BUFFER));
+			dbs.ibResource_ = buffer;
+
+			dbs.ib_.BufferLocation = buffer.resource_->GetGPUVirtualAddress() + desc.ib_.offset_;
+			dbs.ib_.SizeInBytes = desc.ib_.size_;
+			switch(desc.ib_.stride_)
+			{
+			case 2:
+				dbs.ib_.Format = DXGI_FORMAT_R16_UINT;
+				break;
+			case 4:
+				dbs.ib_.Format = DXGI_FORMAT_R32_UINT;
+				break;
+			default:
+				return ErrorCode::FAIL;
+				break;
+			}
+		}
+
+		i32 idx = 0;
+		for(const auto& vb : desc.vbs_)
+		{
+			if(vb.resource_)
+			{
+				DBG_ASSERT(vb.resource_.GetType() == ResourceType::BUFFER);
+				const auto& buffer = bufferResources_[desc.ib_.resource_.GetIndex()];
+				DBG_ASSERT(
+				    Core::ContainsAllFlags(buffer.supportedStates_, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER));
+				dbs.vbResources_[idx] = buffer;
+
+				dbs.vbs_[idx].BufferLocation = buffer.resource_->GetGPUVirtualAddress() + vb.offset_;
+				dbs.vbs_[idx].SizeInBytes = vb.size_;
+				dbs.vbs_[idx].StrideInBytes = vb.stride_;
+			}
+			++idx;
+		}
 
 		//
-		Core::ScopedMutex lock(resourceMutex_);
 		drawBindingSets_[handle.GetIndex()] = dbs;
-		return ErrorCode::UNIMPLEMENTED;
+		return ErrorCode::OK;
 	}
 
 	ErrorCode D3D12Backend::CreateFrameBindingSet(Handle handle, const FrameBindingSetDesc& desc, const char* debugName)
 	{
+		Core::ScopedMutex lock(resourceMutex_);
+		D3D12FrameBindingSet fbs;
+		memset(&fbs.rtvs_, 0, sizeof(fbs.rtvs_));
+		memset(&fbs.dsv_, 0, sizeof(fbs.dsv_));
+
+		fbs.desc_ = desc;
+		Core::Array<ID3D12Resource*, MAX_BOUND_RTVS> rtvResources;
+		Core::Array<D3D12_RENDER_TARGET_VIEW_DESC, MAX_BOUND_RTVS> rtvDescs;
+		memset(rtvResources.data(), 0, sizeof(rtvResources));
+		memset(rtvDescs.data(), 0, sizeof(rtvDescs));
+
+		ID3D12Resource* dsvResource = nullptr;
+		D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc;
+		memset(&dsvDesc, 0, sizeof(dsvDesc));
+
+		for(i32 i = 0; i < MAX_BOUND_RTVS; ++i)
+		{
+			const auto& rtv = desc.rtvs_[i];
+			Handle resource = rtv.resource_;
+			if(resource)
+			{
+				// No holes allowed.
+				if(i != fbs.numRTs_++)
+					return ErrorCode::FAIL;
+
+				DBG_ASSERT(resource.GetType() == ResourceType::TEXTURE);
+				auto& texture = textureResources_[resource.GetIndex()];
+				DBG_ASSERT(Core::ContainsAllFlags(texture.supportedStates_, D3D12_RESOURCE_STATE_RENDER_TARGET));
+				rtvResources[i] = texture.resource_.Get();
+
+				rtvDescs[i].Format = GetFormat(rtv.format_);
+				rtvDescs[i].ViewDimension = GetRTVDimension(rtv.dimension_);
+				switch(rtv.dimension_)
+				{
+				case ViewDimension::BUFFER:
+					return ErrorCode::UNSUPPORTED;
+					break;
+				case ViewDimension::TEX1D:
+					rtvDescs[i].Texture1D.MipSlice = rtv.mipSlice_;
+					break;
+				case ViewDimension::TEX1D_ARRAY:
+					rtvDescs[i].Texture1DArray.ArraySize = rtv.arraySize_;
+					rtvDescs[i].Texture1DArray.FirstArraySlice = rtv.firstArraySlice_;
+					rtvDescs[i].Texture1DArray.MipSlice = rtv.mipSlice_;
+					break;
+				case ViewDimension::TEX2D:
+					rtvDescs[i].Texture2D.MipSlice = rtv.mipSlice_;
+					rtvDescs[i].Texture2D.PlaneSlice = rtv.planeSlice_FirstWSlice_;
+					break;
+				case ViewDimension::TEX2D_ARRAY:
+					rtvDescs[i].Texture2DArray.MipSlice = rtv.mipSlice_;
+					rtvDescs[i].Texture2DArray.FirstArraySlice = rtv.firstArraySlice_;
+					rtvDescs[i].Texture2DArray.ArraySize = rtv.arraySize_;
+					rtvDescs[i].Texture2DArray.PlaneSlice = rtv.planeSlice_FirstWSlice_;
+					break;
+				case ViewDimension::TEX3D:
+					rtvDescs[i].Texture3D.FirstWSlice = rtv.planeSlice_FirstWSlice_;
+					rtvDescs[i].Texture3D.MipSlice = rtv.mipSlice_;
+					rtvDescs[i].Texture3D.WSize = rtv.wSize_;
+					break;
+				default:
+					DBG_BREAK;
+					return ErrorCode::FAIL;
+					break;
+				}
+			}
+		}
+
+		const auto& dsv = desc.dsv_;
+		Handle resource = dsv.resource_;
+		if(resource)
+		{
+			DBG_ASSERT(resource.GetType() == ResourceType::TEXTURE);
+			auto& texture = textureResources_[resource.GetIndex()];
+			DBG_ASSERT(Core::ContainsAnyFlags(
+			    texture.supportedStates_, D3D12_RESOURCE_STATE_DEPTH_WRITE | D3D12_RESOURCE_STATE_DEPTH_READ));
+			dsvResource = texture.resource_.Get();
+
+			dsvDesc.Format = GetFormat(dsv.format_);
+			dsvDesc.ViewDimension = GetDSVDimension(dsv.dimension_);
+			switch(dsv.dimension_)
+			{
+			case ViewDimension::BUFFER:
+				return ErrorCode::UNSUPPORTED;
+				break;
+			case ViewDimension::TEX1D:
+				dsvDesc.Texture1D.MipSlice = dsv.mipSlice_;
+				break;
+			case ViewDimension::TEX1D_ARRAY:
+				dsvDesc.Texture1DArray.ArraySize = dsv.arraySize_;
+				dsvDesc.Texture1DArray.FirstArraySlice = dsv.firstArraySlice_;
+				dsvDesc.Texture1DArray.MipSlice = dsv.mipSlice_;
+				break;
+			case ViewDimension::TEX2D:
+				dsvDesc.Texture2D.MipSlice = dsv.mipSlice_;
+				break;
+			case ViewDimension::TEX2D_ARRAY:
+				dsvDesc.Texture2DArray.MipSlice = dsv.mipSlice_;
+				dsvDesc.Texture2DArray.FirstArraySlice = dsv.firstArraySlice_;
+				dsvDesc.Texture2DArray.ArraySize = dsv.arraySize_;
+				break;
+			default:
+				DBG_BREAK;
+				return ErrorCode::FAIL;
+				break;
+			}
+		}
+
+		ErrorCode retVal;
+		RETURN_ON_ERROR(retVal = device_->CreateFrameBindingSet(fbs, fbs.desc_, debugName));
+		RETURN_ON_ERROR(
+		    retVal = device_->UpdateFrameBindingSet(fbs, rtvResources.data(), rtvDescs.data(), dsvResource, dsvDesc));
+
 		//
-		return ErrorCode::UNIMPLEMENTED;
+		frameBindingSets_[handle.GetIndex()] = fbs;
+		return ErrorCode::OK;
 	}
 
 	ErrorCode D3D12Backend::CreateCommandList(Handle handle, const char* debugName)
@@ -795,6 +956,10 @@ namespace GPU
 		case ResourceType::DRAW_BINDING_SET:
 			drawBindingSets_[handle.GetIndex()] = D3D12DrawBindingSet();
 			break;
+		case ResourceType::FRAME_BINDING_SET:
+			device_->DestroyFrameBindingSet(frameBindingSets_[handle.GetIndex()]);
+			frameBindingSets_[handle.GetIndex()] = D3D12FrameBindingSet();
+			break;
 		case ResourceType::COMMAND_LIST:
 			delete commandLists_[handle.GetIndex()];
 			commandLists_[handle.GetIndex()] = nullptr;
@@ -809,33 +974,43 @@ namespace GPU
 		DBG_ASSERT(handle.GetIndex() < commandLists_.size());
 
 		// Lock resources during command list compilation.
+		// TODO: Use a rw lock to allow for concurrent compilation.
 		Core::ScopedMutex resourceLock(resourceMutex_);
 
 		D3D12CommandList* outCommandList = commandLists_[handle.GetIndex()];
-		(void)outCommandList;
-
-		for(const auto* command : commandList)
+		if(ID3D12GraphicsCommandList* d3dCommandList = outCommandList->Open())
 		{
-			switch(command->type_)
-			{
-			case CommandType::DRAW:
-			case CommandType::DRAW_INDIRECT:
-			case CommandType::DISPATCH:
-			case CommandType::DISPATCH_INDIRECT:
-			case CommandType::CLEAR_RTV:
-			case CommandType::CLEAR_DSV:
-			case CommandType::CLEAR_UAV:
-			case CommandType::UPDATE_BUFFER:
-			case CommandType::UPDATE_TEXTURE_SUBRESOURCE:
-			case CommandType::COPY_BUFFER:
-			case CommandType::COPY_TEXTURE_SUBRESOURCE:
-				break;
-			default:
-				DBG_BREAK;
-			}
-		}
+#define CASE_COMMAND(TYPE_STRUCT)                                                                                      \
+	case TYPE_STRUCT::TYPE:                                                                                            \
+		RETURN_ON_ERROR(CompileCommand(d3dCommandList, static_cast<const TYPE_STRUCT*>(command)));                     \
+		break
 
-		return ErrorCode::UNIMPLEMENTED;
+			for(const auto* command : commandList)
+			{
+				switch(command->type_)
+				{
+					CASE_COMMAND(CommandDraw);
+					CASE_COMMAND(CommandDrawIndirect);
+					CASE_COMMAND(CommandDispatch);
+					CASE_COMMAND(CommandDispatchIndirect);
+					CASE_COMMAND(CommandClearRTV);
+					CASE_COMMAND(CommandClearDSV);
+					CASE_COMMAND(CommandClearUAV);
+					CASE_COMMAND(CommandUpdateBuffer);
+					CASE_COMMAND(CommandUpdateTextureSubResource);
+					CASE_COMMAND(CommandCopyBuffer);
+					CASE_COMMAND(CommandCopyTextureSubResource);
+					break;
+				default:
+					DBG_BREAK;
+				}
+			}
+
+#undef CASE_COMMAND
+			RETURN_ON_ERROR(outCommandList->Close());
+			return ErrorCode::OK;
+		}
+		return ErrorCode::FAIL;
 	}
 
 	ErrorCode D3D12Backend::SubmitCommandList(Handle handle)
@@ -845,5 +1020,163 @@ namespace GPU
 		return device_->SubmitCommandList(*commandList);
 	}
 
+	ErrorCode D3D12Backend::CompileCommand(D3D12CompileContext& context, const CommandDraw* command)
+	{
+		auto* d3dCommandList = context.d3dCommandList_;
+		const auto& dbs = drawBindingSets_[command->drawBinding_.GetIndex()];
+
+		SetDrawBinding(d3dCommandList, command->drawBinding_, command->primitive_);
+		SetPipelineBinding(d3dCommandList, command->pipelineBinding_);
+		SetFrameBinding(d3dCommandList, command->frameBinding_);
+
+		if(dbs.ib_.BufferLocation == 0)
+		{
+			d3dCommandList->DrawInstanced(
+			    command->noofVertices_, command->noofInstances_, command->vertexOffset_, command->firstInstance_);
+		}
+		else
+		{
+			d3dCommandList->DrawIndexedInstanced(command->noofVertices_, command->noofInstances_, command->indexOffset_,
+			    command->vertexOffset_, command->firstInstance_);
+		}
+		return ErrorCode::OK;
+	}
+
+	ErrorCode D3D12Backend::CompileCommand(D3D12CompileContext& context, const CommandDrawIndirect* command)
+	{
+		return ErrorCode::UNIMPLEMENTED;
+	}
+
+	ErrorCode D3D12Backend::CompileCommand(D3D12CompileContext& context, const CommandDispatch* command)
+	{
+		return ErrorCode::UNIMPLEMENTED;
+	}
+
+	ErrorCode D3D12Backend::CompileCommand(D3D12CompileContext& context, const CommandDispatchIndirect* command)
+	{
+		return ErrorCode::UNIMPLEMENTED;
+	}
+
+	ErrorCode D3D12Backend::CompileCommand(D3D12CompileContext& context, const CommandClearRTV* command)
+	{
+		auto* d3dCommandList = context.d3dCommandList_;
+		const auto& fbs = frameBindingSets_[command->frameBinding_.GetIndex()];
+		DBG_ASSERT(command->rtvIdx_ < fbs.numRTs_);
+
+		D3D12_CPU_DESCRIPTOR_HANDLE handle = fbs.rtvs_.cpuDescHandle_;
+		handle.ptr +=
+		    command->rtvIdx_ * device_->d3dDevice_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+		d3dCommandList->ClearRenderTargetView(handle, command->color_, 0, nullptr);
+
+		return ErrorCode::OK;
+	}
+
+	ErrorCode D3D12Backend::CompileCommand(D3D12CompileContext& context, const CommandClearDSV* command)
+	{
+		auto* d3dCommandList = context.d3dCommandList_;
+		const auto& fbs = frameBindingSets_[command->frameBinding_.GetIndex()];
+		DBG_ASSERT(fbs.desc_.dsv_.resource_);
+
+		D3D12_CPU_DESCRIPTOR_HANDLE handle = fbs.dsv_.cpuDescHandle_;
+		d3dCommandList->ClearDepthStencilView(
+		    handle, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, command->depth_, command->stencil_, 0, nullptr);
+
+		return ErrorCode::OK;
+	}
+
+	ErrorCode D3D12Backend::CompileCommand(D3D12CompileContext& context, const CommandClearUAV* command)
+	{
+		return ErrorCode::UNIMPLEMENTED;
+	}
+
+	ErrorCode D3D12Backend::CompileCommand(D3D12CompileContext& context, const CommandUpdateBuffer* command)
+	{
+		return ErrorCode::UNIMPLEMENTED;
+	}
+
+	ErrorCode D3D12Backend::CompileCommand(D3D12CompileContext& context, const CommandUpdateTextureSubResource* command)
+	{
+		return ErrorCode::UNIMPLEMENTED;
+	}
+
+	ErrorCode D3D12Backend::CompileCommand(D3D12CompileContext& context, const CommandCopyBuffer* command)
+	{
+		return ErrorCode::UNIMPLEMENTED;
+	}
+
+	ErrorCode D3D12Backend::CompileCommand(D3D12CompileContext& context, const CommandCopyTextureSubResource* command)
+	{
+		return ErrorCode::UNIMPLEMENTED;
+	}
+
+	ErrorCode D3D12Backend::SetDrawBinding(D3D12CompileContext& context, Handle dbsHandle, PrimitiveTopology primitive)
+	{
+		auto* d3dCommandList = context.d3dCommandList_;
+		const auto& dbs = drawBindingSets_[dbsHandle.GetIndex()];
+
+		// Setup draw binding.
+		if(dbs.ib_.BufferLocation)
+			d3dCommandList->IASetIndexBuffer(&dbs.ib_);
+		d3dCommandList->IASetVertexBuffers(0, MAX_VERTEX_STREAMS, dbs.vbs_.data());
+		d3dCommandList->IASetPrimitiveTopology(GetPrimitiveTopology(primitive));
+
+		return ErrorCode::OK;
+	}
+
+	ErrorCode D3D12Backend::SetPipelineBinding(D3D12CompileContext& context, Handle pbsHandle)
+	{
+		auto* d3dCommandList = context.d3dCommandList_;
+		const auto& pbs = pipelineBindingSets_[pbsHandle.GetIndex()];
+
+		switch(pbs.rootSignature_)
+		{
+		case RootSignatureType::GRAPHICS:
+			d3dCommandList->SetGraphicsRootDescriptorTable(0, pbs.samplers_.gpuDescHandle_);
+			d3dCommandList->SetGraphicsRootDescriptorTable(1, pbs.srvs_.gpuDescHandle_);
+			d3dCommandList->SetGraphicsRootDescriptorTable(2, pbs.cbvs_.gpuDescHandle_);
+			d3dCommandList->SetGraphicsRootDescriptorTable(3, pbs.uavs_.gpuDescHandle_);
+			break;
+		case RootSignatureType::COMPUTE:
+			d3dCommandList->SetComputeRootDescriptorTable(0, pbs.samplers_.gpuDescHandle_);
+			d3dCommandList->SetComputeRootDescriptorTable(1, pbs.srvs_.gpuDescHandle_);
+			d3dCommandList->SetComputeRootDescriptorTable(2, pbs.cbvs_.gpuDescHandle_);
+			d3dCommandList->SetComputeRootDescriptorTable(3, pbs.uavs_.gpuDescHandle_);
+			break;
+		default:
+			DBG_BREAK;
+			return ErrorCode::FAIL;
+		}
+
+		return ErrorCode::OK;
+	}
+
+	ErrorCode D3D12Backend::SetFrameBinding(D3D12CompileContext& context, Handle fbsHandle)
+	{
+		auto* d3dCommandList = context.d3dCommandList_;
+		const auto& fbs = frameBindingSets_[fbsHandle.GetIndex()];
+
+		const D3D12_CPU_DESCRIPTOR_HANDLE* rtvDesc = nullptr;
+		const D3D12_CPU_DESCRIPTOR_HANDLE* dsvDesc = nullptr;
+		if(fbs.numRTs_)
+		{
+			rtvDesc = &fbs.rtvs_.cpuDescHandle_;
+
+			for(i32 i = 0; i < fbs.numRTs_; ++i)
+			{		
+				context.AddTransition(&fbs.rtvResources_[i], D3D12_RESOURCE_STATE_RENDER_TARGET);
+			}
+		}
+		if(fbs.desc_.dsv_.resource_)
+		{
+			dsvDesc = &fbs.dsv_.cpuDescHandle_;
+
+			context.AddTransition(&fbs.dsvResource_, D3D12_RESOURCE_STATE_DEPTH_READ | D3D12_RESOURCE_STATE_DEPTH_WRITE);
+		}
+
+		context.FlushTransitions();
+
+		d3dCommandList->OMSetRenderTargets(fbs.numRTs_, rtvDesc, TRUE, dsvDesc);
+		return ErrorCode::OK;
+	}
 
 } // namespace GPU

@@ -43,9 +43,10 @@ namespace GPU
 	/**
 	 * Templated command to autoset command type.
 	 */
-	template<CommandType TYPE>
+	template<CommandType TYPE_ARG>
 	struct GPU_DLL CommandTyped : Command
 	{
+		static const CommandType TYPE = TYPE_ARG;
 		CommandTyped() { type_ = TYPE; }
 	};
 
@@ -59,9 +60,11 @@ namespace GPU
 		Handle pipelineBinding_;
 		/// Draw binding to use. Determines if indexed or non-indexed draw.
 		Handle drawBinding_;
+		/// Frame binding for rendering.
+		Handle frameBinding_;
 		/// Primitive type to rasterize.
 		PrimitiveTopology primitive_ = PrimitiveTopology::INVALID;
-		/// Index offset. Ignored for non-instanced draw.
+		/// Index offset. Ignored for non-indexed draw.
 		i32 indexOffset_ = 0;
 		/// Vertex offset to start at.
 		i32 vertexOffset_ = 0;
@@ -83,6 +86,8 @@ namespace GPU
 		Handle pipelineBinding_;
 		/// Draw binding to use. Determines if indexed or non-indexed draw.
 		Handle drawBinding_;
+		/// Frame binding for rendering.
+		Handle frameBinding_;
 		/// Indirect buffer with draw parameters.
 		Handle indirectBuffer_;
 		/// Byte offset in indirect buffer to start reading arguments from.
@@ -178,7 +183,7 @@ namespace GPU
 	/**
 	 * Update texture subresource.
 	 */
-	struct GPU_DLL CommandUpdateTextureSubresource : CommandTyped<CommandType::UPDATE_TEXTURE_SUBRESOURCE>
+	struct GPU_DLL CommandUpdateTextureSubResource : CommandTyped<CommandType::UPDATE_TEXTURE_SUBRESOURCE>
 	{
 		/// Texture to update.
 		Handle texture_;

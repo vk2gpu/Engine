@@ -206,6 +206,43 @@ namespace GPU
 		}
 	}
 
+	D3D12_RTV_DIMENSION GetRTVDimension(ViewDimension dim)
+	{
+		switch(dim)
+		{
+		case ViewDimension::BUFFER:
+			return D3D12_RTV_DIMENSION_BUFFER;
+		case ViewDimension::TEX1D:
+			return D3D12_RTV_DIMENSION_TEXTURE1D;
+		case ViewDimension::TEX1D_ARRAY:
+			return D3D12_RTV_DIMENSION_TEXTURE1DARRAY;
+		case ViewDimension::TEX2D:
+			return D3D12_RTV_DIMENSION_TEXTURE2D;
+		case ViewDimension::TEX2D_ARRAY:
+			return D3D12_RTV_DIMENSION_TEXTURE2DARRAY;
+		case ViewDimension::TEX3D:
+			return D3D12_RTV_DIMENSION_TEXTURE3D;
+		default:
+			return D3D12_RTV_DIMENSION_UNKNOWN;
+		}
+	}
+
+	D3D12_DSV_DIMENSION GetDSVDimension(ViewDimension dim)
+	{
+		switch(dim)
+		{
+		case ViewDimension::TEX1D:
+			return D3D12_DSV_DIMENSION_TEXTURE1D;
+		case ViewDimension::TEX1D_ARRAY:
+			return D3D12_DSV_DIMENSION_TEXTURE1DARRAY;
+		case ViewDimension::TEX2D:
+			return D3D12_DSV_DIMENSION_TEXTURE2D;
+		case ViewDimension::TEX2D_ARRAY:
+			return D3D12_DSV_DIMENSION_TEXTURE2DARRAY;
+		default:
+			return D3D12_DSV_DIMENSION_UNKNOWN;
+		}
+	}
 
 	DXGI_FORMAT GetFormat(Format format)
 	{
@@ -324,6 +361,35 @@ namespace GPU
 #undef FORMAT
 	}
 
+	D3D12_PRIMITIVE_TOPOLOGY GetPrimitiveTopology(PrimitiveTopology topology)
+	{
+		switch(topology)
+		{
+		case PrimitiveTopology::POINT_LIST:
+			return D3D_PRIMITIVE_TOPOLOGY_POINTLIST;
+		case PrimitiveTopology::LINE_LIST:
+			return D3D_PRIMITIVE_TOPOLOGY_LINELIST;
+		case PrimitiveTopology::LINE_STRIP:
+			return D3D_PRIMITIVE_TOPOLOGY_LINESTRIP;
+		case PrimitiveTopology::LINE_LIST_ADJ:
+			return D3D_PRIMITIVE_TOPOLOGY_LINELIST_ADJ;
+		case PrimitiveTopology::LINE_STRIP_ADJ:
+			return D3D_PRIMITIVE_TOPOLOGY_LINESTRIP_ADJ;
+		case PrimitiveTopology::TRIANGLE_LIST:
+			return D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+		case PrimitiveTopology::TRIANGLE_STRIP:
+			return D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP;
+		case PrimitiveTopology::TRIANGLE_LIST_ADJ:
+			return D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST_ADJ;
+		case PrimitiveTopology::TRIANGLE_STRIP_ADJ:
+			return D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP_ADJ;
+		default:
+			DBG_BREAK;
+			return D3D_PRIMITIVE_TOPOLOGY_UNDEFINED;
+		}
+
+	}
+
 	void SetObjectName(ID3D12Object* object, const char* name)
 	{
 #if !defined(FINAL)
@@ -344,6 +410,7 @@ namespace GPU
 			::WaitForSingleObject(event, INFINITE);
 		}
 	}
+
 
 
 } // namespace GPU

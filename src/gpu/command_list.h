@@ -19,7 +19,7 @@ namespace GPU
 		 * @param handleAllocator Used to validate handles passed in.
 		 * @param bufferSize Buffer size to allocate.
 		 */
-		GPU_DLL CommandList(Core::HandleAllocator& handleAllocator, i32 bufferSize = 1024 * 1024);
+		GPU_DLL CommandList(const Core::HandleAllocator& handleAllocator, i32 bufferSize = 1024 * 1024);
 
 		/**
 		 * Allocate from command list.
@@ -47,6 +47,7 @@ namespace GPU
 		 * See @a CommandDraw.
 		 * @pre @a pipelineBinding is valid.
 		 * @pre @a drawBinding is valid.
+		 * @pre @a frameBinding is valid.
 		 * @pre @a primitive is valid.
 		 * @pre @a indexOffset >= 0.
 		 * @pre @a vertexOffset >= 0.
@@ -55,19 +56,21 @@ namespace GPU
 		 * @pre @a noofInstances > 0.
 		 * @return Draw command. nullptr if failure.
 		 */
-		GPU_DLL CommandDraw* Draw(Handle pipelineBinding, Handle drawBinding, PrimitiveTopology primitive,
-		    i32 indexOffset, i32 vertexOffset, i32 noofVertices, i32 firstInstance, i32 noofInstances);
+		GPU_DLL CommandDraw* Draw(Handle pipelineBinding, Handle drawBinding, Handle frameBinding,
+		    PrimitiveTopology primitive, i32 indexOffset, i32 vertexOffset, i32 noofVertices, i32 firstInstance,
+		    i32 noofInstances);
 
 		/**
 		 * See @a CommandDrawIndirect.
 		 * @pre @a pipelineBinding is valid.
 		 * @pre @a drawBinding is valid.
+		 * @pre @a frameBinding is valid.
 		 * @pre @a indirectBuffer is valid.
 		 * @pre @a argByteOffset >= 0.
 		 * @return Dispatch command. nullptr if failure.
 		 */
 		GPU_DLL CommandDrawIndirect* DrawIndirect(
-		    Handle pipelineBinding, Handle drawBinding, Handle indirectBuffer, i32 argByteOffset);
+		    Handle pipelineBinding, Handle drawBinding, Handle frameBinding, Handle indirectBuffer, i32 argByteOffset);
 
 		/**
 		 * See @a CommandDispatch.
@@ -130,13 +133,13 @@ namespace GPU
 		GPU_DLL CommandUpdateBuffer* UpdateBuffer(Handle buffer, i32 offset, i32 size, const void* data);
 
 		/**
-		 * See @a CommandUpdateTextureSubresource.
+		 * See @a CommandUpdateTextureSubResource.
 		 * @pre @a texture is valid.
 		 * @pre @a subResourceIdx >= 0.
 		 * @pre @a data is valid.
 		 * @return Update command. nullptr if failure.
 		 */
-		GPU_DLL CommandUpdateTextureSubresource* UpdateTextureSubresource(
+		GPU_DLL CommandUpdateTextureSubResource* UpdateTextureSubResource(
 		    Handle texture, i32 subResourceIdx, const TextureSubResourceData& data);
 
 		/**
@@ -180,7 +183,7 @@ namespace GPU
 		CommandList(const CommandList&) = delete;
 
 		/// Used to validate handles.
-		Core::HandleAllocator& handleAllocator_;
+		const Core::HandleAllocator& handleAllocator_;
 
 		i32 allocatedBytes_ = 0;
 		Core::Vector<u8> commandData_;

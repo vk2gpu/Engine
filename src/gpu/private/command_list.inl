@@ -17,13 +17,16 @@ namespace GPU
 		return data;
 	}
 
-	INLINE CommandDraw* CommandList::Draw(Handle pipelineBinding, Handle drawBinding, PrimitiveTopology primitive,
+	INLINE CommandDraw* CommandList::Draw(Handle pipelineBinding, Handle drawBinding, 
+		Handle frameBinding, PrimitiveTopology primitive,
 	    i32 indexOffset, i32 vertexOffset, i32 noofVertices, i32 firstInstance, i32 noofInstances)
 	{
 		DBG_ASSERT(handleAllocator_.IsValid(pipelineBinding));
 		DBG_ASSERT(pipelineBinding.GetType() == ResourceType::PIPELINE_BINDING_SET);
 		DBG_ASSERT(handleAllocator_.IsValid(drawBinding));
 		DBG_ASSERT(drawBinding.GetType() == ResourceType::DRAW_BINDING_SET);
+		DBG_ASSERT(handleAllocator_.IsValid(frameBinding));
+		DBG_ASSERT(frameBinding.GetType() == ResourceType::FRAME_BINDING_SET);
 		DBG_ASSERT(primitive != PrimitiveTopology::INVALID);
 		DBG_ASSERT(indexOffset >= 0);
 		DBG_ASSERT(vertexOffset >= 0);
@@ -34,6 +37,7 @@ namespace GPU
 		auto* command = Alloc<CommandDraw>();
 		command->pipelineBinding_ = pipelineBinding;
 		command->drawBinding_ = drawBinding;
+		command->frameBinding_ = frameBinding;
 		command->primitive_ = primitive;
 		command->indexOffset_ = indexOffset;
 		command->vertexOffset_ = vertexOffset;
@@ -45,12 +49,14 @@ namespace GPU
 	}
 
 	INLINE CommandDrawIndirect* CommandList::DrawIndirect(
-	    Handle pipelineBinding, Handle drawBinding, Handle indirectBuffer, i32 argByteOffset)
+	    Handle pipelineBinding, Handle drawBinding, Handle frameBinding, Handle indirectBuffer, i32 argByteOffset)
 	{
 		DBG_ASSERT(handleAllocator_.IsValid(pipelineBinding));
 		DBG_ASSERT(pipelineBinding.GetType() == ResourceType::PIPELINE_BINDING_SET);
 		DBG_ASSERT(handleAllocator_.IsValid(drawBinding));
 		DBG_ASSERT(drawBinding.GetType() == ResourceType::DRAW_BINDING_SET);
+		DBG_ASSERT(handleAllocator_.IsValid(frameBinding));
+		DBG_ASSERT(frameBinding.GetType() == ResourceType::FRAME_BINDING_SET);
 		DBG_ASSERT(handleAllocator_.IsValid(indirectBuffer));
 		DBG_ASSERT(indirectBuffer.GetType() == ResourceType::BUFFER);
 		DBG_ASSERT(argByteOffset >= 0);
@@ -58,6 +64,7 @@ namespace GPU
 		auto* command = Alloc<CommandDrawIndirect>();
 		command->pipelineBinding_ = pipelineBinding;
 		command->drawBinding_ = drawBinding;
+		command->frameBinding_ = frameBinding;
 		command->indirectBuffer_ = indirectBuffer;
 		command->argByteOffset = argByteOffset;
 		commands_.push_back(command);
@@ -179,7 +186,7 @@ namespace GPU
 		return command;
 	}
 
-	INLINE CommandUpdateTextureSubresource* CommandList::UpdateTextureSubresource(
+	INLINE CommandUpdateTextureSubResource* CommandList::UpdateTextureSubResource(
 	    Handle texture, i32 subResourceIdx, const TextureSubResourceData& data)
 	{
 		DBG_ASSERT(handleAllocator_.IsValid(texture));
@@ -189,7 +196,7 @@ namespace GPU
 		DBG_ASSERT(data.rowPitch_ > 0);
 		DBG_ASSERT(data.slicePitch_ > 0);
 
-		auto* command = Alloc<CommandUpdateTextureSubresource>();
+		auto* command = Alloc<CommandUpdateTextureSubResource>();
 		command->texture_ = texture;
 		command->subResourceIdx_ = (i16)subResourceIdx;
 		command->data_ = data;
@@ -235,7 +242,6 @@ namespace GPU
 		DBG_ASSERT(dstPoint.x_ >= 0);
 		DBG_ASSERT(dstPoint.y_ >= 0);
 		DBG_ASSERT(srcTexture != dstTexture || srcSubResourceIdx != dstSubResourceIdx);
-
 
 		auto* command = Alloc<CommandCopyTextureSubResource>();
 		command->srcTexture_ = srcTexture;

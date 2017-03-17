@@ -3,6 +3,7 @@
 #include "gpu/dll.h"
 #include "gpu/backend.h"
 #include "gpu_d3d12/d3d12_command_list.h"
+#include "gpu_d3d12/d3d12_compile_context.h"
 #include "gpu_d3d12/d3d12_resources.h"
 
 #include "core/concurrency.h"
@@ -49,6 +50,23 @@ namespace GPU
 		ErrorCode CompileCommandList(Handle handle, const CommandList& commandList) override;
 		ErrorCode SubmitCommandList(Handle handle) override;
 
+
+		ErrorCode CompileCommand(D3D12CompileContext& context, const CommandDraw* command);
+		ErrorCode CompileCommand(D3D12CompileContext& context, const CommandDrawIndirect* command);
+		ErrorCode CompileCommand(D3D12CompileContext& context, const CommandDispatch* command);
+		ErrorCode CompileCommand(D3D12CompileContext& context, const CommandDispatchIndirect* command);
+		ErrorCode CompileCommand(D3D12CompileContext& context, const CommandClearRTV* command);
+		ErrorCode CompileCommand(D3D12CompileContext& context, const CommandClearDSV* command);
+		ErrorCode CompileCommand(D3D12CompileContext& context, const CommandClearUAV* command);
+		ErrorCode CompileCommand(D3D12CompileContext& context, const CommandUpdateBuffer* command);
+		ErrorCode CompileCommand(D3D12CompileContext& context, const CommandUpdateTextureSubResource* command);
+		ErrorCode CompileCommand(D3D12CompileContext& context, const CommandCopyBuffer* command);
+		ErrorCode CompileCommand(D3D12CompileContext& context, const CommandCopyTextureSubResource* command);
+
+		ErrorCode SetDrawBinding(D3D12CompileContext& context, Handle dbsHandle, PrimitiveTopology primitive);
+		ErrorCode SetPipelineBinding(D3D12CompileContext& context, Handle pbsHandle);
+		ErrorCode SetFrameBinding(D3D12CompileContext& context, Handle fbsHandle);
+
 	private:
 		ComPtr<IDXGIDebug> dxgiDebug_;
 		ComPtr<ID3D12Debug> d3dDebug_;
@@ -73,6 +91,7 @@ namespace GPU
 		ResourceVector<D3D12ComputePipelineState> computePipelineStates_;
 		ResourceVector<D3D12PipelineBindingSet> pipelineBindingSets_;
 		ResourceVector<D3D12DrawBindingSet> drawBindingSets_;
+		ResourceVector<D3D12FrameBindingSet> frameBindingSets_;
 		ResourceVector<D3D12CommandList*> commandLists_;
 	};
 

@@ -420,7 +420,7 @@ TEST_CASE("gpu-tests-create-pipeline-binding-set")
 		GPU::PipelineBindingSetDesc pipelineBindingSetDesc;
 		pipelineBindingSetDesc.pipelineState_ = pipelineHandle;
 		GPU::Handle pipelineBindingSetHandle =
-			manager.CreatePipelineBindingSet(pipelineBindingSetDesc, "gpu-tests-create-pipeline-binding-set-no-views");
+		    manager.CreatePipelineBindingSet(pipelineBindingSetDesc, "gpu-tests-create-pipeline-binding-set-no-views");
 
 		manager.DestroyResource(pipelineBindingSetHandle);
 	}
@@ -435,7 +435,7 @@ TEST_CASE("gpu-tests-create-pipeline-binding-set")
 		pipelineBindingSetDesc.srvs_[0].dimension_ = GPU::ViewDimension::TEX2D;
 		pipelineBindingSetDesc.srvs_[0].mipLevels_NumElements_ = -1;
 		GPU::Handle pipelineBindingSetHandle =
-			manager.CreatePipelineBindingSet(pipelineBindingSetDesc, "gpu-tests-create-pipeline-binding-set-srv");
+		    manager.CreatePipelineBindingSet(pipelineBindingSetDesc, "gpu-tests-create-pipeline-binding-set-srv");
 
 		manager.DestroyResource(pipelineBindingSetHandle);
 	}
@@ -449,7 +449,7 @@ TEST_CASE("gpu-tests-create-pipeline-binding-set")
 		pipelineBindingSetDesc.cbvs_[0].offset_ = 0;
 		pipelineBindingSetDesc.cbvs_[0].size_ = 4096;
 		GPU::Handle pipelineBindingSetHandle =
-			manager.CreatePipelineBindingSet(pipelineBindingSetDesc, "gpu-tests-create-pipeline-binding-set-cbv");
+		    manager.CreatePipelineBindingSet(pipelineBindingSetDesc, "gpu-tests-create-pipeline-binding-set-cbv");
 
 		manager.DestroyResource(pipelineBindingSetHandle);
 	}
@@ -463,7 +463,7 @@ TEST_CASE("gpu-tests-create-pipeline-binding-set")
 		pipelineBindingSetDesc.uavs_[0].format_ = GPU::Format::R8G8B8A8_UNORM;
 		pipelineBindingSetDesc.uavs_[0].dimension_ = GPU::ViewDimension::TEX2D;
 		GPU::Handle pipelineBindingSetHandle =
-			manager.CreatePipelineBindingSet(pipelineBindingSetDesc, "gpu-tests-create-pipeline-binding-set-uav");
+		    manager.CreatePipelineBindingSet(pipelineBindingSetDesc, "gpu-tests-create-pipeline-binding-set-uav");
 
 		manager.DestroyResource(pipelineBindingSetHandle);
 	}
@@ -510,4 +510,135 @@ TEST_CASE("gpu-tests-create-graphics-pipeline-state")
 
 	manager.DestroyResource(pipelineHandle);
 	manager.DestroyResource(shaderHandle);
+}
+
+TEST_CASE("gpu-tests-create-draw-binding-set")
+{
+	Client::Window window("gpu_tests", 0, 0, 640, 480, false);
+	GPU::Manager manager(window.GetPlatformData().handle_);
+
+	i32 numAdapters = manager.EnumerateAdapters(nullptr, 0);
+	REQUIRE(numAdapters > 0);
+
+	REQUIRE(manager.Initialize(0) == GPU::ErrorCode::OK);
+
+	float vertices[] = {
+	    0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f,
+	};
+
+	GPU::BufferDesc vbDesc;
+	vbDesc.bindFlags_ = GPU::BindFlags::VERTEX_BUFFER;
+	vbDesc.size_ = sizeof(vertices);
+	vbDesc.stride_ = 0;
+	GPU::Handle vbHandle = manager.CreateBuffer(vbDesc, vertices, "gpu-tests-create-draw-binding-set");
+	REQUIRE(vbHandle);
+
+	GPU::DrawBindingSetDesc dbsDesc;
+	dbsDesc.vbs_[0].resource_ = vbHandle;
+	dbsDesc.vbs_[0].offset_ = 0;
+	dbsDesc.vbs_[0].size_ = (i32)vbDesc.size_;
+
+	GPU::Handle dbsHandle = manager.CreateDrawBindingSet(dbsDesc, "gpu-tests-create-draw-binding-set");
+	REQUIRE(dbsHandle);
+
+	manager.DestroyResource(dbsHandle);
+	manager.DestroyResource(vbHandle);
+}
+
+TEST_CASE("gpu-tests-create-frame-binding-set")
+{
+	Client::Window window("gpu_tests", 0, 0, 640, 480, false);
+	GPU::Manager manager(window.GetPlatformData().handle_);
+
+	i32 numAdapters = manager.EnumerateAdapters(nullptr, 0);
+	REQUIRE(numAdapters > 0);
+
+	REQUIRE(manager.Initialize(0) == GPU::ErrorCode::OK);
+
+	GPU::TextureDesc rtDesc;
+	rtDesc.type_ = GPU::TextureType::TEX2D;
+	rtDesc.bindFlags_ = GPU::BindFlags::RENDER_TARGET | GPU::BindFlags::SHADER_RESOURCE;
+	rtDesc.width_ = 128;
+	rtDesc.height_ = 128;
+	rtDesc.format_ = GPU::Format::R8G8B8A8_UNORM;
+	GPU::Handle rtHandle = manager.CreateTexture(rtDesc, nullptr, "gpu-tests-create-frame-binding-set");
+	REQUIRE(rtHandle);
+
+	GPU::TextureDesc dsDesc;
+	dsDesc.type_ = GPU::TextureType::TEX2D;
+	dsDesc.bindFlags_ = GPU::BindFlags::DEPTH_STENCIL;
+	dsDesc.width_ = 128;
+	dsDesc.height_ = 128;
+	dsDesc.format_ = GPU::Format::D24_UNORM_S8_UINT;
+	GPU::Handle dsHandle = manager.CreateTexture(dsDesc, nullptr, "gpu-tests-create-frame-binding-set");
+	REQUIRE(dsHandle);
+
+	GPU::FrameBindingSetDesc fbDesc;
+	fbDesc.rtvs_[0].resource_ = rtHandle;
+	fbDesc.rtvs_[0].format_ = rtDesc.format_;
+	fbDesc.rtvs_[0].dimension_ = GPU::ViewDimension::TEX2D;
+	fbDesc.dsv_.resource_ = dsHandle;
+	fbDesc.dsv_.format_ = dsDesc.format_;
+	fbDesc.dsv_.dimension_ = GPU::ViewDimension::TEX2D;
+
+	GPU::Handle fbsHandle = manager.CreateFrameBindingSet(fbDesc, "gpu-tests-create-frame-binding-set");
+	REQUIRE(fbsHandle);
+
+	manager.DestroyResource(fbsHandle);
+	manager.DestroyResource(dsHandle);
+	manager.DestroyResource(rtHandle);
+}
+
+TEST_CASE("gpu-tests-clears")
+{
+	Client::Window window("gpu_tests", 0, 0, 640, 480, false);
+	GPU::Manager manager(window.GetPlatformData().handle_);
+
+	i32 numAdapters = manager.EnumerateAdapters(nullptr, 0);
+	REQUIRE(numAdapters > 0);
+
+	REQUIRE(manager.Initialize(0) == GPU::ErrorCode::OK);
+
+	GPU::TextureDesc rtDesc;
+	rtDesc.type_ = GPU::TextureType::TEX2D;
+	rtDesc.bindFlags_ = GPU::BindFlags::RENDER_TARGET | GPU::BindFlags::SHADER_RESOURCE;
+	rtDesc.width_ = 128;
+	rtDesc.height_ = 128;
+	rtDesc.format_ = GPU::Format::R8G8B8A8_UNORM;
+	GPU::Handle rtHandle = manager.CreateTexture(rtDesc, nullptr, "gpu-tests-compile-clears");
+	REQUIRE(rtHandle);
+
+	GPU::TextureDesc dsDesc;
+	dsDesc.type_ = GPU::TextureType::TEX2D;
+	dsDesc.bindFlags_ = GPU::BindFlags::DEPTH_STENCIL;
+	dsDesc.width_ = 128;
+	dsDesc.height_ = 128;
+	dsDesc.format_ = GPU::Format::D24_UNORM_S8_UINT;
+	GPU::Handle dsHandle = manager.CreateTexture(dsDesc, nullptr, "gpu-tests-compile-clears");
+	REQUIRE(dsHandle);
+
+	GPU::FrameBindingSetDesc fbDesc;
+	fbDesc.rtvs_[0].resource_ = rtHandle;
+	fbDesc.rtvs_[0].format_ = rtDesc.format_;
+	fbDesc.rtvs_[0].dimension_ = GPU::ViewDimension::TEX2D;
+	fbDesc.dsv_.resource_ = dsHandle;
+	fbDesc.dsv_.format_ = dsDesc.format_;
+	fbDesc.dsv_.dimension_ = GPU::ViewDimension::TEX2D;
+
+	GPU::Handle fbsHandle = manager.CreateFrameBindingSet(fbDesc, "gpu-tests-compile-clears");
+	REQUIRE(fbsHandle);
+
+
+	GPU::Handle cmdHandle = manager.CreateCommandList("gpu-tests-compile-clears");
+	GPU::CommandList cmdList(manager.GetHandleAllocator());
+
+	f32 color[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+	REQUIRE(cmdList.ClearRTV(fbsHandle, 0, color));
+	REQUIRE(cmdList.ClearDSV(fbsHandle, 0.0f, 0));
+	REQUIRE(manager.CompileCommandList(cmdHandle, cmdList));
+	REQUIRE(manager.SubmitCommandList(cmdHandle));
+
+	manager.DestroyResource(fbsHandle);
+	manager.DestroyResource(dsHandle);
+	manager.DestroyResource(rtHandle);
 }

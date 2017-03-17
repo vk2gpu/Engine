@@ -153,10 +153,10 @@ namespace GPU
 			parameters[base + 2].ShaderVisibility = visibility;
 		};
 
-		// VS
+		// GRAPHICS
 		{
 			// Setup sampler, srv, and cbv for all stages.
-			SetupParams(0, D3D12_SHADER_VISIBILITY_VERTEX);
+			SetupParams(0, D3D12_SHADER_VISIBILITY_ALL);
 
 			// Now shared UAV for all.
 			parameters[3].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
@@ -169,66 +169,11 @@ namespace GPU
 			rootSignatureDesc.NumStaticSamplers = 0;
 			rootSignatureDesc.pParameters = parameters;
 			rootSignatureDesc.pStaticSamplers = nullptr;
-			rootSignatureDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
-			                          D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
-			                          D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS |
-			                          D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS |
-			                          D3D12_ROOT_SIGNATURE_FLAG_DENY_PIXEL_SHADER_ROOT_ACCESS;
-
-			CreateRootSignature(rootSignatureDesc, RootSignatureType::VS);
-		}
-
-		// VS_PS
-		{
-			// Setup sampler, srv, and cbv for all stages.
-			SetupParams(0, D3D12_SHADER_VISIBILITY_VERTEX);
-			SetupParams(3, D3D12_SHADER_VISIBILITY_PIXEL);
-
-			// Now shared UAV for all.
-			parameters[6].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-			parameters[6].DescriptorTable.NumDescriptorRanges = 1;
-			parameters[6].DescriptorTable.pDescriptorRanges = &descriptorRanges[3];
-			parameters[6].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
-
-			D3D12_ROOT_SIGNATURE_DESC rootSignatureDesc;
-			rootSignatureDesc.NumParameters = 7;
-			rootSignatureDesc.NumStaticSamplers = 0;
-			rootSignatureDesc.pParameters = parameters;
-			rootSignatureDesc.pStaticSamplers = nullptr;
-			rootSignatureDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
-			                          D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
-			                          D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS |
-			                          D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS;
-
-			CreateRootSignature(rootSignatureDesc, RootSignatureType::VS_PS);
-		}
-
-		// VS_GS_HS_DS_PS
-		{
-			// Setup sampler, srv, and cbv for all stages.
-			SetupParams(0, D3D12_SHADER_VISIBILITY_VERTEX);
-			SetupParams(3, D3D12_SHADER_VISIBILITY_GEOMETRY);
-			SetupParams(6, D3D12_SHADER_VISIBILITY_HULL);
-			SetupParams(9, D3D12_SHADER_VISIBILITY_DOMAIN);
-			SetupParams(12, D3D12_SHADER_VISIBILITY_PIXEL);
-
-			// Now shared UAV for all.
-			parameters[15].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-			parameters[15].DescriptorTable.NumDescriptorRanges = 1;
-			parameters[15].DescriptorTable.pDescriptorRanges = &descriptorRanges[3];
-			parameters[15].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
-
-			D3D12_ROOT_SIGNATURE_DESC rootSignatureDesc;
-			rootSignatureDesc.NumParameters = 16;
-			rootSignatureDesc.NumStaticSamplers = 0;
-			rootSignatureDesc.pParameters = parameters;
-			rootSignatureDesc.pStaticSamplers = nullptr;
 			rootSignatureDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
-
-			CreateRootSignature(rootSignatureDesc, RootSignatureType::VS_GS_HS_DS_PS);
+			CreateRootSignature(rootSignatureDesc, RootSignatureType::GRAPHICS);
 		}
 
-		// CS
+		// COMPUTE
 		{
 			// Setup sampler, srv, and cbv for all stages.
 			SetupParams(0, D3D12_SHADER_VISIBILITY_ALL);
@@ -250,7 +195,7 @@ namespace GPU
 			                          D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS |
 			                          D3D12_ROOT_SIGNATURE_FLAG_DENY_PIXEL_SHADER_ROOT_ACCESS;
 
-			CreateRootSignature(rootSignatureDesc, RootSignatureType::CS);
+			CreateRootSignature(rootSignatureDesc, RootSignatureType::COMPUTE);
 		}
 	}
 
@@ -296,10 +241,8 @@ namespace GPU
 			d3dDefaultPSOs_.push_back(pipelineState);
 		};
 
-		CreateGraphicsPSO(RootSignatureType::VS);
-		CreateGraphicsPSO(RootSignatureType::VS_PS);
-		CreateGraphicsPSO(RootSignatureType::VS_GS_HS_DS_PS);
-		CreateComputePSO(RootSignatureType::CS);
+		CreateGraphicsPSO(RootSignatureType::GRAPHICS);
+		CreateComputePSO(RootSignatureType::COMPUTE);
 	}
 
 	void D3D12Device::CreateUploadAllocators()
@@ -314,18 +257,22 @@ namespace GPU
 
 	void D3D12Device::CreateDescriptorHeapAllocators()
 	{
-		cbvAllocator_ = new D3D12DescriptorHeapAllocator(
-		    d3dDevice_.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE, D3D12_MAX_SHADER_VISIBLE_DESCRIPTOR_HEAP_SIZE_TIER_1, "CBV Descriptor Heap");
-		srvAllocator_ = new D3D12DescriptorHeapAllocator(
-		    d3dDevice_.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE, D3D12_MAX_SHADER_VISIBLE_DESCRIPTOR_HEAP_SIZE_TIER_1, "SRV Descriptor Heap");
-		uavAllocator_ = new D3D12DescriptorHeapAllocator(
-		    d3dDevice_.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE, D3D12_MAX_SHADER_VISIBLE_DESCRIPTOR_HEAP_SIZE_TIER_1, "UAV Descriptor Heap");
-		samplerAllocator_ = new D3D12DescriptorHeapAllocator(
-		    d3dDevice_.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE, D3D12_MAX_SHADER_VISIBLE_SAMPLER_HEAP_SIZE, "Sampler Descriptor Heap");
-		rtvAllocator_ = new D3D12DescriptorHeapAllocator(
-		    d3dDevice_.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_RTV, D3D12_DESCRIPTOR_HEAP_FLAG_NONE, 1024, "RTV Descriptor Heap");
-		dsvAllocator_ = new D3D12DescriptorHeapAllocator(
-		    d3dDevice_.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_DSV, D3D12_DESCRIPTOR_HEAP_FLAG_NONE, 1024, "DSV Descriptor Heap");
+		cbvAllocator_ = new D3D12DescriptorHeapAllocator(d3dDevice_.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
+		    D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE, D3D12_MAX_SHADER_VISIBLE_DESCRIPTOR_HEAP_SIZE_TIER_1,
+		    "CBV Descriptor Heap");
+		srvAllocator_ = new D3D12DescriptorHeapAllocator(d3dDevice_.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
+		    D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE, D3D12_MAX_SHADER_VISIBLE_DESCRIPTOR_HEAP_SIZE_TIER_1,
+		    "SRV Descriptor Heap");
+		uavAllocator_ = new D3D12DescriptorHeapAllocator(d3dDevice_.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
+		    D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE, D3D12_MAX_SHADER_VISIBLE_DESCRIPTOR_HEAP_SIZE_TIER_1,
+		    "UAV Descriptor Heap");
+		samplerAllocator_ = new D3D12DescriptorHeapAllocator(d3dDevice_.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER,
+		    D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE, D3D12_MAX_SHADER_VISIBLE_SAMPLER_HEAP_SIZE,
+		    "Sampler Descriptor Heap");
+		rtvAllocator_ = new D3D12DescriptorHeapAllocator(d3dDevice_.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_RTV,
+		    D3D12_DESCRIPTOR_HEAP_FLAG_NONE, 1024, "RTV Descriptor Heap");
+		dsvAllocator_ = new D3D12DescriptorHeapAllocator(d3dDevice_.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_DSV,
+		    D3D12_DESCRIPTOR_HEAP_FLAG_NONE, 1024, "DSV Descriptor Heap");
 	}
 
 	void D3D12Device::NextFrame()
@@ -618,23 +565,7 @@ namespace GPU
 	ErrorCode D3D12Device::CreateGraphicsPipelineState(
 	    D3D12GraphicsPipelineState& outGps, D3D12_GRAPHICS_PIPELINE_STATE_DESC desc, const char* debugName)
 	{
-		if(desc.VS.pShaderBytecode && desc.GS.pShaderBytecode && desc.HS.pShaderBytecode && desc.DS.pShaderBytecode &&
-		    desc.PS.pShaderBytecode)
-		{
-			desc.pRootSignature = d3dRootSignatures_[(i32)RootSignatureType::VS].Get();
-		}
-		else if(desc.VS.pShaderBytecode && desc.PS.pShaderBytecode)
-		{
-			desc.pRootSignature = d3dRootSignatures_[(i32)RootSignatureType::VS_PS].Get();
-		}
-		else if(desc.VS.pShaderBytecode)
-		{
-			desc.pRootSignature = d3dRootSignatures_[(i32)RootSignatureType::VS_GS_HS_DS_PS].Get();
-		}
-		else
-		{
-			return ErrorCode::FAIL;
-		}
+		desc.pRootSignature = d3dRootSignatures_[(i32)RootSignatureType::GRAPHICS].Get();
 
 		HRESULT hr = S_OK;
 		CHECK_D3D(hr = d3dDevice_->CreateGraphicsPipelineState(
@@ -648,7 +579,7 @@ namespace GPU
 	ErrorCode D3D12Device::CreateComputePipelineState(
 	    D3D12ComputePipelineState& outCps, D3D12_COMPUTE_PIPELINE_STATE_DESC desc, const char* debugName)
 	{
-		desc.pRootSignature = d3dRootSignatures_[(i32)RootSignatureType::CS].Get();
+		desc.pRootSignature = d3dRootSignatures_[(i32)RootSignatureType::COMPUTE].Get();
 
 		HRESULT hr = S_OK;
 		CHECK_D3D(hr = d3dDevice_->CreateComputePipelineState(
@@ -659,8 +590,8 @@ namespace GPU
 		return ErrorCode::OK;
 	}
 
-	ErrorCode D3D12Device::CreatePipelineBindingSet(D3D12PipelineBindingSet& outPipelineBindingSet,
-	    const PipelineBindingSetDesc& desc, const char* debugName)
+	ErrorCode D3D12Device::CreatePipelineBindingSet(
+	    D3D12PipelineBindingSet& outPipelineBindingSet, const PipelineBindingSetDesc& desc, const char* debugName)
 	{
 		outPipelineBindingSet.srvs_ = srvAllocator_->Alloc(desc.numSRVs_);
 		outPipelineBindingSet.uavs_ = uavAllocator_->Alloc(desc.numUAVs_);
@@ -678,8 +609,22 @@ namespace GPU
 		samplerAllocator_->Free(pipelineBindingSet.samplers_);
 	}
 
-	ErrorCode D3D12Device::UpdateSRVs(
-		D3D12PipelineBindingSet& pipelineBindingSet, i32 first, i32 num, ID3D12Resource** resources, D3D12_SHADER_RESOURCE_VIEW_DESC* descs)
+	ErrorCode D3D12Device::CreateFrameBindingSet(
+	    D3D12FrameBindingSet& outFrameBindingSet, const FrameBindingSetDesc& desc, const char* debugName)
+	{
+		outFrameBindingSet.rtvs_ = rtvAllocator_->Alloc(outFrameBindingSet.numRTs_);
+		outFrameBindingSet.dsv_ = dsvAllocator_->Alloc(1);
+		return ErrorCode::OK;
+	}
+
+	void D3D12Device::DestroyFrameBindingSet(D3D12FrameBindingSet& frameBindingSet)
+	{
+		rtvAllocator_->Free(frameBindingSet.rtvs_);
+		dsvAllocator_->Free(frameBindingSet.dsv_);
+	}
+
+	ErrorCode D3D12Device::UpdateSRVs(D3D12PipelineBindingSet& pipelineBindingSet, i32 first, i32 num,
+	    ID3D12Resource** resources, const D3D12_SHADER_RESOURCE_VIEW_DESC* descs)
 	{
 		ID3D12DescriptorHeap* descHeap = pipelineBindingSet.srvs_.d3dDescriptorHeap_.Get();
 		i32 incr = d3dDevice_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
@@ -693,8 +638,8 @@ namespace GPU
 		return ErrorCode::OK;
 	}
 
-	ErrorCode D3D12Device::UpdateUAVs(
-		D3D12PipelineBindingSet& pipelineBindingSet, i32 first, i32 num, ID3D12Resource** resources, D3D12_UNORDERED_ACCESS_VIEW_DESC* descs)
+	ErrorCode D3D12Device::UpdateUAVs(D3D12PipelineBindingSet& pipelineBindingSet, i32 first, i32 num,
+	    ID3D12Resource** resources, const D3D12_UNORDERED_ACCESS_VIEW_DESC* descs)
 	{
 		ID3D12DescriptorHeap* descHeap = pipelineBindingSet.srvs_.d3dDescriptorHeap_.Get();
 		i32 incr = d3dDevice_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
@@ -709,7 +654,7 @@ namespace GPU
 	}
 
 	ErrorCode D3D12Device::UpdateCBVs(
-		D3D12PipelineBindingSet& pipelineBindingSet, i32 first, i32 num, D3D12_CONSTANT_BUFFER_VIEW_DESC* descs)
+	    D3D12PipelineBindingSet& pipelineBindingSet, i32 first, i32 num, const D3D12_CONSTANT_BUFFER_VIEW_DESC* descs)
 	{
 		ID3D12DescriptorHeap* descHeap = pipelineBindingSet.srvs_.d3dDescriptorHeap_.Get();
 		i32 incr = d3dDevice_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
@@ -724,7 +669,7 @@ namespace GPU
 	}
 
 	ErrorCode D3D12Device::UpdateSamplers(
-		D3D12PipelineBindingSet& pipelineBindingSet, i32 first, i32 num, D3D12_SAMPLER_DESC* descs)
+	    D3D12PipelineBindingSet& pipelineBindingSet, i32 first, i32 num, const D3D12_SAMPLER_DESC* descs)
 	{
 		ID3D12DescriptorHeap* descHeap = pipelineBindingSet.srvs_.d3dDescriptorHeap_.Get();
 		i32 incr = d3dDevice_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
@@ -737,7 +682,30 @@ namespace GPU
 		}
 		return ErrorCode::OK;
 	}
-	
+
+	ErrorCode D3D12Device::UpdateFrameBindingSet(D3D12FrameBindingSet& frameBindingSet, ID3D12Resource** rtvResources,
+	    const D3D12_RENDER_TARGET_VIEW_DESC* rtvDescs, ID3D12Resource* dsvResource,
+	    const D3D12_DEPTH_STENCIL_VIEW_DESC& dsvDesc)
+	{
+		i32 rtvIncr = d3dDevice_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+		D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = frameBindingSet.rtvs_.cpuDescHandle_;
+		for(i32 i = 0; i < MAX_BOUND_RTVS; ++i)
+		{
+			if(rtvResources[i])
+			{
+				d3dDevice_->CreateRenderTargetView(rtvResources[i], &rtvDescs[i], rtvHandle);
+			}
+			rtvHandle.ptr += rtvIncr;
+		}
+
+		D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = frameBindingSet.dsv_.cpuDescHandle_;
+		if(dsvResource)
+		{
+			d3dDevice_->CreateDepthStencilView(dsvResource, &dsvDesc, dsvHandle);
+		}
+		return ErrorCode::OK;
+	}
+
 	ErrorCode D3D12Device::SubmitCommandList(D3D12CommandList& commandList)
 	{
 		d3dDirectQueue_->Wait(d3dUploadFence_.Get(), uploadFenceIdx_);

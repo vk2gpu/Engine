@@ -2,6 +2,7 @@
 
 #include "gpu_d3d12/d3d12_types.h"
 #include "gpu_d3d12/d3d12_descriptor_heap_allocator.h"
+#include "gpu/resources.h"
 #include "core/array.h"
 #include "core/misc.h"
 #include "core/vector.h"
@@ -18,7 +19,7 @@ namespace GPU
 	class ResourceVector
 	{
 	public:
-		static const i32 RESIZE_ROUND_UP = 32; 
+		static const i32 RESIZE_ROUND_UP = 32;
 		ResourceVector() = default;
 		~ResourceVector() = default;
 
@@ -122,8 +123,19 @@ namespace GPU
 	struct D3D12DrawBindingSet
 	{
 		DrawBindingSetDesc desc_;
-		Core::Array<D3D12Resource, MAX_VERTEX_STREAMS> vbs_;
-		D3D12Resource ib_;
+		Core::Array<D3D12Resource, MAX_VERTEX_STREAMS> vbResources_;
+		D3D12Resource ibResource_;
+		Core::Array<D3D12_VERTEX_BUFFER_VIEW, MAX_VERTEX_STREAMS> vbs_;
+		D3D12_INDEX_BUFFER_VIEW ib_;
 	};
 
+	struct D3D12FrameBindingSet
+	{
+		FrameBindingSetDesc desc_;
+		Core::Array<D3D12Resource, MAX_BOUND_RTVS> rtvResources_;
+		D3D12Resource dsvResource_;
+		D3D12DescriptorAllocation rtvs_;
+		D3D12DescriptorAllocation dsv_;
+		i32 numRTs_ = 0;
+	};
 }

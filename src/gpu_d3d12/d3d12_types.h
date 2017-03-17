@@ -38,10 +38,8 @@ namespace GPU
 	enum class RootSignatureType
 	{
 		INVALID = -1,
-		VS,
-		VS_PS,
-		VS_GS_HS_DS_PS,
-		CS,
+		GRAPHICS,
+		COMPUTE,
 		MAX
 	};
 
@@ -55,7 +53,10 @@ namespace GPU
 	D3D12_RESOURCE_DIMENSION GetResourceDimension(TextureType type);
 	D3D12_SRV_DIMENSION GetSRVDimension(ViewDimension dim);
 	D3D12_UAV_DIMENSION GetUAVDimension(ViewDimension dim);
+	D3D12_RTV_DIMENSION GetRTVDimension(ViewDimension dim);
+	D3D12_DSV_DIMENSION GetDSVDimension(ViewDimension dim);
 	DXGI_FORMAT GetFormat(Format format);
+	D3D12_PRIMITIVE_TOPOLOGY GetPrimitiveTopology(PrimitiveTopology topology);
 
 	/**
 	 * Utility.

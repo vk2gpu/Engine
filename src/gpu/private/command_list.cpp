@@ -6,7 +6,7 @@
 
 namespace GPU
 {
-	CommandList::CommandList(Core::HandleAllocator& handleAllocator, i32 bufferSize)
+	CommandList::CommandList(const Core::HandleAllocator& handleAllocator, i32 bufferSize)
 	    : handleAllocator_(handleAllocator)
 	{
 		commandData_.resize(bufferSize);

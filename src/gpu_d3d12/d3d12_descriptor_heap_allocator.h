@@ -12,6 +12,10 @@ namespace GPU
 		ComPtr<ID3D12DescriptorHeap> d3dDescriptorHeap_;
 		/// Offset in descriptor heap.
 		i32 offset_ = 0;
+		/// CPU descriptor handle.
+		D3D12_CPU_DESCRIPTOR_HANDLE cpuDescHandle_ = D3D12_CPU_DESCRIPTOR_HANDLE();
+		/// GPU descriptor handle.
+		D3D12_GPU_DESCRIPTOR_HANDLE gpuDescHandle_ = D3D12_GPU_DESCRIPTOR_HANDLE();
 		/// Block index.
 		i32 blockIdx_ = 0;
 	};
@@ -58,6 +62,8 @@ namespace GPU
 		D3D12_DESCRIPTOR_HEAP_FLAGS heapFlags_ = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
 		/// Minimum resource block size.
 		i32 blockSize_ = 0;
+		/// Increment size for handles.
+		i32 handleIncrementSize_ = 0;
 		/// Debug name.
 		const char* debugName_ = nullptr;
 		/// Mutex to allow multiple threads to allocate at the same time.
