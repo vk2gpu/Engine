@@ -43,6 +43,17 @@ namespace GPU
 		MAX
 	};
 
+	enum class DescriptorHeapSubType : i32
+	{
+		INVALID = -1,
+		CBV = 0,
+		SRV,
+		UAV,
+		SAMPLER,
+		RTV,
+		DSV,
+	};
+
 
 	/**
 	 * Conversion.

@@ -387,7 +387,6 @@ namespace GPU
 			DBG_BREAK;
 			return D3D_PRIMITIVE_TOPOLOGY_UNDEFINED;
 		}
-
 	}
 
 	void SetObjectName(ID3D12Object* object, const char* name)
@@ -410,7 +409,6 @@ namespace GPU
 			::WaitForSingleObject(event, INFINITE);
 		}
 	}
-
 
 
 } // namespace GPU

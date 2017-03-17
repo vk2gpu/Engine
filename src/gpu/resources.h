@@ -70,7 +70,6 @@ namespace GPU
 	{
 		BindFlags bindFlags_ = BindFlags::NONE;
 		i64 size_ = 0;
-		i64 stride_ = 0;
 	};
 
 	/**
@@ -268,7 +267,6 @@ namespace GPU
 	{
 		// Blend state.
 		BlendState blendStates_[MAX_BOUND_RTVS];
-		i32 numRenderTargets_ = 0;
 
 		// Depth stencil.
 		StencilFaceState stencilFront_;
@@ -300,7 +298,8 @@ namespace GPU
 		VertexElement vertexElements_[MAX_VERTEX_ELEMENTS];
 		TopologyType topology_ = TopologyType::INVALID;
 		i32 numRTs_ = 0;
-		Format rtvFormats_[MAX_BOUND_RTVS] = {Format::INVALID};
+		Format rtvFormats_[MAX_BOUND_RTVS] = {Format::INVALID, Format::INVALID, Format::INVALID, Format::INVALID,
+		    Format::INVALID, Format::INVALID, Format::INVALID, Format::INVALID};
 		Format dsvFormat_ = Format::INVALID;
 	};
 

@@ -17,9 +17,9 @@ namespace GPU
 		return data;
 	}
 
-	INLINE CommandDraw* CommandList::Draw(Handle pipelineBinding, Handle drawBinding, 
-		Handle frameBinding, PrimitiveTopology primitive,
-	    i32 indexOffset, i32 vertexOffset, i32 noofVertices, i32 firstInstance, i32 noofInstances)
+	INLINE CommandDraw* CommandList::Draw(Handle pipelineBinding, Handle drawBinding, Handle frameBinding,
+	    PrimitiveTopology primitive, i32 indexOffset, i32 vertexOffset, i32 noofVertices, i32 firstInstance,
+	    i32 noofInstances)
 	{
 		DBG_ASSERT(handleAllocator_.IsValid(pipelineBinding));
 		DBG_ASSERT(pipelineBinding.GetType() == ResourceType::PIPELINE_BINDING_SET);

@@ -4,8 +4,11 @@ namespace GPU
 {
 	void D3D12CompileContext::AddTransition(const D3D12Resource* resource, D3D12_RESOURCE_STATES state)
 	{
-		auto stateEntry = stateTracker_.find(resource); 
-		if(stateEntry == nullptr)
+		DBG_ASSERT(resource);
+		DBG_ASSERT(resource->resource_);
+
+		auto stateEntry = stateTracker_.find(resource);
+		if(stateEntry == stateTracker_.end())
 		{
 			stateEntry = stateTracker_.insert(resource, resource->defaultState_);
 		}
@@ -20,6 +23,7 @@ namespace GPU
 			barrier.Transition.StateBefore = stateEntry->Second_;
 			barrier.Transition.StateAfter = state;
 			pendingBarriers_.insert(resource, barrier);
+			stateEntry->Second_ = state;
 		}
 	}
 
@@ -37,14 +41,13 @@ namespace GPU
 		barriers_.clear();
 	}
 
-#if 0
 	void D3D12CompileContext::RestoreDefault()
 	{
 		for(auto state : stateTracker_)
 		{
-			//AddTransition
-
+			AddTransition(state.First_, state.First_->defaultState_);
 		}
+		FlushTransitions();
 	}
-#endif
+
 } // namespace GPU

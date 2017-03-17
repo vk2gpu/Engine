@@ -6,12 +6,12 @@
 
 namespace GPU
 {
-	D3D12DescriptorHeapAllocator::D3D12DescriptorHeapAllocator(
-	    ID3D12Device* device, D3D12_DESCRIPTOR_HEAP_TYPE heapType, 
-			D3D12_DESCRIPTOR_HEAP_FLAGS heapFlags, i32 blockSize, const char* debugName)
+	D3D12DescriptorHeapAllocator::D3D12DescriptorHeapAllocator(ID3D12Device* device,
+	    D3D12_DESCRIPTOR_HEAP_TYPE heapType, D3D12_DESCRIPTOR_HEAP_FLAGS heapFlags, i32 blockSize,
+	    const char* debugName)
 	    : d3dDevice_(device)
 	    , heapType_(heapType)
-		, heapFlags_(heapFlags)
+	    , heapFlags_(heapFlags)
 	    , blockSize_(blockSize)
 	    , debugName_(debugName)
 	{
@@ -68,6 +68,18 @@ namespace GPU
 		return D3D12DescriptorAllocation();
 	}
 
+	D3D12DescriptorAllocation D3D12DescriptorHeapAllocator::Alloc(i32 numCBV, i32 numSRV, i32 numUAV)
+	{
+		auto alloc = Alloc(MAX_CBV_BINDINGS + MAX_SRV_BINDINGS + MAX_UAV_BINDINGS);
+		i32 offset = alloc.offset_;
+		ClearRange(alloc.d3dDescriptorHeap_.Get(), DescriptorHeapSubType::CBV, offset, MAX_CBV_BINDINGS);
+		offset += MAX_CBV_BINDINGS;
+		ClearRange(alloc.d3dDescriptorHeap_.Get(), DescriptorHeapSubType::SRV, offset, MAX_SRV_BINDINGS);
+		offset += MAX_SRV_BINDINGS;
+		ClearRange(alloc.d3dDescriptorHeap_.Get(), DescriptorHeapSubType::UAV, offset, MAX_UAV_BINDINGS);
+		return alloc;
+	}
+
 	void D3D12DescriptorHeapAllocator::Free(D3D12DescriptorAllocation alloc)
 	{
 		Core::ScopedMutex lock(allocMutex_);
@@ -78,7 +90,7 @@ namespace GPU
 		    [&](const DescriptorBlock::Allocation& blockAlloc) { return alloc.offset_ == blockAlloc.offset_; });
 		DBG_ASSERT(it != block.usedAllocations_.end());
 
-		ClearRange(block.d3dDescriptorHeap_.Get(), it->offset_, it->size_);
+		ClearRange(block.d3dDescriptorHeap_.Get(), DescriptorHeapSubType::INVALID, it->offset_, it->size_);
 
 		block.freeAllocations_.push_back(*it);
 		block.usedAllocations_.erase(it);
@@ -101,7 +113,7 @@ namespace GPU
 			block.freeAllocations_.clear();
 			block.freeAllocations_.push_back(allocation);
 
-			ClearRange(block.d3dDescriptorHeap_.Get(), 0, blockSize_);
+			ClearRange(block.d3dDescriptorHeap_.Get(), DescriptorHeapSubType::INVALID, 0, blockSize_);
 		}
 	}
 
@@ -128,7 +140,7 @@ namespace GPU
 		else if(heapType_ == D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER)
 			allocation.size_ -= MAX_SAMPLER_BINDINGS;
 
-		ClearRange(block.d3dDescriptorHeap_.Get(), 0, blockSize_);
+		ClearRange(block.d3dDescriptorHeap_.Get(), DescriptorHeapSubType::INVALID, 0, blockSize_);
 
 		block.freeAllocations_.emplace_back(std::move(allocation));
 		blocks_.emplace_back(std::move(block));
@@ -171,37 +183,75 @@ namespace GPU
 	}
 
 	void D3D12DescriptorHeapAllocator::ClearRange(
-	    ID3D12DescriptorHeap* d3dDescriptorHeap, i32 offset, i32 numDescriptors)
+	    ID3D12DescriptorHeap* d3dDescriptorHeap, DescriptorHeapSubType subType, i32 offset, i32 numDescriptors)
 	{
 		auto descriptorSize = d3dDevice_->GetDescriptorHandleIncrementSize(heapType_);
 		D3D12_CPU_DESCRIPTOR_HANDLE handle = d3dDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
+		handle.ptr += offset * descriptorSize;
 		for(i32 i = offset; i < (offset + numDescriptors); ++i)
 		{
-			switch(heapType_)
+			if(subType == DescriptorHeapSubType::INVALID)
 			{
-			case D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV:
-			{
-				D3D12_CONSTANT_BUFFER_VIEW_DESC desc = {};
-				d3dDevice_->CreateConstantBufferView(&desc, handle);
+				switch(heapType_)
+				{
+				case D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV:
+				{
+					D3D12_CONSTANT_BUFFER_VIEW_DESC desc = {};
+					d3dDevice_->CreateConstantBufferView(&desc, handle);
+					break;
+				}
+				case D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER:
+				{
+					D3D12_SAMPLER_DESC desc = {};
+					desc.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+					desc.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+					desc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+					d3dDevice_->CreateSampler(&desc, handle);
+					break;
+				}
+				case D3D12_DESCRIPTOR_HEAP_TYPE_RTV:
+				case D3D12_DESCRIPTOR_HEAP_TYPE_DSV:
+					// Don't need to clear these ranges.
+					break;
+				default:
+					DBG_BREAK;
+					break;
+				};
 			}
-			break;
-			case D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER:
+			else
 			{
-				D3D12_SAMPLER_DESC desc = {};
-				desc.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-				desc.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-				desc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-				d3dDevice_->CreateSampler(&desc, handle);
+				switch(subType)
+				{
+				case DescriptorHeapSubType::CBV:
+				{
+					D3D12_CONSTANT_BUFFER_VIEW_DESC desc = {};
+					d3dDevice_->CreateConstantBufferView(&desc, handle);
+					break;
+				}
+				case DescriptorHeapSubType::SRV:
+				{
+					D3D12_SHADER_RESOURCE_VIEW_DESC desc = {};
+					desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+					desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+					desc.Shader4ComponentMapping = D3D12_ENCODE_SHADER_4_COMPONENT_MAPPING(
+					    D3D12_SHADER_COMPONENT_MAPPING_FORCE_VALUE_0, D3D12_SHADER_COMPONENT_MAPPING_FORCE_VALUE_0,
+					    D3D12_SHADER_COMPONENT_MAPPING_FORCE_VALUE_0, D3D12_SHADER_COMPONENT_MAPPING_FORCE_VALUE_0);
+					d3dDevice_->CreateShaderResourceView(nullptr, &desc, handle);
+					break;
+				}
+				case DescriptorHeapSubType::UAV:
+				{
+					D3D12_UNORDERED_ACCESS_VIEW_DESC desc = {};
+					desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+					desc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
+					d3dDevice_->CreateUnorderedAccessView(nullptr, nullptr, &desc, handle);
+					break;
+				}
+				default:
+					DBG_BREAK;
+					break;
+				};
 			}
-			break;
-			case D3D12_DESCRIPTOR_HEAP_TYPE_RTV:
-			case D3D12_DESCRIPTOR_HEAP_TYPE_DSV:
-				// Don't need to clear these ranges.
-				break;
-			default:
-				DBG_BREAK;
-				break;
-			};
 
 			// Advance handle.
 			handle.ptr += descriptorSize;

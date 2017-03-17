@@ -9,15 +9,82 @@
 #include "core/debug.h"
 #include "core/handle.h"
 #include "core/library.h"
+#include "core/misc.h"
 #include "core/vector.h"
 
+#include "gpu/private/renderdoc_app.h"
+
 #include <utility>
+
+namespace RenderDoc
+{
+	pRENDERDOC_GetAPI RENDERDOC_GetAPI = nullptr;
+
+	Core::LibHandle renderDocLib_ = 0;
+	RENDERDOC_API_1_1_1* renderDocAPI_ = nullptr;
+	void Load()
+	{
+		// Attempt to load renderdoc from various paths.
+		if(!renderDocLib_)
+			renderDocLib_ = Core::LibraryOpen("renderdoc.dll");
+		if(!renderDocLib_)
+			renderDocLib_ = Core::LibraryOpen("C:\\Program Files\\RenderDoc\\renderdoc.dll");
+
+		if(renderDocLib_)
+		{
+			RENDERDOC_GetAPI = (pRENDERDOC_GetAPI)Core::LibrarySymbol(renderDocLib_, "RENDERDOC_GetAPI");
+			if(RENDERDOC_GetAPI)
+			{
+				RENDERDOC_GetAPI(eRENDERDOC_API_Version_1_1_1, (void**)&renderDocAPI_);
+
+				if(renderDocAPI_)
+				{
+					renderDocAPI_->SetCaptureOptionU32(eRENDERDOC_Option_CaptureAllCmdLists, 1);
+					renderDocAPI_->SetCaptureOptionU32(eRENDERDOC_Option_SaveAllInitials, 1);
+				}
+			}
+		}
+	}
+
+	void BeginCapture(const char* name)
+	{
+		if(!renderDocAPI_)
+			return;
+
+		if(name == nullptr)
+			renderDocAPI_->SetLogFilePathTemplate("Capture");
+		else
+			renderDocAPI_->SetLogFilePathTemplate(name);
+
+		renderDocAPI_->StartFrameCapture(nullptr, nullptr);
+	}
+
+	void EndCapture()
+	{
+		if(!renderDocAPI_)
+			return;
+
+		auto retVal = renderDocAPI_->EndFrameCapture(nullptr, nullptr);
+		if(retVal)
+		{
+			char logFile[4096] = {0};
+			u32 pathLength = 4096;
+
+			u32 numCaptures = renderDocAPI_->GetNumCaptures();
+			if(renderDocAPI_->GetCapture(numCaptures - 1, logFile, &pathLength, nullptr))
+			{
+				DBG_LOG("RenderDoc capture successful: %s\n", logFile);
+			}
+		}
+	}
+}
 
 namespace GPU
 {
 	struct ManagerImpl
 	{
 		void* deviceWindow_ = nullptr;
+		DebuggerIntegrationFlags debuggerIntegration_ = DebuggerIntegrationFlags::NONE;
 
 		IBackend* backend_ = nullptr;
 
@@ -64,6 +131,12 @@ namespace GPU
 		typedef void (*DestroyBackendFn)(GPU::IBackend*);
 		void CreateBackend()
 		{
+			// Before creating the backend, setup debugger integration.
+			if(Core::ContainsAllFlags(debuggerIntegration_, DebuggerIntegrationFlags::RENDERDOC))
+			{
+				RenderDoc::Load();
+			}
+			
 			Core::LibHandle handle = Core::LibraryOpen("gpu_d3d12.dll");
 			if(handle)
 			{
@@ -89,10 +162,11 @@ namespace GPU
 		}
 	};
 
-	Manager::Manager(void* deviceWindow)
-	{ //
+	Manager::Manager(void* deviceWindow, DebuggerIntegrationFlags debuggerIntegration)
+	{
 		impl_ = new ManagerImpl();
 		impl_->deviceWindow_ = deviceWindow;
+		impl_->debuggerIntegration_ = debuggerIntegration;
 		impl_->CreateBackend();
 	}
 
@@ -249,6 +323,22 @@ namespace GPU
 	const Core::HandleAllocator& Manager::GetHandleAllocator() const
 	{ //
 		return impl_->handles_;
+	}
+
+	void Manager::BeginDebugCapture(const char* name)
+	{
+		if(Core::ContainsAllFlags(impl_->debuggerIntegration_, DebuggerIntegrationFlags::RENDERDOC))
+		{
+			RenderDoc::BeginCapture(name);
+		}
+	}
+
+	void Manager::EndDebugCapture()
+	{
+		if(Core::ContainsAllFlags(impl_->debuggerIntegration_, DebuggerIntegrationFlags::RENDERDOC))
+		{
+			RenderDoc::EndCapture();
+		}
 	}
 
 } // namespace GPU

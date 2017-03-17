@@ -8,10 +8,7 @@
 
 namespace Core
 {
-	inline u32 Hash(u32 input, const GPU::D3D12Resource* data)
-	{
-		return HashCRC32(input, &data, sizeof(data));
-	}
+	inline u32 Hash(u32 input, const GPU::D3D12Resource* data) { return HashCRC32(input, &data, sizeof(data)); }
 }
 
 namespace GPU
@@ -34,10 +31,12 @@ namespace GPU
 
 		/**
 		 * Flush resource transitions.
- 		 */
+		 */
 		void FlushTransitions();
-	
 
+		/**
+		 * Restore default state of resources.
+		 */
+		void RestoreDefault();
 	};
 } // namespace GPU
-

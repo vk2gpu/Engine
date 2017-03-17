@@ -43,6 +43,21 @@ namespace GPU
 	};
 
 	/**
+	 * Debugger integration flags.
+	 */
+	enum class DebuggerIntegrationFlags : u32
+	{
+		/// No debugger support.
+		NONE = 0x0,
+
+		/// Enable RenderDoc integration.
+		RENDERDOC = 0x1,
+	};
+
+	DEFINE_ENUM_CLASS_FLAG_OPERATOR(DebuggerIntegrationFlags, &);
+	DEFINE_ENUM_CLASS_FLAG_OPERATOR(DebuggerIntegrationFlags, |);
+
+	/**
 	 * Utilities for handling error codes.
 	 */
 #define RETURN_ON_ERROR(ERRORCODE)\

@@ -42,17 +42,16 @@ namespace GPU
 		    D3D12FrameBindingSet& outFrameBindingSet, const FrameBindingSetDesc& desc, const char* debugName);
 		void DestroyFrameBindingSet(D3D12FrameBindingSet& frameBindingSet);
 
-		ErrorCode UpdateSRVs(
-		    D3D12PipelineBindingSet& pipelineBindingSet, i32 first, i32 num, ID3D12Resource** resources, const D3D12_SHADER_RESOURCE_VIEW_DESC* descs);
-		ErrorCode UpdateUAVs(
-		    D3D12PipelineBindingSet& pipelineBindingSet, i32 first, i32 num, ID3D12Resource** resources, const D3D12_UNORDERED_ACCESS_VIEW_DESC* descs);
-		ErrorCode UpdateCBVs(
-		    D3D12PipelineBindingSet& pipelineBindingSet, i32 first, i32 num, const D3D12_CONSTANT_BUFFER_VIEW_DESC* descs);
+		ErrorCode UpdateSRVs(D3D12PipelineBindingSet& pipelineBindingSet, i32 first, i32 num,
+		    ID3D12Resource** resources, const D3D12_SHADER_RESOURCE_VIEW_DESC* descs);
+		ErrorCode UpdateUAVs(D3D12PipelineBindingSet& pipelineBindingSet, i32 first, i32 num,
+		    ID3D12Resource** resources, const D3D12_UNORDERED_ACCESS_VIEW_DESC* descs);
+		ErrorCode UpdateCBVs(D3D12PipelineBindingSet& pipelineBindingSet, i32 first, i32 num,
+		    const D3D12_CONSTANT_BUFFER_VIEW_DESC* descs);
 		ErrorCode UpdateSamplers(
 		    D3D12PipelineBindingSet& pipelineBindingSet, i32 first, i32 num, const D3D12_SAMPLER_DESC* descs);
 		ErrorCode UpdateFrameBindingSet(D3D12FrameBindingSet& frameBindingSet,
-			ID3D12Resource** rtvResources, const D3D12_RENDER_TARGET_VIEW_DESC* rtvDescs,
-			ID3D12Resource* dsvResource, const D3D12_DEPTH_STENCIL_VIEW_DESC& dsvDesc);
+		    const D3D12_RENDER_TARGET_VIEW_DESC* rtvDescs, const D3D12_DEPTH_STENCIL_VIEW_DESC& dsvDesc);
 
 		ErrorCode SubmitCommandList(D3D12CommandList& commandList);
 
@@ -78,9 +77,7 @@ namespace GPU
 		volatile i64 uploadFenceIdx_ = 0;
 
 		// Descriptor heap allocators.
-		class D3D12DescriptorHeapAllocator* cbvAllocator_ = nullptr;
-		class D3D12DescriptorHeapAllocator* srvAllocator_ = nullptr;
-		class D3D12DescriptorHeapAllocator* uavAllocator_ = nullptr;
+		class D3D12DescriptorHeapAllocator* cbvSrvUavAllocator_ = nullptr;
 		class D3D12DescriptorHeapAllocator* samplerAllocator_ = nullptr;
 		class D3D12DescriptorHeapAllocator* rtvAllocator_ = nullptr;
 		class D3D12DescriptorHeapAllocator* dsvAllocator_ = nullptr;

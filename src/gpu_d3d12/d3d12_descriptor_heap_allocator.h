@@ -24,11 +24,15 @@ namespace GPU
 	class D3D12DescriptorHeapAllocator
 	{
 	public:
-		D3D12DescriptorHeapAllocator(
-		    ID3D12Device* device, D3D12_DESCRIPTOR_HEAP_TYPE heapType, D3D12_DESCRIPTOR_HEAP_FLAGS heapFlags, i32 blockSize, const char* debugName);
+		D3D12DescriptorHeapAllocator(ID3D12Device* device, D3D12_DESCRIPTOR_HEAP_TYPE heapType,
+		    D3D12_DESCRIPTOR_HEAP_FLAGS heapFlags, i32 blockSize, const char* debugName);
 		~D3D12DescriptorHeapAllocator();
 
 		D3D12DescriptorAllocation Alloc(i32 numDescriptors);
+
+		// Bit of a hack until there is a better desc heap management.
+		D3D12DescriptorAllocation Alloc(i32 numCBV, i32 numSRV, i32 numUAV);
+
 		void Free(D3D12DescriptorAllocation alloc);
 		void FreeAll();
 
@@ -38,7 +42,8 @@ namespace GPU
 		void AddBlock();
 		void ConsolodateAllocations();
 
-		void ClearRange(ID3D12DescriptorHeap* d3dDescriptorHeap, i32 offset, i32 numDescriptors);
+		void ClearRange(
+		    ID3D12DescriptorHeap* d3dDescriptorHeap, DescriptorHeapSubType subType, i32 offset, i32 numDescriptors);
 
 		struct DescriptorBlock
 		{
@@ -46,8 +51,8 @@ namespace GPU
 
 			struct Allocation
 			{
-				i32 offset_;
-				i32 size_;
+				i32 offset_ = 0;
+				i32 size_ = 0;
 			};
 
 			Core::Vector<Allocation> freeAllocations_;

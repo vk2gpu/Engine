@@ -16,20 +16,27 @@ namespace GPU
 		for(i32 i = 0; i < MAX_GPU_FRAMES; ++i)
 		{
 			CHECK_D3D(hr = device.d3dDevice_->CreateCommandAllocator(
-						  type, IID_ID3D12CommandAllocator, (void**)d3dCommandAllocators_[i].GetAddressOf()));
+			              type, IID_ID3D12CommandAllocator, (void**)d3dCommandAllocators_[i].GetAddressOf()));
 		}
 
 		type_ = type;
 		CHECK_D3D(hr = device.d3dDevice_->CreateCommandList(nodeMask, type, d3dCommandAllocators_[0].Get(), nullptr,
-						IID_ID3D12GraphicsCommandList, (void**)d3dCommandList_.GetAddressOf()));
+		              IID_ID3D12GraphicsCommandList, (void**)d3dCommandList_.GetAddressOf()));
 		CHECK_D3D(hr = d3dCommandList_->Close());
-		CHECK_D3D(hr = device.d3dDevice_->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_ID3D12Fence, (void**)d3dFence_.GetAddressOf()));
+		CHECK_D3D(hr = device.d3dDevice_->CreateFence(
+		              0, D3D12_FENCE_FLAG_NONE, IID_ID3D12Fence, (void**)d3dFence_.GetAddressOf()));
 
 		fenceEvent_ = ::CreateEvent(nullptr, FALSE, FALSE, "D3D12CommandList");
 	}
 
 	D3D12CommandList::~D3D12CommandList()
 	{
+		if(listIdx_ > 0 && d3dFence_->GetCompletedValue() != listIdx_ - 1)
+		{
+			d3dFence_->SetEventOnCompletion(listIdx_ - 1, fenceEvent_);
+			::WaitForSingleObject(fenceEvent_, INFINITE);
+		}
+
 		::CloseHandle(fenceEvent_);
 	}
 
@@ -64,16 +71,12 @@ namespace GPU
 	ErrorCode D3D12CommandList::Submit(ID3D12CommandQueue* d3dCommandQueue)
 	{
 		DBG_ASSERT(!isOpen_);
-		ID3D12CommandList* d3dCommandLists[1] = 
-		{
-			d3dCommandList_.Get()
-		};
+		ID3D12CommandList* d3dCommandLists[1] = {d3dCommandList_.Get()};
 		d3dCommandQueue->ExecuteCommandLists(1, d3dCommandLists);
 		CHECK_D3D(d3dCommandQueue->Signal(d3dFence_.Get(), listIdx_));
 		++listIdx_;
 		return ErrorCode::OK;
 	}
-
 
 
 } // namespace GPU

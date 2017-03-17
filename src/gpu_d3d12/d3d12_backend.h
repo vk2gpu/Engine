@@ -83,8 +83,8 @@ namespace GPU
 		/// Resources.
 		Core::Mutex resourceMutex_;
 		ResourceVector<D3D12SwapChain> swapchainResources_;
-		ResourceVector<D3D12Resource> bufferResources_;
-		ResourceVector<D3D12Resource> textureResources_;
+		ResourceVector<D3D12Buffer> bufferResources_;
+		ResourceVector<D3D12Texture> textureResources_;
 		ResourceVector<D3D12Shader> shaders_;
 		ResourceVector<D3D12SamplerState> samplerStates_;
 		ResourceVector<D3D12GraphicsPipelineState> graphicsPipelineStates_;

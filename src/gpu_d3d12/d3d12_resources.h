@@ -80,10 +80,20 @@ namespace GPU
 		D3D12_RESOURCE_STATES defaultState_ = D3D12_RESOURCE_STATE_COMMON;
 	};
 
+	struct D3D12Buffer : D3D12Resource
+	{
+		BufferDesc desc_;
+	};
+
+	struct D3D12Texture : D3D12Resource
+	{
+		TextureDesc desc_;
+	};
+
 	struct D3D12SwapChain
 	{
 		ComPtr<IDXGISwapChain3> swapChain_;
-		Core::Vector<D3D12Resource> textures_;
+		Core::Vector<D3D12Texture> textures_;
 	};
 
 	struct D3D12Shader
@@ -99,14 +109,14 @@ namespace GPU
 
 	struct D3D12GraphicsPipelineState
 	{
-		RootSignatureType rootSignature_ = RootSignatureType::INVALID;
+		RootSignatureType rootSignature_ = RootSignatureType::GRAPHICS;
 		u32 stencilRef_ = 0; // TODO: Make part of draw?
 		ComPtr<ID3D12PipelineState> pipelineState_;
 	};
 
 	struct D3D12ComputePipelineState
 	{
-		RootSignatureType rootSignature_ = RootSignatureType::INVALID;
+		RootSignatureType rootSignature_ = RootSignatureType::COMPUTE;
 		ComPtr<ID3D12PipelineState> pipelineState_;
 	};
 
@@ -137,5 +147,7 @@ namespace GPU
 		D3D12DescriptorAllocation rtvs_;
 		D3D12DescriptorAllocation dsv_;
 		i32 numRTs_ = 0;
+		Viewport viewport_;
+		ScissorRect scissorRect_;
 	};
 }

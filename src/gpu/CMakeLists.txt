@@ -14,6 +14,7 @@ SET(SOURCES_PRIVATE
 	"private/command_list.inl"
 	"private/manager.cpp"
 	"private/utils.cpp"
+	"private/renderdoc_app.h"
 )
 
 SET(SOURCES_TESTS

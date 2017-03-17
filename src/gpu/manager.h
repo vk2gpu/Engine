@@ -13,8 +13,9 @@ namespace GPU
 		/**
 		 * Create GPU manager
 		 * @param deviceWindow Window we use for device creation (if required).
+		 * @param debuggerIntegration Which debugger(s) to enable integration of.
 		 */
-		Manager(void* deviceWindow);
+		Manager(void* deviceWindow, DebuggerIntegrationFlags debuggerIntegration = DebuggerIntegrationFlags::NONE);
 		~Manager();
 
 		/**
@@ -141,6 +142,34 @@ namespace GPU
 		 */
 		const Core::HandleAllocator& GetHandleAllocator() const;
 
+
+		/**
+		 * Begin debug capture.
+		 */
+		void BeginDebugCapture(const char* name);
+
+		/**
+		 * End debug capture.
+		 */
+		void EndDebugCapture();
+
+		/**
+		 * Scoped Debug capture.
+		 */
+		class ScopedDebugCapture
+		{
+		public:
+			ScopedDebugCapture(Manager& manager, const char* name)
+			    : manager_(manager)
+			{
+				manager_.BeginDebugCapture(name);
+			}
+
+			~ScopedDebugCapture() { manager_.EndDebugCapture(); }
+
+		private:
+			Manager& manager_;
+		};
 
 
 	private:

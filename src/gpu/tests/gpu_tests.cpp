@@ -11,6 +11,12 @@
 typedef u8 BYTE;
 #include "gpu_d3d12/private/shaders/default_cs.h"
 #include "gpu_d3d12/private/shaders/default_vs.h"
+#include "gpu_d3d12/private/shaders/default_ps.h"
+
+namespace
+{
+	GPU::DebuggerIntegrationFlags debuggerIntegrationFlags = GPU::DebuggerIntegrationFlags::NONE;
+}
 
 TEST_CASE("gpu-tests-formats")
 {
@@ -25,28 +31,28 @@ TEST_CASE("gpu-tests-formats")
 
 TEST_CASE("gpu-tests-manager")
 {
-	Client::Window window("gpu_tests", 0, 0, 640, 480, false);
-	GPU::Manager manager(window.GetPlatformData().handle_);
+	auto testName = Catch::getResultCapture().getCurrentTestName();
+	Client::Window window(testName.c_str(), 0, 0, 640, 480, false);
+	GPU::Manager manager(window.GetPlatformData().handle_, debuggerIntegrationFlags);
 }
 
 TEST_CASE("gpu-tests-enumerate")
 {
-	Client::Window window("gpu_tests", 0, 0, 640, 480, false);
-	GPU::Manager manager(window.GetPlatformData().handle_);
+	auto testName = Catch::getResultCapture().getCurrentTestName();
+	Client::Window window(testName.c_str(), 0, 0, 640, 480, false);
+	GPU::Manager manager(window.GetPlatformData().handle_, debuggerIntegrationFlags);
 	i32 numAdapters = manager.EnumerateAdapters(nullptr, 0);
 	REQUIRE(numAdapters > 0);
 	Core::Vector<GPU::AdapterInfo> adapterInfos;
 	adapterInfos.resize(numAdapters);
 	manager.EnumerateAdapters(adapterInfos.data(), adapterInfos.size());
-	Core::Log("gpu-tests-enumerate: Adapters:\n");
-	for(const auto& adapterInfo : adapterInfos)
-		Core::Log(" - %s\n", adapterInfo.description_);
 }
 
 TEST_CASE("gpu-tests-initialize")
 {
-	Client::Window window("gpu_tests", 0, 0, 640, 480, false);
-	GPU::Manager manager(window.GetPlatformData().handle_);
+	auto testName = Catch::getResultCapture().getCurrentTestName();
+	Client::Window window(testName.c_str(), 0, 0, 640, 480, false);
+	GPU::Manager manager(window.GetPlatformData().handle_, debuggerIntegrationFlags);
 
 
 	i32 numAdapters = manager.EnumerateAdapters(nullptr, 0);
@@ -57,13 +63,16 @@ TEST_CASE("gpu-tests-initialize")
 
 TEST_CASE("gpu-tests-create-swapchain")
 {
-	Client::Window window("gpu_tests", 0, 0, 640, 480, false);
-	GPU::Manager manager(window.GetPlatformData().handle_);
+	auto testName = Catch::getResultCapture().getCurrentTestName();
+	Client::Window window(testName.c_str(), 0, 0, 640, 480, false);
+	GPU::Manager manager(window.GetPlatformData().handle_, debuggerIntegrationFlags);
 
 	i32 numAdapters = manager.EnumerateAdapters(nullptr, 0);
 	REQUIRE(numAdapters > 0);
 
 	REQUIRE(manager.Initialize(0) == GPU::ErrorCode::OK);
+
+	GPU::Manager::ScopedDebugCapture capture(manager, testName.c_str());
 
 	GPU::SwapChainDesc desc;
 	desc.width_ = 640;
@@ -73,7 +82,7 @@ TEST_CASE("gpu-tests-create-swapchain")
 	desc.outputWindow_ = window.GetPlatformData().handle_;
 
 	GPU::Handle handle;
-	handle = manager.CreateSwapChain(desc, "gpu-tests-create-swapchain");
+	handle = manager.CreateSwapChain(desc, testName.c_str());
 	REQUIRE(handle);
 
 	manager.DestroyResource(handle);
@@ -81,23 +90,25 @@ TEST_CASE("gpu-tests-create-swapchain")
 
 TEST_CASE("gpu-tests-create-buffer")
 {
-	Client::Window window("gpu_tests", 0, 0, 640, 480, false);
-	GPU::Manager manager(window.GetPlatformData().handle_);
+	auto testName = Catch::getResultCapture().getCurrentTestName();
+	Client::Window window(testName.c_str(), 0, 0, 640, 480, false);
+	GPU::Manager manager(window.GetPlatformData().handle_, debuggerIntegrationFlags);
 
 	i32 numAdapters = manager.EnumerateAdapters(nullptr, 0);
 	REQUIRE(numAdapters > 0);
 
 	REQUIRE(manager.Initialize(0) == GPU::ErrorCode::OK);
 
+	GPU::Manager::ScopedDebugCapture capture(manager, testName.c_str());
+
 	SECTION("no-data")
 	{
 		GPU::BufferDesc desc;
 		desc.bindFlags_ = GPU::BindFlags::VERTEX_BUFFER;
 		desc.size_ = 32 * 1024;
-		desc.stride_ = 0;
 
 		GPU::Handle handle;
-		handle = manager.CreateBuffer(desc, nullptr, "gpu-tests-create-buffer-no-data");
+		handle = manager.CreateBuffer(desc, nullptr, testName.c_str());
 		REQUIRE(handle);
 
 		manager.DestroyResource(handle);
@@ -110,13 +121,12 @@ TEST_CASE("gpu-tests-create-buffer")
 			GPU::BufferDesc desc;
 			desc.bindFlags_ = GPU::BindFlags::VERTEX_BUFFER;
 			desc.size_ = 32 * 1024;
-			desc.stride_ = 0;
 
 			Core::Vector<u32> data;
 			data.resize((i32)desc.size_);
 
 			GPU::Handle handle;
-			handle = manager.CreateBuffer(desc, data.data(), "gpu-tests-create-buffer-data");
+			handle = manager.CreateBuffer(desc, data.data(), testName.c_str());
 			REQUIRE(handle);
 
 			manager.DestroyResource(handle);
@@ -126,13 +136,16 @@ TEST_CASE("gpu-tests-create-buffer")
 
 TEST_CASE("gpu-tests-create-texture")
 {
-	Client::Window window("gpu_tests", 0, 0, 640, 480, false);
-	GPU::Manager manager(window.GetPlatformData().handle_);
+	auto testName = Catch::getResultCapture().getCurrentTestName();
+	Client::Window window(testName.c_str(), 0, 0, 640, 480, false);
+	GPU::Manager manager(window.GetPlatformData().handle_, debuggerIntegrationFlags);
 
 	i32 numAdapters = manager.EnumerateAdapters(nullptr, 0);
 	REQUIRE(numAdapters > 0);
 
 	REQUIRE(manager.Initialize(0) == GPU::ErrorCode::OK);
+
+	GPU::Manager::ScopedDebugCapture capture(manager, testName.c_str());
 
 	SECTION("1d-no-data")
 	{
@@ -143,7 +156,7 @@ TEST_CASE("gpu-tests-create-texture")
 		desc.width_ = 256;
 
 		GPU::Handle handle;
-		handle = manager.CreateTexture(desc, nullptr, "gpu-tests-create-texture-1d");
+		handle = manager.CreateTexture(desc, nullptr, testName.c_str());
 		REQUIRE(handle);
 		manager.DestroyResource(handle);
 	}
@@ -158,7 +171,7 @@ TEST_CASE("gpu-tests-create-texture")
 		desc.height_ = 256;
 
 		GPU::Handle handle;
-		handle = manager.CreateTexture(desc, nullptr, "gpu-tests-create-texture-2d");
+		handle = manager.CreateTexture(desc, nullptr, testName.c_str());
 		REQUIRE(handle);
 		manager.DestroyResource(handle);
 	}
@@ -174,7 +187,7 @@ TEST_CASE("gpu-tests-create-texture")
 		desc.depth_ = 256;
 
 		GPU::Handle handle;
-		handle = manager.CreateTexture(desc, nullptr, "gpu-tests-create-texture-3d");
+		handle = manager.CreateTexture(desc, nullptr, testName.c_str());
 		REQUIRE(handle);
 		manager.DestroyResource(handle);
 	}
@@ -188,7 +201,7 @@ TEST_CASE("gpu-tests-create-texture")
 		desc.width_ = 256;
 
 		GPU::Handle handle;
-		handle = manager.CreateTexture(desc, nullptr, "gpu-tests-create-texture-cube");
+		handle = manager.CreateTexture(desc, nullptr, testName.c_str());
 		REQUIRE(handle);
 		manager.DestroyResource(handle);
 	}
@@ -212,7 +225,7 @@ TEST_CASE("gpu-tests-create-texture")
 		subResData.slicePitch_ = layoutInfo.slicePitch_;
 
 		GPU::Handle handle;
-		handle = manager.CreateTexture(desc, &subResData, "gpu-tests-create-texture-1d");
+		handle = manager.CreateTexture(desc, &subResData, testName.c_str());
 		REQUIRE(handle);
 		manager.DestroyResource(handle);
 	}
@@ -237,7 +250,7 @@ TEST_CASE("gpu-tests-create-texture")
 		subResData.slicePitch_ = layoutInfo.slicePitch_;
 
 		GPU::Handle handle;
-		handle = manager.CreateTexture(desc, &subResData, "gpu-tests-create-texture-2d");
+		handle = manager.CreateTexture(desc, &subResData, testName.c_str());
 		REQUIRE(handle);
 		manager.DestroyResource(handle);
 	}
@@ -263,7 +276,7 @@ TEST_CASE("gpu-tests-create-texture")
 		subResData.slicePitch_ = layoutInfo.slicePitch_;
 
 		GPU::Handle handle;
-		handle = manager.CreateTexture(desc, &subResData, "gpu-tests-create-texture-3d");
+		handle = manager.CreateTexture(desc, &subResData, testName.c_str());
 		REQUIRE(handle);
 		manager.DestroyResource(handle);
 	}
@@ -292,7 +305,7 @@ TEST_CASE("gpu-tests-create-texture")
 		}
 
 		GPU::Handle handle;
-		handle = manager.CreateTexture(desc, subResDatas.data(), "gpu-tests-create-texture-cube");
+		handle = manager.CreateTexture(desc, subResDatas.data(), testName.c_str());
 		REQUIRE(handle);
 		manager.DestroyResource(handle);
 	}
@@ -300,36 +313,42 @@ TEST_CASE("gpu-tests-create-texture")
 
 TEST_CASE("gpu-tests-create-commandlist")
 {
-	Client::Window window("gpu_tests", 0, 0, 640, 480, false);
-	GPU::Manager manager(window.GetPlatformData().handle_);
+	auto testName = Catch::getResultCapture().getCurrentTestName();
+	Client::Window window(testName.c_str(), 0, 0, 640, 480, false);
+	GPU::Manager manager(window.GetPlatformData().handle_, debuggerIntegrationFlags);
 
 	i32 numAdapters = manager.EnumerateAdapters(nullptr, 0);
 	REQUIRE(numAdapters > 0);
 
 	REQUIRE(manager.Initialize(0) == GPU::ErrorCode::OK);
 
+	GPU::Manager::ScopedDebugCapture capture(manager, testName.c_str());
+
 	GPU::Handle handle;
-	handle = manager.CreateCommandList("gpu-tests-create-commandlist");
+	handle = manager.CreateCommandList(testName.c_str());
 	REQUIRE(handle);
 	manager.DestroyResource(handle);
 }
 
 TEST_CASE("gpu-tests-create-shader")
 {
-	Client::Window window("gpu_tests", 0, 0, 640, 480, false);
-	GPU::Manager manager(window.GetPlatformData().handle_);
+	auto testName = Catch::getResultCapture().getCurrentTestName();
+	Client::Window window(testName.c_str(), 0, 0, 640, 480, false);
+	GPU::Manager manager(window.GetPlatformData().handle_, debuggerIntegrationFlags);
 
 	i32 numAdapters = manager.EnumerateAdapters(nullptr, 0);
 	REQUIRE(numAdapters > 0);
 
 	REQUIRE(manager.Initialize(0) == GPU::ErrorCode::OK);
 
+	GPU::Manager::ScopedDebugCapture capture(manager, testName.c_str());
+
 	GPU::ShaderDesc desc;
 	desc.type_ = GPU::ShaderType::COMPUTE;
 	desc.dataSize_ = sizeof(g_CShader);
 	desc.data_ = g_CShader;
 
-	GPU::Handle handle = manager.CreateShader(desc, "gpu-tests-create-shader");
+	GPU::Handle handle = manager.CreateShader(desc, testName.c_str());
 	REQUIRE(handle);
 	manager.DestroyResource(handle);
 }
@@ -337,26 +356,28 @@ TEST_CASE("gpu-tests-create-shader")
 
 TEST_CASE("gpu-tests-create-compute-pipeline-state")
 {
-	Client::Window window("gpu_tests", 0, 0, 640, 480, false);
-	GPU::Manager manager(window.GetPlatformData().handle_);
+	auto testName = Catch::getResultCapture().getCurrentTestName();
+	Client::Window window(testName.c_str(), 0, 0, 640, 480, false);
+	GPU::Manager manager(window.GetPlatformData().handle_, debuggerIntegrationFlags);
 
 	i32 numAdapters = manager.EnumerateAdapters(nullptr, 0);
 	REQUIRE(numAdapters > 0);
 
 	REQUIRE(manager.Initialize(0) == GPU::ErrorCode::OK);
 
+	GPU::Manager::ScopedDebugCapture capture(manager, testName.c_str());
+
 	GPU::ShaderDesc shaderDesc;
 	shaderDesc.type_ = GPU::ShaderType::COMPUTE;
 	shaderDesc.dataSize_ = sizeof(g_CShader);
 	shaderDesc.data_ = g_CShader;
 
-	GPU::Handle shaderHandle = manager.CreateShader(shaderDesc, "gpu-tests-create-compute-pipeline-state");
+	GPU::Handle shaderHandle = manager.CreateShader(shaderDesc, testName.c_str());
 	REQUIRE(shaderHandle);
 
 	GPU::ComputePipelineStateDesc pipelineDesc;
 	pipelineDesc.shader_ = shaderHandle;
-	GPU::Handle pipelineHandle =
-	    manager.CreateComputePipelineState(pipelineDesc, "gpu-tests-create-compute-pipeline-state");
+	GPU::Handle pipelineHandle = manager.CreateComputePipelineState(pipelineDesc, testName.c_str());
 
 	manager.DestroyResource(pipelineHandle);
 	manager.DestroyResource(shaderHandle);
@@ -364,13 +385,16 @@ TEST_CASE("gpu-tests-create-compute-pipeline-state")
 
 TEST_CASE("gpu-tests-create-pipeline-binding-set")
 {
-	Client::Window window("gpu_tests", 0, 0, 640, 480, false);
-	GPU::Manager manager(window.GetPlatformData().handle_);
+	auto testName = Catch::getResultCapture().getCurrentTestName();
+	Client::Window window(testName.c_str(), 0, 0, 640, 480, false);
+	GPU::Manager manager(window.GetPlatformData().handle_, debuggerIntegrationFlags);
 
 	i32 numAdapters = manager.EnumerateAdapters(nullptr, 0);
 	REQUIRE(numAdapters > 0);
 
 	REQUIRE(manager.Initialize(0) == GPU::ErrorCode::OK);
+
+	GPU::Manager::ScopedDebugCapture capture(manager, testName.c_str());
 
 	GPU::ShaderDesc shaderDesc;
 	shaderDesc.type_ = GPU::ShaderType::COMPUTE;
@@ -388,7 +412,7 @@ TEST_CASE("gpu-tests-create-pipeline-binding-set")
 		desc.width_ = 256;
 		desc.height_ = 256;
 		desc.format_ = GPU::Format::R8G8B8A8_UNORM;
-		texHandle = manager.CreateTexture(desc, nullptr, "gpu-tests-create-pipeline-binding-set");
+		texHandle = manager.CreateTexture(desc, nullptr, testName.c_str());
 		REQUIRE(texHandle);
 	}
 
@@ -396,31 +420,29 @@ TEST_CASE("gpu-tests-create-pipeline-binding-set")
 		GPU::BufferDesc desc;
 		desc.bindFlags_ = GPU::BindFlags::CONSTANT_BUFFER;
 		desc.size_ = 4096;
-		desc.stride_ = 0;
-		cbHandle = manager.CreateBuffer(desc, nullptr, "gpu-tests-create-pipeline-binding-set");
+		cbHandle = manager.CreateBuffer(desc, nullptr, testName.c_str());
 		REQUIRE(cbHandle);
 	}
 
 	{
 		GPU::SamplerState desc;
-		samplerHandle = manager.CreateSamplerState(desc, "gpu-tests-create-pipeline-binding-set");
+		samplerHandle = manager.CreateSamplerState(desc, testName.c_str());
 		REQUIRE(samplerHandle);
 	}
 
-	GPU::Handle shaderHandle = manager.CreateShader(shaderDesc, "gpu-tests-create-pipeline-binding-set");
+	GPU::Handle shaderHandle = manager.CreateShader(shaderDesc, testName.c_str());
 	REQUIRE(shaderHandle);
 
 	GPU::ComputePipelineStateDesc pipelineDesc;
 	pipelineDesc.shader_ = shaderHandle;
-	GPU::Handle pipelineHandle =
-	    manager.CreateComputePipelineState(pipelineDesc, "gpu-tests-create-pipeline-binding-set");
+	GPU::Handle pipelineHandle = manager.CreateComputePipelineState(pipelineDesc, testName.c_str());
 
 	SECTION("no-views")
 	{
 		GPU::PipelineBindingSetDesc pipelineBindingSetDesc;
 		pipelineBindingSetDesc.pipelineState_ = pipelineHandle;
 		GPU::Handle pipelineBindingSetHandle =
-		    manager.CreatePipelineBindingSet(pipelineBindingSetDesc, "gpu-tests-create-pipeline-binding-set-no-views");
+		    manager.CreatePipelineBindingSet(pipelineBindingSetDesc, testName.c_str());
 
 		manager.DestroyResource(pipelineBindingSetHandle);
 	}
@@ -435,7 +457,7 @@ TEST_CASE("gpu-tests-create-pipeline-binding-set")
 		pipelineBindingSetDesc.srvs_[0].dimension_ = GPU::ViewDimension::TEX2D;
 		pipelineBindingSetDesc.srvs_[0].mipLevels_NumElements_ = -1;
 		GPU::Handle pipelineBindingSetHandle =
-		    manager.CreatePipelineBindingSet(pipelineBindingSetDesc, "gpu-tests-create-pipeline-binding-set-srv");
+		    manager.CreatePipelineBindingSet(pipelineBindingSetDesc, testName.c_str());
 
 		manager.DestroyResource(pipelineBindingSetHandle);
 	}
@@ -449,7 +471,7 @@ TEST_CASE("gpu-tests-create-pipeline-binding-set")
 		pipelineBindingSetDesc.cbvs_[0].offset_ = 0;
 		pipelineBindingSetDesc.cbvs_[0].size_ = 4096;
 		GPU::Handle pipelineBindingSetHandle =
-		    manager.CreatePipelineBindingSet(pipelineBindingSetDesc, "gpu-tests-create-pipeline-binding-set-cbv");
+		    manager.CreatePipelineBindingSet(pipelineBindingSetDesc, testName.c_str());
 
 		manager.DestroyResource(pipelineBindingSetHandle);
 	}
@@ -463,7 +485,7 @@ TEST_CASE("gpu-tests-create-pipeline-binding-set")
 		pipelineBindingSetDesc.uavs_[0].format_ = GPU::Format::R8G8B8A8_UNORM;
 		pipelineBindingSetDesc.uavs_[0].dimension_ = GPU::ViewDimension::TEX2D;
 		GPU::Handle pipelineBindingSetHandle =
-		    manager.CreatePipelineBindingSet(pipelineBindingSetDesc, "gpu-tests-create-pipeline-binding-set-uav");
+		    manager.CreatePipelineBindingSet(pipelineBindingSetDesc, testName.c_str());
 
 		manager.DestroyResource(pipelineBindingSetHandle);
 	}
@@ -477,20 +499,23 @@ TEST_CASE("gpu-tests-create-pipeline-binding-set")
 
 TEST_CASE("gpu-tests-create-graphics-pipeline-state")
 {
-	Client::Window window("gpu_tests", 0, 0, 640, 480, false);
-	GPU::Manager manager(window.GetPlatformData().handle_);
+	auto testName = Catch::getResultCapture().getCurrentTestName();
+	Client::Window window(testName.c_str(), 0, 0, 640, 480, false);
+	GPU::Manager manager(window.GetPlatformData().handle_, debuggerIntegrationFlags);
 
 	i32 numAdapters = manager.EnumerateAdapters(nullptr, 0);
 	REQUIRE(numAdapters > 0);
 
 	REQUIRE(manager.Initialize(0) == GPU::ErrorCode::OK);
 
+	GPU::Manager::ScopedDebugCapture capture(manager, testName.c_str());
+
 	GPU::ShaderDesc shaderDesc;
 	shaderDesc.type_ = GPU::ShaderType::VERTEX;
 	shaderDesc.dataSize_ = sizeof(g_VShader);
 	shaderDesc.data_ = g_VShader;
 
-	GPU::Handle shaderHandle = manager.CreateShader(shaderDesc, "gpu-tests-create-graphics-pipeline-state");
+	GPU::Handle shaderHandle = manager.CreateShader(shaderDesc, testName.c_str());
 	REQUIRE(shaderHandle);
 
 	GPU::GraphicsPipelineStateDesc pipelineDesc;
@@ -505,8 +530,7 @@ TEST_CASE("gpu-tests-create-graphics-pipeline-state")
 	pipelineDesc.topology_ = GPU::TopologyType::TRIANGLE;
 	pipelineDesc.numRTs_ = 0;
 	pipelineDesc.dsvFormat_ = GPU::Format::D24_UNORM_S8_UINT;
-	GPU::Handle pipelineHandle =
-	    manager.CreateGraphicsPipelineState(pipelineDesc, "gpu-tests-create-graphics-pipeline-state");
+	GPU::Handle pipelineHandle = manager.CreateGraphicsPipelineState(pipelineDesc, testName.c_str());
 
 	manager.DestroyResource(pipelineHandle);
 	manager.DestroyResource(shaderHandle);
@@ -514,13 +538,16 @@ TEST_CASE("gpu-tests-create-graphics-pipeline-state")
 
 TEST_CASE("gpu-tests-create-draw-binding-set")
 {
-	Client::Window window("gpu_tests", 0, 0, 640, 480, false);
-	GPU::Manager manager(window.GetPlatformData().handle_);
+	auto testName = Catch::getResultCapture().getCurrentTestName();
+	Client::Window window(testName.c_str(), 0, 0, 640, 480, false);
+	GPU::Manager manager(window.GetPlatformData().handle_, debuggerIntegrationFlags);
 
 	i32 numAdapters = manager.EnumerateAdapters(nullptr, 0);
 	REQUIRE(numAdapters > 0);
 
 	REQUIRE(manager.Initialize(0) == GPU::ErrorCode::OK);
+
+	GPU::Manager::ScopedDebugCapture capture(manager, testName.c_str());
 
 	float vertices[] = {
 	    0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f,
@@ -529,8 +556,7 @@ TEST_CASE("gpu-tests-create-draw-binding-set")
 	GPU::BufferDesc vbDesc;
 	vbDesc.bindFlags_ = GPU::BindFlags::VERTEX_BUFFER;
 	vbDesc.size_ = sizeof(vertices);
-	vbDesc.stride_ = 0;
-	GPU::Handle vbHandle = manager.CreateBuffer(vbDesc, vertices, "gpu-tests-create-draw-binding-set");
+	GPU::Handle vbHandle = manager.CreateBuffer(vbDesc, vertices, testName.c_str());
 	REQUIRE(vbHandle);
 
 	GPU::DrawBindingSetDesc dbsDesc;
@@ -538,7 +564,7 @@ TEST_CASE("gpu-tests-create-draw-binding-set")
 	dbsDesc.vbs_[0].offset_ = 0;
 	dbsDesc.vbs_[0].size_ = (i32)vbDesc.size_;
 
-	GPU::Handle dbsHandle = manager.CreateDrawBindingSet(dbsDesc, "gpu-tests-create-draw-binding-set");
+	GPU::Handle dbsHandle = manager.CreateDrawBindingSet(dbsDesc, testName.c_str());
 	REQUIRE(dbsHandle);
 
 	manager.DestroyResource(dbsHandle);
@@ -547,13 +573,16 @@ TEST_CASE("gpu-tests-create-draw-binding-set")
 
 TEST_CASE("gpu-tests-create-frame-binding-set")
 {
-	Client::Window window("gpu_tests", 0, 0, 640, 480, false);
-	GPU::Manager manager(window.GetPlatformData().handle_);
+	auto testName = Catch::getResultCapture().getCurrentTestName();
+	Client::Window window(testName.c_str(), 0, 0, 640, 480, false);
+	GPU::Manager manager(window.GetPlatformData().handle_, debuggerIntegrationFlags);
 
 	i32 numAdapters = manager.EnumerateAdapters(nullptr, 0);
 	REQUIRE(numAdapters > 0);
 
 	REQUIRE(manager.Initialize(0) == GPU::ErrorCode::OK);
+
+	GPU::Manager::ScopedDebugCapture capture(manager, testName.c_str());
 
 	GPU::TextureDesc rtDesc;
 	rtDesc.type_ = GPU::TextureType::TEX2D;
@@ -561,7 +590,7 @@ TEST_CASE("gpu-tests-create-frame-binding-set")
 	rtDesc.width_ = 128;
 	rtDesc.height_ = 128;
 	rtDesc.format_ = GPU::Format::R8G8B8A8_UNORM;
-	GPU::Handle rtHandle = manager.CreateTexture(rtDesc, nullptr, "gpu-tests-create-frame-binding-set");
+	GPU::Handle rtHandle = manager.CreateTexture(rtDesc, nullptr, testName.c_str());
 	REQUIRE(rtHandle);
 
 	GPU::TextureDesc dsDesc;
@@ -570,7 +599,7 @@ TEST_CASE("gpu-tests-create-frame-binding-set")
 	dsDesc.width_ = 128;
 	dsDesc.height_ = 128;
 	dsDesc.format_ = GPU::Format::D24_UNORM_S8_UINT;
-	GPU::Handle dsHandle = manager.CreateTexture(dsDesc, nullptr, "gpu-tests-create-frame-binding-set");
+	GPU::Handle dsHandle = manager.CreateTexture(dsDesc, nullptr, testName.c_str());
 	REQUIRE(dsHandle);
 
 	GPU::FrameBindingSetDesc fbDesc;
@@ -581,7 +610,7 @@ TEST_CASE("gpu-tests-create-frame-binding-set")
 	fbDesc.dsv_.format_ = dsDesc.format_;
 	fbDesc.dsv_.dimension_ = GPU::ViewDimension::TEX2D;
 
-	GPU::Handle fbsHandle = manager.CreateFrameBindingSet(fbDesc, "gpu-tests-create-frame-binding-set");
+	GPU::Handle fbsHandle = manager.CreateFrameBindingSet(fbDesc, testName.c_str());
 	REQUIRE(fbsHandle);
 
 	manager.DestroyResource(fbsHandle);
@@ -591,13 +620,16 @@ TEST_CASE("gpu-tests-create-frame-binding-set")
 
 TEST_CASE("gpu-tests-clears")
 {
-	Client::Window window("gpu_tests", 0, 0, 640, 480, false);
-	GPU::Manager manager(window.GetPlatformData().handle_);
+	auto testName = Catch::getResultCapture().getCurrentTestName();
+	Client::Window window(testName.c_str(), 0, 0, 640, 480, false);
+	GPU::Manager manager(window.GetPlatformData().handle_, debuggerIntegrationFlags);
 
 	i32 numAdapters = manager.EnumerateAdapters(nullptr, 0);
 	REQUIRE(numAdapters > 0);
 
 	REQUIRE(manager.Initialize(0) == GPU::ErrorCode::OK);
+
+	GPU::Manager::ScopedDebugCapture capture(manager, testName.c_str());
 
 	GPU::TextureDesc rtDesc;
 	rtDesc.type_ = GPU::TextureType::TEX2D;
@@ -605,7 +637,7 @@ TEST_CASE("gpu-tests-clears")
 	rtDesc.width_ = 128;
 	rtDesc.height_ = 128;
 	rtDesc.format_ = GPU::Format::R8G8B8A8_UNORM;
-	GPU::Handle rtHandle = manager.CreateTexture(rtDesc, nullptr, "gpu-tests-compile-clears");
+	GPU::Handle rtHandle = manager.CreateTexture(rtDesc, nullptr, testName.c_str());
 	REQUIRE(rtHandle);
 
 	GPU::TextureDesc dsDesc;
@@ -614,7 +646,7 @@ TEST_CASE("gpu-tests-clears")
 	dsDesc.width_ = 128;
 	dsDesc.height_ = 128;
 	dsDesc.format_ = GPU::Format::D24_UNORM_S8_UINT;
-	GPU::Handle dsHandle = manager.CreateTexture(dsDesc, nullptr, "gpu-tests-compile-clears");
+	GPU::Handle dsHandle = manager.CreateTexture(dsDesc, nullptr, testName.c_str());
 	REQUIRE(dsHandle);
 
 	GPU::FrameBindingSetDesc fbDesc;
@@ -625,19 +657,138 @@ TEST_CASE("gpu-tests-clears")
 	fbDesc.dsv_.format_ = dsDesc.format_;
 	fbDesc.dsv_.dimension_ = GPU::ViewDimension::TEX2D;
 
-	GPU::Handle fbsHandle = manager.CreateFrameBindingSet(fbDesc, "gpu-tests-compile-clears");
+	GPU::Handle fbsHandle = manager.CreateFrameBindingSet(fbDesc, testName.c_str());
 	REQUIRE(fbsHandle);
 
-
-	GPU::Handle cmdHandle = manager.CreateCommandList("gpu-tests-compile-clears");
+	GPU::Handle cmdHandle = manager.CreateCommandList(testName.c_str());
 	GPU::CommandList cmdList(manager.GetHandleAllocator());
 
-	f32 color[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+	f32 color[4] = {0.0f, 0.0f, 0.0f, 0.0f};
 	REQUIRE(cmdList.ClearRTV(fbsHandle, 0, color));
 	REQUIRE(cmdList.ClearDSV(fbsHandle, 0.0f, 0));
 	REQUIRE(manager.CompileCommandList(cmdHandle, cmdList));
 	REQUIRE(manager.SubmitCommandList(cmdHandle));
 
+	manager.DestroyResource(cmdHandle);
+	manager.DestroyResource(fbsHandle);
+	manager.DestroyResource(dsHandle);
+	manager.DestroyResource(rtHandle);
+}
+
+TEST_CASE("gpu-tests-compile-draw")
+{
+	auto testName = Catch::getResultCapture().getCurrentTestName();
+	Client::Window window(testName.c_str(), 0, 0, 640, 480, false);
+	GPU::Manager manager(window.GetPlatformData().handle_, debuggerIntegrationFlags);
+
+	i32 numAdapters = manager.EnumerateAdapters(nullptr, 0);
+	REQUIRE(numAdapters > 0);
+
+	REQUIRE(manager.Initialize(0) == GPU::ErrorCode::OK);
+
+	GPU::Manager::ScopedDebugCapture capture(manager, testName.c_str());
+
+	float vertices[] = {0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f, 0.0f, 0.0f, 1.0f};
+
+	GPU::BufferDesc vbDesc;
+	vbDesc.bindFlags_ = GPU::BindFlags::VERTEX_BUFFER;
+	vbDesc.size_ = sizeof(vertices);
+	GPU::Handle vbHandle = manager.CreateBuffer(vbDesc, vertices, testName.c_str());
+	REQUIRE(vbHandle);
+
+	GPU::DrawBindingSetDesc dbsDesc;
+	dbsDesc.vbs_[0].resource_ = vbHandle;
+	dbsDesc.vbs_[0].offset_ = 0;
+	dbsDesc.vbs_[0].size_ = (i32)vbDesc.size_;
+	dbsDesc.vbs_[0].stride_ = sizeof(float) * 4;
+
+	GPU::Handle dbsHandle = manager.CreateDrawBindingSet(dbsDesc, testName.c_str());
+	REQUIRE(dbsHandle);
+
+	GPU::TextureDesc rtDesc;
+	rtDesc.type_ = GPU::TextureType::TEX2D;
+	rtDesc.bindFlags_ = GPU::BindFlags::RENDER_TARGET | GPU::BindFlags::SHADER_RESOURCE;
+	rtDesc.width_ = 128;
+	rtDesc.height_ = 128;
+	rtDesc.format_ = GPU::Format::R8G8B8A8_UNORM;
+	GPU::Handle rtHandle = manager.CreateTexture(rtDesc, nullptr, testName.c_str());
+	REQUIRE(rtHandle);
+
+	GPU::TextureDesc dsDesc;
+	dsDesc.type_ = GPU::TextureType::TEX2D;
+	dsDesc.bindFlags_ = GPU::BindFlags::DEPTH_STENCIL;
+	dsDesc.width_ = 128;
+	dsDesc.height_ = 128;
+	dsDesc.format_ = GPU::Format::D24_UNORM_S8_UINT;
+	GPU::Handle dsHandle = manager.CreateTexture(dsDesc, nullptr, testName.c_str());
+	REQUIRE(dsHandle);
+
+	GPU::FrameBindingSetDesc fbDesc;
+	fbDesc.rtvs_[0].resource_ = rtHandle;
+	fbDesc.rtvs_[0].format_ = rtDesc.format_;
+	fbDesc.rtvs_[0].dimension_ = GPU::ViewDimension::TEX2D;
+	fbDesc.dsv_.resource_ = dsHandle;
+	fbDesc.dsv_.format_ = dsDesc.format_;
+	fbDesc.dsv_.dimension_ = GPU::ViewDimension::TEX2D;
+
+	GPU::Handle fbsHandle = manager.CreateFrameBindingSet(fbDesc, testName.c_str());
+	REQUIRE(fbsHandle);
+
+	GPU::ShaderDesc vsDesc;
+	vsDesc.type_ = GPU::ShaderType::VERTEX;
+	vsDesc.dataSize_ = sizeof(g_VShader);
+	vsDesc.data_ = g_VShader;
+
+	GPU::Handle vsHandle = manager.CreateShader(vsDesc, testName.c_str());
+	REQUIRE(vsHandle);
+
+	GPU::ShaderDesc psDesc;
+	psDesc.type_ = GPU::ShaderType::VERTEX;
+	psDesc.dataSize_ = sizeof(g_PShader);
+	psDesc.data_ = g_PShader;
+
+	GPU::Handle psHandle = manager.CreateShader(psDesc, testName.c_str());
+	REQUIRE(psHandle);
+
+	GPU::GraphicsPipelineStateDesc pipelineDesc;
+	pipelineDesc.shaders_[(i32)GPU::ShaderType::VERTEX] = vsHandle;
+	pipelineDesc.shaders_[(i32)GPU::ShaderType::PIXEL] = psHandle;
+	pipelineDesc.renderState_ = GPU::RenderState();
+	pipelineDesc.numVertexElements_ = 1;
+	pipelineDesc.vertexElements_[0].streamIdx_ = 0;
+	pipelineDesc.vertexElements_[0].offset_ = 0;
+	pipelineDesc.vertexElements_[0].format_ = GPU::Format::R32G32B32A32_FLOAT;
+	pipelineDesc.vertexElements_[0].usage_ = GPU::VertexUsage::POSITION;
+	pipelineDesc.vertexElements_[0].usageIdx_ = 0;
+	pipelineDesc.topology_ = GPU::TopologyType::TRIANGLE;
+	pipelineDesc.numRTs_ = 1;
+	pipelineDesc.rtvFormats_[0] = GPU::Format::R8G8B8A8_UNORM;
+	pipelineDesc.dsvFormat_ = GPU::Format::D24_UNORM_S8_UINT;
+	pipelineDesc.renderState_.cullMode_ = GPU::CullMode::NONE;
+	GPU::Handle pipelineHandle = manager.CreateGraphicsPipelineState(pipelineDesc, testName.c_str());
+
+	GPU::PipelineBindingSetDesc pipelineBindingSetDesc;
+	pipelineBindingSetDesc.pipelineState_ = pipelineHandle;
+	GPU::Handle pbsHandle = manager.CreatePipelineBindingSet(pipelineBindingSetDesc, testName.c_str());
+
+	GPU::Handle cmdHandle = manager.CreateCommandList(testName.c_str());
+	GPU::CommandList cmdList(manager.GetHandleAllocator());
+
+	f32 color[4] = {0.2f, 0.2f, 0.2f, 1.0f};
+	REQUIRE(cmdList.ClearRTV(fbsHandle, 0, color));
+	REQUIRE(cmdList.ClearDSV(fbsHandle, 0.0f, 0));
+	REQUIRE(cmdList.Draw(pbsHandle, dbsHandle, fbsHandle, GPU::PrimitiveTopology::TRIANGLE_LIST, 0, 1, 3, 0, 1));
+	REQUIRE(manager.CompileCommandList(cmdHandle, cmdList));
+	REQUIRE(manager.SubmitCommandList(cmdHandle));
+
+
+	manager.DestroyResource(cmdHandle);
+	manager.DestroyResource(pbsHandle);
+	manager.DestroyResource(pipelineHandle);
+	manager.DestroyResource(psHandle);
+	manager.DestroyResource(vsHandle);
+	manager.DestroyResource(dbsHandle);
+	manager.DestroyResource(vbHandle);
 	manager.DestroyResource(fbsHandle);
 	manager.DestroyResource(dsHandle);
 	manager.DestroyResource(rtHandle);
