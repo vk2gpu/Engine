@@ -18,7 +18,7 @@ typedef u8 BYTE;
 
 namespace
 {
-	GPU::DebuggerIntegrationFlags debuggerIntegrationFlags = GPU::DebuggerIntegrationFlags::RENDERDOC;
+	GPU::DebuggerIntegrationFlags debuggerIntegrationFlags = GPU::DebuggerIntegrationFlags::NONE;
 }
 
 TEST_CASE("gpu-tests-formats")
@@ -974,4 +974,82 @@ TEST_CASE("gpu-tests-compile-update-texture")
 
 	manager.DestroyResource(cmdHandle);
 	manager.DestroyResource(texHandle);
+}
+
+TEST_CASE("gpu-tests-compile-copy-buffer")
+{
+	auto testName = Catch::getResultCapture().getCurrentTestName();
+	Client::Window window(testName.c_str(), 0, 0, 640, 480, false);
+	GPU::Manager manager(window.GetPlatformData().handle_, debuggerIntegrationFlags);
+
+	i32 numAdapters = manager.EnumerateAdapters(nullptr, 0);
+	REQUIRE(numAdapters > 0);
+
+	REQUIRE(manager.Initialize(0) == GPU::ErrorCode::OK);
+
+	GPU::Manager::ScopedDebugCapture capture(manager, testName.c_str());
+
+	f32 data[8] = {0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f};
+	GPU::BufferDesc vbDesc;
+	vbDesc.bindFlags_ = GPU::BindFlags::VERTEX_BUFFER;
+	vbDesc.size_ = 8 * sizeof(f32);
+	GPU::Handle vb0Handle = manager.CreateBuffer(vbDesc, data, testName.c_str());
+	GPU::Handle vb1Handle = manager.CreateBuffer(vbDesc, nullptr, testName.c_str());
+	REQUIRE(vb0Handle);
+	REQUIRE(vb1Handle);
+
+	GPU::Handle cmdHandle = manager.CreateCommandList(testName.c_str());
+	GPU::CommandList cmdList(manager.GetHandleAllocator());
+
+	REQUIRE(cmdList.CopyBuffer(vb1Handle, 0, vb0Handle, 0, sizeof(data)));
+	REQUIRE(manager.CompileCommandList(cmdHandle, cmdList));
+	REQUIRE(manager.SubmitCommandList(cmdHandle));
+
+	manager.DestroyResource(cmdHandle);
+	manager.DestroyResource(vb1Handle);
+	manager.DestroyResource(vb0Handle);
+}
+
+TEST_CASE("gpu-tests-compile-copy-texture")
+{
+	auto testName = Catch::getResultCapture().getCurrentTestName();
+	Client::Window window(testName.c_str(), 0, 0, 640, 480, false);
+	GPU::Manager manager(window.GetPlatformData().handle_, debuggerIntegrationFlags);
+
+	i32 numAdapters = manager.EnumerateAdapters(nullptr, 0);
+	REQUIRE(numAdapters > 0);
+
+	REQUIRE(manager.Initialize(0) == GPU::ErrorCode::OK);
+
+	GPU::Manager::ScopedDebugCapture capture(manager, testName.c_str());
+
+	u32 data[8] = {0xff00ff00, 0xffff0000, 0x0000ffff, 0x00ff00ff, 0xff00ff00, 0xffff0000, 0x0000ffff, 0x00ff00ff};
+	GPU::TextureSubResourceData texSubRscData;
+	texSubRscData.data_ = data;
+	texSubRscData.rowPitch_ = sizeof(data);
+	texSubRscData.slicePitch_ = sizeof(data);
+	GPU::TextureDesc texDesc;
+	texDesc.type_ = GPU::TextureType::TEX1D;
+	texDesc.bindFlags_ = GPU::BindFlags::SHADER_RESOURCE;
+	texDesc.format_ = GPU::Format::R8G8B8A8_UNORM;
+	texDesc.width_ = 8;
+	GPU::Handle tex0Handle = manager.CreateTexture(texDesc, &texSubRscData, testName.c_str());
+	GPU::Handle tex1Handle = manager.CreateTexture(texDesc, nullptr, testName.c_str());
+	REQUIRE(tex0Handle);
+	REQUIRE(tex1Handle);
+
+	GPU::Handle cmdHandle = manager.CreateCommandList(testName.c_str());
+	GPU::CommandList cmdList(manager.GetHandleAllocator());
+
+	GPU::Point dstPoint;
+	GPU::Box srcBox;
+	texDesc.width_ = 8;
+
+	REQUIRE(cmdList.CopyTextureSubResource(tex1Handle, 0, dstPoint, tex0Handle, 0, srcBox));
+	REQUIRE(manager.CompileCommandList(cmdHandle, cmdList));
+	REQUIRE(manager.SubmitCommandList(cmdHandle));
+
+	manager.DestroyResource(cmdHandle);
+	manager.DestroyResource(tex1Handle);
+	manager.DestroyResource(tex0Handle);
 }

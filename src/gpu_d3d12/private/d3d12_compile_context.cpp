@@ -149,8 +149,7 @@ namespace GPU
 	{
 		const auto& tex = backend_.textureResources_[command->texture_.GetIndex()];
 		DBG_ASSERT(tex.resource_);
-
-
+		
 		auto srcLayout = command->data_;
 		D3D12_PLACED_SUBRESOURCE_FOOTPRINT dstLayout;
 		i32 numRows = 0;
@@ -194,11 +193,54 @@ namespace GPU
 		return ErrorCode::OK;
 	}
 
-	ErrorCode D3D12CompileContext::CompileCommand(const CommandCopyBuffer* command) { return ErrorCode::UNIMPLEMENTED; }
+	ErrorCode D3D12CompileContext::CompileCommand(const CommandCopyBuffer* command)
+	{
+		const auto& dstBuf = backend_.bufferResources_[command->dstBuffer_.GetIndex()];
+		const auto& srcBuf = backend_.bufferResources_[command->srcBuffer_.GetIndex()];
+		DBG_ASSERT(dstBuf.resource_);
+		DBG_ASSERT(srcBuf.resource_);
+
+		AddTransition(&dstBuf, D3D12_RESOURCE_STATE_COPY_DEST);
+		AddTransition(&srcBuf, D3D12_RESOURCE_STATE_COPY_SOURCE);
+		FlushTransitions();
+
+		d3dCommandList_->CopyBufferRegion(dstBuf.resource_.Get(), command->dstOffset_, srcBuf.resource_.Get(),
+		    command->srcOffset_, command->srcSize_);
+
+		return ErrorCode::OK;
+	}
 
 	ErrorCode D3D12CompileContext::CompileCommand(const CommandCopyTextureSubResource* command)
 	{
-		return ErrorCode::UNIMPLEMENTED;
+		const auto& dstTex = backend_.textureResources_[command->dstTexture_.GetIndex()];
+		const auto& srcTex = backend_.textureResources_[command->srcTexture_.GetIndex()];
+		DBG_ASSERT(dstTex.resource_);
+		DBG_ASSERT(srcTex.resource_);
+
+		D3D12_TEXTURE_COPY_LOCATION dst;
+		dst.pResource = dstTex.resource_.Get();
+		dst.SubresourceIndex = command->dstSubResourceIdx_;
+		dst.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+
+		D3D12_TEXTURE_COPY_LOCATION src;
+		src.pResource = srcTex.resource_.Get();
+		src.SubresourceIndex = command->srcSubResourceIdx_;
+		src.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+
+		AddTransition(&dstTex, D3D12_RESOURCE_STATE_COPY_DEST);
+		AddTransition(&srcTex, D3D12_RESOURCE_STATE_COPY_SOURCE);
+		FlushTransitions();
+
+		D3D12_BOX box;
+		box.left = command->srcBox_.x_;
+		box.top = command->srcBox_.y_;
+		box.front = command->srcBox_.z_;
+		box.right = command->srcBox_.x_ + command->srcBox_.w_;
+		box.bottom = command->srcBox_.y_ + command->srcBox_.h_;
+		box.back = command->srcBox_.z_ + command->srcBox_.d_;
+		d3dCommandList_->CopyTextureRegion(&dst, command->dstPoint_.x_, command->dstPoint_.y_, command->dstPoint_.z_, &src, &box);
+
+		return ErrorCode::OK;	
 	}
 
 	ErrorCode D3D12CompileContext::SetDrawBinding(Handle dbsHandle, PrimitiveTopology primitive)

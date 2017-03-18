@@ -198,16 +198,16 @@ namespace GPU
 	 */
 	struct GPU_DLL CommandCopyBuffer : CommandTyped<CommandType::COPY_BUFFER>
 	{
+		/// Destination buffer.
+		Handle dstBuffer_;
+		/// Destination offset to copy into.
+		i32 dstOffset_ = 0;
 		/// Source buffer.
 		Handle srcBuffer_;
 		/// Offset in source buffer to copy from.
 		i32 srcOffset_ = 0;
 		/// Size of copy.
 		i32 srcSize_ = 0;
-		/// Destination buffer.
-		Handle dstBuffer_;
-		/// Destination offset to copy into.
-		i32 dstOffset_ = 0;
 	};
 
 	/**
@@ -215,18 +215,18 @@ namespace GPU
 	 */
 	struct GPU_DLL CommandCopyTextureSubResource : CommandTyped<CommandType::COPY_TEXTURE_SUBRESOURCE>
 	{
-		/// Source texture.
-		Handle srcTexture_;
-		/// Source subresource index.
-		i16 srcSubResourceIdx_ = 0;
-		/// Source box.
-		Box srcBox_;
 		/// Destination texture.
 		Handle dstTexture_;
 		/// Destination subresource index.
 		i16 dstSubResourceIdx_ = 0;
 		/// Destination point.
 		Point dstPoint_;
+		/// Source texture.
+		Handle srcTexture_;
+		/// Source subresource index.
+		i16 srcSubResourceIdx_ = 0;
+		/// Source box.
+		Box srcBox_;
 	};
 
 } // namespace GPU

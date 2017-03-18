@@ -205,7 +205,7 @@ namespace GPU
 	}
 
 	INLINE CommandCopyBuffer* CommandList::CopyBuffer(
-	    Handle srcBuffer, i32 srcOffset, i32 srcSize, Handle dstBuffer, i32 dstOffset)
+	    Handle dstBuffer, i32 dstOffset, Handle srcBuffer, i32 srcOffset, i32 srcSize)
 	{
 		DBG_ASSERT(handleAllocator_.IsValid(srcBuffer));
 		DBG_ASSERT(srcBuffer.GetType() == ResourceType::BUFFER);
@@ -225,8 +225,8 @@ namespace GPU
 		return command;
 	}
 
-	INLINE CommandCopyTextureSubResource* CommandList::CopyTextureSubResource(Handle srcTexture, i32 srcSubResourceIdx,
-	    const Box& srcBox, Handle dstTexture, i32 dstSubResourceIdx, const Point& dstPoint)
+	INLINE CommandCopyTextureSubResource* CommandList::CopyTextureSubResource(Handle dstTexture, i32 dstSubResourceIdx,
+	    const Point& dstPoint, Handle srcTexture, i32 srcSubResourceIdx, const Box& srcBox)
 	{
 		DBG_ASSERT(handleAllocator_.IsValid(srcTexture));
 		DBG_ASSERT(srcTexture.GetType() == ResourceType::TEXTURE);

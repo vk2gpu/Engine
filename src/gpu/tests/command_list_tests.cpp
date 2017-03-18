@@ -73,9 +73,9 @@ TEST_CASE("commandlist-tests-commands")
 	REQUIRE(commandList.UpdateBuffer(buffer0Handle, 0, sizeof(u), u));
 	REQUIRE(commandList.UpdateTextureSubResource(texture0Handle, 0, texSubRsc));
 	// Copies.
-	REQUIRE(commandList.CopyBuffer(buffer0Handle, 0, sizeof(u), buffer1Handle, 0));
-	REQUIRE(commandList.CopyTextureSubResource(texture0Handle, 0, box, texture1Handle, 0, point));
-	REQUIRE(commandList.CopyTextureSubResource(texture0Handle, 0, box, texture0Handle, 1, point));
+	REQUIRE(commandList.CopyBuffer(buffer1Handle, 0, buffer0Handle, 0, sizeof(u)));
+	REQUIRE(commandList.CopyTextureSubResource(texture1Handle, 0, point, texture0Handle, 0, box));
+	REQUIRE(commandList.CopyTextureSubResource(texture0Handle, 1, point, texture0Handle, 0, box));
 
 	// Check we have valid commands.
 	for(auto* command : commandList)

@@ -153,7 +153,7 @@ namespace GPU
 		 * @return Copy command. nullptr if failure.
 		 */
 		GPU_DLL CommandCopyBuffer* CopyBuffer(
-		    Handle srcBuffer, i32 srcOffset, i32 srcSize, Handle dstBuffer, i32 dstOffset);
+		    Handle dstBuffer, i32 dstOffset, Handle srcBuffer, i32 srcOffset, i32 srcSize);
 
 		/**
 		 * See @a CommandCopyTextureSubResource.
@@ -166,8 +166,8 @@ namespace GPU
 		 * @pre @a srcTexture != @a dstTexture or @a srcSubResourceIdx != @a dstSubResourceIdx.
 		 * @return Copy command. nullptr if failure.
 		 */
-		GPU_DLL CommandCopyTextureSubResource* CopyTextureSubResource(Handle srcTexture, i32 srcSubResourceIdx,
-		    const Box& srcBox, Handle dstTexture, i32 dstSubResourceIdx, const Point& dstPoint);
+		GPU_DLL CommandCopyTextureSubResource* CopyTextureSubResource(Handle dstTexture, i32 dstSubResourceIdx,
+		    const Point& dstPoint, Handle srcTexture, i32 srcSubResourceIdx, const Box& srcBox);
 
 		/// for iterator support.
 		typedef Core::Vector<Command*> CommandVector;
