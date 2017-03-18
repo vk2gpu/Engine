@@ -1072,9 +1072,9 @@ namespace GPU
 		auto* d3dCommandList = context.d3dCommandList_;
 		const auto& dbs = drawBindingSets_[command->drawBinding_.GetIndex()];
 
-		SetDrawBinding(context, command->drawBinding_, command->primitive_);
 		SetPipelineBinding(context, command->pipelineBinding_);
 		SetFrameBinding(context, command->frameBinding_);
+		SetDrawBinding(context, command->drawBinding_, command->primitive_);
 
 		if(dbs.ib_.BufferLocation == 0)
 		{
@@ -1096,7 +1096,10 @@ namespace GPU
 
 	ErrorCode D3D12Backend::CompileCommand(D3D12CompileContext& context, const CommandDispatch* command)
 	{
-		return ErrorCode::UNIMPLEMENTED;
+		auto* d3dCommandList = context.d3dCommandList_;
+		SetPipelineBinding(context, command->pipelineBinding_);
+		d3dCommandList->Dispatch(command->xGroups_, command->yGroups_, command->zGroups_);
+		return ErrorCode::OK;
 	}
 
 	ErrorCode D3D12Backend::CompileCommand(D3D12CompileContext& context, const CommandDispatchIndirect* command)

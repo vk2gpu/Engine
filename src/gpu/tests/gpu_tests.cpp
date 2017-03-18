@@ -13,6 +13,9 @@ typedef u8 BYTE;
 #include "gpu_d3d12/private/shaders/default_vs.h"
 #include "gpu_d3d12/private/shaders/default_ps.h"
 
+#include "gpu/tests/shaders/test_buf_cs.h"
+#include "gpu/tests/shaders/test_tex_cs.h"
+
 namespace
 {
 	GPU::DebuggerIntegrationFlags debuggerIntegrationFlags = GPU::DebuggerIntegrationFlags::NONE;
@@ -781,7 +784,6 @@ TEST_CASE("gpu-tests-compile-draw")
 	REQUIRE(manager.CompileCommandList(cmdHandle, cmdList));
 	REQUIRE(manager.SubmitCommandList(cmdHandle));
 
-
 	manager.DestroyResource(cmdHandle);
 	manager.DestroyResource(pbsHandle);
 	manager.DestroyResource(pipelineHandle);
@@ -792,4 +794,116 @@ TEST_CASE("gpu-tests-compile-draw")
 	manager.DestroyResource(fbsHandle);
 	manager.DestroyResource(dsHandle);
 	manager.DestroyResource(rtHandle);
+}
+
+TEST_CASE("gpu-tests-compile-dispatch")
+{
+	auto testName = Catch::getResultCapture().getCurrentTestName();
+	Client::Window window(testName.c_str(), 0, 0, 640, 480, false);
+	GPU::Manager manager(window.GetPlatformData().handle_, debuggerIntegrationFlags);
+
+	i32 numAdapters = manager.EnumerateAdapters(nullptr, 0);
+	REQUIRE(numAdapters > 0);
+
+	REQUIRE(manager.Initialize(0) == GPU::ErrorCode::OK);
+
+	GPU::Manager::ScopedDebugCapture capture(manager, testName.c_str());
+
+	float vertices[] = {0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f, 0.0f, 0.0f, 1.0f};
+
+	GPU::BufferDesc bufDesc;
+	bufDesc.bindFlags_ = GPU::BindFlags::UNORDERED_ACCESS;
+	bufDesc.size_ = 256;
+	GPU::Handle bufHandle = manager.CreateBuffer(bufDesc, vertices, testName.c_str());
+	REQUIRE(bufHandle);
+
+	GPU::TextureDesc texDesc;
+	texDesc.type_ = GPU::TextureType::TEX2D;
+	texDesc.bindFlags_ = GPU::BindFlags::UNORDERED_ACCESS;
+	texDesc.width_ = 128;
+	texDesc.height_ = 128;
+	texDesc.format_ = GPU::Format::R8G8B8A8_UNORM;
+	GPU::Handle texHandle = manager.CreateTexture(texDesc, nullptr, testName.c_str());
+	REQUIRE(texHandle);
+
+	{
+		GPU::ShaderDesc csDesc;
+		csDesc.type_ = GPU::ShaderType::COMPUTE;
+		csDesc.dataSize_ = sizeof(g_CTestBuf);
+		csDesc.data_ = g_CTestBuf;
+
+		GPU::Handle csHandle = manager.CreateShader(csDesc, testName.c_str());
+		REQUIRE(csHandle);
+
+		GPU::ComputePipelineStateDesc pipelineDesc;
+		pipelineDesc.shader_ = csHandle;
+		GPU::Handle pipelineHandle = manager.CreateComputePipelineState(pipelineDesc, testName.c_str());
+		REQUIRE(pipelineHandle);
+
+		GPU::PipelineBindingSetDesc pipelineBindingSetDesc;
+		pipelineBindingSetDesc.pipelineState_ = pipelineHandle;
+		pipelineBindingSetDesc.numUAVs_ = 1;
+		pipelineBindingSetDesc.uavs_[0].resource_ = bufHandle;
+		pipelineBindingSetDesc.uavs_[0].format_ = GPU::Format::R32_SINT;
+		pipelineBindingSetDesc.uavs_[0].dimension_ = GPU::ViewDimension::BUFFER;
+		pipelineBindingSetDesc.uavs_[0].mipSlice_FirstElement_ = 0;
+		pipelineBindingSetDesc.uavs_[0].firstArraySlice_FirstWSlice_NumElements_ = (i32)(bufDesc.size_ / sizeof(i32));
+		GPU::Handle pbsHandle = manager.CreatePipelineBindingSet(pipelineBindingSetDesc, testName.c_str());
+		REQUIRE(pbsHandle);
+
+		GPU::Handle cmdHandle = manager.CreateCommandList(testName.c_str());
+		GPU::CommandList cmdList(manager.GetHandleAllocator());
+
+		i32 xGroups = (i32)(bufDesc.size_ / sizeof(i32)) / 8;
+		REQUIRE(cmdList.Dispatch(pbsHandle, xGroups, 1, 1));
+		REQUIRE(manager.CompileCommandList(cmdHandle, cmdList));
+		REQUIRE(manager.SubmitCommandList(cmdHandle));
+
+		manager.DestroyResource(cmdHandle);
+		manager.DestroyResource(pbsHandle);
+		manager.DestroyResource(pipelineHandle);
+		manager.DestroyResource(csHandle);
+	}
+
+	{
+		GPU::ShaderDesc csDesc;
+		csDesc.type_ = GPU::ShaderType::COMPUTE;
+		csDesc.dataSize_ = sizeof(g_CTestTex);
+		csDesc.data_ = g_CTestTex;
+
+		GPU::Handle csHandle = manager.CreateShader(csDesc, testName.c_str());
+		REQUIRE(csHandle);
+
+		GPU::ComputePipelineStateDesc pipelineDesc;
+		pipelineDesc.shader_ = csHandle;
+		GPU::Handle pipelineHandle = manager.CreateComputePipelineState(pipelineDesc, testName.c_str());
+		REQUIRE(pipelineHandle);
+
+		GPU::PipelineBindingSetDesc pipelineBindingSetDesc;
+		pipelineBindingSetDesc.pipelineState_ = pipelineHandle;
+		pipelineBindingSetDesc.numUAVs_ = 1;
+		pipelineBindingSetDesc.uavs_[0].resource_ = texHandle;
+		pipelineBindingSetDesc.uavs_[0].format_ = GPU::Format::R8G8B8A8_UNORM;
+		pipelineBindingSetDesc.uavs_[0].dimension_ = GPU::ViewDimension::TEX2D;
+		pipelineBindingSetDesc.uavs_[0].mipSlice_FirstElement_ = 0;
+		GPU::Handle pbsHandle = manager.CreatePipelineBindingSet(pipelineBindingSetDesc, testName.c_str());
+		REQUIRE(pbsHandle);
+
+		GPU::Handle cmdHandle = manager.CreateCommandList(testName.c_str());
+		GPU::CommandList cmdList(manager.GetHandleAllocator());
+
+		i32 xGroups = texDesc.width_ / 8;
+		i32 yGroups = texDesc.height_ / 8;
+		REQUIRE(cmdList.Dispatch(pbsHandle, xGroups, yGroups, 1));
+		REQUIRE(manager.CompileCommandList(cmdHandle, cmdList));
+		REQUIRE(manager.SubmitCommandList(cmdHandle));
+
+		manager.DestroyResource(cmdHandle);
+		manager.DestroyResource(pbsHandle);
+		manager.DestroyResource(pipelineHandle);
+		manager.DestroyResource(csHandle);
+	}
+
+	manager.DestroyResource(texHandle);
+	manager.DestroyResource(bufHandle);
 }

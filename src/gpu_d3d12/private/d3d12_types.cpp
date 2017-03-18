@@ -86,7 +86,7 @@ namespace GPU
 			retVal |= D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
 		if(Core::ContainsAllFlags(bindFlags, BindFlags::UNORDERED_ACCESS))
 			retVal |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
-		if(!Core::ContainsAllFlags(bindFlags, BindFlags::SHADER_RESOURCE))
+		if(!Core::ContainsAllFlags(bindFlags, BindFlags::SHADER_RESOURCE) && Core::ContainsAllFlags(bindFlags, BindFlags::DEPTH_STENCIL))
 			retVal |= D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE;
 		return retVal;
 	}

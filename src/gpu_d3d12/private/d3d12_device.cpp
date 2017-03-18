@@ -634,10 +634,9 @@ namespace GPU
 	ErrorCode D3D12Device::UpdateSRVs(D3D12PipelineBindingSet& pipelineBindingSet, i32 first, i32 num,
 	    ID3D12Resource** resources, const D3D12_SHADER_RESOURCE_VIEW_DESC* descs)
 	{
-		ID3D12DescriptorHeap* descHeap = pipelineBindingSet.srvs_.d3dDescriptorHeap_.Get();
 		i32 incr = d3dDevice_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-		D3D12_CPU_DESCRIPTOR_HANDLE handle = descHeap->GetCPUDescriptorHandleForHeapStart();
-		handle.ptr += (pipelineBindingSet.srvs_.offset_ + first) * incr;
+		D3D12_CPU_DESCRIPTOR_HANDLE handle = pipelineBindingSet.srvs_.cpuDescHandle_;
+		handle.ptr += first * incr;
 		for(i32 i = 0; i < num; ++i)
 		{
 			d3dDevice_->CreateShaderResourceView(resources[i], &descs[i], handle);
@@ -649,10 +648,9 @@ namespace GPU
 	ErrorCode D3D12Device::UpdateUAVs(D3D12PipelineBindingSet& pipelineBindingSet, i32 first, i32 num,
 	    ID3D12Resource** resources, const D3D12_UNORDERED_ACCESS_VIEW_DESC* descs)
 	{
-		ID3D12DescriptorHeap* descHeap = pipelineBindingSet.srvs_.d3dDescriptorHeap_.Get();
 		i32 incr = d3dDevice_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-		D3D12_CPU_DESCRIPTOR_HANDLE handle = descHeap->GetCPUDescriptorHandleForHeapStart();
-		handle.ptr += (pipelineBindingSet.srvs_.offset_ + first) * incr;
+		D3D12_CPU_DESCRIPTOR_HANDLE handle = pipelineBindingSet.uavs_.cpuDescHandle_;
+		handle.ptr += first * incr;
 		for(i32 i = 0; i < num; ++i)
 		{
 			d3dDevice_->CreateUnorderedAccessView(resources[i], nullptr, &descs[i], handle);
@@ -664,10 +662,9 @@ namespace GPU
 	ErrorCode D3D12Device::UpdateCBVs(
 	    D3D12PipelineBindingSet& pipelineBindingSet, i32 first, i32 num, const D3D12_CONSTANT_BUFFER_VIEW_DESC* descs)
 	{
-		ID3D12DescriptorHeap* descHeap = pipelineBindingSet.srvs_.d3dDescriptorHeap_.Get();
 		i32 incr = d3dDevice_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-		D3D12_CPU_DESCRIPTOR_HANDLE handle = descHeap->GetCPUDescriptorHandleForHeapStart();
-		handle.ptr += (pipelineBindingSet.srvs_.offset_ + first) * incr;
+		D3D12_CPU_DESCRIPTOR_HANDLE handle = pipelineBindingSet.cbvs_.cpuDescHandle_;
+		handle.ptr += first * incr;
 		for(i32 i = 0; i < num; ++i)
 		{
 			d3dDevice_->CreateConstantBufferView(&descs[i], handle);
@@ -679,10 +676,9 @@ namespace GPU
 	ErrorCode D3D12Device::UpdateSamplers(
 	    D3D12PipelineBindingSet& pipelineBindingSet, i32 first, i32 num, const D3D12_SAMPLER_DESC* descs)
 	{
-		ID3D12DescriptorHeap* descHeap = pipelineBindingSet.srvs_.d3dDescriptorHeap_.Get();
 		i32 incr = d3dDevice_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-		D3D12_CPU_DESCRIPTOR_HANDLE handle = descHeap->GetCPUDescriptorHandleForHeapStart();
-		handle.ptr += (pipelineBindingSet.srvs_.offset_ + first) * incr;
+		D3D12_CPU_DESCRIPTOR_HANDLE handle = pipelineBindingSet.samplers_.cpuDescHandle_;
+		handle.ptr += first * incr;
 		for(i32 i = 0; i < num; ++i)
 		{
 			d3dDevice_->CreateSampler(&descs[i], handle);

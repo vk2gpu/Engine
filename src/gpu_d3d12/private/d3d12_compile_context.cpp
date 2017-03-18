@@ -29,16 +29,19 @@ namespace GPU
 
 	void D3D12CompileContext::FlushTransitions()
 	{
-		// Copy pending barriers into flat vector.
-		for(auto barrier : pendingBarriers_)
+		if(pendingBarriers_.size() > 0)
 		{
-			barriers_.push_back(barrier.Second_);
-		}
-		pendingBarriers_.clear();
+			// Copy pending barriers into flat vector.
+			for(auto barrier : pendingBarriers_)
+			{
+				barriers_.push_back(barrier.Second_);
+			}
+			pendingBarriers_.clear();
 
-		// Perform resource barriers.
-		d3dCommandList_->ResourceBarrier(barriers_.size(), barriers_.data());
-		barriers_.clear();
+			// Perform resource barriers.
+			d3dCommandList_->ResourceBarrier(barriers_.size(), barriers_.data());
+			barriers_.clear();
+		}
 	}
 
 	void D3D12CompileContext::RestoreDefault()
