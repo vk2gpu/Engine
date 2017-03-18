@@ -2,7 +2,6 @@
 
 #include "gpu_d3d12/d3d12_types.h"
 #include "gpu_d3d12/d3d12_resources.h"
-
 #include "gpu/resources.h"
 #include "core/map.h"
 
@@ -16,12 +15,33 @@ namespace GPU
 
 	struct D3D12CompileContext
 	{
+		D3D12CompileContext(class D3D12Backend& backend);
+		~D3D12CompileContext();
+		
+		class D3D12Backend& backend_;
+		ID3D12GraphicsCommandList* d3dCommandList_ = nullptr;
+
 		Core::Map<const D3D12Resource*, D3D12_RESOURCE_STATES> stateTracker_;
 		Core::Map<const D3D12Resource*, D3D12_RESOURCE_BARRIER> pendingBarriers_;
 		Core::Vector<D3D12_RESOURCE_BARRIER> barriers_;
 
-		ID3D12GraphicsCommandList* d3dCommandList_ = nullptr;
+		ErrorCode CompileCommandList(class D3D12CommandList& outCommandList, const class CommandList& commandList);
+		ErrorCode CompileCommand(const struct CommandDraw* command);
+		ErrorCode CompileCommand(const struct CommandDrawIndirect* command);
+		ErrorCode CompileCommand(const struct CommandDispatch* command);
+		ErrorCode CompileCommand(const struct CommandDispatchIndirect* command);
+		ErrorCode CompileCommand(const struct CommandClearRTV* command);
+		ErrorCode CompileCommand(const struct CommandClearDSV* command);
+		ErrorCode CompileCommand(const struct CommandClearUAV* command);
+		ErrorCode CompileCommand(const struct CommandUpdateBuffer* command);
+		ErrorCode CompileCommand(const struct CommandUpdateTextureSubResource* command);
+		ErrorCode CompileCommand(const struct CommandCopyBuffer* command);
+		ErrorCode CompileCommand(const struct CommandCopyTextureSubResource* command);
 
+		ErrorCode SetDrawBinding(Handle dbsHandle, PrimitiveTopology primitive);
+		ErrorCode SetPipelineBinding(Handle pbsHandle);
+		ErrorCode SetFrameBinding(Handle fbsHandle);
+		
 		/**
 		 * Add resource transition.
 		 * @param resource Resource to transition.

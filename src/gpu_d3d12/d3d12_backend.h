@@ -49,25 +49,7 @@ namespace GPU
 
 		ErrorCode CompileCommandList(Handle handle, const CommandList& commandList) override;
 		ErrorCode SubmitCommandList(Handle handle) override;
-
-
-		ErrorCode CompileCommand(D3D12CompileContext& context, const CommandDraw* command);
-		ErrorCode CompileCommand(D3D12CompileContext& context, const CommandDrawIndirect* command);
-		ErrorCode CompileCommand(D3D12CompileContext& context, const CommandDispatch* command);
-		ErrorCode CompileCommand(D3D12CompileContext& context, const CommandDispatchIndirect* command);
-		ErrorCode CompileCommand(D3D12CompileContext& context, const CommandClearRTV* command);
-		ErrorCode CompileCommand(D3D12CompileContext& context, const CommandClearDSV* command);
-		ErrorCode CompileCommand(D3D12CompileContext& context, const CommandClearUAV* command);
-		ErrorCode CompileCommand(D3D12CompileContext& context, const CommandUpdateBuffer* command);
-		ErrorCode CompileCommand(D3D12CompileContext& context, const CommandUpdateTextureSubResource* command);
-		ErrorCode CompileCommand(D3D12CompileContext& context, const CommandCopyBuffer* command);
-		ErrorCode CompileCommand(D3D12CompileContext& context, const CommandCopyTextureSubResource* command);
-
-		ErrorCode SetDrawBinding(D3D12CompileContext& context, Handle dbsHandle, PrimitiveTopology primitive);
-		ErrorCode SetPipelineBinding(D3D12CompileContext& context, Handle pbsHandle);
-		ErrorCode SetFrameBinding(D3D12CompileContext& context, Handle fbsHandle);
-
-	private:
+		
 		ComPtr<IDXGIDebug> dxgiDebug_;
 		ComPtr<ID3D12Debug> d3dDebug_;
 
