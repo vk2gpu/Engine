@@ -2,6 +2,7 @@
 #include "gpu/utils.h"
 #include "client/window.h"
 #include "core/array.h"
+#include "core/concurrency.h"
 #include "core/vector.h"
 
 #include "catch.hpp"
@@ -1052,4 +1053,69 @@ TEST_CASE("gpu-tests-compile-copy-texture")
 	manager.DestroyResource(cmdHandle);
 	manager.DestroyResource(tex1Handle);
 	manager.DestroyResource(tex0Handle);
+}
+
+TEST_CASE("gpu-tests-mt-create-buffers")
+{
+	auto testName = Catch::getResultCapture().getCurrentTestName();
+	Client::Window window(testName.c_str(), 0, 0, 640, 480, false);
+	GPU::Manager manager(window.GetPlatformData().handle_, debuggerIntegrationFlags);
+
+	i32 numAdapters = manager.EnumerateAdapters(nullptr, 0);
+	REQUIRE(numAdapters > 0);
+
+	REQUIRE(manager.Initialize(0) == GPU::ErrorCode::OK);
+
+	GPU::Manager::ScopedDebugCapture capture(manager, testName.c_str());
+
+	Core::Vector<Core::Thread> threads;
+
+	struct Locals
+	{
+		Locals(GPU::Manager& manager)
+		    : manager_(manager)
+		{
+		}
+
+		GPU::Manager& manager_;
+		volatile i32 sync_ = 0;
+		i32 total_ = 32;
+	};
+
+	Locals locals(manager);
+	for(i32 i = 0; i < locals.total_; ++i)
+	{
+
+		threads.emplace_back(Core::Thread(
+		    [](void* userData) -> int {
+			    Locals& locals = *reinterpret_cast<Locals*>(userData);
+
+			    i32 val = Core::AtomicInc(&locals.sync_);
+			    while(locals.sync_ < locals.total_)
+				    Core::YieldCPU();
+
+			    GPU::BufferDesc desc;
+			    desc.bindFlags_ = GPU::BindFlags::VERTEX_BUFFER;
+			    desc.size_ = 32 * 1024;
+
+			    Core::Vector<u32> data;
+			    data.resize((i32)desc.size_);
+
+			    GPU::Handle handle;
+			    handle = locals.manager_.CreateBuffer(desc, data.data(), "threaded");
+			    DBG_ASSERT(handle);
+
+			    val = Core::AtomicInc(&locals.sync_);
+			    while(locals.sync_ < (locals.total_ * 2))
+				    Core::YieldCPU();
+
+			    locals.manager_.DestroyResource(handle);
+			    Core::AtomicInc(&(locals.sync_));
+			    return 0;
+		    },
+		    &locals));
+	}
+
+	while(locals.sync_ < (locals.total_ * 3))
+		Core::YieldCPU();
 }

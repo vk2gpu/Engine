@@ -244,7 +244,7 @@ namespace Core
 		Mutex();
 		~Mutex();
 		Mutex(Mutex&&);
-		Mutex& operator = (Mutex&& other);
+		Mutex& operator=(Mutex&& other);
 
 		/**
 		 * Lock.
@@ -286,6 +286,87 @@ namespace Core
 		ScopedMutex(ScopedMutex&&) = delete;
 
 		Mutex& mutex_;
+	};
+
+	/**
+	 * Read/write lock.
+	 */
+	class CORE_DLL RWLock final
+	{
+	public:
+		RWLock();
+		~RWLock();
+		RWLock(RWLock&&);
+		RWLock& operator=(RWLock&& other);
+
+		/**
+		 * Begin read.
+		 */
+		void BeginRead();
+
+		/**
+		 * End read.
+		 */
+		void EndRead();
+
+		/**
+		 * Begin write.
+		 */
+		void BeginWrite();
+
+		/**
+		 * End write.
+		 */
+		void EndWrite();
+
+	private:
+		RWLock(const RWLock&) = delete;
+
+		Mutex rMutex_;
+		Mutex gMutex_;
+		volatile i32 readCount_ = 0;
+	};
+
+	/**
+	 * Scoped read lock.
+	 */
+	class CORE_DLL ScopedReadLock final
+	{
+	public:
+		ScopedReadLock(RWLock& lock)
+		    : lock_(lock)
+		{
+			lock_.BeginRead();
+		}
+
+		~ScopedReadLock() { lock_.EndRead(); }
+
+	private:
+		ScopedReadLock(const ScopedReadLock&) = delete;
+		ScopedReadLock(ScopedReadLock&&) = delete;
+
+		RWLock& lock_;
+	};
+
+	/**
+	 * Scoped write lock.
+	 */
+	class CORE_DLL ScopedWriteLock final
+	{
+	public:
+		ScopedWriteLock(RWLock& lock)
+		    : lock_(lock)
+		{
+			lock_.BeginWrite();
+		}
+
+		~ScopedWriteLock() { lock_.EndWrite(); }
+
+	private:
+		ScopedWriteLock(const ScopedReadLock&) = delete;
+		ScopedWriteLock(ScopedReadLock&&) = delete;
+
+		RWLock& lock_;
 	};
 
 	/**

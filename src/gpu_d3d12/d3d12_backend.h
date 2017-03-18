@@ -63,7 +63,7 @@ namespace GPU
 		class D3D12Device* device_ = nullptr;
 
 		/// Resources.
-		Core::Mutex resourceMutex_;
+		Core::RWLock resLock_;
 		ResourceVector<D3D12SwapChain> swapchainResources_;
 		ResourceVector<D3D12Buffer> bufferResources_;
 		ResourceVector<D3D12Texture> textureResources_;

@@ -131,7 +131,8 @@ namespace GPU
 		ErrorCode retVal = device_->CreateSwapChain(swapChain, desc, debugName);
 		if(retVal != ErrorCode::OK)
 			return retVal;
-		Core::ScopedMutex lock(resourceMutex_);
+		
+		Core::ScopedWriteLock lock(resLock_);
 		swapchainResources_[handle.GetIndex()] = swapChain;
 		return ErrorCode::OK;
 	}
@@ -144,7 +145,8 @@ namespace GPU
 		ErrorCode retVal = device_->CreateBuffer(buffer, desc, initialData, debugName);
 		if(retVal != ErrorCode::OK)
 			return retVal;
-		Core::ScopedMutex lock(resourceMutex_);
+		
+		Core::ScopedWriteLock lock(resLock_);
 		bufferResources_[handle.GetIndex()] = buffer;
 		return ErrorCode::OK;
 	}
@@ -157,7 +159,8 @@ namespace GPU
 		ErrorCode retVal = device_->CreateTexture(texture, desc, initialData, debugName);
 		if(retVal != ErrorCode::OK)
 			return retVal;
-		Core::ScopedMutex lock(resourceMutex_);
+		
+		Core::ScopedWriteLock lock(resLock_);
 		textureResources_[handle.GetIndex()] = texture;
 		return ErrorCode::OK;
 	}
@@ -232,7 +235,7 @@ namespace GPU
 		samplerState.desc_.MinLOD = state.minLOD_;
 		samplerState.desc_.MaxLOD = state.maxLOD_;
 
-		Core::ScopedMutex lock(resourceMutex_);
+		Core::ScopedWriteLock lock(resLock_);
 		samplerStates_[handle.GetIndex()] = samplerState;
 		return ErrorCode::OK;
 	}
@@ -243,7 +246,8 @@ namespace GPU
 		shader.byteCode_ = new u8[desc.dataSize_];
 		shader.byteCodeSize_ = desc.dataSize_;
 		memcpy(shader.byteCode_, desc.data_, desc.dataSize_);
-		Core::ScopedMutex lock(resourceMutex_);
+		
+		Core::ScopedWriteLock lock(resLock_);
 		shaders_[handle.GetIndex()] = shader;
 		return ErrorCode::OK;
 	}
@@ -492,11 +496,14 @@ namespace GPU
 			}
 		};
 
-		gpsDesc.VS = GetShaderBytecode(ShaderType::VERTEX);
-		gpsDesc.GS = GetShaderBytecode(ShaderType::GEOMETRY);
-		gpsDesc.HS = GetShaderBytecode(ShaderType::HULL);
-		gpsDesc.DS = GetShaderBytecode(ShaderType::DOMAIN);
-		gpsDesc.PS = GetShaderBytecode(ShaderType::PIXEL);
+		{
+			Core::ScopedReadLock lock(resLock_);
+			gpsDesc.VS = GetShaderBytecode(ShaderType::VERTEX);
+			gpsDesc.GS = GetShaderBytecode(ShaderType::GEOMETRY);
+			gpsDesc.HS = GetShaderBytecode(ShaderType::HULL);
+			gpsDesc.DS = GetShaderBytecode(ShaderType::DOMAIN);
+			gpsDesc.PS = GetShaderBytecode(ShaderType::PIXEL);
+		}
 
 		gpsDesc.NodeMask = 0x0;
 
@@ -538,7 +545,7 @@ namespace GPU
 		if(retVal != ErrorCode::OK)
 			return retVal;
 
-		Core::ScopedMutex lock(resourceMutex_);
+		Core::ScopedWriteLock lock(resLock_);
 		graphicsPipelineStates_[handle.GetIndex()] = gps;
 		return ErrorCode::OK;
 	}
@@ -549,16 +556,19 @@ namespace GPU
 		D3D12ComputePipelineState cps;
 		D3D12_COMPUTE_PIPELINE_STATE_DESC cpsDesc = {};
 
-		const auto& shader = shaders_[desc.shader_.GetIndex()];
-		cpsDesc.CS.BytecodeLength = shader.byteCodeSize_;
-		cpsDesc.CS.pShaderBytecode = shader.byteCode_;
-		cpsDesc.NodeMask = 0x0;
+		{
+			Core::ScopedReadLock lock(resLock_);
+			const auto& shader = shaders_[desc.shader_.GetIndex()];
+			cpsDesc.CS.BytecodeLength = shader.byteCodeSize_;
+			cpsDesc.CS.pShaderBytecode = shader.byteCode_;
+			cpsDesc.NodeMask = 0x0;
+		}
 
 		ErrorCode retVal = device_->CreateComputePipelineState(cps, cpsDesc, debugName);
 		if(retVal != ErrorCode::OK)
 			return retVal;
 
-		Core::ScopedMutex lock(resourceMutex_);
+		Core::ScopedWriteLock lock(resLock_);
 		computePipelineStates_[handle.GetIndex()] = cps;
 		return ErrorCode::OK;
 	}
@@ -566,7 +576,6 @@ namespace GPU
 	ErrorCode D3D12Backend::CreatePipelineBindingSet(
 	    Handle handle, const PipelineBindingSetDesc& desc, const char* debugName)
 	{
-		Core::ScopedMutex lock(resourceMutex_);
 		D3D12PipelineBindingSet pbs;
 
 		// Grab all resources to create pipeline binding set with.
@@ -584,315 +593,81 @@ namespace GPU
 		memset(cbvs.data(), 0, sizeof(cbvs));
 		memset(samplers.data(), 0, sizeof(samplers));
 
-		for(i32 i = 0; i < desc.numSRVs_; ++i)
 		{
-			auto srvHandle = desc.srvs_[i].resource_;
-			DBG_ASSERT(srvHandle.GetType() == ResourceType::BUFFER || srvHandle.GetType() == ResourceType::TEXTURE);
-			DBG_ASSERT(srvHandle);
-
-			if(srvHandle.GetType() == ResourceType::BUFFER)
+			Core::ScopedReadLock lock(resLock_);
+			for(i32 i = 0; i < desc.numSRVs_; ++i)
 			{
-				srvResources[i] = bufferResources_[srvHandle.GetIndex()].resource_.Get();
-			}
-			else if(srvHandle.GetType() == ResourceType::TEXTURE)
-			{
-				srvResources[i] = textureResources_[srvHandle.GetIndex()].resource_.Get();
-			}
+				auto srvHandle = desc.srvs_[i].resource_;
+				DBG_ASSERT(srvHandle.GetType() == ResourceType::BUFFER || srvHandle.GetType() == ResourceType::TEXTURE);
+				DBG_ASSERT(srvHandle);
 
-			const auto& srv = desc.srvs_[i];
-			srvs[i].Format = GetFormat(srv.format_);
-			srvs[i].ViewDimension = GetSRVDimension(srv.dimension_);
-			srvs[i].Shader4ComponentMapping =
-			    D3D12_ENCODE_SHADER_4_COMPONENT_MAPPING(D3D12_SHADER_COMPONENT_MAPPING_FROM_MEMORY_COMPONENT_0,
-			        D3D12_SHADER_COMPONENT_MAPPING_FROM_MEMORY_COMPONENT_1,
-			        D3D12_SHADER_COMPONENT_MAPPING_FROM_MEMORY_COMPONENT_2,
-			        D3D12_SHADER_COMPONENT_MAPPING_FROM_MEMORY_COMPONENT_3);
-			switch(srv.dimension_)
-			{
-			case ViewDimension::BUFFER:
-				srvs[i].Buffer.FirstElement = srv.mostDetailedMip_FirstElement_;
-				srvs[i].Buffer.NumElements = srv.mipLevels_NumElements_;
-				srvs[i].Buffer.StructureByteStride = 0;
-				srvs[i].Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
-				break;
-			case ViewDimension::TEX1D:
-				srvs[i].Texture1D.MostDetailedMip = srv.mostDetailedMip_FirstElement_;
-				srvs[i].Texture1D.MipLevels = srv.mipLevels_NumElements_;
-				srvs[i].Texture1D.ResourceMinLODClamp = srv.resourceMinLODClamp_;
-				break;
-			case ViewDimension::TEX1D_ARRAY:
-				srvs[i].Texture1DArray.MostDetailedMip = srv.mostDetailedMip_FirstElement_;
-				srvs[i].Texture1DArray.MipLevels = srv.mipLevels_NumElements_;
-				srvs[i].Texture1DArray.ArraySize = srv.arraySize_;
-				srvs[i].Texture1DArray.FirstArraySlice = srv.firstArraySlice_;
-				srvs[i].Texture1DArray.ResourceMinLODClamp = srv.resourceMinLODClamp_;
-				break;
-			case ViewDimension::TEX2D:
-				srvs[i].Texture2D.MostDetailedMip = srv.mostDetailedMip_FirstElement_;
-				srvs[i].Texture2D.MipLevels = srv.mipLevels_NumElements_;
-				srvs[i].Texture2D.PlaneSlice = srv.planeSlice_;
-				srvs[i].Texture2D.ResourceMinLODClamp = srv.resourceMinLODClamp_;
-				break;
-			case ViewDimension::TEX2D_ARRAY:
-				srvs[i].Texture2DArray.MostDetailedMip = srv.mostDetailedMip_FirstElement_;
-				srvs[i].Texture2DArray.MipLevels = srv.mipLevels_NumElements_;
-				srvs[i].Texture2DArray.ArraySize = srv.arraySize_;
-				srvs[i].Texture2DArray.FirstArraySlice = srv.firstArraySlice_;
-				srvs[i].Texture2DArray.PlaneSlice = srv.planeSlice_;
-				srvs[i].Texture2DArray.ResourceMinLODClamp = srv.resourceMinLODClamp_;
-				break;
-			case ViewDimension::TEX3D:
-				srvs[i].Texture3D.MostDetailedMip = srv.mostDetailedMip_FirstElement_;
-				srvs[i].Texture3D.MipLevels = srv.mipLevels_NumElements_;
-				srvs[i].Texture3D.ResourceMinLODClamp = srv.resourceMinLODClamp_;
-				break;
-			case ViewDimension::TEXCUBE:
-				srvs[i].TextureCube.MostDetailedMip = srv.mostDetailedMip_FirstElement_;
-				srvs[i].TextureCube.MipLevels = srv.mipLevels_NumElements_;
-				srvs[i].TextureCube.ResourceMinLODClamp = srv.resourceMinLODClamp_;
-				break;
-			case ViewDimension::TEXCUBE_ARRAY:
-				srvs[i].TextureCubeArray.MostDetailedMip = srv.mostDetailedMip_FirstElement_;
-				srvs[i].TextureCubeArray.MipLevels = srv.mipLevels_NumElements_;
-				srvs[i].TextureCubeArray.NumCubes = srv.arraySize_;
-				srvs[i].TextureCubeArray.First2DArrayFace = srv.firstArraySlice_;
-				srvs[i].TextureCubeArray.ResourceMinLODClamp = srv.resourceMinLODClamp_;
-				break;
-			default:
-				DBG_BREAK;
-				return ErrorCode::FAIL;
-				break;
-			}
-		}
-
-		for(i32 i = 0; i < desc.numUAVs_; ++i)
-		{
-			auto uavHandle = desc.uavs_[i].resource_;
-			DBG_ASSERT(uavHandle.GetType() == ResourceType::BUFFER || uavHandle.GetType() == ResourceType::TEXTURE);
-			DBG_ASSERT(uavHandle);
-
-			if(uavHandle.GetType() == ResourceType::BUFFER)
-			{
-				uavResources[i] = bufferResources_[uavHandle.GetIndex()].resource_.Get();
-			}
-			else if(uavHandle.GetType() == ResourceType::TEXTURE)
-			{
-				uavResources[i] = textureResources_[uavHandle.GetIndex()].resource_.Get();
-			}
-
-			const auto& uav = desc.uavs_[i];
-			uavs[i].Format = GetFormat(uav.format_);
-			uavs[i].ViewDimension = GetUAVDimension(uav.dimension_);
-			switch(uav.dimension_)
-			{
-			case ViewDimension::BUFFER:
-				uavs[i].Buffer.FirstElement = uav.mipSlice_FirstElement_;
-				uavs[i].Buffer.NumElements = uav.firstArraySlice_FirstWSlice_NumElements_;
-				uavs[i].Buffer.StructureByteStride = 0;
-				break;
-			case ViewDimension::TEX1D:
-				uavs[i].Texture1D.MipSlice = uav.mipSlice_FirstElement_;
-				break;
-			case ViewDimension::TEX1D_ARRAY:
-				uavs[i].Texture1DArray.MipSlice = uav.mipSlice_FirstElement_;
-				uavs[i].Texture1DArray.ArraySize = uav.arraySize_PlaneSlice_WSize_;
-				uavs[i].Texture1DArray.FirstArraySlice = uav.firstArraySlice_FirstWSlice_NumElements_;
-				break;
-			case ViewDimension::TEX2D:
-				uavs[i].Texture2D.MipSlice = uav.mipSlice_FirstElement_;
-				uavs[i].Texture2D.PlaneSlice = uav.arraySize_PlaneSlice_WSize_;
-				break;
-			case ViewDimension::TEX2D_ARRAY:
-				uavs[i].Texture2DArray.MipSlice = uav.mipSlice_FirstElement_;
-				uavs[i].Texture2DArray.ArraySize = uav.arraySize_PlaneSlice_WSize_;
-				uavs[i].Texture2DArray.FirstArraySlice = uav.firstArraySlice_FirstWSlice_NumElements_;
-				uavs[i].Texture2DArray.PlaneSlice = uav.arraySize_PlaneSlice_WSize_;
-				break;
-			case ViewDimension::TEX3D:
-				uavs[i].Texture3D.MipSlice = uav.mipSlice_FirstElement_;
-				uavs[i].Texture3D.FirstWSlice = uav.firstArraySlice_FirstWSlice_NumElements_;
-				uavs[i].Texture3D.WSize = uav.arraySize_PlaneSlice_WSize_;
-				break;
-			default:
-				DBG_BREAK;
-				return ErrorCode::FAIL;
-				break;
-			}
-		}
-
-		for(i32 i = 0; i < desc.numCBVs_; ++i)
-		{
-			auto cbvHandle = desc.cbvs_[i].resource_;
-			DBG_ASSERT(cbvHandle.GetType() == ResourceType::BUFFER);
-			DBG_ASSERT(cbvHandle);
-
-			const auto& cbv = desc.cbvs_[i];
-
-			cbvs[i].BufferLocation =
-			    bufferResources_[cbvHandle.GetIndex()].resource_->GetGPUVirtualAddress() + cbv.offset_;
-			cbvs[i].SizeInBytes = cbv.size_;
-		}
-
-		for(i32 i = 0; i < desc.numSamplers_; ++i)
-		{
-			auto samplerHandle = desc.samplers_[i].resource_;
-			DBG_ASSERT(samplerHandle);
-			samplers[i] = samplerStates_[samplerHandle.GetIndex()].desc_;
-		}
-
-		// Get pipeline state.
-		if(desc.pipelineState_.GetType() == ResourceType::GRAPHICS_PIPELINE_STATE)
-		{
-			auto& gps = graphicsPipelineStates_[desc.pipelineState_.GetIndex()];
-			pbs.rootSignature_ = gps.rootSignature_;
-			pbs.pipelineState_ = gps.pipelineState_;
-		}
-		else if(desc.pipelineState_.GetType() == ResourceType::COMPUTE_PIPELINE_STATE)
-		{
-			auto& cps = computePipelineStates_[desc.pipelineState_.GetIndex()];
-			pbs.rootSignature_ = cps.rootSignature_;
-			pbs.pipelineState_ = cps.pipelineState_;
-		}
-		else
-		{
-			DBG_BREAK;
-		}
-
-		ErrorCode retVal;
-		RETURN_ON_ERROR(retVal = device_->CreatePipelineBindingSet(pbs, desc, debugName));
-		RETURN_ON_ERROR(retVal = device_->UpdateCBVs(pbs, 0, desc.numCBVs_, cbvs.data()));
-		RETURN_ON_ERROR(retVal = device_->UpdateSRVs(pbs, 0, desc.numSRVs_, srvResources.data(), srvs.data()));
-		RETURN_ON_ERROR(retVal = device_->UpdateUAVs(pbs, 0, desc.numUAVs_, uavResources.data(), uavs.data()));
-		RETURN_ON_ERROR(retVal = device_->UpdateSamplers(pbs, 0, desc.numSamplers_, samplers.data()));
-
-		pipelineBindingSets_[handle.GetIndex()] = pbs;
-		return ErrorCode::OK;
-	}
-
-	ErrorCode D3D12Backend::CreateDrawBindingSet(Handle handle, const DrawBindingSetDesc& desc, const char* debugName)
-	{
-		Core::ScopedMutex lock(resourceMutex_);
-		D3D12DrawBindingSet dbs;
-		memset(&dbs.ib_, 0, sizeof(dbs.ib_));
-		memset(dbs.vbs_.data(), 0, sizeof(dbs.vbs_));
-
-		dbs.desc_ = desc;
-		if(desc.ib_.resource_)
-		{
-			DBG_ASSERT(desc.ib_.resource_.GetType() == ResourceType::BUFFER);
-			const auto& buffer = bufferResources_[desc.ib_.resource_.GetIndex()];
-			DBG_ASSERT(Core::ContainsAllFlags(buffer.supportedStates_, D3D12_RESOURCE_STATE_INDEX_BUFFER));
-			dbs.ibResource_ = buffer;
-
-			dbs.ib_.BufferLocation = buffer.resource_->GetGPUVirtualAddress() + desc.ib_.offset_;
-			dbs.ib_.SizeInBytes = Core::PotRoundUp(desc.ib_.size_, D3D12_TEXTURE_DATA_PITCH_ALIGNMENT);
-			switch(desc.ib_.stride_)
-			{
-			case 2:
-				dbs.ib_.Format = DXGI_FORMAT_R16_UINT;
-				break;
-			case 4:
-				dbs.ib_.Format = DXGI_FORMAT_R32_UINT;
-				break;
-			default:
-				return ErrorCode::FAIL;
-				break;
-			}
-		}
-
-		i32 idx = 0;
-		for(const auto& vb : desc.vbs_)
-		{
-			if(vb.resource_)
-			{
-				DBG_ASSERT(vb.resource_.GetType() == ResourceType::BUFFER);
-				const auto& buffer = bufferResources_[desc.ib_.resource_.GetIndex()];
-				DBG_ASSERT(
-				    Core::ContainsAllFlags(buffer.supportedStates_, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER));
-				dbs.vbResources_[idx] = buffer;
-
-				dbs.vbs_[idx].BufferLocation = buffer.resource_->GetGPUVirtualAddress() + vb.offset_;
-				dbs.vbs_[idx].SizeInBytes = Core::PotRoundUp(vb.size_, D3D12_TEXTURE_DATA_PITCH_ALIGNMENT);
-				dbs.vbs_[idx].StrideInBytes = vb.stride_;
-			}
-			++idx;
-		}
-
-		//
-		drawBindingSets_[handle.GetIndex()] = dbs;
-		return ErrorCode::OK;
-	}
-
-	ErrorCode D3D12Backend::CreateFrameBindingSet(Handle handle, const FrameBindingSetDesc& desc, const char* debugName)
-	{
-		Core::ScopedMutex lock(resourceMutex_);
-		D3D12FrameBindingSet fbs;
-		memset(&fbs.rtvs_, 0, sizeof(fbs.rtvs_));
-		memset(&fbs.dsv_, 0, sizeof(fbs.dsv_));
-
-		fbs.desc_ = desc;
-		Core::Array<D3D12_RENDER_TARGET_VIEW_DESC, MAX_BOUND_RTVS> rtvDescs;
-		memset(rtvDescs.data(), 0, sizeof(rtvDescs));
-		D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc;
-		memset(&dsvDesc, 0, sizeof(dsvDesc));
-
-		fbs.viewport_.x_ = 0;
-		fbs.viewport_.y_ = 0;
-		fbs.scissorRect_.x_ = 0;
-		fbs.scissorRect_.y_ = 0;
-
-		for(i32 i = 0; i < MAX_BOUND_RTVS; ++i)
-		{
-			const auto& rtv = desc.rtvs_[i];
-			Handle resource = rtv.resource_;
-			if(resource)
-			{
-				// No holes allowed.
-				if(i != fbs.numRTs_++)
-					return ErrorCode::FAIL;
-
-				DBG_ASSERT(resource.GetType() == ResourceType::TEXTURE);
-				auto& texture = textureResources_[resource.GetIndex()];
-				DBG_ASSERT(Core::ContainsAllFlags(texture.supportedStates_, D3D12_RESOURCE_STATE_RENDER_TARGET));
-				fbs.rtvResources_[i] = texture;
-
-				if(i == 0)
+				if(srvHandle.GetType() == ResourceType::BUFFER)
 				{
-					fbs.viewport_.w_ = (f32)texture.desc_.width_;
-					fbs.viewport_.h_ = (f32)texture.desc_.height_;
-					fbs.scissorRect_.w_ = texture.desc_.width_;
-					fbs.scissorRect_.h_ = texture.desc_.height_;
+					srvResources[i] = bufferResources_[srvHandle.GetIndex()].resource_.Get();
+				}
+				else if(srvHandle.GetType() == ResourceType::TEXTURE)
+				{
+					srvResources[i] = textureResources_[srvHandle.GetIndex()].resource_.Get();
 				}
 
-				rtvDescs[i].Format = GetFormat(rtv.format_);
-				rtvDescs[i].ViewDimension = GetRTVDimension(rtv.dimension_);
-				switch(rtv.dimension_)
+				const auto& srv = desc.srvs_[i];
+				srvs[i].Format = GetFormat(srv.format_);
+				srvs[i].ViewDimension = GetSRVDimension(srv.dimension_);
+				srvs[i].Shader4ComponentMapping =
+					D3D12_ENCODE_SHADER_4_COMPONENT_MAPPING(D3D12_SHADER_COMPONENT_MAPPING_FROM_MEMORY_COMPONENT_0,
+						D3D12_SHADER_COMPONENT_MAPPING_FROM_MEMORY_COMPONENT_1,
+						D3D12_SHADER_COMPONENT_MAPPING_FROM_MEMORY_COMPONENT_2,
+						D3D12_SHADER_COMPONENT_MAPPING_FROM_MEMORY_COMPONENT_3);
+				switch(srv.dimension_)
 				{
 				case ViewDimension::BUFFER:
-					return ErrorCode::UNSUPPORTED;
+					srvs[i].Buffer.FirstElement = srv.mostDetailedMip_FirstElement_;
+					srvs[i].Buffer.NumElements = srv.mipLevels_NumElements_;
+					srvs[i].Buffer.StructureByteStride = 0;
+					srvs[i].Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
 					break;
 				case ViewDimension::TEX1D:
-					rtvDescs[i].Texture1D.MipSlice = rtv.mipSlice_;
+					srvs[i].Texture1D.MostDetailedMip = srv.mostDetailedMip_FirstElement_;
+					srvs[i].Texture1D.MipLevels = srv.mipLevels_NumElements_;
+					srvs[i].Texture1D.ResourceMinLODClamp = srv.resourceMinLODClamp_;
 					break;
 				case ViewDimension::TEX1D_ARRAY:
-					rtvDescs[i].Texture1DArray.ArraySize = rtv.arraySize_;
-					rtvDescs[i].Texture1DArray.FirstArraySlice = rtv.firstArraySlice_;
-					rtvDescs[i].Texture1DArray.MipSlice = rtv.mipSlice_;
+					srvs[i].Texture1DArray.MostDetailedMip = srv.mostDetailedMip_FirstElement_;
+					srvs[i].Texture1DArray.MipLevels = srv.mipLevels_NumElements_;
+					srvs[i].Texture1DArray.ArraySize = srv.arraySize_;
+					srvs[i].Texture1DArray.FirstArraySlice = srv.firstArraySlice_;
+					srvs[i].Texture1DArray.ResourceMinLODClamp = srv.resourceMinLODClamp_;
 					break;
 				case ViewDimension::TEX2D:
-					rtvDescs[i].Texture2D.MipSlice = rtv.mipSlice_;
-					rtvDescs[i].Texture2D.PlaneSlice = rtv.planeSlice_FirstWSlice_;
+					srvs[i].Texture2D.MostDetailedMip = srv.mostDetailedMip_FirstElement_;
+					srvs[i].Texture2D.MipLevels = srv.mipLevels_NumElements_;
+					srvs[i].Texture2D.PlaneSlice = srv.planeSlice_;
+					srvs[i].Texture2D.ResourceMinLODClamp = srv.resourceMinLODClamp_;
 					break;
 				case ViewDimension::TEX2D_ARRAY:
-					rtvDescs[i].Texture2DArray.MipSlice = rtv.mipSlice_;
-					rtvDescs[i].Texture2DArray.FirstArraySlice = rtv.firstArraySlice_;
-					rtvDescs[i].Texture2DArray.ArraySize = rtv.arraySize_;
-					rtvDescs[i].Texture2DArray.PlaneSlice = rtv.planeSlice_FirstWSlice_;
+					srvs[i].Texture2DArray.MostDetailedMip = srv.mostDetailedMip_FirstElement_;
+					srvs[i].Texture2DArray.MipLevels = srv.mipLevels_NumElements_;
+					srvs[i].Texture2DArray.ArraySize = srv.arraySize_;
+					srvs[i].Texture2DArray.FirstArraySlice = srv.firstArraySlice_;
+					srvs[i].Texture2DArray.PlaneSlice = srv.planeSlice_;
+					srvs[i].Texture2DArray.ResourceMinLODClamp = srv.resourceMinLODClamp_;
 					break;
 				case ViewDimension::TEX3D:
-					rtvDescs[i].Texture3D.FirstWSlice = rtv.planeSlice_FirstWSlice_;
-					rtvDescs[i].Texture3D.MipSlice = rtv.mipSlice_;
-					rtvDescs[i].Texture3D.WSize = rtv.wSize_;
+					srvs[i].Texture3D.MostDetailedMip = srv.mostDetailedMip_FirstElement_;
+					srvs[i].Texture3D.MipLevels = srv.mipLevels_NumElements_;
+					srvs[i].Texture3D.ResourceMinLODClamp = srv.resourceMinLODClamp_;
+					break;
+				case ViewDimension::TEXCUBE:
+					srvs[i].TextureCube.MostDetailedMip = srv.mostDetailedMip_FirstElement_;
+					srvs[i].TextureCube.MipLevels = srv.mipLevels_NumElements_;
+					srvs[i].TextureCube.ResourceMinLODClamp = srv.resourceMinLODClamp_;
+					break;
+				case ViewDimension::TEXCUBE_ARRAY:
+					srvs[i].TextureCubeArray.MostDetailedMip = srv.mostDetailedMip_FirstElement_;
+					srvs[i].TextureCubeArray.MipLevels = srv.mipLevels_NumElements_;
+					srvs[i].TextureCubeArray.NumCubes = srv.arraySize_;
+					srvs[i].TextureCubeArray.First2DArrayFace = srv.firstArraySlice_;
+					srvs[i].TextureCubeArray.ResourceMinLODClamp = srv.resourceMinLODClamp_;
 					break;
 				default:
 					DBG_BREAK;
@@ -900,53 +675,298 @@ namespace GPU
 					break;
 				}
 			}
+
+			for(i32 i = 0; i < desc.numUAVs_; ++i)
+			{
+				auto uavHandle = desc.uavs_[i].resource_;
+				DBG_ASSERT(uavHandle.GetType() == ResourceType::BUFFER || uavHandle.GetType() == ResourceType::TEXTURE);
+				DBG_ASSERT(uavHandle);
+
+				if(uavHandle.GetType() == ResourceType::BUFFER)
+				{
+					uavResources[i] = bufferResources_[uavHandle.GetIndex()].resource_.Get();
+				}
+				else if(uavHandle.GetType() == ResourceType::TEXTURE)
+				{
+					uavResources[i] = textureResources_[uavHandle.GetIndex()].resource_.Get();
+				}
+
+				const auto& uav = desc.uavs_[i];
+				uavs[i].Format = GetFormat(uav.format_);
+				uavs[i].ViewDimension = GetUAVDimension(uav.dimension_);
+				switch(uav.dimension_)
+				{
+				case ViewDimension::BUFFER:
+					uavs[i].Buffer.FirstElement = uav.mipSlice_FirstElement_;
+					uavs[i].Buffer.NumElements = uav.firstArraySlice_FirstWSlice_NumElements_;
+					uavs[i].Buffer.StructureByteStride = 0;
+					break;
+				case ViewDimension::TEX1D:
+					uavs[i].Texture1D.MipSlice = uav.mipSlice_FirstElement_;
+					break;
+				case ViewDimension::TEX1D_ARRAY:
+					uavs[i].Texture1DArray.MipSlice = uav.mipSlice_FirstElement_;
+					uavs[i].Texture1DArray.ArraySize = uav.arraySize_PlaneSlice_WSize_;
+					uavs[i].Texture1DArray.FirstArraySlice = uav.firstArraySlice_FirstWSlice_NumElements_;
+					break;
+				case ViewDimension::TEX2D:
+					uavs[i].Texture2D.MipSlice = uav.mipSlice_FirstElement_;
+					uavs[i].Texture2D.PlaneSlice = uav.arraySize_PlaneSlice_WSize_;
+					break;
+				case ViewDimension::TEX2D_ARRAY:
+					uavs[i].Texture2DArray.MipSlice = uav.mipSlice_FirstElement_;
+					uavs[i].Texture2DArray.ArraySize = uav.arraySize_PlaneSlice_WSize_;
+					uavs[i].Texture2DArray.FirstArraySlice = uav.firstArraySlice_FirstWSlice_NumElements_;
+					uavs[i].Texture2DArray.PlaneSlice = uav.arraySize_PlaneSlice_WSize_;
+					break;
+				case ViewDimension::TEX3D:
+					uavs[i].Texture3D.MipSlice = uav.mipSlice_FirstElement_;
+					uavs[i].Texture3D.FirstWSlice = uav.firstArraySlice_FirstWSlice_NumElements_;
+					uavs[i].Texture3D.WSize = uav.arraySize_PlaneSlice_WSize_;
+					break;
+				default:
+					DBG_BREAK;
+					return ErrorCode::FAIL;
+					break;
+				}
+			}
+
+			for(i32 i = 0; i < desc.numCBVs_; ++i)
+			{
+				auto cbvHandle = desc.cbvs_[i].resource_;
+				DBG_ASSERT(cbvHandle.GetType() == ResourceType::BUFFER);
+				DBG_ASSERT(cbvHandle);
+
+				const auto& cbv = desc.cbvs_[i];
+
+				cbvs[i].BufferLocation =
+					bufferResources_[cbvHandle.GetIndex()].resource_->GetGPUVirtualAddress() + cbv.offset_;
+				cbvs[i].SizeInBytes = cbv.size_;
+			}
+
+			for(i32 i = 0; i < desc.numSamplers_; ++i)
+			{
+				auto samplerHandle = desc.samplers_[i].resource_;
+				DBG_ASSERT(samplerHandle);
+				samplers[i] = samplerStates_[samplerHandle.GetIndex()].desc_;
+			}
+
+			// Get pipeline state.
+			if(desc.pipelineState_.GetType() == ResourceType::GRAPHICS_PIPELINE_STATE)
+			{
+				auto& gps = graphicsPipelineStates_[desc.pipelineState_.GetIndex()];
+				pbs.rootSignature_ = gps.rootSignature_;
+				pbs.pipelineState_ = gps.pipelineState_;
+			}
+			else if(desc.pipelineState_.GetType() == ResourceType::COMPUTE_PIPELINE_STATE)
+			{
+				auto& cps = computePipelineStates_[desc.pipelineState_.GetIndex()];
+				pbs.rootSignature_ = cps.rootSignature_;
+				pbs.pipelineState_ = cps.pipelineState_;
+			}
+			else
+			{
+				DBG_BREAK;
+			}
+
+			ErrorCode retVal;
+			RETURN_ON_ERROR(retVal = device_->CreatePipelineBindingSet(pbs, desc, debugName));
+			RETURN_ON_ERROR(retVal = device_->UpdateCBVs(pbs, 0, desc.numCBVs_, cbvs.data()));
+			RETURN_ON_ERROR(retVal = device_->UpdateSRVs(pbs, 0, desc.numSRVs_, srvResources.data(), srvs.data()));
+			RETURN_ON_ERROR(retVal = device_->UpdateUAVs(pbs, 0, desc.numUAVs_, uavResources.data(), uavs.data()));
+			RETURN_ON_ERROR(retVal = device_->UpdateSamplers(pbs, 0, desc.numSamplers_, samplers.data()));
 		}
 
-		const auto& dsv = desc.dsv_;
-		Handle resource = dsv.resource_;
-		if(resource)
-		{
-			DBG_ASSERT(resource.GetType() == ResourceType::TEXTURE);
-			auto& texture = textureResources_[resource.GetIndex()];
-			DBG_ASSERT(Core::ContainsAnyFlags(
-			    texture.supportedStates_, D3D12_RESOURCE_STATE_DEPTH_WRITE | D3D12_RESOURCE_STATE_DEPTH_READ));
-			fbs.dsvResource_ = texture;
+		Core::ScopedWriteLock lock(resLock_);
+		pipelineBindingSets_[handle.GetIndex()] = pbs;
+		return ErrorCode::OK;
+	}
 
-			dsvDesc.Format = GetFormat(dsv.format_);
-			dsvDesc.ViewDimension = GetDSVDimension(dsv.dimension_);
-			switch(dsv.dimension_)
+	ErrorCode D3D12Backend::CreateDrawBindingSet(Handle handle, const DrawBindingSetDesc& desc, const char* debugName)
+	{
+		D3D12DrawBindingSet dbs;
+		memset(&dbs.ib_, 0, sizeof(dbs.ib_));
+		memset(dbs.vbs_.data(), 0, sizeof(dbs.vbs_));
+
+		dbs.desc_ = desc;
+
+		{
+			Core::ScopedReadLock lock(resLock_);
+			if(desc.ib_.resource_)
 			{
-			case ViewDimension::BUFFER:
-				return ErrorCode::UNSUPPORTED;
-				break;
-			case ViewDimension::TEX1D:
-				dsvDesc.Texture1D.MipSlice = dsv.mipSlice_;
-				break;
-			case ViewDimension::TEX1D_ARRAY:
-				dsvDesc.Texture1DArray.ArraySize = dsv.arraySize_;
-				dsvDesc.Texture1DArray.FirstArraySlice = dsv.firstArraySlice_;
-				dsvDesc.Texture1DArray.MipSlice = dsv.mipSlice_;
-				break;
-			case ViewDimension::TEX2D:
-				dsvDesc.Texture2D.MipSlice = dsv.mipSlice_;
-				break;
-			case ViewDimension::TEX2D_ARRAY:
-				dsvDesc.Texture2DArray.MipSlice = dsv.mipSlice_;
-				dsvDesc.Texture2DArray.FirstArraySlice = dsv.firstArraySlice_;
-				dsvDesc.Texture2DArray.ArraySize = dsv.arraySize_;
-				break;
-			default:
-				DBG_BREAK;
-				return ErrorCode::FAIL;
-				break;
+				DBG_ASSERT(desc.ib_.resource_.GetType() == ResourceType::BUFFER);
+				const auto& buffer = bufferResources_[desc.ib_.resource_.GetIndex()];
+				DBG_ASSERT(Core::ContainsAllFlags(buffer.supportedStates_, D3D12_RESOURCE_STATE_INDEX_BUFFER));
+				dbs.ibResource_ = buffer;
+
+				dbs.ib_.BufferLocation = buffer.resource_->GetGPUVirtualAddress() + desc.ib_.offset_;
+				dbs.ib_.SizeInBytes = Core::PotRoundUp(desc.ib_.size_, D3D12_TEXTURE_DATA_PITCH_ALIGNMENT);
+				switch(desc.ib_.stride_)
+				{
+				case 2:
+					dbs.ib_.Format = DXGI_FORMAT_R16_UINT;
+					break;
+				case 4:
+					dbs.ib_.Format = DXGI_FORMAT_R32_UINT;
+					break;
+				default:
+					return ErrorCode::FAIL;
+					break;
+				}
+			}
+
+			i32 idx = 0;
+			for(const auto& vb : desc.vbs_)
+			{
+				if(vb.resource_)
+				{
+					DBG_ASSERT(vb.resource_.GetType() == ResourceType::BUFFER);
+					const auto& buffer = bufferResources_[desc.ib_.resource_.GetIndex()];
+					DBG_ASSERT(
+						Core::ContainsAllFlags(buffer.supportedStates_, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER));
+					dbs.vbResources_[idx] = buffer;
+
+					dbs.vbs_[idx].BufferLocation = buffer.resource_->GetGPUVirtualAddress() + vb.offset_;
+					dbs.vbs_[idx].SizeInBytes = Core::PotRoundUp(vb.size_, D3D12_TEXTURE_DATA_PITCH_ALIGNMENT);
+					dbs.vbs_[idx].StrideInBytes = vb.stride_;
+				}
+				++idx;
 			}
 		}
 
-		ErrorCode retVal;
-		RETURN_ON_ERROR(retVal = device_->CreateFrameBindingSet(fbs, fbs.desc_, debugName));
-		RETURN_ON_ERROR(retVal = device_->UpdateFrameBindingSet(fbs, rtvDescs.data(), dsvDesc));
+		//
+		Core::ScopedWriteLock lock(resLock_);
+		drawBindingSets_[handle.GetIndex()] = dbs;
+		return ErrorCode::OK;
+	}
+
+	ErrorCode D3D12Backend::CreateFrameBindingSet(Handle handle, const FrameBindingSetDesc& desc, const char* debugName)
+	{
+		D3D12FrameBindingSet fbs;
+		memset(&fbs.rtvs_, 0, sizeof(fbs.rtvs_));
+		memset(&fbs.dsv_, 0, sizeof(fbs.dsv_));
+
+		fbs.desc_ = desc;
+		{
+			Core::ScopedReadLock lock(resLock_);
+			Core::Array<D3D12_RENDER_TARGET_VIEW_DESC, MAX_BOUND_RTVS> rtvDescs;
+			memset(rtvDescs.data(), 0, sizeof(rtvDescs));
+			D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc;
+			memset(&dsvDesc, 0, sizeof(dsvDesc));
+
+			fbs.viewport_.x_ = 0;
+			fbs.viewport_.y_ = 0;
+			fbs.scissorRect_.x_ = 0;
+			fbs.scissorRect_.y_ = 0;
+
+			for(i32 i = 0; i < MAX_BOUND_RTVS; ++i)
+			{
+				const auto& rtv = desc.rtvs_[i];
+				Handle resource = rtv.resource_;
+				if(resource)
+				{
+					// No holes allowed.
+					if(i != fbs.numRTs_++)
+						return ErrorCode::FAIL;
+
+					DBG_ASSERT(resource.GetType() == ResourceType::TEXTURE);
+					auto& texture = textureResources_[resource.GetIndex()];
+					DBG_ASSERT(Core::ContainsAllFlags(texture.supportedStates_, D3D12_RESOURCE_STATE_RENDER_TARGET));
+					fbs.rtvResources_[i] = texture;
+
+					if(i == 0)
+					{
+						fbs.viewport_.w_ = (f32)texture.desc_.width_;
+						fbs.viewport_.h_ = (f32)texture.desc_.height_;
+						fbs.scissorRect_.w_ = texture.desc_.width_;
+						fbs.scissorRect_.h_ = texture.desc_.height_;
+					}
+
+					rtvDescs[i].Format = GetFormat(rtv.format_);
+					rtvDescs[i].ViewDimension = GetRTVDimension(rtv.dimension_);
+					switch(rtv.dimension_)
+					{
+					case ViewDimension::BUFFER:
+						return ErrorCode::UNSUPPORTED;
+						break;
+					case ViewDimension::TEX1D:
+						rtvDescs[i].Texture1D.MipSlice = rtv.mipSlice_;
+						break;
+					case ViewDimension::TEX1D_ARRAY:
+						rtvDescs[i].Texture1DArray.ArraySize = rtv.arraySize_;
+						rtvDescs[i].Texture1DArray.FirstArraySlice = rtv.firstArraySlice_;
+						rtvDescs[i].Texture1DArray.MipSlice = rtv.mipSlice_;
+						break;
+					case ViewDimension::TEX2D:
+						rtvDescs[i].Texture2D.MipSlice = rtv.mipSlice_;
+						rtvDescs[i].Texture2D.PlaneSlice = rtv.planeSlice_FirstWSlice_;
+						break;
+					case ViewDimension::TEX2D_ARRAY:
+						rtvDescs[i].Texture2DArray.MipSlice = rtv.mipSlice_;
+						rtvDescs[i].Texture2DArray.FirstArraySlice = rtv.firstArraySlice_;
+						rtvDescs[i].Texture2DArray.ArraySize = rtv.arraySize_;
+						rtvDescs[i].Texture2DArray.PlaneSlice = rtv.planeSlice_FirstWSlice_;
+						break;
+					case ViewDimension::TEX3D:
+						rtvDescs[i].Texture3D.FirstWSlice = rtv.planeSlice_FirstWSlice_;
+						rtvDescs[i].Texture3D.MipSlice = rtv.mipSlice_;
+						rtvDescs[i].Texture3D.WSize = rtv.wSize_;
+						break;
+					default:
+						DBG_BREAK;
+						return ErrorCode::FAIL;
+						break;
+					}
+				}
+			}
+
+			const auto& dsv = desc.dsv_;
+			Handle resource = dsv.resource_;
+			if(resource)
+			{
+				DBG_ASSERT(resource.GetType() == ResourceType::TEXTURE);
+				auto& texture = textureResources_[resource.GetIndex()];
+				DBG_ASSERT(Core::ContainsAnyFlags(
+					texture.supportedStates_, D3D12_RESOURCE_STATE_DEPTH_WRITE | D3D12_RESOURCE_STATE_DEPTH_READ));
+				fbs.dsvResource_ = texture;
+
+				dsvDesc.Format = GetFormat(dsv.format_);
+				dsvDesc.ViewDimension = GetDSVDimension(dsv.dimension_);
+				switch(dsv.dimension_)
+				{
+				case ViewDimension::BUFFER:
+					return ErrorCode::UNSUPPORTED;
+					break;
+				case ViewDimension::TEX1D:
+					dsvDesc.Texture1D.MipSlice = dsv.mipSlice_;
+					break;
+				case ViewDimension::TEX1D_ARRAY:
+					dsvDesc.Texture1DArray.ArraySize = dsv.arraySize_;
+					dsvDesc.Texture1DArray.FirstArraySlice = dsv.firstArraySlice_;
+					dsvDesc.Texture1DArray.MipSlice = dsv.mipSlice_;
+					break;
+				case ViewDimension::TEX2D:
+					dsvDesc.Texture2D.MipSlice = dsv.mipSlice_;
+					break;
+				case ViewDimension::TEX2D_ARRAY:
+					dsvDesc.Texture2DArray.MipSlice = dsv.mipSlice_;
+					dsvDesc.Texture2DArray.FirstArraySlice = dsv.firstArraySlice_;
+					dsvDesc.Texture2DArray.ArraySize = dsv.arraySize_;
+					break;
+				default:
+					DBG_BREAK;
+					return ErrorCode::FAIL;
+					break;
+				}
+			}
+
+			ErrorCode retVal;
+			RETURN_ON_ERROR(retVal = device_->CreateFrameBindingSet(fbs, fbs.desc_, debugName));
+			RETURN_ON_ERROR(retVal = device_->UpdateFrameBindingSet(fbs, rtvDescs.data(), dsvDesc));
+		}
 
 		//
+		Core::ScopedWriteLock lock(resLock_);
 		frameBindingSets_[handle.GetIndex()] = fbs;
 		return ErrorCode::OK;
 	}
@@ -954,7 +974,7 @@ namespace GPU
 	ErrorCode D3D12Backend::CreateCommandList(Handle handle, const char* debugName)
 	{
 		D3D12CommandList* commandList = new D3D12CommandList(*device_, 0x0, D3D12_COMMAND_LIST_TYPE_DIRECT);
-		Core::ScopedMutex lock(resourceMutex_);
+		Core::ScopedWriteLock lock(resLock_);
 		commandLists_[handle.GetIndex()] = commandList;
 		return ErrorCode::OK;
 	}
@@ -967,6 +987,7 @@ namespace GPU
 
 	ErrorCode D3D12Backend::DestroyResource(Handle handle)
 	{
+		Core::ScopedWriteLock lock(resLock_);
 		switch(handle.GetType())
 		{
 		case ResourceType::SWAP_CHAIN:
@@ -1016,8 +1037,7 @@ namespace GPU
 		DBG_ASSERT(handle.GetIndex() < commandLists_.size());
 
 		// Lock resources during command list compilation.
-		// TODO: Use a rw lock to allow for concurrent compilation.
-		Core::ScopedMutex resourceLock(resourceMutex_);
+		Core::ScopedReadLock lock(resLock_);
 
 		D3D12CommandList* outCommandList = commandLists_[handle.GetIndex()];
 		D3D12CompileContext context(*this);

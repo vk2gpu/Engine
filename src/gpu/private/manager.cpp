@@ -297,6 +297,7 @@ namespace GPU
 	void Manager::DestroyResource(Handle handle)
 	{
 		DBG_ASSERT(impl_->backend_);
+		Core::ScopedMutex lock(impl_->mutex_);
 		impl_->deferredDeletions_.push_back(handle);
 	}
 

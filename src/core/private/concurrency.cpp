@@ -279,7 +279,7 @@ namespace Core
 		std::swap(impl_, other.impl_);
 	}
 
-	Mutex& Mutex::operator = (Mutex&& other)
+	Mutex& Mutex::operator=(Mutex&& other)
 	{
 		using std::swap;
 		std::swap(impl_, other.impl_);
@@ -303,6 +303,57 @@ namespace Core
 		DBG_ASSERT(impl_);
 		::LeaveCriticalSection(&impl_->critSec_);
 	}
+
+	RWLock::RWLock() {}
+
+	RWLock::~RWLock()
+	{
+		DBG_ASSERT(readCount_ == 0);
+#ifdef DEBUG
+		if(gMutex_.TryLock() == false)
+			DBG_BREAK;
+		gMutex_.Unlock();
+#endif
+	}
+
+	RWLock::RWLock(RWLock&& other)
+	{
+		using std::swap;
+		std::swap(rMutex_, other.rMutex_);
+		std::swap(gMutex_, other.gMutex_);
+		std::swap(readCount_, other.readCount_);
+	}
+
+	RWLock& RWLock::operator=(RWLock&& other)
+	{
+		using std::swap;
+		std::swap(rMutex_, other.rMutex_);
+		std::swap(gMutex_, other.gMutex_);
+		std::swap(readCount_, other.readCount_);
+		return *this;
+	}
+
+	void RWLock::BeginRead()
+	{
+		ScopedMutex lock(rMutex_);
+		if(AtomicInc(&readCount_) == 1)
+		{
+			gMutex_.Lock();
+		}
+	}
+
+	void RWLock::EndRead()
+	{
+		ScopedMutex lock(rMutex_);
+		if(AtomicDec(&readCount_) == 0)
+		{
+			gMutex_.Unlock();
+		}
+	}
+
+	void RWLock::BeginWrite() { gMutex_.Lock(); }
+
+	void RWLock::EndWrite() { gMutex_.Unlock(); }
 
 	struct TLSImpl
 	{
