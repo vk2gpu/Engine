@@ -2,6 +2,7 @@
 
 #include "core/types.h"
 #include "core/library.h"
+#include "gpu/resources.h"
 #include "gpu/types.h"
 
 #include <dxgi1_4.h>
@@ -68,6 +69,8 @@ namespace GPU
 	D3D12_DSV_DIMENSION GetDSVDimension(ViewDimension dim);
 	DXGI_FORMAT GetFormat(Format format);
 	D3D12_PRIMITIVE_TOPOLOGY GetPrimitiveTopology(PrimitiveTopology topology);
+	D3D12_RESOURCE_DESC GetResourceDesc(const BufferDesc& desc);
+	D3D12_RESOURCE_DESC GetResourceDesc(const TextureDesc& desc);
 
 	/**
 	 * Utility.

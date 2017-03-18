@@ -389,6 +389,45 @@ namespace GPU
 		}
 	}
 
+	D3D12_RESOURCE_DESC GetResourceDesc(const BufferDesc& desc)
+	{
+		D3D12_RESOURCE_DESC resourceDesc = {};
+		resourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+		resourceDesc.Alignment = D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT;
+		resourceDesc.Width = Core::PotRoundUp(desc.size_, D3D12_TEXTURE_DATA_PITCH_ALIGNMENT);
+		resourceDesc.Height = 1;
+		resourceDesc.DepthOrArraySize = 1;
+		resourceDesc.MipLevels = 1;
+		resourceDesc.Format = DXGI_FORMAT_UNKNOWN;
+		resourceDesc.SampleDesc.Count = 1;
+		resourceDesc.SampleDesc.Quality = 0;
+		resourceDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+		resourceDesc.Flags = GetResourceFlags(desc.bindFlags_);
+		return resourceDesc;
+
+	}
+	D3D12_RESOURCE_DESC GetResourceDesc(const TextureDesc& desc)
+	{
+		D3D12_RESOURCE_DESC resourceDesc = {};
+		resourceDesc.Dimension = GetResourceDimension(desc.type_);
+		resourceDesc.Alignment = D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT;
+		resourceDesc.Width = desc.width_;
+		resourceDesc.Height = desc.height_;
+		resourceDesc.DepthOrArraySize = desc.type_ == TextureType::TEX3D ? desc.depth_ : desc.elements_;
+		resourceDesc.MipLevels = desc.levels_;
+		resourceDesc.Format = GetFormat(desc.format_);
+		resourceDesc.SampleDesc.Count = 1;
+		resourceDesc.SampleDesc.Quality = 0;
+		resourceDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+		resourceDesc.Flags = GetResourceFlags(desc.bindFlags_);
+		if(desc.type_ == TextureType::TEXCUBE)
+		{
+			resourceDesc.DepthOrArraySize *= 6;
+		}
+		return resourceDesc;
+
+	}
+
 	void SetObjectName(ID3D12Object* object, const char* name)
 	{
 #if !defined(FINAL)

@@ -2,6 +2,7 @@
 #include "gpu_d3d12/d3d12_command_list.h"
 #include "gpu_d3d12/d3d12_backend.h"
 #include "gpu_d3d12/d3d12_device.h"
+#include "gpu_d3d12/d3d12_linear_heap_allocator.h"
 #include "gpu/command_list.h"
 #include "gpu/commands.h"
 
@@ -129,12 +130,68 @@ namespace GPU
 
 	ErrorCode D3D12CompileContext::CompileCommand(const CommandUpdateBuffer* command)
 	{
-		return ErrorCode::UNIMPLEMENTED;
+		const auto& buf = backend_.bufferResources_[command->buffer_.GetIndex()];
+		DBG_ASSERT(buf.resource_);
+
+		auto uploadAlloc = backend_.device_->GetUploadAllocator().Alloc(command->size_);
+		memcpy(uploadAlloc.address_, command->data_, command->size_);
+
+		AddTransition(&buf, D3D12_RESOURCE_STATE_COPY_DEST);
+		FlushTransitions();
+
+		d3dCommandList_->CopyBufferRegion(buf.resource_.Get(), command->offset_, uploadAlloc.baseResource_.Get(),
+		    uploadAlloc.offsetInBaseResource_, command->size_);
+
+		return ErrorCode::OK;
 	}
 
 	ErrorCode D3D12CompileContext::CompileCommand(const CommandUpdateTextureSubResource* command)
 	{
-		return ErrorCode::UNIMPLEMENTED;
+		const auto& tex = backend_.textureResources_[command->texture_.GetIndex()];
+		DBG_ASSERT(tex.resource_);
+
+
+		auto srcLayout = command->data_;
+		D3D12_PLACED_SUBRESOURCE_FOOTPRINT dstLayout;
+		i32 numRows = 0;
+		i64 rowSizeInBytes = 0;
+		i64 totalBytes = 0;
+		D3D12_RESOURCE_DESC resDesc = GetResourceDesc(tex.desc_);
+
+		backend_.device_->d3dDevice_->GetCopyableFootprints(&resDesc, command->subResourceIdx_, 1, 0, &dstLayout,
+		    (u32*)&numRows, (u64*)&rowSizeInBytes, (u64*)&totalBytes);
+
+		auto resAlloc = backend_.device_->GetUploadAllocator().Alloc(totalBytes);
+		DBG_ASSERT(srcLayout.rowPitch_ <= rowSizeInBytes);
+		const u8* srcData = (const u8*)command->data_.data_;
+		u8* dstData = (u8*)resAlloc.address_ + dstLayout.Offset;
+		for(i32 slice = 0; slice < tex.desc_.depth_; ++slice)
+		{
+			const u8* rowSrcData = srcData;
+			for(i32 row = 0; row < numRows; ++row)
+			{
+				memcpy(dstData, srcData, srcLayout.rowPitch_);
+				dstData += rowSizeInBytes;
+				rowSrcData += srcLayout.rowPitch_;
+			}
+			rowSrcData += srcLayout.slicePitch_;
+		}
+
+		D3D12_TEXTURE_COPY_LOCATION dst;
+		dst.pResource = tex.resource_.Get();
+		dst.SubresourceIndex = command->subResourceIdx_;
+		dst.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+
+		D3D12_TEXTURE_COPY_LOCATION src;
+		src.pResource = resAlloc.baseResource_.Get();
+		src.PlacedFootprint = dstLayout;
+		src.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
+
+		AddTransition(&tex, D3D12_RESOURCE_STATE_COPY_DEST);
+		FlushTransitions();
+		d3dCommandList_->CopyTextureRegion(&dst, 0, 0, 0, &src, nullptr);
+
+		return ErrorCode::OK;
 	}
 
 	ErrorCode D3D12CompileContext::CompileCommand(const CommandCopyBuffer* command) { return ErrorCode::UNIMPLEMENTED; }

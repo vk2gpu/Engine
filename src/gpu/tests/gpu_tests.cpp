@@ -18,7 +18,7 @@ typedef u8 BYTE;
 
 namespace
 {
-	GPU::DebuggerIntegrationFlags debuggerIntegrationFlags = GPU::DebuggerIntegrationFlags::NONE;
+	GPU::DebuggerIntegrationFlags debuggerIntegrationFlags = GPU::DebuggerIntegrationFlags::RENDERDOC;
 }
 
 TEST_CASE("gpu-tests-formats")
@@ -906,4 +906,72 @@ TEST_CASE("gpu-tests-compile-dispatch")
 
 	manager.DestroyResource(texHandle);
 	manager.DestroyResource(bufHandle);
+}
+
+TEST_CASE("gpu-tests-compile-update-buffer")
+{
+	auto testName = Catch::getResultCapture().getCurrentTestName();
+	Client::Window window(testName.c_str(), 0, 0, 640, 480, false);
+	GPU::Manager manager(window.GetPlatformData().handle_, debuggerIntegrationFlags);
+
+	i32 numAdapters = manager.EnumerateAdapters(nullptr, 0);
+	REQUIRE(numAdapters > 0);
+
+	REQUIRE(manager.Initialize(0) == GPU::ErrorCode::OK);
+
+	GPU::Manager::ScopedDebugCapture capture(manager, testName.c_str());
+
+	GPU::BufferDesc vbDesc;
+	vbDesc.bindFlags_ = GPU::BindFlags::VERTEX_BUFFER;
+	vbDesc.size_ = 8 * sizeof(f32);
+	GPU::Handle vbHandle = manager.CreateBuffer(vbDesc, nullptr, testName.c_str());
+	REQUIRE(vbHandle);
+
+	GPU::Handle cmdHandle = manager.CreateCommandList(testName.c_str());
+	GPU::CommandList cmdList(manager.GetHandleAllocator());
+
+	f32 data[8] = {0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f};
+	REQUIRE(cmdList.UpdateBuffer(vbHandle, 0, sizeof(data), data));
+	REQUIRE(manager.CompileCommandList(cmdHandle, cmdList));
+	REQUIRE(manager.SubmitCommandList(cmdHandle));
+
+	manager.DestroyResource(cmdHandle);
+	manager.DestroyResource(vbHandle);
+}
+
+TEST_CASE("gpu-tests-compile-update-texture")
+{
+	auto testName = Catch::getResultCapture().getCurrentTestName();
+	Client::Window window(testName.c_str(), 0, 0, 640, 480, false);
+	GPU::Manager manager(window.GetPlatformData().handle_, debuggerIntegrationFlags);
+
+	i32 numAdapters = manager.EnumerateAdapters(nullptr, 0);
+	REQUIRE(numAdapters > 0);
+
+	REQUIRE(manager.Initialize(0) == GPU::ErrorCode::OK);
+
+	GPU::Manager::ScopedDebugCapture capture(manager, testName.c_str());
+
+	GPU::TextureDesc texDesc;
+	texDesc.type_ = GPU::TextureType::TEX1D;
+	texDesc.bindFlags_ = GPU::BindFlags::SHADER_RESOURCE;
+	texDesc.format_ = GPU::Format::R8G8B8A8_UNORM;
+	texDesc.width_ = 8;
+	GPU::Handle texHandle = manager.CreateTexture(texDesc, nullptr, testName.c_str());
+	REQUIRE(texHandle);
+
+	GPU::Handle cmdHandle = manager.CreateCommandList(testName.c_str());
+	GPU::CommandList cmdList(manager.GetHandleAllocator());
+
+	u32 data[8] = {0xff00ff00, 0xffff0000, 0x0000ffff, 0x00ff00ff, 0xff00ff00, 0xffff0000, 0x0000ffff, 0x00ff00ff};
+	GPU::TextureSubResourceData texSubRscData;
+	texSubRscData.data_ = data;
+	texSubRscData.rowPitch_ = sizeof(data);
+	texSubRscData.slicePitch_ = sizeof(data);
+	REQUIRE(cmdList.UpdateTextureSubResource(texHandle, 0, texSubRscData));
+	REQUIRE(manager.CompileCommandList(cmdHandle, cmdList));
+	REQUIRE(manager.SubmitCommandList(cmdHandle));
+
+	manager.DestroyResource(cmdHandle);
+	manager.DestroyResource(texHandle);
 }

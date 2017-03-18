@@ -347,19 +347,7 @@ namespace GPU
 		heapProperties.CreationNodeMask = 0x0;
 		heapProperties.VisibleNodeMask = 0x0;
 
-		D3D12_RESOURCE_DESC resourceDesc;
-		resourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
-		resourceDesc.Alignment = D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT;
-		resourceDesc.Width = Core::PotRoundUp(desc.size_, D3D12_TEXTURE_DATA_PITCH_ALIGNMENT);
-		resourceDesc.Height = 1;
-		resourceDesc.DepthOrArraySize = 1;
-		resourceDesc.MipLevels = 1;
-		resourceDesc.Format = DXGI_FORMAT_UNKNOWN;
-		resourceDesc.SampleDesc.Count = 1;
-		resourceDesc.SampleDesc.Quality = 0;
-		resourceDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
-		resourceDesc.Flags = GetResourceFlags(desc.bindFlags_);
-
+		D3D12_RESOURCE_DESC resourceDesc = GetResourceDesc(desc);
 		ComPtr<ID3D12Resource> d3dResource;
 		HRESULT hr = S_OK;
 		CHECK_D3D(hr = d3dDevice_->CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE, &resourceDesc,
@@ -421,23 +409,7 @@ namespace GPU
 		heapProperties.CreationNodeMask = 0x0;
 		heapProperties.VisibleNodeMask = 0x0;
 
-		D3D12_RESOURCE_DESC resourceDesc;
-		resourceDesc.Dimension = GetResourceDimension(desc.type_);
-		resourceDesc.Alignment = D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT;
-		resourceDesc.Width = desc.width_;
-		resourceDesc.Height = desc.height_;
-		resourceDesc.DepthOrArraySize = desc.type_ == TextureType::TEX3D ? desc.depth_ : desc.elements_;
-		resourceDesc.MipLevels = desc.levels_;
-		resourceDesc.Format = GetFormat(desc.format_);
-		resourceDesc.SampleDesc.Count = 1;
-		resourceDesc.SampleDesc.Quality = 0;
-		resourceDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
-		resourceDesc.Flags = GetResourceFlags(desc.bindFlags_);
-
-		if(desc.type_ == TextureType::TEXCUBE)
-		{
-			resourceDesc.DepthOrArraySize *= 6;
-		}
+		D3D12_RESOURCE_DESC resourceDesc = GetResourceDesc(desc);
 
 		// Set default clear.
 		D3D12_CLEAR_VALUE clearValue;
@@ -500,7 +472,6 @@ namespace GPU
 				u8* srcData = (u8*)srcLayout.data_;
 
 				DBG_ASSERT(srcLayout.rowPitch_ <= rowSizeInBytes[i]);
-
 				dstData = (u8*)resAlloc.address_ + dstLayout.Offset;
 				for(i32 slice = 0; slice < desc.depth_; ++slice)
 				{
