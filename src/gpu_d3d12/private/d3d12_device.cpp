@@ -324,7 +324,12 @@ namespace GPU
 			// Setup states.
 			texResource.supportedStates_ = GetResourceStates(texDesc.bindFlags_);
 			texResource.defaultState_ = GetDefaultResourceState(texDesc.bindFlags_);
+
+			// Setup texture desc.
+			texResource.desc_ = texDesc;
 		}
+
+		outResource = swapChainRes;
 
 		return ErrorCode::OK;
 	}
@@ -591,8 +596,8 @@ namespace GPU
 	ErrorCode D3D12Device::CreateFrameBindingSet(
 	    D3D12FrameBindingSet& outFrameBindingSet, const FrameBindingSetDesc& desc, const char* debugName)
 	{
-		outFrameBindingSet.rtvs_ = rtvAllocator_->Alloc(outFrameBindingSet.numRTs_);
-		outFrameBindingSet.dsv_ = dsvAllocator_->Alloc(1);
+		outFrameBindingSet.rtvs_ = rtvAllocator_->Alloc(MAX_BOUND_RTVS * outFrameBindingSet.numBuffers_);
+		outFrameBindingSet.dsv_ = dsvAllocator_->Alloc(outFrameBindingSet.numBuffers_);
 		return ErrorCode::OK;
 	}
 
@@ -658,26 +663,33 @@ namespace GPU
 		return ErrorCode::OK;
 	}
 
-	ErrorCode D3D12Device::UpdateFrameBindingSet(D3D12FrameBindingSet& frameBindingSet,
-	    const D3D12_RENDER_TARGET_VIEW_DESC* rtvDescs, const D3D12_DEPTH_STENCIL_VIEW_DESC& dsvDesc)
+	ErrorCode D3D12Device::UpdateFrameBindingSet(D3D12FrameBindingSet& inOutFbs,
+	    const D3D12_RENDER_TARGET_VIEW_DESC* rtvDescs, const D3D12_DEPTH_STENCIL_VIEW_DESC* dsvDescs)
 	{
 		i32 rtvIncr = d3dDevice_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-		D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = frameBindingSet.rtvs_.cpuDescHandle_;
-		for(i32 i = 0; i < MAX_BOUND_RTVS; ++i)
+		D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = inOutFbs.rtvs_.cpuDescHandle_;
+
+		for(i32 bufferIdx = 0; bufferIdx < inOutFbs.numBuffers_; ++bufferIdx)
 		{
-			if(frameBindingSet.rtvResources_[i].resource_)
+			for(i32 rtvIdx = 0; rtvIdx < MAX_BOUND_RTVS; ++rtvIdx)
 			{
-				d3dDevice_->CreateRenderTargetView(
-				    frameBindingSet.rtvResources_[i].resource_.Get(), &rtvDescs[i], rtvHandle);
+				D3D12Resource* rtvResource = inOutFbs.rtvResources_[rtvIdx + bufferIdx * MAX_BOUND_RTVS];
+				if(rtvResource)
+				{
+					d3dDevice_->CreateRenderTargetView(
+					    rtvResource->resource_.Get(), &rtvDescs[rtvIdx + bufferIdx * MAX_BOUND_RTVS], rtvHandle);
+				}
+				rtvHandle.ptr += rtvIncr;
 			}
-			rtvHandle.ptr += rtvIncr;
+
+			D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = inOutFbs.dsv_.cpuDescHandle_;
+			D3D12Resource* dsvResource = inOutFbs.dsvResources_[bufferIdx];
+			if(dsvResource)
+			{
+				d3dDevice_->CreateDepthStencilView(dsvResource->resource_.Get(), &dsvDescs[bufferIdx], dsvHandle);
+			}
 		}
 
-		D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = frameBindingSet.dsv_.cpuDescHandle_;
-		if(frameBindingSet.dsvResource_.resource_)
-		{
-			d3dDevice_->CreateDepthStencilView(frameBindingSet.dsvResource_.resource_.Get(), &dsvDesc, dsvHandle);
-		}
 		return ErrorCode::OK;
 	}
 

@@ -5,6 +5,8 @@
 #include "core/concurrency.h"
 #include "core/vector.h"
 
+#include <Windows.h>
+
 #include "catch.hpp"
 
 #pragma warning(disable : 4189)
@@ -1053,6 +1055,68 @@ TEST_CASE("gpu-tests-compile-copy-texture")
 	manager.DestroyResource(cmdHandle);
 	manager.DestroyResource(tex1Handle);
 	manager.DestroyResource(tex0Handle);
+}
+
+TEST_CASE("gpu-tests-compile-present")
+{
+	auto testName = Catch::getResultCapture().getCurrentTestName();
+	Client::Window window(testName.c_str(), 0, 0, 640, 480, true);
+	GPU::Manager manager(window.GetPlatformData().handle_, debuggerIntegrationFlags);
+
+	i32 numAdapters = manager.EnumerateAdapters(nullptr, 0);
+	REQUIRE(numAdapters > 0);
+
+	REQUIRE(manager.Initialize(0) == GPU::ErrorCode::OK);
+
+	GPU::Manager::ScopedDebugCapture capture(manager, testName.c_str());
+
+	GPU::SwapChainDesc scDesc;
+	scDesc.width_ = 640;
+	scDesc.height_ = 480;
+	scDesc.format_ = GPU::Format::R8G8B8A8_UNORM;
+	scDesc.bufferCount_ = 2;
+	scDesc.outputWindow_ = window.GetPlatformData().handle_;
+
+	GPU::Handle scHandle;
+	scHandle = manager.CreateSwapChain(scDesc, testName.c_str());
+	REQUIRE(scHandle);
+
+	GPU::FrameBindingSetDesc fbDesc;
+	fbDesc.rtvs_[0].resource_ = scHandle;
+	fbDesc.rtvs_[0].format_ = scDesc.format_;
+	fbDesc.rtvs_[0].dimension_ = GPU::ViewDimension::TEX2D;
+
+	GPU::Handle fbsHandle = manager.CreateFrameBindingSet(fbDesc, testName.c_str());
+	REQUIRE(fbsHandle);
+
+	GPU::Handle cmdHandle = manager.CreateCommandList(testName.c_str());
+	GPU::CommandList cmdList(manager.GetHandleAllocator());
+
+	// clang-format off
+	f32 colors[] = {
+		1.0f, 0.0f, 0.0f, 1.0f,
+		0.0f, 1.0f, 0.0f, 1.0f,
+		0.0f, 0.0f, 1.0f, 1.0f,
+		0.0f, 1.0f, 1.0f, 1.0f,
+		1.0f, 0.0f, 1.0f, 1.0f,
+		1.0f, 1.0f, 0.0f, 1.0f,
+	};
+	// clang-format on
+
+	for(i32 i = 0; i < 6; ++i)
+	{
+		REQUIRE(cmdList.ClearRTV(fbsHandle, 0, &colors[i * 4]));
+		REQUIRE(manager.CompileCommandList(cmdHandle, cmdList));
+		REQUIRE(manager.SubmitCommandList(cmdHandle));
+
+		manager.PresentSwapChain(scHandle);
+		::Sleep(250);
+		cmdList.Reset();
+	}
+
+	manager.DestroyResource(cmdHandle);
+	manager.DestroyResource(fbsHandle);
+	manager.DestroyResource(scHandle);
 }
 
 TEST_CASE("gpu-tests-mt-create-buffers")

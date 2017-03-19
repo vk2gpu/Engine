@@ -94,6 +94,7 @@ namespace GPU
 	{
 		ComPtr<IDXGISwapChain3> swapChain_;
 		Core::Vector<D3D12Texture> textures_;
+		i32 bbIdx_ = 0;
 	};
 
 	struct D3D12Shader
@@ -141,12 +142,14 @@ namespace GPU
 
 	struct D3D12FrameBindingSet
 	{
-		FrameBindingSetDesc desc_;
-		Core::Array<D3D12Resource, MAX_BOUND_RTVS> rtvResources_;
-		D3D12Resource dsvResource_;
 		D3D12DescriptorAllocation rtvs_;
 		D3D12DescriptorAllocation dsv_;
+		Core::Vector<D3D12Resource*> rtvResources_;
+		Core::Vector<D3D12Resource*> dsvResources_;
+		FrameBindingSetDesc desc_;
+		D3D12SwapChain* swapChain_ = nullptr;
 		i32 numRTs_ = 0;
+		i32 numBuffers_ = 1;
 		Viewport viewport_;
 		ScissorRect scissorRect_;
 	};

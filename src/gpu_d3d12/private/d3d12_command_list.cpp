@@ -74,6 +74,14 @@ namespace GPU
 		ID3D12CommandList* d3dCommandLists[1] = {d3dCommandList_.Get()};
 		d3dCommandQueue->ExecuteCommandLists(1, d3dCommandLists);
 		CHECK_D3D(d3dCommandQueue->Signal(d3dFence_.Get(), listIdx_));
+
+		// HACK TO WAIT.
+		if(d3dFence_->GetCompletedValue() != listIdx_)
+		{
+			d3dFence_->SetEventOnCompletion(listIdx_, fenceEvent_);
+			::WaitForSingleObject(fenceEvent_, INFINITE);
+		}
+
 		++listIdx_;
 		return ErrorCode::OK;
 	}

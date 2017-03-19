@@ -133,6 +133,16 @@ namespace GPU
 		bool SubmitCommandList(Handle handle);
 
 		/**
+		 * Present swapchain.
+		 */
+		bool PresentSwapChain(Handle handle);
+
+		/**
+		 * Resize swapchain.
+		 */
+		bool ResizeSwapChain(Handle handle, i32 width, i32 height);
+
+		/**
 		 * Is valid handle?
 		 */
 		bool IsValidHandle(Handle handle) const;

@@ -17,7 +17,7 @@ namespace GPU
 	{
 		D3D12CompileContext(class D3D12Backend& backend);
 		~D3D12CompileContext();
-		
+
 		class D3D12Backend& backend_;
 		ID3D12GraphicsCommandList* d3dCommandList_ = nullptr;
 
@@ -41,7 +41,7 @@ namespace GPU
 		ErrorCode SetDrawBinding(Handle dbsHandle, PrimitiveTopology primitive);
 		ErrorCode SetPipelineBinding(Handle pbsHandle);
 		ErrorCode SetFrameBinding(Handle fbsHandle);
-		
+
 		/**
 		 * Add resource transition.
 		 * @param resource Resource to transition.

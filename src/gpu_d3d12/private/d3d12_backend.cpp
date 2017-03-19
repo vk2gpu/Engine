@@ -131,7 +131,7 @@ namespace GPU
 		ErrorCode retVal = device_->CreateSwapChain(swapChain, desc, debugName);
 		if(retVal != ErrorCode::OK)
 			return retVal;
-		
+
 		Core::ScopedWriteLock lock(resLock_);
 		swapchainResources_[handle.GetIndex()] = swapChain;
 		return ErrorCode::OK;
@@ -145,7 +145,7 @@ namespace GPU
 		ErrorCode retVal = device_->CreateBuffer(buffer, desc, initialData, debugName);
 		if(retVal != ErrorCode::OK)
 			return retVal;
-		
+
 		Core::ScopedWriteLock lock(resLock_);
 		bufferResources_[handle.GetIndex()] = buffer;
 		return ErrorCode::OK;
@@ -159,7 +159,7 @@ namespace GPU
 		ErrorCode retVal = device_->CreateTexture(texture, desc, initialData, debugName);
 		if(retVal != ErrorCode::OK)
 			return retVal;
-		
+
 		Core::ScopedWriteLock lock(resLock_);
 		textureResources_[handle.GetIndex()] = texture;
 		return ErrorCode::OK;
@@ -246,7 +246,7 @@ namespace GPU
 		shader.byteCode_ = new u8[desc.dataSize_];
 		shader.byteCodeSize_ = desc.dataSize_;
 		memcpy(shader.byteCode_, desc.data_, desc.dataSize_);
-		
+
 		Core::ScopedWriteLock lock(resLock_);
 		shaders_[handle.GetIndex()] = shader;
 		return ErrorCode::OK;
@@ -601,23 +601,18 @@ namespace GPU
 				DBG_ASSERT(srvHandle.GetType() == ResourceType::BUFFER || srvHandle.GetType() == ResourceType::TEXTURE);
 				DBG_ASSERT(srvHandle);
 
-				if(srvHandle.GetType() == ResourceType::BUFFER)
-				{
-					srvResources[i] = bufferResources_[srvHandle.GetIndex()].resource_.Get();
-				}
-				else if(srvHandle.GetType() == ResourceType::TEXTURE)
-				{
-					srvResources[i] = textureResources_[srvHandle.GetIndex()].resource_.Get();
-				}
+				D3D12Resource* resource = GetD3D12Resource(srvHandle);
+				DBG_ASSERT(resource);
+				srvResources[i] = resource->resource_.Get();
 
 				const auto& srv = desc.srvs_[i];
 				srvs[i].Format = GetFormat(srv.format_);
 				srvs[i].ViewDimension = GetSRVDimension(srv.dimension_);
 				srvs[i].Shader4ComponentMapping =
-					D3D12_ENCODE_SHADER_4_COMPONENT_MAPPING(D3D12_SHADER_COMPONENT_MAPPING_FROM_MEMORY_COMPONENT_0,
-						D3D12_SHADER_COMPONENT_MAPPING_FROM_MEMORY_COMPONENT_1,
-						D3D12_SHADER_COMPONENT_MAPPING_FROM_MEMORY_COMPONENT_2,
-						D3D12_SHADER_COMPONENT_MAPPING_FROM_MEMORY_COMPONENT_3);
+				    D3D12_ENCODE_SHADER_4_COMPONENT_MAPPING(D3D12_SHADER_COMPONENT_MAPPING_FROM_MEMORY_COMPONENT_0,
+				        D3D12_SHADER_COMPONENT_MAPPING_FROM_MEMORY_COMPONENT_1,
+				        D3D12_SHADER_COMPONENT_MAPPING_FROM_MEMORY_COMPONENT_2,
+				        D3D12_SHADER_COMPONENT_MAPPING_FROM_MEMORY_COMPONENT_3);
 				switch(srv.dimension_)
 				{
 				case ViewDimension::BUFFER:
@@ -682,14 +677,9 @@ namespace GPU
 				DBG_ASSERT(uavHandle.GetType() == ResourceType::BUFFER || uavHandle.GetType() == ResourceType::TEXTURE);
 				DBG_ASSERT(uavHandle);
 
-				if(uavHandle.GetType() == ResourceType::BUFFER)
-				{
-					uavResources[i] = bufferResources_[uavHandle.GetIndex()].resource_.Get();
-				}
-				else if(uavHandle.GetType() == ResourceType::TEXTURE)
-				{
-					uavResources[i] = textureResources_[uavHandle.GetIndex()].resource_.Get();
-				}
+				D3D12Resource* resource = GetD3D12Resource(uavHandle);
+				DBG_ASSERT(resource);
+				uavResources[i] = resource->resource_.Get();
 
 				const auto& uav = desc.uavs_[i];
 				uavs[i].Format = GetFormat(uav.format_);
@@ -740,7 +730,7 @@ namespace GPU
 				const auto& cbv = desc.cbvs_[i];
 
 				cbvs[i].BufferLocation =
-					bufferResources_[cbvHandle.GetIndex()].resource_->GetGPUVirtualAddress() + cbv.offset_;
+				    bufferResources_[cbvHandle.GetIndex()].resource_->GetGPUVirtualAddress() + cbv.offset_;
 				cbvs[i].SizeInBytes = cbv.size_;
 			}
 
@@ -794,12 +784,13 @@ namespace GPU
 			Core::ScopedReadLock lock(resLock_);
 			if(desc.ib_.resource_)
 			{
-				DBG_ASSERT(desc.ib_.resource_.GetType() == ResourceType::BUFFER);
-				const auto& buffer = bufferResources_[desc.ib_.resource_.GetIndex()];
-				DBG_ASSERT(Core::ContainsAllFlags(buffer.supportedStates_, D3D12_RESOURCE_STATE_INDEX_BUFFER));
-				dbs.ibResource_ = buffer;
+				D3D12Buffer* buffer = GetD3D12Buffer(desc.ib_.resource_);
+				DBG_ASSERT(buffer);
 
-				dbs.ib_.BufferLocation = buffer.resource_->GetGPUVirtualAddress() + desc.ib_.offset_;
+				DBG_ASSERT(Core::ContainsAllFlags(buffer->supportedStates_, D3D12_RESOURCE_STATE_INDEX_BUFFER));
+				dbs.ibResource_ = *buffer;
+
+				dbs.ib_.BufferLocation = buffer->resource_->GetGPUVirtualAddress() + desc.ib_.offset_;
 				dbs.ib_.SizeInBytes = Core::PotRoundUp(desc.ib_.size_, D3D12_TEXTURE_DATA_PITCH_ALIGNMENT);
 				switch(desc.ib_.stride_)
 				{
@@ -820,13 +811,13 @@ namespace GPU
 			{
 				if(vb.resource_)
 				{
-					DBG_ASSERT(vb.resource_.GetType() == ResourceType::BUFFER);
-					const auto& buffer = bufferResources_[desc.ib_.resource_.GetIndex()];
-					DBG_ASSERT(
-						Core::ContainsAllFlags(buffer.supportedStates_, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER));
-					dbs.vbResources_[idx] = buffer;
+					D3D12Buffer* buffer = GetD3D12Buffer(vb.resource_);
+					DBG_ASSERT(buffer);
+					DBG_ASSERT(Core::ContainsAllFlags(
+					    buffer->supportedStates_, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER));
+					dbs.vbResources_[idx] = *buffer;
 
-					dbs.vbs_[idx].BufferLocation = buffer.resource_->GetGPUVirtualAddress() + vb.offset_;
+					dbs.vbs_[idx].BufferLocation = buffer->resource_->GetGPUVirtualAddress() + vb.offset_;
 					dbs.vbs_[idx].SizeInBytes = Core::PotRoundUp(vb.size_, D3D12_TEXTURE_DATA_PITCH_ALIGNMENT);
 					dbs.vbs_[idx].StrideInBytes = vb.stride_;
 				}
@@ -843,74 +834,141 @@ namespace GPU
 	ErrorCode D3D12Backend::CreateFrameBindingSet(Handle handle, const FrameBindingSetDesc& desc, const char* debugName)
 	{
 		D3D12FrameBindingSet fbs;
-		memset(&fbs.rtvs_, 0, sizeof(fbs.rtvs_));
-		memset(&fbs.dsv_, 0, sizeof(fbs.dsv_));
 
 		fbs.desc_ = desc;
 		{
 			Core::ScopedReadLock lock(resLock_);
-			Core::Array<D3D12_RENDER_TARGET_VIEW_DESC, MAX_BOUND_RTVS> rtvDescs;
-			memset(rtvDescs.data(), 0, sizeof(rtvDescs));
-			D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc;
-			memset(&dsvDesc, 0, sizeof(dsvDesc));
+			Core::Vector<D3D12_RENDER_TARGET_VIEW_DESC> rtvDescs;
+			Core::Vector<D3D12_DEPTH_STENCIL_VIEW_DESC> dsvDescs;
 
 			fbs.viewport_.x_ = 0;
 			fbs.viewport_.y_ = 0;
 			fbs.scissorRect_.x_ = 0;
 			fbs.scissorRect_.y_ = 0;
 
-			for(i32 i = 0; i < MAX_BOUND_RTVS; ++i)
+			// Check if we're using a swapchain.
 			{
-				const auto& rtv = desc.rtvs_[i];
+				const auto& rtv = desc.rtvs_[0];
 				Handle resource = rtv.resource_;
+				if(resource.GetType() == ResourceType::SWAP_CHAIN)
+				{
+					auto& swapChain = swapchainResources_[resource.GetIndex()];
+					fbs.numBuffers_ = swapChain.textures_.size();
+					fbs.swapChain_ = &swapChain;
+				}
+			}
+
+			// Resize to support number of buffers.
+			rtvDescs.resize(MAX_BOUND_RTVS * fbs.numBuffers_);
+			dsvDescs.resize(fbs.numBuffers_);
+			memset(rtvDescs.data(), 0, sizeof(D3D12_RENDER_TARGET_VIEW_DESC) * rtvDescs.size());
+			memset(dsvDescs.data(), 0, sizeof(D3D12_DEPTH_STENCIL_VIEW_DESC) * dsvDescs.size());
+			fbs.rtvResources_.resize(MAX_BOUND_RTVS * fbs.numBuffers_, nullptr);
+			fbs.dsvResources_.resize(fbs.numBuffers_, nullptr);
+
+			for(i32 bufferIdx = 0; bufferIdx < fbs.numBuffers_; ++bufferIdx)
+			{
+				for(i32 rtvIdx = 0; rtvIdx < MAX_BOUND_RTVS; ++rtvIdx)
+				{
+					auto& rtvDesc = rtvDescs[rtvIdx + bufferIdx * MAX_BOUND_RTVS];
+					D3D12Resource*& rtvResource = fbs.rtvResources_[rtvIdx + bufferIdx * MAX_BOUND_RTVS];
+					const auto& rtv = desc.rtvs_[rtvIdx];
+					Handle resource = rtv.resource_;
+					if(resource)
+					{
+						// Only first element can be a swap chain, and only one RTV can be set if using a swap chain.
+						DBG_ASSERT(rtvIdx == 0 || resource.GetType() == ResourceType::TEXTURE);
+						DBG_ASSERT(rtvIdx == 0 || !fbs.swapChain_);
+
+						// No holes allowed.
+						if(bufferIdx == 0 )
+							if(rtvIdx != fbs.numRTs_++)
+								return ErrorCode::FAIL;
+
+						D3D12Texture* texture = GetD3D12Texture(resource, bufferIdx);
+						DBG_ASSERT(Core::ContainsAllFlags(texture->supportedStates_, D3D12_RESOURCE_STATE_RENDER_TARGET));
+						rtvResource = texture;					
+
+						if(rtvIdx == 0)
+						{
+							fbs.viewport_.w_ = (f32)texture->desc_.width_;
+							fbs.viewport_.h_ = (f32)texture->desc_.height_;
+							fbs.scissorRect_.w_ = texture->desc_.width_;
+							fbs.scissorRect_.h_ = texture->desc_.height_;
+						}
+
+						rtvDesc.Format = GetFormat(rtv.format_);
+						rtvDesc.ViewDimension = GetRTVDimension(rtv.dimension_);
+						switch(rtv.dimension_)
+						{
+						case ViewDimension::BUFFER:
+							return ErrorCode::UNSUPPORTED;
+							break;
+						case ViewDimension::TEX1D:
+							rtvDesc.Texture1D.MipSlice = rtv.mipSlice_;
+							break;
+						case ViewDimension::TEX1D_ARRAY:
+							rtvDesc.Texture1DArray.ArraySize = rtv.arraySize_;
+							rtvDesc.Texture1DArray.FirstArraySlice = rtv.firstArraySlice_;
+							rtvDesc.Texture1DArray.MipSlice = rtv.mipSlice_;
+							break;
+						case ViewDimension::TEX2D:
+							rtvDesc.Texture2D.MipSlice = rtv.mipSlice_;
+							rtvDesc.Texture2D.PlaneSlice = rtv.planeSlice_FirstWSlice_;
+							break;
+						case ViewDimension::TEX2D_ARRAY:
+							rtvDesc.Texture2DArray.MipSlice = rtv.mipSlice_;
+							rtvDesc.Texture2DArray.FirstArraySlice = rtv.firstArraySlice_;
+							rtvDesc.Texture2DArray.ArraySize = rtv.arraySize_;
+							rtvDesc.Texture2DArray.PlaneSlice = rtv.planeSlice_FirstWSlice_;
+							break;
+						case ViewDimension::TEX3D:
+							rtvDesc.Texture3D.FirstWSlice = rtv.planeSlice_FirstWSlice_;
+							rtvDesc.Texture3D.MipSlice = rtv.mipSlice_;
+							rtvDesc.Texture3D.WSize = rtv.wSize_;
+							break;
+						default:
+							DBG_BREAK;
+							return ErrorCode::FAIL;
+							break;
+						}
+					}
+				}
+
+				const auto& dsv = desc.dsv_;
+				Handle resource = dsv.resource_;
 				if(resource)
 				{
-					// No holes allowed.
-					if(i != fbs.numRTs_++)
-						return ErrorCode::FAIL;
-
+					auto& dsvDesc = dsvDescs[bufferIdx];
+					D3D12Resource*& dsvResource = fbs.dsvResources_[bufferIdx];
 					DBG_ASSERT(resource.GetType() == ResourceType::TEXTURE);
-					auto& texture = textureResources_[resource.GetIndex()];
-					DBG_ASSERT(Core::ContainsAllFlags(texture.supportedStates_, D3D12_RESOURCE_STATE_RENDER_TARGET));
-					fbs.rtvResources_[i] = texture;
+					D3D12Texture* texture = GetD3D12Texture(resource);
+					DBG_ASSERT(Core::ContainsAnyFlags(
+						texture->supportedStates_, D3D12_RESOURCE_STATE_DEPTH_WRITE | D3D12_RESOURCE_STATE_DEPTH_READ));
+					dsvResource = texture;
 
-					if(i == 0)
-					{
-						fbs.viewport_.w_ = (f32)texture.desc_.width_;
-						fbs.viewport_.h_ = (f32)texture.desc_.height_;
-						fbs.scissorRect_.w_ = texture.desc_.width_;
-						fbs.scissorRect_.h_ = texture.desc_.height_;
-					}
-
-					rtvDescs[i].Format = GetFormat(rtv.format_);
-					rtvDescs[i].ViewDimension = GetRTVDimension(rtv.dimension_);
-					switch(rtv.dimension_)
+					dsvDesc.Format = GetFormat(dsv.format_);
+					dsvDesc.ViewDimension = GetDSVDimension(dsv.dimension_);
+					switch(dsv.dimension_)
 					{
 					case ViewDimension::BUFFER:
 						return ErrorCode::UNSUPPORTED;
 						break;
 					case ViewDimension::TEX1D:
-						rtvDescs[i].Texture1D.MipSlice = rtv.mipSlice_;
+						dsvDesc.Texture1D.MipSlice = dsv.mipSlice_;
 						break;
 					case ViewDimension::TEX1D_ARRAY:
-						rtvDescs[i].Texture1DArray.ArraySize = rtv.arraySize_;
-						rtvDescs[i].Texture1DArray.FirstArraySlice = rtv.firstArraySlice_;
-						rtvDescs[i].Texture1DArray.MipSlice = rtv.mipSlice_;
+						dsvDesc.Texture1DArray.ArraySize = dsv.arraySize_;
+						dsvDesc.Texture1DArray.FirstArraySlice = dsv.firstArraySlice_;
+						dsvDesc.Texture1DArray.MipSlice = dsv.mipSlice_;
 						break;
 					case ViewDimension::TEX2D:
-						rtvDescs[i].Texture2D.MipSlice = rtv.mipSlice_;
-						rtvDescs[i].Texture2D.PlaneSlice = rtv.planeSlice_FirstWSlice_;
+						dsvDesc.Texture2D.MipSlice = dsv.mipSlice_;
 						break;
 					case ViewDimension::TEX2D_ARRAY:
-						rtvDescs[i].Texture2DArray.MipSlice = rtv.mipSlice_;
-						rtvDescs[i].Texture2DArray.FirstArraySlice = rtv.firstArraySlice_;
-						rtvDescs[i].Texture2DArray.ArraySize = rtv.arraySize_;
-						rtvDescs[i].Texture2DArray.PlaneSlice = rtv.planeSlice_FirstWSlice_;
-						break;
-					case ViewDimension::TEX3D:
-						rtvDescs[i].Texture3D.FirstWSlice = rtv.planeSlice_FirstWSlice_;
-						rtvDescs[i].Texture3D.MipSlice = rtv.mipSlice_;
-						rtvDescs[i].Texture3D.WSize = rtv.wSize_;
+						dsvDesc.Texture2DArray.MipSlice = dsv.mipSlice_;
+						dsvDesc.Texture2DArray.FirstArraySlice = dsv.firstArraySlice_;
+						dsvDesc.Texture2DArray.ArraySize = dsv.arraySize_;
 						break;
 					default:
 						DBG_BREAK;
@@ -920,49 +978,9 @@ namespace GPU
 				}
 			}
 
-			const auto& dsv = desc.dsv_;
-			Handle resource = dsv.resource_;
-			if(resource)
-			{
-				DBG_ASSERT(resource.GetType() == ResourceType::TEXTURE);
-				auto& texture = textureResources_[resource.GetIndex()];
-				DBG_ASSERT(Core::ContainsAnyFlags(
-					texture.supportedStates_, D3D12_RESOURCE_STATE_DEPTH_WRITE | D3D12_RESOURCE_STATE_DEPTH_READ));
-				fbs.dsvResource_ = texture;
-
-				dsvDesc.Format = GetFormat(dsv.format_);
-				dsvDesc.ViewDimension = GetDSVDimension(dsv.dimension_);
-				switch(dsv.dimension_)
-				{
-				case ViewDimension::BUFFER:
-					return ErrorCode::UNSUPPORTED;
-					break;
-				case ViewDimension::TEX1D:
-					dsvDesc.Texture1D.MipSlice = dsv.mipSlice_;
-					break;
-				case ViewDimension::TEX1D_ARRAY:
-					dsvDesc.Texture1DArray.ArraySize = dsv.arraySize_;
-					dsvDesc.Texture1DArray.FirstArraySlice = dsv.firstArraySlice_;
-					dsvDesc.Texture1DArray.MipSlice = dsv.mipSlice_;
-					break;
-				case ViewDimension::TEX2D:
-					dsvDesc.Texture2D.MipSlice = dsv.mipSlice_;
-					break;
-				case ViewDimension::TEX2D_ARRAY:
-					dsvDesc.Texture2DArray.MipSlice = dsv.mipSlice_;
-					dsvDesc.Texture2DArray.FirstArraySlice = dsv.firstArraySlice_;
-					dsvDesc.Texture2DArray.ArraySize = dsv.arraySize_;
-					break;
-				default:
-					DBG_BREAK;
-					return ErrorCode::FAIL;
-					break;
-				}
-			}
-
 			ErrorCode retVal;
 			RETURN_ON_ERROR(retVal = device_->CreateFrameBindingSet(fbs, fbs.desc_, debugName));
-			RETURN_ON_ERROR(retVal = device_->UpdateFrameBindingSet(fbs, rtvDescs.data(), dsvDesc));
+			RETURN_ON_ERROR(retVal = device_->UpdateFrameBindingSet(fbs, rtvDescs.data(), dsvDescs.data()));
 		}
 
 		//
@@ -1049,6 +1067,73 @@ namespace GPU
 		D3D12CommandList* commandList = commandLists_[handle.GetIndex()];
 		DBG_ASSERT(commandList);
 		return device_->SubmitCommandList(*commandList);
+	}
+
+	ErrorCode D3D12Backend::PresentSwapChain(Handle handle)
+	{
+		Core::ScopedWriteLock lock(resLock_);
+		DBG_ASSERT(handle.GetIndex() < swapchainResources_.size());
+		D3D12SwapChain& swapChain = swapchainResources_[handle.GetIndex()];
+
+		HRESULT retVal = S_OK;
+		CHECK_D3D(retVal = swapChain.swapChain_->Present(0, 0));
+		if(FAILED(retVal))
+			return ErrorCode::FAIL;
+		swapChain.bbIdx_ = swapChain.swapChain_->GetCurrentBackBufferIndex();
+		return ErrorCode::OK;
+	}
+
+	ErrorCode D3D12Backend::ResizeSwapChain(Handle handle, i32 width, i32 height) { return ErrorCode::UNIMPLEMENTED; }
+
+	D3D12Resource* D3D12Backend::GetD3D12Resource(Handle handle)
+	{
+		if(handle.GetType() == ResourceType::BUFFER)
+		{
+			if(handle.GetIndex() >= bufferResources_.size())
+				return nullptr;
+			return &bufferResources_[handle.GetIndex()];
+		}
+		else if(handle.GetType() == ResourceType::TEXTURE)
+		{
+			if(handle.GetIndex() >= textureResources_.size())
+				return nullptr;
+			return &textureResources_[handle.GetIndex()];
+		}
+		else if(handle.GetType() == ResourceType::SWAP_CHAIN)
+		{
+			if(handle.GetIndex() >= swapchainResources_.size())
+				return nullptr;
+			D3D12SwapChain& swapChain = swapchainResources_[handle.GetIndex()];
+			return &swapChain.textures_[swapChain.bbIdx_];
+		}
+		return nullptr;
+	}
+
+	D3D12Buffer* D3D12Backend::GetD3D12Buffer(Handle handle)
+	{
+		if(handle.GetType() != ResourceType::BUFFER)
+			return nullptr;
+		if(handle.GetIndex() >= bufferResources_.size())
+			return nullptr;
+		return &bufferResources_[handle.GetIndex()];
+	}
+
+	D3D12Texture* D3D12Backend::GetD3D12Texture(Handle handle, i32 bufferIdx)
+	{
+		if(handle.GetType() == ResourceType::TEXTURE)
+		{
+			if(handle.GetIndex() >= textureResources_.size())
+				return nullptr;
+			return &textureResources_[handle.GetIndex()];
+		}
+		else if(handle.GetType() == ResourceType::SWAP_CHAIN)
+		{
+			if(handle.GetIndex() >= swapchainResources_.size())
+				return nullptr;
+			D3D12SwapChain& swapChain = swapchainResources_[handle.GetIndex()];
+			return &swapChain.textures_[bufferIdx >= 0 ? bufferIdx : swapChain.bbIdx_];
+		}
+		return nullptr;
 	}
 
 } // namespace GPU

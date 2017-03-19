@@ -50,5 +50,11 @@ namespace GPU
 		 */
 		virtual ErrorCode CompileCommandList(Handle handle, const CommandList& commandList) = 0;
 		virtual ErrorCode SubmitCommandList(Handle handle) = 0;
+
+		/**
+		 * Swapchain management.
+		 */
+		virtual ErrorCode PresentSwapChain(Handle handle) = 0;
+		virtual ErrorCode ResizeSwapChain(Handle handle, i32 width, i32 height) = 0;
 	};
 } // namespace GPU

@@ -50,6 +50,31 @@ namespace GPU
 		ErrorCode CompileCommandList(Handle handle, const CommandList& commandList) override;
 		ErrorCode SubmitCommandList(Handle handle) override;
 		
+		ErrorCode PresentSwapChain(Handle handle) override;
+		ErrorCode ResizeSwapChain(Handle handle, i32 width, i32 height) override;
+
+		/**
+		 * Will return D3D12Resource for a @a handle.
+		 * Supports BUFFER, TEXTURE, and SWAP_CHAIN.
+		 * Not thread safe.
+		 */
+		D3D12Resource* GetD3D12Resource(Handle handle);
+
+		/**
+		 * Will return D3D12Buffer for a @a handle.
+		 * Supports BUFFER.
+		 * Not thread safe.
+		 */
+		D3D12Buffer* GetD3D12Buffer(Handle handle);
+
+		/**
+		 * Will return D3D12Resource for a @a handle.
+		 * Supports TEXTURE and SWAP_CHAIN.
+		 * Not thread safe.
+		 * @param bufferIdx If >= 0, will return appropriate buffer for swapchain.
+		 */
+		D3D12Texture* GetD3D12Texture(Handle handle, i32 bufferIdx = -1);
+
 		ComPtr<IDXGIDebug> dxgiDebug_;
 		ComPtr<ID3D12Debug> d3dDebug_;
 

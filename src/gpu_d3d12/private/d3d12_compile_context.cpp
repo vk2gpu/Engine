@@ -99,10 +99,13 @@ namespace GPU
 
 
 		D3D12_CPU_DESCRIPTOR_HANDLE handle = fbs.rtvs_.cpuDescHandle_;
-		handle.ptr += command->rtvIdx_ *
-		              backend_.device_->d3dDevice_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+		i32 rtvIdx =
+		    fbs.swapChain_ == nullptr ? command->rtvIdx_ : command->rtvIdx_ + fbs.swapChain_->bbIdx_ * MAX_BOUND_RTVS;
 
-		AddTransition(&fbs.rtvResources_[command->rtvIdx_], D3D12_RESOURCE_STATE_RENDER_TARGET);
+		handle.ptr +=
+		    rtvIdx * backend_.device_->d3dDevice_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+
+		AddTransition(fbs.rtvResources_[rtvIdx], D3D12_RESOURCE_STATE_RENDER_TARGET);
 		FlushTransitions();
 
 		d3dCommandList_->ClearRenderTargetView(handle, command->color_, 0, nullptr);
@@ -117,7 +120,8 @@ namespace GPU
 
 		D3D12_CPU_DESCRIPTOR_HANDLE handle = fbs.dsv_.cpuDescHandle_;
 
-		AddTransition(&fbs.dsvResource_, D3D12_RESOURCE_STATE_DEPTH_WRITE);
+		i32 dsvIdx = fbs.swapChain_ == nullptr ? 0 : fbs.swapChain_->bbIdx_;
+		AddTransition(fbs.dsvResources_[dsvIdx], D3D12_RESOURCE_STATE_DEPTH_WRITE);
 		FlushTransitions();
 
 		d3dCommandList_->ClearDepthStencilView(
@@ -130,16 +134,16 @@ namespace GPU
 
 	ErrorCode D3D12CompileContext::CompileCommand(const CommandUpdateBuffer* command)
 	{
-		const auto& buf = backend_.bufferResources_[command->buffer_.GetIndex()];
-		DBG_ASSERT(buf.resource_);
+		const auto* buf = backend_.GetD3D12Buffer(command->buffer_);
+		DBG_ASSERT(buf && buf->resource_);
 
 		auto uploadAlloc = backend_.device_->GetUploadAllocator().Alloc(command->size_);
 		memcpy(uploadAlloc.address_, command->data_, command->size_);
 
-		AddTransition(&buf, D3D12_RESOURCE_STATE_COPY_DEST);
+		AddTransition(buf, D3D12_RESOURCE_STATE_COPY_DEST);
 		FlushTransitions();
 
-		d3dCommandList_->CopyBufferRegion(buf.resource_.Get(), command->offset_, uploadAlloc.baseResource_.Get(),
+		d3dCommandList_->CopyBufferRegion(buf->resource_.Get(), command->offset_, uploadAlloc.baseResource_.Get(),
 		    uploadAlloc.offsetInBaseResource_, command->size_);
 
 		return ErrorCode::OK;
@@ -147,15 +151,15 @@ namespace GPU
 
 	ErrorCode D3D12CompileContext::CompileCommand(const CommandUpdateTextureSubResource* command)
 	{
-		const auto& tex = backend_.textureResources_[command->texture_.GetIndex()];
-		DBG_ASSERT(tex.resource_);
-		
+		const auto* tex = backend_.GetD3D12Texture(command->texture_);
+		DBG_ASSERT(tex && tex->resource_);
+
 		auto srcLayout = command->data_;
 		D3D12_PLACED_SUBRESOURCE_FOOTPRINT dstLayout;
 		i32 numRows = 0;
 		i64 rowSizeInBytes = 0;
 		i64 totalBytes = 0;
-		D3D12_RESOURCE_DESC resDesc = GetResourceDesc(tex.desc_);
+		D3D12_RESOURCE_DESC resDesc = GetResourceDesc(tex->desc_);
 
 		backend_.device_->d3dDevice_->GetCopyableFootprints(&resDesc, command->subResourceIdx_, 1, 0, &dstLayout,
 		    (u32*)&numRows, (u64*)&rowSizeInBytes, (u64*)&totalBytes);
@@ -164,7 +168,7 @@ namespace GPU
 		DBG_ASSERT(srcLayout.rowPitch_ <= rowSizeInBytes);
 		const u8* srcData = (const u8*)command->data_.data_;
 		u8* dstData = (u8*)resAlloc.address_ + dstLayout.Offset;
-		for(i32 slice = 0; slice < tex.desc_.depth_; ++slice)
+		for(i32 slice = 0; slice < tex->desc_.depth_; ++slice)
 		{
 			const u8* rowSrcData = srcData;
 			for(i32 row = 0; row < numRows; ++row)
@@ -177,7 +181,7 @@ namespace GPU
 		}
 
 		D3D12_TEXTURE_COPY_LOCATION dst;
-		dst.pResource = tex.resource_.Get();
+		dst.pResource = tex->resource_.Get();
 		dst.SubresourceIndex = command->subResourceIdx_;
 		dst.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
 
@@ -186,7 +190,7 @@ namespace GPU
 		src.PlacedFootprint = dstLayout;
 		src.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
 
-		AddTransition(&tex, D3D12_RESOURCE_STATE_COPY_DEST);
+		AddTransition(tex, D3D12_RESOURCE_STATE_COPY_DEST);
 		FlushTransitions();
 		d3dCommandList_->CopyTextureRegion(&dst, 0, 0, 0, &src, nullptr);
 
@@ -195,16 +199,16 @@ namespace GPU
 
 	ErrorCode D3D12CompileContext::CompileCommand(const CommandCopyBuffer* command)
 	{
-		const auto& dstBuf = backend_.bufferResources_[command->dstBuffer_.GetIndex()];
-		const auto& srcBuf = backend_.bufferResources_[command->srcBuffer_.GetIndex()];
-		DBG_ASSERT(dstBuf.resource_);
-		DBG_ASSERT(srcBuf.resource_);
+		const auto* dstBuf = backend_.GetD3D12Buffer(command->dstBuffer_);
+		const auto* srcBuf = backend_.GetD3D12Buffer(command->srcBuffer_);
+		DBG_ASSERT(dstBuf && dstBuf->resource_);
+		DBG_ASSERT(srcBuf && srcBuf->resource_);
 
-		AddTransition(&dstBuf, D3D12_RESOURCE_STATE_COPY_DEST);
-		AddTransition(&srcBuf, D3D12_RESOURCE_STATE_COPY_SOURCE);
+		AddTransition(dstBuf, D3D12_RESOURCE_STATE_COPY_DEST);
+		AddTransition(srcBuf, D3D12_RESOURCE_STATE_COPY_SOURCE);
 		FlushTransitions();
 
-		d3dCommandList_->CopyBufferRegion(dstBuf.resource_.Get(), command->dstOffset_, srcBuf.resource_.Get(),
+		d3dCommandList_->CopyBufferRegion(dstBuf->resource_.Get(), command->dstOffset_, srcBuf->resource_.Get(),
 		    command->srcOffset_, command->srcSize_);
 
 		return ErrorCode::OK;
@@ -212,23 +216,23 @@ namespace GPU
 
 	ErrorCode D3D12CompileContext::CompileCommand(const CommandCopyTextureSubResource* command)
 	{
-		const auto& dstTex = backend_.textureResources_[command->dstTexture_.GetIndex()];
-		const auto& srcTex = backend_.textureResources_[command->srcTexture_.GetIndex()];
-		DBG_ASSERT(dstTex.resource_);
-		DBG_ASSERT(srcTex.resource_);
+		const auto* dstTex = backend_.GetD3D12Texture(command->dstTexture_);
+		const auto* srcTex = backend_.GetD3D12Texture(command->srcTexture_);
+		DBG_ASSERT(dstTex && dstTex->resource_);
+		DBG_ASSERT(srcTex && srcTex->resource_);
 
 		D3D12_TEXTURE_COPY_LOCATION dst;
-		dst.pResource = dstTex.resource_.Get();
+		dst.pResource = dstTex->resource_.Get();
 		dst.SubresourceIndex = command->dstSubResourceIdx_;
 		dst.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
 
 		D3D12_TEXTURE_COPY_LOCATION src;
-		src.pResource = srcTex.resource_.Get();
+		src.pResource = srcTex->resource_.Get();
 		src.SubresourceIndex = command->srcSubResourceIdx_;
 		src.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
 
-		AddTransition(&dstTex, D3D12_RESOURCE_STATE_COPY_DEST);
-		AddTransition(&srcTex, D3D12_RESOURCE_STATE_COPY_SOURCE);
+		AddTransition(dstTex, D3D12_RESOURCE_STATE_COPY_DEST);
+		AddTransition(srcTex, D3D12_RESOURCE_STATE_COPY_SOURCE);
 		FlushTransitions();
 
 		D3D12_BOX box;
@@ -238,9 +242,10 @@ namespace GPU
 		box.right = command->srcBox_.x_ + command->srcBox_.w_;
 		box.bottom = command->srcBox_.y_ + command->srcBox_.h_;
 		box.back = command->srcBox_.z_ + command->srcBox_.d_;
-		d3dCommandList_->CopyTextureRegion(&dst, command->dstPoint_.x_, command->dstPoint_.y_, command->dstPoint_.z_, &src, &box);
+		d3dCommandList_->CopyTextureRegion(
+		    &dst, command->dstPoint_.x_, command->dstPoint_.y_, command->dstPoint_.z_, &src, &box);
 
-		return ErrorCode::OK;	
+		return ErrorCode::OK;
 	}
 
 	ErrorCode D3D12CompileContext::SetDrawBinding(Handle dbsHandle, PrimitiveTopology primitive)
@@ -306,29 +311,43 @@ namespace GPU
 	{
 		const auto& fbs = backend_.frameBindingSets_[fbsHandle.GetIndex()];
 
-		const D3D12_CPU_DESCRIPTOR_HANDLE* rtvDesc = nullptr;
-		const D3D12_CPU_DESCRIPTOR_HANDLE* dsvDesc = nullptr;
+		D3D12_CPU_DESCRIPTOR_HANDLE rtvDescLocal;
+		D3D12_CPU_DESCRIPTOR_HANDLE dsvDescLocal;
+		D3D12_CPU_DESCRIPTOR_HANDLE* rtvDesc = nullptr;
+		D3D12_CPU_DESCRIPTOR_HANDLE* dsvDesc = nullptr;
+
+		i32 rtvBaseIdx = fbs.swapChain_ == nullptr ? 0 : fbs.swapChain_->bbIdx_ * MAX_BOUND_RTVS;
+		i32 dsvBaseIdx = fbs.swapChain_ == nullptr ? 0 : fbs.swapChain_->bbIdx_;
+
 		if(fbs.numRTs_)
 		{
-			rtvDesc = &fbs.rtvs_.cpuDescHandle_;
+			rtvDesc = &rtvDescLocal;
+			rtvDescLocal = fbs.rtvs_.cpuDescHandle_;
 
 			for(i32 i = 0; i < fbs.numRTs_; ++i)
 			{
-				AddTransition(&fbs.rtvResources_[i], D3D12_RESOURCE_STATE_RENDER_TARGET);
+				AddTransition(fbs.rtvResources_[rtvBaseIdx + i], D3D12_RESOURCE_STATE_RENDER_TARGET);
 			}
+
+			rtvDesc->ptr += rtvBaseIdx * backend_.device_->d3dDevice_->GetDescriptorHandleIncrementSize(
+			                                 D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 		}
 		if(fbs.desc_.dsv_.resource_)
 		{
-			dsvDesc = &fbs.dsv_.cpuDescHandle_;
+			dsvDesc = &dsvDescLocal;
+			dsvDescLocal = fbs.dsv_.cpuDescHandle_;
 
 			if(Core::ContainsAllFlags(fbs.desc_.dsv_.flags_, DSVFlags::READ_ONLY_DEPTH))
 			{
-				AddTransition(&fbs.dsvResource_, D3D12_RESOURCE_STATE_DEPTH_READ);
+				AddTransition(fbs.dsvResources_[dsvBaseIdx], D3D12_RESOURCE_STATE_DEPTH_READ);
 			}
 			else
 			{
-				AddTransition(&fbs.dsvResource_, D3D12_RESOURCE_STATE_DEPTH_WRITE);
+				AddTransition(fbs.dsvResources_[dsvBaseIdx], D3D12_RESOURCE_STATE_DEPTH_WRITE);
 			}
+
+			dsvDesc->ptr += dsvBaseIdx * backend_.device_->d3dDevice_->GetDescriptorHandleIncrementSize(
+			                                 D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
 		}
 
 		FlushTransitions();

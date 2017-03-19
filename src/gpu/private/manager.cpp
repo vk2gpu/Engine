@@ -315,6 +315,19 @@ namespace GPU
 		return impl_->HandleErrorCode(handle, impl_->backend_->SubmitCommandList(handle));
 	}
 
+	bool Manager::PresentSwapChain(Handle handle)
+	{
+		DBG_ASSERT(impl_->backend_);
+		DBG_ASSERT(handle.GetType() == ResourceType::SWAP_CHAIN);
+		return impl_->HandleErrorCode(handle, impl_->backend_->PresentSwapChain(handle));
+	}
+
+	bool Manager::ResizeSwapChain(Handle handle, i32 width, i32 height)
+	{
+		DBG_ASSERT(impl_->backend_);
+		DBG_ASSERT(handle.GetType() == ResourceType::SWAP_CHAIN);
+		return impl_->HandleErrorCode(handle, impl_->backend_->ResizeSwapChain(handle, width, height));
+	}
 
 	bool Manager::IsValidHandle(Handle handle) const
 	{ //

@@ -51,7 +51,7 @@ namespace GPU
 		ErrorCode UpdateSamplers(
 		    D3D12PipelineBindingSet& pipelineBindingSet, i32 first, i32 num, const D3D12_SAMPLER_DESC* descs);
 		ErrorCode UpdateFrameBindingSet(D3D12FrameBindingSet& frameBindingSet,
-		    const D3D12_RENDER_TARGET_VIEW_DESC* rtvDescs, const D3D12_DEPTH_STENCIL_VIEW_DESC& dsvDesc);
+		    const D3D12_RENDER_TARGET_VIEW_DESC* rtvDescs, const D3D12_DEPTH_STENCIL_VIEW_DESC* dsvDescs);
 
 		ErrorCode SubmitCommandList(D3D12CommandList& commandList);
 
