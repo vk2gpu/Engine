@@ -44,6 +44,11 @@ namespace GPU
 		GPU_DLL void Reset();
 
 		/**
+		 * @return Get command queue type required.
+		 */
+		GPU_DLL CommandQueueType GetCommandQueueType() const { return queueType_; }
+
+		/**
 		 * See @a CommandDraw.
 		 * @pre @a pipelineBinding is valid.
 		 * @pre @a drawBinding is valid.
@@ -185,6 +190,7 @@ namespace GPU
 		/// Used to validate handles.
 		const Core::HandleAllocator& handleAllocator_;
 
+		CommandQueueType queueType_ = CommandQueueType::NONE;
 		i32 allocatedBytes_ = 0;
 		Core::Vector<u8> commandData_;
 		CommandVector commands_;

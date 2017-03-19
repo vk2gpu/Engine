@@ -14,6 +14,7 @@ namespace GPU
 
 	void CommandList::Reset()
 	{
+		queueType_ = CommandQueueType::NONE;
 		allocatedBytes_ = 0;
 		commands_.clear();
 	}

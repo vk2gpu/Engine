@@ -34,6 +34,7 @@ namespace GPU
 		DBG_ASSERT(firstInstance >= 0);
 		DBG_ASSERT(noofInstances > 0);
 
+		queueType_ |= CommandDraw::QUEUE_TYPE;
 		auto* command = Alloc<CommandDraw>();
 		command->pipelineBinding_ = pipelineBinding;
 		command->drawBinding_ = drawBinding;
@@ -61,6 +62,7 @@ namespace GPU
 		DBG_ASSERT(indirectBuffer.GetType() == ResourceType::BUFFER);
 		DBG_ASSERT(argByteOffset >= 0);
 
+		queueType_ |= CommandDraw::QUEUE_TYPE;
 		auto* command = Alloc<CommandDrawIndirect>();
 		command->pipelineBinding_ = pipelineBinding;
 		command->drawBinding_ = drawBinding;
@@ -79,6 +81,7 @@ namespace GPU
 		DBG_ASSERT(yGroups >= 1);
 		DBG_ASSERT(zGroups >= 1);
 
+		queueType_ |= CommandDispatch::QUEUE_TYPE;
 		auto* command = Alloc<CommandDispatch>();
 		command->pipelineBinding_ = pipelineBinding;
 		command->xGroups_ = xGroups;
@@ -97,6 +100,7 @@ namespace GPU
 		DBG_ASSERT(indirectBuffer.GetType() == ResourceType::BUFFER);
 		DBG_ASSERT(argByteOffset >= 0);
 
+		queueType_ |= CommandDispatchIndirect::QUEUE_TYPE;
 		auto* command = Alloc<CommandDispatchIndirect>();
 		command->pipelineBinding_ = pipelineBinding;
 		command->indirectBuffer_ = indirectBuffer;
@@ -111,6 +115,7 @@ namespace GPU
 		DBG_ASSERT(frameBinding.GetType() == ResourceType::FRAME_BINDING_SET);
 		DBG_ASSERT(rtvIdx >= 0);
 
+		queueType_ |= CommandClearRTV::QUEUE_TYPE;
 		auto* command = Alloc<CommandClearRTV>();
 		command->frameBinding_ = frameBinding;
 		command->rtvIdx_ = rtvIdx;
@@ -127,6 +132,7 @@ namespace GPU
 		DBG_ASSERT(handleAllocator_.IsValid(frameBinding));
 		DBG_ASSERT(frameBinding.GetType() == ResourceType::FRAME_BINDING_SET);
 
+		queueType_ |= CommandClearDSV::QUEUE_TYPE;
 		auto* command = Alloc<CommandClearDSV>();
 		command->frameBinding_ = frameBinding;
 		command->depth_ = depth;
@@ -141,6 +147,7 @@ namespace GPU
 		DBG_ASSERT(pipelineBinding.GetType() == ResourceType::PIPELINE_BINDING_SET);
 		DBG_ASSERT(uavIdx >= 0);
 
+		queueType_ |= CommandClearUAV::QUEUE_TYPE;
 		auto* command = Alloc<CommandClearUAV>();
 		command->pipelineBinding_ = pipelineBinding;
 		command->uavIdx_ = (i16)uavIdx;
@@ -158,6 +165,7 @@ namespace GPU
 		DBG_ASSERT(pipelineBinding.GetType() == ResourceType::PIPELINE_BINDING_SET);
 		DBG_ASSERT(uavIdx >= 0);
 
+		queueType_ |= CommandClearUAV::QUEUE_TYPE;
 		auto* command = Alloc<CommandClearUAV>();
 		command->pipelineBinding_ = pipelineBinding;
 		command->uavIdx_ = (i16)uavIdx;
@@ -177,6 +185,7 @@ namespace GPU
 		DBG_ASSERT(size > 0);
 		DBG_ASSERT(data != nullptr);
 
+		queueType_ |= CommandUpdateBuffer::QUEUE_TYPE;
 		auto* command = Alloc<CommandUpdateBuffer>();
 		command->buffer_ = buffer;
 		command->offset_ = offset;
@@ -196,6 +205,7 @@ namespace GPU
 		DBG_ASSERT(data.rowPitch_ > 0);
 		DBG_ASSERT(data.slicePitch_ > 0);
 
+		queueType_ |= CommandUpdateTextureSubResource::QUEUE_TYPE;
 		auto* command = Alloc<CommandUpdateTextureSubResource>();
 		command->texture_ = texture;
 		command->subResourceIdx_ = (i16)subResourceIdx;
@@ -215,6 +225,7 @@ namespace GPU
 		DBG_ASSERT(dstOffset >= 0);
 		DBG_ASSERT(srcBuffer != dstBuffer);
 
+		queueType_ |= CommandCopyBuffer::QUEUE_TYPE;
 		auto* command = Alloc<CommandCopyBuffer>();
 		command->srcBuffer_ = srcBuffer;
 		command->srcOffset_ = srcOffset;
@@ -243,6 +254,7 @@ namespace GPU
 		DBG_ASSERT(dstPoint.y_ >= 0);
 		DBG_ASSERT(srcTexture != dstTexture || srcSubResourceIdx != dstSubResourceIdx);
 
+		queueType_ |= CommandCopyTextureSubResource::QUEUE_TYPE;
 		auto* command = Alloc<CommandCopyTextureSubResource>();
 		command->srcTexture_ = srcTexture;
 		command->srcSubResourceIdx_ = (i16)srcSubResourceIdx;

@@ -5,8 +5,6 @@
 #include "core/concurrency.h"
 #include "core/vector.h"
 
-#include <Windows.h>
-
 #include "catch.hpp"
 
 #pragma warning(disable : 4189)
@@ -1110,7 +1108,6 @@ TEST_CASE("gpu-tests-compile-present")
 		REQUIRE(manager.SubmitCommandList(cmdHandle));
 
 		manager.PresentSwapChain(scHandle);
-		::Sleep(250);
 		cmdList.Reset();
 	}
 

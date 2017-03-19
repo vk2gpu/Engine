@@ -33,6 +33,21 @@ namespace GPU
 	};
 
 	/**
+	 * Command queue types.
+	 */
+	enum class CommandQueueType : i8
+	{
+		NONE = 0x00,
+		COPY = 0x01,
+		COMPUTE = 0x02,
+		GRAPHICS = 0x04,
+		ALL = COPY | COMPUTE | GRAPHICS,
+	};
+
+	DEFINE_ENUM_CLASS_FLAG_OPERATOR(CommandQueueType, &);
+	DEFINE_ENUM_CLASS_FLAG_OPERATOR(CommandQueueType, |);
+
+	/**
 	 * Base command.
 	 */
 	struct GPU_DLL Command
@@ -56,6 +71,8 @@ namespace GPU
 	 */
 	struct GPU_DLL CommandDraw : CommandTyped<CommandType::DRAW>
 	{
+		static const CommandQueueType QUEUE_TYPE = CommandQueueType::GRAPHICS;
+
 		/// Pipeline state binding to use.
 		Handle pipelineBinding_;
 		/// Draw binding to use. Determines if indexed or non-indexed draw.
@@ -82,6 +99,8 @@ namespace GPU
 	 */
 	struct GPU_DLL CommandDrawIndirect : CommandTyped<CommandType::DRAW_INDIRECT>
 	{
+		static const CommandQueueType QUEUE_TYPE = CommandQueueType::GRAPHICS;
+
 		/// Pipeline state binding to use.
 		Handle pipelineBinding_;
 		/// Draw binding to use. Determines if indexed or non-indexed draw.
@@ -99,6 +118,8 @@ namespace GPU
 	 */
 	struct GPU_DLL CommandDispatch : CommandTyped<CommandType::DISPATCH>
 	{
+		static const CommandQueueType QUEUE_TYPE = CommandQueueType::COMPUTE;
+
 		/// Pipeline state binding to use.
 		Handle pipelineBinding_;
 		/// X groups to dispatch.
@@ -114,6 +135,8 @@ namespace GPU
 	 */
 	struct GPU_DLL CommandDispatchIndirect : CommandTyped<CommandType::DISPATCH_INDIRECT>
 	{
+		static const CommandQueueType QUEUE_TYPE = CommandQueueType::COMPUTE;
+
 		/// Pipeline state binding to use.
 		Handle pipelineBinding_;
 		/// Indirect buffer with dispatch parameters.
@@ -127,6 +150,8 @@ namespace GPU
 	 */
 	struct GPU_DLL CommandClearRTV : CommandTyped<CommandType::CLEAR_RTV>
 	{
+		static const CommandQueueType QUEUE_TYPE = CommandQueueType::GRAPHICS;
+
 		/// Frame binding which contains the RTV we wish to clear.
 		Handle frameBinding_;
 		/// RTV index in frame binding.
@@ -140,6 +165,8 @@ namespace GPU
 	 */
 	struct GPU_DLL CommandClearDSV : CommandTyped<CommandType::CLEAR_DSV>
 	{
+		static const CommandQueueType QUEUE_TYPE = CommandQueueType::GRAPHICS;
+
 		/// Frame binding which contains the DSV we wish to clear.
 		Handle frameBinding_;
 		/// Depth value to clear to.
@@ -153,6 +180,8 @@ namespace GPU
 	 */
 	struct GPU_DLL CommandClearUAV : CommandTyped<CommandType::CLEAR_UAV>
 	{
+		static const CommandQueueType QUEUE_TYPE = CommandQueueType::GRAPHICS;
+
 		/// Pipeline binding which contains the UAV we wish to clear.
 		Handle pipelineBinding_;
 		/// Index of UAV.
@@ -170,6 +199,8 @@ namespace GPU
 	 */
 	struct GPU_DLL CommandUpdateBuffer : CommandTyped<CommandType::UPDATE_BUFFER>
 	{
+		static const CommandQueueType QUEUE_TYPE = CommandQueueType::COPY;
+
 		/// Buffer to update.
 		Handle buffer_;
 		/// Offset within buffer to update.
@@ -185,6 +216,8 @@ namespace GPU
 	 */
 	struct GPU_DLL CommandUpdateTextureSubResource : CommandTyped<CommandType::UPDATE_TEXTURE_SUBRESOURCE>
 	{
+		static const CommandQueueType QUEUE_TYPE = CommandQueueType::COPY;
+
 		/// Texture to update.
 		Handle texture_;
 		/// Subresource index.
@@ -198,6 +231,8 @@ namespace GPU
 	 */
 	struct GPU_DLL CommandCopyBuffer : CommandTyped<CommandType::COPY_BUFFER>
 	{
+		static const CommandQueueType QUEUE_TYPE = CommandQueueType::COPY;
+
 		/// Destination buffer.
 		Handle dstBuffer_;
 		/// Destination offset to copy into.
@@ -215,6 +250,8 @@ namespace GPU
 	 */
 	struct GPU_DLL CommandCopyTextureSubResource : CommandTyped<CommandType::COPY_TEXTURE_SUBRESOURCE>
 	{
+		static const CommandQueueType QUEUE_TYPE = CommandQueueType::COPY;
+
 		/// Destination texture.
 		Handle dstTexture_;
 		/// Destination subresource index.
