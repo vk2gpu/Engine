@@ -1,9 +1,11 @@
 SET(SOURCES_PUBLIC 
 	"dll.h"
+	"client.h"
 	"window.h"
 )
 
 SET(SOURCES_PRIVATE 
+	"private/client.cpp"
 	"private/window.cpp"
 )
 

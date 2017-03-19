@@ -157,7 +157,7 @@ namespace Math
 		Row3(Vec4(0.0f, 0.0f, 0.0f, scale.w));
 	}
 
-	Vec2 operator*(const Vec2& Lhs, const Mat44& Rhs);
-	Vec3 operator*(const Vec3& Lhs, const Mat44& Rhs);
-	Vec4 operator*(const Vec4& Lhs, const Mat44& Rhs);
+	MATH_DLL Vec2 operator*(const Vec2& Lhs, const Mat44& Rhs);
+	MATH_DLL Vec3 operator*(const Vec3& Lhs, const Mat44& Rhs);
+	MATH_DLL Vec4 operator*(const Vec4& Lhs, const Mat44& Rhs);
 } // namespace Math

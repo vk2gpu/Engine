@@ -143,6 +143,11 @@ namespace GPU
 		bool ResizeSwapChain(Handle handle, i32 width, i32 height);
 
 		/**
+		 * Next frame.
+		 */
+		void NextFrame();
+
+		/**
 		 * Is valid handle?
 		 */
 		bool IsValidHandle(Handle handle) const;

@@ -535,6 +535,7 @@ namespace GPU
 			elementDesc[i].SemanticName = GetSemanticName(desc.vertexElements_[i].usage_);
 			elementDesc[i].SemanticIndex = desc.vertexElements_[i].usageIdx_;
 			elementDesc[i].Format = GetFormat(desc.vertexElements_[i].format_);
+			elementDesc[i].AlignedByteOffset = desc.vertexElements_[i].offset_;
 			elementDesc[i].InputSlot = desc.vertexElements_[i].streamIdx_;
 			elementDesc[i].InputSlotClass = D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA; // TODO: expose outside of here.
 			elementDesc[i].InstanceDataStepRate = 0;                                    // TODO: expose outside of here.
@@ -788,7 +789,7 @@ namespace GPU
 				DBG_ASSERT(buffer);
 
 				DBG_ASSERT(Core::ContainsAllFlags(buffer->supportedStates_, D3D12_RESOURCE_STATE_INDEX_BUFFER));
-				dbs.ibResource_ = *buffer;
+				dbs.ibResource_ = buffer;
 
 				dbs.ib_.BufferLocation = buffer->resource_->GetGPUVirtualAddress() + desc.ib_.offset_;
 				dbs.ib_.SizeInBytes = Core::PotRoundUp(desc.ib_.size_, D3D12_TEXTURE_DATA_PITCH_ALIGNMENT);
@@ -815,7 +816,7 @@ namespace GPU
 					DBG_ASSERT(buffer);
 					DBG_ASSERT(Core::ContainsAllFlags(
 					    buffer->supportedStates_, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER));
-					dbs.vbResources_[idx] = *buffer;
+					dbs.vbResources_[idx] = buffer;
 
 					dbs.vbs_[idx].BufferLocation = buffer->resource_->GetGPUVirtualAddress() + vb.offset_;
 					dbs.vbs_[idx].SizeInBytes = Core::PotRoundUp(vb.size_, D3D12_TEXTURE_DATA_PITCH_ALIGNMENT);
@@ -1084,6 +1085,12 @@ namespace GPU
 	}
 
 	ErrorCode D3D12Backend::ResizeSwapChain(Handle handle, i32 width, i32 height) { return ErrorCode::UNIMPLEMENTED; }
+
+	void D3D12Backend::NextFrame()
+	{
+		device_->NextFrame();
+	}
+
 
 	D3D12Resource* D3D12Backend::GetD3D12Resource(Handle handle)
 	{

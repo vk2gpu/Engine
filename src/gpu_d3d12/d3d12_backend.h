@@ -53,6 +53,8 @@ namespace GPU
 		ErrorCode PresentSwapChain(Handle handle) override;
 		ErrorCode ResizeSwapChain(Handle handle, i32 width, i32 height) override;
 
+		void NextFrame() override;
+
 		/**
 		 * Will return D3D12Resource for a @a handle.
 		 * Supports BUFFER, TEXTURE, and SWAP_CHAIN.

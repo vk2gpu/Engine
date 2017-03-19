@@ -66,9 +66,11 @@ namespace GPU
 		ComPtr<ID3D12CommandQueue> d3dAsyncComputeQueue_;
 
 		/// Frame counter.
-		i32 frameIdx_ = 0;
+		i64 frameIdx_ = 0;
+		ComPtr<ID3D12Fence> d3dFrameFence_;
+		HANDLE frameFenceEvent_ = 0;
 
-		// Upload management.
+		/// Upload management.
 		Core::Mutex uploadMutex_;
 		Core::Array<class D3D12LinearHeapAllocator*, MAX_GPU_FRAMES> uploadAllocators_;
 		class D3D12CommandList* uploadCommandList_;
@@ -76,7 +78,7 @@ namespace GPU
 		HANDLE uploadFenceEvent_ = 0;
 		volatile i64 uploadFenceIdx_ = 0;
 
-		// Descriptor heap allocators.
+		/// Descriptor heap allocators.
 		class D3D12DescriptorHeapAllocator* cbvSrvUavAllocator_ = nullptr;
 		class D3D12DescriptorHeapAllocator* samplerAllocator_ = nullptr;
 		class D3D12DescriptorHeapAllocator* rtvAllocator_ = nullptr;
@@ -84,7 +86,7 @@ namespace GPU
 
 		D3D12LinearHeapAllocator& GetUploadAllocator() { return *uploadAllocators_[frameIdx_ % MAX_GPU_FRAMES]; }
 
-		// Root signatures.
+		/// Root signatures.
 		Core::Vector<ComPtr<ID3D12RootSignature>> d3dRootSignatures_;
 
 		Core::Vector<ComPtr<ID3D12PipelineState>> d3dDefaultPSOs_;

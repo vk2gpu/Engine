@@ -54,10 +54,15 @@ namespace GPU
 
 		// setup descriptor heap allocators.
 		CreateDescriptorHeapAllocators();
+
+		// Frame fence.
+		d3dDevice_->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_ID3D12Fence, (void**)d3dFrameFence_.GetAddressOf());
+		frameFenceEvent_ = ::CreateEvent(nullptr, FALSE, FALSE, "Frame fence");
 	}
 
 	D3D12Device::~D3D12Device()
 	{ //
+		::CloseHandle(frameFenceEvent_);
 		::CloseHandle(uploadFenceEvent_);
 		delete uploadCommandList_;
 		for(auto& d3dUploadAllocator : uploadAllocators_)
@@ -269,11 +274,15 @@ namespace GPU
 
 	void D3D12Device::NextFrame()
 	{
+		if((frameIdx_ - d3dFrameFence_->GetCompletedValue()) >= MAX_GPU_FRAMES)
+		{
+			d3dFrameFence_->SetEventOnCompletion(frameIdx_ - MAX_GPU_FRAMES, frameFenceEvent_);
+			::WaitForSingleObject(frameFenceEvent_, INFINITE);
+		}
+
 		frameIdx_++;
-
-		// TODO: Other end of frame work?
+		d3dDirectQueue_->Signal(d3dFrameFence_.Get(), frameIdx_);
 	}
-
 
 	ErrorCode D3D12Device::CreateSwapChain(
 	    D3D12SwapChain& outResource, const SwapChainDesc& desc, const char* debugName)
@@ -485,7 +494,7 @@ namespace GPU
 					{
 						memcpy(dstData, srcData, srcLayout.rowPitch_);
 						dstData += rowSizeInBytes[i];
-						rowSrcData += srcLayout.rowPitch_;
+						srcData += srcLayout.rowPitch_;
 					}
 					rowSrcData += srcLayout.slicePitch_;
 				}

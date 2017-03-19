@@ -281,7 +281,7 @@ namespace GPU
 
 		// Rasterizer.
 		FillMode fillMode_ = FillMode::SOLID;
-		CullMode cullMode_ = CullMode::CCW;
+		CullMode cullMode_ = CullMode::NONE;
 		f32 depthBias_ = 0.0f;
 		f32 slopeScaledDepthBias_ = 0.0f;
 		u32 antialiasedLineEnable_ = 0;

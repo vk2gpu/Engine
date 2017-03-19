@@ -35,7 +35,7 @@ namespace GPU
 		template<typename TYPE>
 		TYPE* Alloc(i32 num = 1)
 		{
-			return new(Alloc(sizeof(TYPE) * num)) TYPE[num]();
+			return new(Alloc(sizeof(TYPE) * num)) TYPE[num];
 		}
 
 		/**

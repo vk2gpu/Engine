@@ -134,8 +134,8 @@ namespace GPU
 	struct D3D12DrawBindingSet
 	{
 		DrawBindingSetDesc desc_;
-		Core::Array<D3D12Resource, MAX_VERTEX_STREAMS> vbResources_;
-		D3D12Resource ibResource_;
+		Core::Array<D3D12Resource*, MAX_VERTEX_STREAMS> vbResources_;
+		D3D12Resource* ibResource_ = nullptr;
 		Core::Array<D3D12_VERTEX_BUFFER_VIEW, MAX_VERTEX_STREAMS> vbs_;
 		D3D12_INDEX_BUFFER_VIEW ib_;
 	};

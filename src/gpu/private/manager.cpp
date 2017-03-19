@@ -136,7 +136,7 @@ namespace GPU
 			{
 				RenderDoc::Load();
 			}
-			
+
 			Core::LibHandle handle = Core::LibraryOpen("gpu_d3d12.dll");
 			if(handle)
 			{
@@ -328,6 +328,8 @@ namespace GPU
 		DBG_ASSERT(handle.GetType() == ResourceType::SWAP_CHAIN);
 		return impl_->HandleErrorCode(handle, impl_->backend_->ResizeSwapChain(handle, width, height));
 	}
+
+	void Manager::NextFrame() { impl_->backend_->NextFrame(); }
 
 	bool Manager::IsValidHandle(Handle handle) const
 	{ //

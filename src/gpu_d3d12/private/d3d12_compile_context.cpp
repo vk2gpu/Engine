@@ -62,6 +62,7 @@ namespace GPU
 		SetFrameBinding(command->frameBinding_);
 		SetDrawBinding(command->drawBinding_, command->primitive_);
 
+		FlushTransitions();
 		if(dbs.ib_.BufferLocation == 0)
 		{
 			d3dCommandList_->DrawInstanced(
@@ -253,15 +254,15 @@ namespace GPU
 		const auto& dbs = backend_.drawBindingSets_[dbsHandle.GetIndex()];
 
 		// Setup draw binding.
-		if(dbs.ib_.BufferLocation)
+		if(dbs.ibResource_)
 		{
-			AddTransition(&dbs.ibResource_, D3D12_RESOURCE_STATE_INDEX_BUFFER);
+			AddTransition(dbs.ibResource_, D3D12_RESOURCE_STATE_INDEX_BUFFER);
 			d3dCommandList_->IASetIndexBuffer(&dbs.ib_);
 		}
 
 		for(i32 i = 0; i < MAX_VERTEX_STREAMS; ++i)
-			if(dbs.vbResources_[i].resource_)
-				AddTransition(&dbs.vbResources_[i], D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
+			if(dbs.vbResources_[i])
+				AddTransition(dbs.vbResources_[i], D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
 
 		d3dCommandList_->IASetVertexBuffers(0, MAX_VERTEX_STREAMS, dbs.vbs_.data());
 		d3dCommandList_->IASetPrimitiveTopology(GetPrimitiveTopology(primitive));
