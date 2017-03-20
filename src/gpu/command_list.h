@@ -2,6 +2,7 @@
 
 #include "gpu/dll.h"
 #include "gpu/commands.h"
+#include "gpu/types.h"
 #include "core/vector.h"
 
 namespace GPU
@@ -62,8 +63,8 @@ namespace GPU
 		 * @return Draw command. nullptr if failure.
 		 */
 		GPU_DLL CommandDraw* Draw(Handle pipelineBinding, Handle drawBinding, Handle frameBinding,
-		    PrimitiveTopology primitive, i32 indexOffset, i32 vertexOffset, i32 noofVertices, i32 firstInstance,
-		    i32 noofInstances);
+		    const DrawState& drawState, PrimitiveTopology primitive, i32 indexOffset, i32 vertexOffset,
+		    i32 noofVertices, i32 firstInstance, i32 noofInstances);
 
 		/**
 		 * See @a CommandDrawIndirect.
@@ -74,8 +75,8 @@ namespace GPU
 		 * @pre @a argByteOffset >= 0.
 		 * @return Dispatch command. nullptr if failure.
 		 */
-		GPU_DLL CommandDrawIndirect* DrawIndirect(
-		    Handle pipelineBinding, Handle drawBinding, Handle frameBinding, Handle indirectBuffer, i32 argByteOffset);
+		GPU_DLL CommandDrawIndirect* DrawIndirect(Handle pipelineBinding, Handle drawBinding, Handle frameBinding,
+		    const DrawState& drawState, Handle indirectBuffer, i32 argByteOffset);
 
 		/**
 		 * See @a CommandDispatch.
@@ -194,8 +195,12 @@ namespace GPU
 		i32 allocatedBytes_ = 0;
 		Core::Vector<u8> commandData_;
 		CommandVector commands_;
+
+		DrawState drawState_;
+		DrawState* cachedDrawState_;
 	};
 } // namespace GPU
+
 #if CODE_INLINE
 #include "gpu/private/command_list.inl"
 #endif

@@ -778,10 +778,16 @@ TEST_CASE("gpu-tests-compile-draw")
 	GPU::Handle cmdHandle = manager.CreateCommandList(testName.c_str());
 	GPU::CommandList cmdList(manager.GetHandleAllocator());
 
+	GPU::DrawState drawState;
+	drawState.viewport_.w_ = (f32)rtDesc.width_;
+	drawState.viewport_.h_ = (f32)rtDesc.height_;
+	drawState.scissorRect_.w_ = rtDesc.width_;
+	drawState.scissorRect_.h_ = rtDesc.height_;
+
 	f32 color[4] = {0.2f, 0.2f, 0.2f, 1.0f};
 	REQUIRE(cmdList.ClearRTV(fbsHandle, 0, color));
 	REQUIRE(cmdList.ClearDSV(fbsHandle, 0.0f, 0));
-	REQUIRE(cmdList.Draw(pbsHandle, dbsHandle, fbsHandle, GPU::PrimitiveTopology::TRIANGLE_LIST, 0, 1, 3, 0, 1));
+	REQUIRE(cmdList.Draw(pbsHandle, dbsHandle, fbsHandle, drawState, GPU::PrimitiveTopology::TRIANGLE_LIST, 0, 1, 3, 0, 1));
 	REQUIRE(manager.CompileCommandList(cmdHandle, cmdList));
 	REQUIRE(manager.SubmitCommandList(cmdHandle));
 

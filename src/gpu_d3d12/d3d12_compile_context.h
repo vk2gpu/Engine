@@ -25,6 +25,12 @@ namespace GPU
 		Core::Map<const D3D12Resource*, D3D12_RESOURCE_BARRIER> pendingBarriers_;
 		Core::Vector<D3D12_RESOURCE_BARRIER> barriers_;
 
+		DrawState drawState_;
+		DrawState* cachedDrawState_ = nullptr;
+		Viewport cachedViewport_;	
+		ScissorRect cachedScissorRect_;
+		u8 cachedStencilRef_ = 0;
+
 		ErrorCode CompileCommandList(class D3D12CommandList& outCommandList, const class CommandList& commandList);
 		ErrorCode CompileCommand(const struct CommandDraw* command);
 		ErrorCode CompileCommand(const struct CommandDrawIndirect* command);
@@ -41,6 +47,7 @@ namespace GPU
 		ErrorCode SetDrawBinding(Handle dbsHandle, PrimitiveTopology primitive);
 		ErrorCode SetPipelineBinding(Handle pbsHandle);
 		ErrorCode SetFrameBinding(Handle fbsHandle);
+		ErrorCode SetDrawState(const DrawState* drawState);
 
 		/**
 		 * Add resource transition.

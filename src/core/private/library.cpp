@@ -1,7 +1,7 @@
 #include "core/library.h"
 
 #if PLATFORM_WINDOWS
-#include <Windows.h>
+#include "core/os.h"
 #endif
 
 #if PLATFORM_LINUX

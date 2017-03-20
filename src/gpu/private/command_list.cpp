@@ -10,6 +10,7 @@ namespace GPU
 	    : handleAllocator_(handleAllocator)
 	{
 		commandData_.resize(bufferSize);
+		cachedDrawState_ = &drawState_;
 	}
 
 	void CommandList::Reset()
@@ -17,6 +18,7 @@ namespace GPU
 		queueType_ = CommandQueueType::NONE;
 		allocatedBytes_ = 0;
 		commands_.clear();
+		cachedDrawState_ = &drawState_;
 	}
 
 } // namespace GPU

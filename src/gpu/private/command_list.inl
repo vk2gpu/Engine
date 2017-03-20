@@ -18,8 +18,8 @@ namespace GPU
 	}
 
 	INLINE CommandDraw* CommandList::Draw(Handle pipelineBinding, Handle drawBinding, Handle frameBinding,
-	    PrimitiveTopology primitive, i32 indexOffset, i32 vertexOffset, i32 noofVertices, i32 firstInstance,
-	    i32 noofInstances)
+	    const DrawState& drawState, PrimitiveTopology primitive, i32 indexOffset, i32 vertexOffset, i32 noofVertices,
+	    i32 firstInstance, i32 noofInstances)
 	{
 		DBG_ASSERT(handleAllocator_.IsValid(pipelineBinding));
 		DBG_ASSERT(pipelineBinding.GetType() == ResourceType::PIPELINE_BINDING_SET);
@@ -45,12 +45,25 @@ namespace GPU
 		command->noofVertices_ = noofVertices;
 		command->firstInstance_ = firstInstance;
 		command->noofInstances_ = noofInstances;
+
+		if(drawState == *cachedDrawState_)
+		{
+			command->drawState_ = cachedDrawState_;
+		}
+		else
+		{
+			auto* cmdDrawState = Alloc<DrawState>();
+			*cmdDrawState = drawState;
+			cachedDrawState_ = cmdDrawState;
+			command->drawState_ = cmdDrawState;
+		}
+
 		commands_.push_back(command);
 		return command;
 	}
 
-	INLINE CommandDrawIndirect* CommandList::DrawIndirect(
-	    Handle pipelineBinding, Handle drawBinding, Handle frameBinding, Handle indirectBuffer, i32 argByteOffset)
+	INLINE CommandDrawIndirect* CommandList::DrawIndirect(Handle pipelineBinding, Handle drawBinding,
+	    Handle frameBinding, const DrawState& drawState, Handle indirectBuffer, i32 argByteOffset)
 	{
 		DBG_ASSERT(handleAllocator_.IsValid(pipelineBinding));
 		DBG_ASSERT(pipelineBinding.GetType() == ResourceType::PIPELINE_BINDING_SET);
@@ -69,6 +82,19 @@ namespace GPU
 		command->frameBinding_ = frameBinding;
 		command->indirectBuffer_ = indirectBuffer;
 		command->argByteOffset = argByteOffset;
+
+		if(cachedDrawState_ && drawState == *cachedDrawState_)
+		{
+			command->drawState_ = cachedDrawState_;
+		}
+		else
+		{
+			auto* cmdDrawState = Alloc<DrawState>();
+			*cmdDrawState = drawState;
+			cachedDrawState_ = cmdDrawState;
+			command->drawState_ = cmdDrawState;
+		}
+
 		commands_.push_back(command);
 		return command;
 	}

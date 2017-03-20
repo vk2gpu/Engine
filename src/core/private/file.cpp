@@ -11,7 +11,7 @@
 #pragma warning(disable : 4996) // '_open': This function or variable may be unsafe...
 
 #define WIN32_LEAN_AND_MEAN
-#include <Windows.h>
+#include "core/os.h"
 #endif
 
 #include <io.h>

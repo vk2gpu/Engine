@@ -79,6 +79,8 @@ namespace GPU
 		Handle drawBinding_;
 		/// Frame binding for rendering.
 		Handle frameBinding_;
+		/// Draw state.
+		const DrawState* drawState_ = nullptr;
 		/// Primitive type to rasterize.
 		PrimitiveTopology primitive_ = PrimitiveTopology::INVALID;
 		/// Index offset. Ignored for non-indexed draw.
@@ -107,6 +109,8 @@ namespace GPU
 		Handle drawBinding_;
 		/// Frame binding for rendering.
 		Handle frameBinding_;
+		/// Draw state.
+		const DrawState* drawState_ = nullptr;
 		/// Indirect buffer with draw parameters.
 		Handle indirectBuffer_;
 		/// Byte offset in indirect buffer to start reading arguments from.

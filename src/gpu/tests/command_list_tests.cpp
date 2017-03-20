@@ -57,10 +57,12 @@ TEST_CASE("commandlist-tests-commands")
 	dsv.format_ = GPU::Format::D24_UNORM_S8_UINT;
 	dsv.dimension_ = GPU::ViewDimension::TEX2D;
 
+	GPU::DrawState drawState;
+
 	// Draws.
 	REQUIRE(commandList.Draw(
-	    pipelineBindingHandle, drawBindingHandle, frameBindingHandle, GPU::PrimitiveTopology::TRIANGLE_LIST, 0, 0, 3, 0, 1));
-	REQUIRE(commandList.DrawIndirect(pipelineBindingHandle, drawBindingHandle, frameBindingHandle, buffer0Handle, 0));
+	    pipelineBindingHandle, drawBindingHandle, frameBindingHandle, drawState, GPU::PrimitiveTopology::TRIANGLE_LIST, 0, 0, 3, 0, 1));
+	REQUIRE(commandList.DrawIndirect(pipelineBindingHandle, drawBindingHandle, frameBindingHandle, drawState, buffer0Handle, 0));
 	// Dispatches.
 	REQUIRE(commandList.Dispatch(pipelineBindingHandle, 1, 1, 1));
 	REQUIRE(commandList.DispatchIndirect(pipelineBindingHandle, buffer0Handle, 0));

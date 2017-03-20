@@ -12,6 +12,9 @@
 #include <d3d12.h>
 #include <wrl.h>
 
+// Windows header crap.
+#undef DrawState
+
 typedef HRESULT(WINAPI* PFN_CREATE_DXGI_FACTORY)(UINT flags, REFIID _riid, void** _factory);
 typedef HRESULT(WINAPI* PFN_GET_DXGI_DEBUG_INTERFACE)(UINT flags, REFIID _riid, void** _debug);
 

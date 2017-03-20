@@ -2,7 +2,7 @@
 
 #if PLATFORM_WINDOWS
 #define WIN32_LEAN_AND_MEAN
-#include <Windows.h>
+#include "core/os.h"
 #define USE_QUERY_PERF_COUNTER 1
 #endif
 

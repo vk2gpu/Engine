@@ -150,7 +150,5 @@ namespace GPU
 		D3D12SwapChain* swapChain_ = nullptr;
 		i32 numRTs_ = 0;
 		i32 numBuffers_ = 1;
-		Viewport viewport_;
-		ScissorRect scissorRect_;
 	};
 }

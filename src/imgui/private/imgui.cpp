@@ -158,10 +158,13 @@ namespace ImGui
 		}
 
 		Math::Mat44 clipTranform;
-		clipTranform.OrthoProjection( 
-			0.0f, IO.DisplaySize.x,
-			IO.DisplaySize.y, 0.0f,
-			-1.0f, 1.0f );
+		clipTranform.OrthoProjection(0.0f, IO.DisplaySize.x, IO.DisplaySize.y, 0.0f, -1.0f, 1.0f);
+
+		GPU::DrawState drawState;
+		drawState.viewport_.w_ = IO.DisplaySize.x;
+		drawState.viewport_.h_ = IO.DisplaySize.y;
+		drawState.scissorRect_.w_ = (i32)IO.DisplaySize.x;
+		drawState.scissorRect_.h_ = (i32)IO.DisplaySize.y;
 
 		// Allocate some vertices + indices from the command list.
 		auto* baseVertices = (ImDrawVert*)cmdList.Alloc(vbUpdateSize * sizeof(ImDrawVert));
@@ -223,13 +226,13 @@ namespace ImGui
 				else
 				{
 					GPU::ScissorRect scissorRect;
-					scissorRect.x_ = (i32)cmd->ClipRect.x;
-					scissorRect.y_ = (i32)cmd->ClipRect.y;
-					scissorRect.w_ = (i32)(cmd->ClipRect.z - cmd->ClipRect.x);
-					scissorRect.h_ = (i32)(cmd->ClipRect.w - cmd->ClipRect.y);
+					drawState.scissorRect_.x_ = (i32)cmd->ClipRect.x;
+					drawState.scissorRect_.y_ = (i32)cmd->ClipRect.y;
+					drawState.scissorRect_.w_ = (i32)(cmd->ClipRect.z - cmd->ClipRect.x);
+					drawState.scissorRect_.h_ = (i32)(cmd->ClipRect.w - cmd->ClipRect.y);
 
-					cmdList.Draw(pbsHandle_, dbsHandle_, fbs, GPU::PrimitiveTopology::TRIANGLE_LIST, indexOffset, 0,
-					    cmd->ElemCount, 0, 1);
+					cmdList.Draw(pbsHandle_, dbsHandle_, fbs, drawState, GPU::PrimitiveTopology::TRIANGLE_LIST,
+					    indexOffset, 0, cmd->ElemCount, 0, 1);
 				}
 				indexOffset += cmd->ElemCount;
 			}

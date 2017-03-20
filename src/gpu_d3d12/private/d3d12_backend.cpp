@@ -842,11 +842,6 @@ namespace GPU
 			Core::Vector<D3D12_RENDER_TARGET_VIEW_DESC> rtvDescs;
 			Core::Vector<D3D12_DEPTH_STENCIL_VIEW_DESC> dsvDescs;
 
-			fbs.viewport_.x_ = 0;
-			fbs.viewport_.y_ = 0;
-			fbs.scissorRect_.x_ = 0;
-			fbs.scissorRect_.y_ = 0;
-
 			// Check if we're using a swapchain.
 			{
 				const auto& rtv = desc.rtvs_[0];
@@ -889,14 +884,6 @@ namespace GPU
 						D3D12Texture* texture = GetD3D12Texture(resource, bufferIdx);
 						DBG_ASSERT(Core::ContainsAllFlags(texture->supportedStates_, D3D12_RESOURCE_STATE_RENDER_TARGET));
 						rtvResource = texture;					
-
-						if(rtvIdx == 0)
-						{
-							fbs.viewport_.w_ = (f32)texture->desc_.width_;
-							fbs.viewport_.h_ = (f32)texture->desc_.height_;
-							fbs.scissorRect_.w_ = texture->desc_.width_;
-							fbs.scissorRect_.h_ = texture->desc_.height_;
-						}
 
 						rtvDesc.Format = GetFormat(rtv.format_);
 						rtvDesc.ViewDimension = GetRTVDimension(rtv.dimension_);

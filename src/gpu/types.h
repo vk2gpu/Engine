@@ -2,12 +2,13 @@
 
 #include "gpu/dll.h"
 #include "core/types.h"
+#include "core/float.h"
 #include "core/handle.h"
 
 namespace Core
 {
 	class Handle;
-}
+} // namespace Core
 
 namespace GPU
 {
@@ -57,13 +58,14 @@ namespace GPU
 	DEFINE_ENUM_CLASS_FLAG_OPERATOR(DebuggerIntegrationFlags, &);
 	DEFINE_ENUM_CLASS_FLAG_OPERATOR(DebuggerIntegrationFlags, |);
 
-	/**
-	 * Utilities for handling error codes.
-	 */
-#define RETURN_ON_ERROR(ERRORCODE)\
-	{\
-		auto errorCode_Internal = ERRORCODE;\
-		if(errorCode_Internal != ErrorCode::OK) return errorCode_Internal;\
+/**
+ * Utilities for handling error codes.
+ */
+#define RETURN_ON_ERROR(ERRORCODE)                                                                                     \
+	{                                                                                                                  \
+		auto errorCode_Internal = ERRORCODE;                                                                           \
+		if(errorCode_Internal != ErrorCode::OK)                                                                        \
+			return errorCode_Internal;                                                                                 \
 	}
 
 
@@ -355,6 +357,13 @@ namespace GPU
 		i32 y_ = 0;
 		i32 w_ = 0;
 		i32 h_ = 0;
+
+		bool operator==(const ScissorRect& other) const
+		{
+			return x_ == other.x_ && y_ == other.y_ && w_ == other.w_ && h_ == other.h_;
+		}
+
+		bool operator!=(const ScissorRect& other) const { return !(*this == other); }
 	};
 
 	/**
@@ -369,5 +378,36 @@ namespace GPU
 		f32 h_ = 0.0f;
 		f32 zMin_ = 0.0f;
 		f32 zMax_ = 1.0f;
+
+		bool operator==(const Viewport& other) const
+		{
+			return Core::CompareFloat(x_, other.x_) && Core::CompareFloat(y_, other.y_) &&
+			       Core::CompareFloat(w_, other.w_) && Core::CompareFloat(h_, other.h_) &&
+			       Core::CompareFloat(zMin_, other.zMin_) && Core::CompareFloat(zMax_, other.zMax_);
+		}
+
+		bool operator!=(const Viewport& other) const { return !(*this == other); }
 	};
-};
+
+	/**
+	 * Draw state.
+	 */
+	struct GPU_DLL DrawState
+	{
+		/// Viewport.
+		Viewport viewport_;
+		/// Scissor rect.
+		ScissorRect scissorRect_;
+		/// Stencil ref.
+		u8 stencilRef_ = 0;
+
+		// Comparison.
+		bool operator==(const DrawState& other) const
+		{
+			return viewport_ == other.viewport_ && scissorRect_ == other.scissorRect_ &&
+			       stencilRef_ == other.stencilRef_;
+		}
+
+		bool operator!=(const DrawState& other) const { return !(*this == other); }
+	};
+} // namespace GPU

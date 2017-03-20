@@ -61,6 +61,7 @@ namespace GPU
 		SetPipelineBinding(command->pipelineBinding_);
 		SetFrameBinding(command->frameBinding_);
 		SetDrawBinding(command->drawBinding_, command->primitive_);
+		SetDrawState(command->drawState_);
 
 		FlushTransitions();
 		if(dbs.ib_.BufferLocation == 0)
@@ -355,22 +356,43 @@ namespace GPU
 
 		d3dCommandList_->OMSetRenderTargets(fbs.numRTs_, rtvDesc, TRUE, dsvDesc);
 
-		D3D12_VIEWPORT viewport;
-		viewport.TopLeftX = fbs.viewport_.x_;
-		viewport.TopLeftY = fbs.viewport_.y_;
-		viewport.Width = fbs.viewport_.w_;
-		viewport.Height = fbs.viewport_.h_;
-		viewport.MinDepth = fbs.viewport_.zMin_;
-		viewport.MaxDepth = fbs.viewport_.zMax_;
-		d3dCommandList_->RSSetViewports(1, &viewport);
+		return ErrorCode::OK;
+	}
+	
+	ErrorCode D3D12CompileContext::SetDrawState(const DrawState* drawState)
+	{
+		if(cachedDrawState_ == nullptr || drawState != cachedDrawState_)
+		{
+			if(drawState->viewport_ != cachedViewport_)
+			{
+				D3D12_VIEWPORT viewport;
+				viewport.TopLeftX = drawState->viewport_.x_;
+				viewport.TopLeftY = drawState->viewport_.y_;
+				viewport.Width = drawState->viewport_.w_;
+				viewport.Height = drawState->viewport_.h_;
+				viewport.MinDepth = drawState->viewport_.zMin_;
+				viewport.MaxDepth = drawState->viewport_.zMax_;
+				d3dCommandList_->RSSetViewports(1, &viewport);
+				cachedViewport_ = drawState->viewport_;
+			}
 
-		D3D12_RECT scissorRect;
-		scissorRect.left = fbs.scissorRect_.x_;
-		scissorRect.top = fbs.scissorRect_.y_;
-		scissorRect.right = fbs.scissorRect_.x_ + fbs.scissorRect_.w_;
-		scissorRect.bottom = fbs.scissorRect_.y_ + fbs.scissorRect_.h_;
-		d3dCommandList_->RSSetScissorRects(1, &scissorRect);
+			if(drawState->scissorRect_ != cachedScissorRect_)
+			{
+				D3D12_RECT scissorRect;
+				scissorRect.left = drawState->scissorRect_.x_;
+				scissorRect.top = drawState->scissorRect_.y_;
+				scissorRect.right = drawState->scissorRect_.x_ + drawState->scissorRect_.w_;
+				scissorRect.bottom = drawState->scissorRect_.y_ + drawState->scissorRect_.h_;
+				d3dCommandList_->RSSetScissorRects(1, &scissorRect);
+				cachedScissorRect_ = drawState->scissorRect_;
+			}
 
+			if(drawState->stencilRef_ != cachedStencilRef_)
+			{
+				d3dCommandList_->OMSetStencilRef(drawState->stencilRef_);
+				cachedStencilRef_ = drawState->stencilRef_;
+			}
+		}
 		return ErrorCode::OK;
 	}
 
