@@ -1,12 +1,16 @@
 SET(SOURCES_PUBLIC 
 	"dll.h"
 	"client.h"
+	"input_provider.h"
+	"key_input.h"
 	"window.h"
 )
 
 SET(SOURCES_PRIVATE 
 	"private/client.cpp"
+	"private/client_impl.h"
 	"private/window.cpp"
+	"private/window_impl.h"
 )
 
 SET(SOURCES_TESTS
@@ -18,7 +22,7 @@ SET(SOURCES_TESTS
 # Add client.
 ADD_LIBRARY(client SHARED ${SOURCES_PUBLIC} ${SOURCES_PRIVATE})
 SET_TARGET_PROPERTIES(client PROPERTIES FOLDER Libraries)
-TARGET_LINK_LIBRARIES(client SDL2 core)
+TARGET_LINK_LIBRARIES(client SDL2 core math)
 TARGET_COMPILE_DEFINITIONS(client PRIVATE CLIENT_EXPORT=1)
 
 SOURCE_GROUP("Public" FILES ${SOURCES_PUBLIC})
