@@ -261,8 +261,8 @@ namespace GPU
 	void D3D12Device::CreateDescriptorHeapAllocators()
 	{
 		cbvSrvUavAllocator_ = new D3D12DescriptorHeapAllocator(d3dDevice_.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
-		    D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE, D3D12_MAX_SHADER_VISIBLE_DESCRIPTOR_HEAP_SIZE_TIER_1,
-		    "CBV Descriptor Heap");
+		    D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE, Core::Min(32768, D3D12_MAX_SHADER_VISIBLE_DESCRIPTOR_HEAP_SIZE_TIER_1),
+		    "CBV, SRV, and UAV Descriptor Heap");
 		samplerAllocator_ = new D3D12DescriptorHeapAllocator(d3dDevice_.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER,
 		    D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE, D3D12_MAX_SHADER_VISIBLE_SAMPLER_HEAP_SIZE,
 		    "Sampler Descriptor Heap");
