@@ -49,6 +49,11 @@ namespace Client
 		virtual Math::Vec2 GetMousePosition() const { return Math::Vec2(0.0f, 0.0f); }
 
 		/**
+		 * Get mouse wheel delta.
+		 */
+		virtual Math::Vec2 GetMouseWheelDelta() const { return Math::Vec2(0.0f, 0.0f); }
+
+		/**
 		 * Is mouse button down?
 		 */
 		virtual bool IsMouseButtonDown(i32 buttonIdx) const { return false; }

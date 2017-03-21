@@ -31,7 +31,6 @@ namespace Client
 		impl_ = nullptr;
 
 		SDL_Quit();
-
 	}
 
 	bool Update()
@@ -50,7 +49,7 @@ namespace Client
 	{
 		DBG_ASSERT(impl_);
 		Core::ScopedMutex lock(impl_->resourceMutex_);
-		
+
 		SDL_Event event;
 		while(SDL_PollEvent(&event))
 		{
@@ -80,7 +79,7 @@ namespace Client
 	{
 		DBG_ASSERT(impl_);
 		Core::ScopedMutex lock(impl_->resourceMutex_);
-		for(auto it = impl_->windows_.begin();it != impl_->windows_.end(); ++it)
+		for(auto it = impl_->windows_.begin(); it != impl_->windows_.end(); ++it)
 		{
 			if(*it == window)
 			{
@@ -107,16 +106,16 @@ namespace Client
 		case SDL_DROPTEXT:
 		case SDL_DROPBEGIN:
 		case SDL_DROPCOMPLETE:
+		{
+			for(auto it = impl_->windows_.begin(); it != impl_->windows_.end(); ++it)
 			{
-				for(auto it = impl_->windows_.begin(); it != impl_->windows_.end(); ++it)
+				WindowImpl* window = (*it);
+				if(event.window.windowID == SDL_GetWindowID(window->sdlWindow_))
 				{
-					WindowImpl* window = (*it);
-					if(event.window.windowID == SDL_GetWindowID(window->sdlWindow_))
-					{
-						window->HandleEvent(event);
-					}
+					window->HandleEvent(event);
 				}
 			}
+		}
 		}
 	}
 

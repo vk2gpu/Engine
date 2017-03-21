@@ -134,31 +134,87 @@ namespace ImGui
 		pbsHandle_ = gpuManager.CreatePipelineBindingSet(pbsDesc, "ImGui PBS");
 
 		// Setup keymap.
-		keyMap_[ ImGuiKey_Tab ] = (int)Client::KeyCode::TAB;
-		keyMap_[ ImGuiKey_LeftArrow ] = (i32)Client::KeyCode::LEFT;
-		keyMap_[ ImGuiKey_RightArrow ] = (i32)Client::KeyCode::RIGHT;;
-		keyMap_[ ImGuiKey_UpArrow ] = (i32)Client::KeyCode::UP;
-		keyMap_[ ImGuiKey_DownArrow ] = (i32)Client::KeyCode::DOWN;
-		keyMap_[ ImGuiKey_PageUp ] = (i32)Client::KeyCode::PAGEUP;
-		keyMap_[ ImGuiKey_PageDown ] = (i32)Client::KeyCode::PAGEDOWN;
-		keyMap_[ ImGuiKey_Home ] = (i32)Client::KeyCode::HOME;
-		keyMap_[ ImGuiKey_End ] = (i32)Client::KeyCode::END;
-		keyMap_[ ImGuiKey_Delete ] = (i32)Client::KeyCode::DELETE;
-		keyMap_[ ImGuiKey_Backspace ] = (i32)Client::KeyCode::BACKSPACE;
-		keyMap_[ ImGuiKey_Enter ] = (i32)Client::KeyCode::RETURN;
-		keyMap_[ ImGuiKey_Escape ] = (i32)Client::KeyCode::ESCAPE;
-		keyMap_[ ImGuiKey_A ] = (i32)Client::KeyCode::CHAR_a;
-		keyMap_[ ImGuiKey_C ] = (i32)Client::KeyCode::CHAR_c;
-		keyMap_[ ImGuiKey_V ] = (i32)Client::KeyCode::CHAR_v;
-		keyMap_[ ImGuiKey_X ] = (i32)Client::KeyCode::CHAR_x;
-		keyMap_[ ImGuiKey_Y ] = (i32)Client::KeyCode::CHAR_y;
-		keyMap_[ ImGuiKey_Z ] = (i32)Client::KeyCode::CHAR_z;
+		keyMap_[ImGuiKey_Tab] = (int)Client::KeyCode::TAB;
+		keyMap_[ImGuiKey_LeftArrow] = (i32)Client::KeyCode::LEFT;
+		keyMap_[ImGuiKey_RightArrow] = (i32)Client::KeyCode::RIGHT;
+		;
+		keyMap_[ImGuiKey_UpArrow] = (i32)Client::KeyCode::UP;
+		keyMap_[ImGuiKey_DownArrow] = (i32)Client::KeyCode::DOWN;
+		keyMap_[ImGuiKey_PageUp] = (i32)Client::KeyCode::PAGEUP;
+		keyMap_[ImGuiKey_PageDown] = (i32)Client::KeyCode::PAGEDOWN;
+		keyMap_[ImGuiKey_Home] = (i32)Client::KeyCode::HOME;
+		keyMap_[ImGuiKey_End] = (i32)Client::KeyCode::END;
+		keyMap_[ImGuiKey_Delete] = (i32)Client::KeyCode::DELETE;
+		keyMap_[ImGuiKey_Backspace] = (i32)Client::KeyCode::BACKSPACE;
+		keyMap_[ImGuiKey_Enter] = (i32)Client::KeyCode::RETURN;
+		keyMap_[ImGuiKey_Escape] = (i32)Client::KeyCode::ESCAPE;
+		keyMap_[ImGuiKey_A] = (i32)Client::KeyCode::CHAR_a;
+		keyMap_[ImGuiKey_C] = (i32)Client::KeyCode::CHAR_c;
+		keyMap_[ImGuiKey_V] = (i32)Client::KeyCode::CHAR_v;
+		keyMap_[ImGuiKey_X] = (i32)Client::KeyCode::CHAR_x;
+		keyMap_[ImGuiKey_Y] = (i32)Client::KeyCode::CHAR_y;
+		keyMap_[ImGuiKey_Z] = (i32)Client::KeyCode::CHAR_z;
 		for(i32 i = 0; i < ImGuiKey_COUNT; ++i)
 			IO.KeyMap[i] = i;
+
 
 #if PLATFORM_OSX
 		IO.OSXBehaviors = true;
 #endif
+
+		// Setup custom style.
+		auto& style = ImGui::GetStyle();
+		style.WindowPadding = Math::Vec2(2.0f, 2.0f);
+		style.WindowRounding = 2.0f;
+		style.FramePadding = Math::Vec2(2.0f, 2.0f);
+		style.ItemSpacing = Math::Vec2(8.0f, 4.0f);
+		style.IndentSpacing = 16.0f;
+		style.ScrollbarSize = 16.0f;
+		style.ScrollbarRounding = 4.0f;
+
+		style.Colors[ImGuiCol_Text] = ImVec4(1.00f, 1.00f, 1.00f, 1.00f);
+		style.Colors[ImGuiCol_TextDisabled] = ImVec4(0.60f, 0.60f, 0.71f, 1.00f);
+		style.Colors[ImGuiCol_WindowBg] = ImVec4(0.08f, 0.08f, 0.08f, 1.00f);
+		style.Colors[ImGuiCol_ChildWindowBg] = ImVec4(0.08f, 0.07f, 0.07f, 0.87f);
+		style.Colors[ImGuiCol_PopupBg] = ImVec4(0.05f, 0.05f, 0.10f, 0.90f);
+		style.Colors[ImGuiCol_Border] = ImVec4(0.46f, 0.52f, 0.52f, 0.61f);
+		style.Colors[ImGuiCol_BorderShadow] = ImVec4(0.00f, 0.00f, 0.00f, 0.75f);
+		style.Colors[ImGuiCol_FrameBg] = ImVec4(0.80f, 0.80f, 0.80f, 0.30f);
+		style.Colors[ImGuiCol_FrameBgHovered] = ImVec4(0.90f, 0.90f, 0.90f, 0.40f);
+		style.Colors[ImGuiCol_FrameBgActive] = ImVec4(0.90f, 0.90f, 0.90f, 0.45f);
+		style.Colors[ImGuiCol_TitleBg] = ImVec4(0.29f, 0.29f, 0.29f, 0.83f);
+		style.Colors[ImGuiCol_TitleBgCollapsed] = ImVec4(0.80f, 0.80f, 0.80f, 0.20f);
+		style.Colors[ImGuiCol_TitleBgActive] = ImVec4(0.29f, 0.31f, 0.45f, 0.87f);
+		style.Colors[ImGuiCol_MenuBarBg] = ImVec4(0.24f, 0.24f, 0.24f, 0.80f);
+		style.Colors[ImGuiCol_ScrollbarBg] = ImVec4(0.30f, 0.30f, 0.30f, 0.60f);
+		style.Colors[ImGuiCol_ScrollbarGrab] = ImVec4(0.80f, 0.80f, 0.80f, 0.30f);
+		style.Colors[ImGuiCol_ScrollbarGrabHovered] = ImVec4(0.80f, 0.80f, 0.80f, 0.40f);
+		style.Colors[ImGuiCol_ScrollbarGrabActive] = ImVec4(0.80f, 0.80f, 0.80f, 0.40f);
+		style.Colors[ImGuiCol_ComboBg] = ImVec4(0.20f, 0.20f, 0.20f, 0.99f);
+		style.Colors[ImGuiCol_CheckMark] = ImVec4(0.90f, 0.90f, 0.90f, 0.50f);
+		style.Colors[ImGuiCol_SliderGrab] = ImVec4(1.00f, 1.00f, 1.00f, 0.30f);
+		style.Colors[ImGuiCol_SliderGrabActive] = ImVec4(0.80f, 0.80f, 0.80f, 1.00f);
+		style.Colors[ImGuiCol_Button] = ImVec4(0.52f, 0.52f, 0.67f, 0.60f);
+		style.Colors[ImGuiCol_ButtonHovered] = ImVec4(0.60f, 0.60f, 0.76f, 1.00f);
+		style.Colors[ImGuiCol_ButtonActive] = ImVec4(0.72f, 0.72f, 0.80f, 1.00f);
+		style.Colors[ImGuiCol_Header] = ImVec4(0.90f, 0.90f, 0.90f, 0.45f);
+		style.Colors[ImGuiCol_HeaderHovered] = ImVec4(0.72f, 0.72f, 0.90f, 0.80f);
+		style.Colors[ImGuiCol_HeaderActive] = ImVec4(0.69f, 0.69f, 0.87f, 0.80f);
+		style.Colors[ImGuiCol_Column] = ImVec4(0.50f, 0.50f, 0.50f, 1.00f);
+		style.Colors[ImGuiCol_ColumnHovered] = ImVec4(0.60f, 0.60f, 0.70f, 1.00f);
+		style.Colors[ImGuiCol_ColumnActive] = ImVec4(0.70f, 0.70f, 0.90f, 1.00f);
+		style.Colors[ImGuiCol_ResizeGrip] = ImVec4(1.00f, 1.00f, 1.00f, 0.30f);
+		style.Colors[ImGuiCol_ResizeGripHovered] = ImVec4(1.00f, 1.00f, 1.00f, 0.60f);
+		style.Colors[ImGuiCol_ResizeGripActive] = ImVec4(1.00f, 1.00f, 1.00f, 0.90f);
+		style.Colors[ImGuiCol_CloseButton] = ImVec4(0.50f, 0.50f, 0.90f, 0.50f);
+		style.Colors[ImGuiCol_CloseButtonHovered] = ImVec4(0.70f, 0.70f, 0.90f, 0.60f);
+		style.Colors[ImGuiCol_CloseButtonActive] = ImVec4(0.70f, 0.70f, 0.70f, 1.00f);
+		style.Colors[ImGuiCol_PlotLines] = ImVec4(1.00f, 1.00f, 1.00f, 1.00f);
+		style.Colors[ImGuiCol_PlotLinesHovered] = ImVec4(0.35f, 0.35f, 0.90f, 1.00f);
+		style.Colors[ImGuiCol_PlotHistogram] = ImVec4(0.37f, 0.37f, 0.90f, 1.00f);
+		style.Colors[ImGuiCol_PlotHistogramHovered] = ImVec4(0.38f, 0.38f, 1.00f, 1.00f);
+		style.Colors[ImGuiCol_TextSelectedBg] = ImVec4(0.45f, 0.45f, 1.00f, 0.35f);
+		style.Colors[ImGuiCol_ModalWindowDarkening] = ImVec4(0.20f, 0.20f, 0.20f, 0.35f);
 	}
 
 	void BeginFrame(const Client::IInputProvider& input, i32 w, i32 h)
@@ -174,18 +230,19 @@ namespace ImGui
 		IO.MouseDown[2] = input.IsMouseButtonDown(2);
 		IO.MouseDown[3] = input.IsMouseButtonDown(3);
 		IO.MouseDown[4] = input.IsMouseButtonDown(4);
+		IO.MouseWheel = input.GetMouseWheelDelta().y;
 
 		// Handle keyboard input.
-		IO.KeyCtrl = input.IsKeyDown(Client::KeyCode::LCTRL) || input.IsKeyDown(Client::KeyCode::RCTRL); 
-		IO.KeyShift = input.IsKeyDown(Client::KeyCode::LSHIFT) || input.IsKeyDown(Client::KeyCode::RSHIFT); 
-		IO.KeyAlt = input.IsKeyDown(Client::KeyCode::LALT) || input.IsKeyDown(Client::KeyCode::RALT); 
-		IO.KeySuper = input.IsKeyDown(Client::KeyCode::LGUI) || input.IsKeyDown(Client::KeyCode::RGUI); 
+		IO.KeyCtrl = input.IsKeyDown(Client::KeyCode::LCTRL) || input.IsKeyDown(Client::KeyCode::RCTRL);
+		IO.KeyShift = input.IsKeyDown(Client::KeyCode::LSHIFT) || input.IsKeyDown(Client::KeyCode::RSHIFT);
+		IO.KeyAlt = input.IsKeyDown(Client::KeyCode::LALT) || input.IsKeyDown(Client::KeyCode::RALT);
+		IO.KeySuper = input.IsKeyDown(Client::KeyCode::LGUI) || input.IsKeyDown(Client::KeyCode::RGUI);
 
 		for(i32 i = 0; i < ImGuiKey_COUNT; ++i)
 		{
 			if(IO.KeyMap[i] != -1)
 				IO.KeysDown[i] = input.IsKeyDown(keyMap_[i]);
-			if(IO.KeysDown[i]) 
+			if(IO.KeysDown[i])
 				i = i;
 		}
 

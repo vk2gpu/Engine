@@ -18,8 +18,9 @@ namespace Client
 		prevInputState_.scanCodeStates_ = currInputState_.scanCodeStates_;
 		prevInputState_.mousePosition_ = currInputState_.mousePosition_;
 		prevInputState_.mouseButtonStates_ = currInputState_.mouseButtonStates_;
-		swap(prevInputState_.textInput_, currInputState_.textInput_);			
+		swap(prevInputState_.textInput_, currInputState_.textInput_);
 		currInputState_.textInput_.clear();
+		currInputState_.mouseWheelDelta_ = Math::Vec2(0.0f, 0.0f);
 	}
 
 	void WindowImpl::HandleEvent(const SDL_Event& event)
@@ -93,23 +94,12 @@ namespace Client
 
 	void WindowImpl::HandleEventMouse(const SDL_Event& event)
 	{
-		static const i32 BUTTON_MAPPING[8] = 
-		{
-			-1,
-			0,
-			2,
-			1,
-			3,
-			4,
-			5,
-			6,
+		static const i32 BUTTON_MAPPING[8] = {
+		    -1, 0, 2, 1, 3, 4, 5, 6,
 		};
 		if(event.button.button < 0 || event.button.button > 7)
 			return;
 
-		const i32 button = BUTTON_MAPPING[event.button.button];
-		if(button == -1)
-			return;
 		switch(event.type)
 		{
 		case SDL_MOUSEMOTION:
@@ -123,14 +113,20 @@ namespace Client
 		{
 			if(event.button.button > 0)
 			{
-				currInputState_.mouseButtonStates_[button] = event.button.state == SDL_PRESSED;
-				currInputState_.mousePosition_.x = (f32)event.button.x;
-				currInputState_.mousePosition_.y = (f32)event.button.y;
+				const i32 button = BUTTON_MAPPING[event.button.button];
+				if(button != -1)
+				{
+					currInputState_.mouseButtonStates_[button] = event.button.state == SDL_PRESSED;
+					currInputState_.mousePosition_.x = (f32)event.button.x;
+					currInputState_.mousePosition_.y = (f32)event.button.y;
+				}
 			}
 		}
 		break;
 		case SDL_MOUSEWHEEL:
 		{
+			currInputState_.mouseWheelDelta_.x = (f32)event.wheel.x;
+			currInputState_.mouseWheelDelta_.y = (f32)event.wheel.y;
 		}
 		break;
 		default:
@@ -174,12 +170,17 @@ namespace Client
 			strcpy_s(outBuffer, bytes, currInputState_.textInput_.data());
 			return (i32)Core::Min(strlen(currInputState_.textInput_.data()), bytes);
 		}
-		return 0; 
+		return 0;
 	}
 
 	Math::Vec2 WindowImpl::GetMousePosition() const
 	{ //
 		return currInputState_.mousePosition_;
+	}
+
+	Math::Vec2 WindowImpl::GetMouseWheelDelta() const
+	{ //
+		return currInputState_.mouseWheelDelta_;
 	}
 
 	bool WindowImpl::IsMouseButtonDown(i32 buttonIdx) const

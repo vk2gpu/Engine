@@ -20,6 +20,7 @@ namespace Client
 			Core::Array<bool, 512> keyCodeStates_;
 			Core::Array<bool, 512> scanCodeStates_;
 			Math::Vec2 mousePosition_;
+			Math::Vec2 mouseWheelDelta_;
 			Core::Array<bool, 8> mouseButtonStates_;
 			Core::Vector<char> textInput_;
 			bool GetKeyState(i32 keyCode) const
@@ -74,6 +75,7 @@ namespace Client
 		bool WasKeyReleased(i32 keyCode) const override;
 		i32 GetTextInput(char* outBuffer, i32 bytes) const override;
 		Math::Vec2 GetMousePosition() const override;
+		Math::Vec2 GetMouseWheelDelta() const override;
 		bool IsMouseButtonDown(i32 buttonIdx) const override;
 		bool IsMouseButtonUp(i32 buttonIdx) const override;
 		bool WasMouseButtonPressed(i32 buttonIdx) const override;
@@ -81,4 +83,3 @@ namespace Client
 	};
 
 } // namespace Client
-
