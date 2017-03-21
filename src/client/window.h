@@ -5,6 +5,8 @@
 
 namespace Client
 {
+	class IInputProvider;
+
 	using WindowPlatformHandle = void*;
 	struct WindowPlatformData
 	{
@@ -64,8 +66,13 @@ namespace Client
 		 */
 		WindowPlatformData GetPlatformData();
 
+		/**
+		 * Get input provider.
+		 */
+		const IInputProvider& GetInputProvider();
+
 	private:
 		Window(const Window&) = delete;
-		struct WindowImpl* impl_ = nullptr;
+		class WindowImpl* impl_ = nullptr;
 	};
 } // namespace Client

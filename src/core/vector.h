@@ -22,7 +22,8 @@ namespace Core
 
 		Vector(const Vector& Other)
 		{
-			internalResize(Other.Size_);
+			if(Other.Size_ != Size_)
+				internalResize(Other.Size_);
 			Size_ = Other.Size_;
 			for(index_type Idx = 0; Idx < Other.Size_; ++Idx)
 				Data_[Idx] = Other.Data_[Idx];
@@ -34,7 +35,8 @@ namespace Core
 
 		Vector& operator=(const Vector& Other)
 		{
-			internalResize(Other.Size_);
+			if(Other.Size_ != Size_)
+				internalResize(Other.Size_);
 			Size_ = Other.Size_;
 			for(index_type Idx = 0; Idx < Other.Size_; ++Idx)
 				Data_[Idx] = Other.Data_[Idx];
@@ -67,7 +69,7 @@ namespace Core
 			return Data_[Idx];
 		}
 
-		void clear() { internalResize(0); }
+		void clear() { Size_ = 0; }
 
 		void fill(const TYPE& Val)
 		{

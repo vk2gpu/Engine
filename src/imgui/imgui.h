@@ -3,12 +3,17 @@
 #include "imgui/dll.h"
 #include "imgui/private/imgui-master/imgui.h"
 
+namespace Client
+{
+	class IInputProvider;
+} // namespace Client
+
 namespace GPU
 {
 	class CommandList;
 	class Manager;
 	class Handle;
-}
+} // namespace GPU
 
 namespace ImGui
 {
@@ -26,7 +31,7 @@ namespace ImGui
 	/**
 	 * Begin ImGui frame.
 	 */
-	IMGUI_DLL void BeginFrame(i32 w, i32 h);
+	IMGUI_DLL void BeginFrame(const Client::IInputProvider& input, i32 w, i32 h);
 
 	/**
 	 * End ImGui frame.

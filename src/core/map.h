@@ -26,7 +26,6 @@ namespace Core
 		{
 			Values_ = Other.Values_;
 			Indices_ = Other.Indices_;
-			Size_ = Other.Size_;
 			MaxIndex_ = Other.MaxIndex_;
 			Mask_ = Other.Mask_;
 		}
@@ -38,7 +37,6 @@ namespace Core
 		{
 			Values_ = Other.Values_;
 			Indices_ = Other.Indices_;
-			Size_ = Other.Size_;
 			MaxIndex_ = Other.MaxIndex_;
 			Mask_ = Other.Mask_;
 			return *this;
@@ -55,7 +53,6 @@ namespace Core
 			// Include <utility> in your cpp.
 			std::swap(Values_, Other.Values_);
 			std::swap(Indices_, Other.Indices_);
-			std::swap(Size_, Other.Size_);
 			std::swap(MaxIndex_, Other.MaxIndex_);
 			std::swap(Mask_, Other.Mask_);
 		}

@@ -39,9 +39,9 @@ namespace Client
 		 * Get text input.
 		 * @param outBuffer Buffer to write text to in UTF-8.
 		 * @param bytes Number of bytes in buffer.
-		 * @return Number of bytes.
+		 * @return Number of bytes written.
 		 */
-		virtual i32 GetTextInput(char* outBuffer, i32 bytes) { return 0; }
+		virtual i32 GetTextInput(char* outBuffer, i32 bytes) const { return 0; }
 
 		/**
 		 * Get mouse position.
@@ -67,6 +67,31 @@ namespace Client
 		 * Was mouse button released?
 		 */
 		virtual bool WasMouseButtonReleased(i32 buttonIdx) const { return false; }
+
+		/// Templated aliases for keyboard input to allow enums for appropriate devices.
+		template<typename TYPE>
+		bool IsKeyDown(TYPE keyCode) const
+		{
+			return IsKeyDown((i32)keyCode);
+		}
+
+		template<typename TYPE>
+		bool IsKeyUp(TYPE keyCode) const
+		{
+			return IsKeyUp((i32)keyCode);
+		}
+
+		template<typename TYPE>
+		bool IsKeyPressed(TYPE keyCode) const
+		{
+			return IsKeyPressed((i32)keyCode);
+		}
+
+		template<typename TYPE>
+		bool IsKeyReleased(TYPE keyCode) const
+		{
+			return IsKeyReleased((i32)keyCode);
+		}
 	};
 
 

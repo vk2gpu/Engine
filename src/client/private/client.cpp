@@ -32,6 +32,18 @@ namespace Client
 
 	}
 
+	bool Update()
+	{
+		// Update window input state.
+		for(auto it = impl_->windows_.begin(); it != impl_->windows_.end(); ++it)
+		{
+			WindowImpl* window = (*it);
+			window->UpdateInputState();
+		}
+
+		return PumpMessages();
+	}
+
 	bool PumpMessages()
 	{
 		DBG_ASSERT(impl_);

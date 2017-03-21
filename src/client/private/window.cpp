@@ -2,18 +2,32 @@
 #include "client/private/client_impl.h"
 #include "client/key_input.h"
 #include "core/debug.h"
+#include "core/misc.h"
 
 #include <SDL.h>
 #include <SDL_syswm.h>
 
+#include <utility>
+
 namespace Client
 {
+	void WindowImpl::UpdateInputState()
+	{
+		using std::swap;
+		prevInputState_.keyCodeStates_ = currInputState_.keyCodeStates_;
+		prevInputState_.scanCodeStates_ = currInputState_.scanCodeStates_;
+		prevInputState_.mousePosition_ = currInputState_.mousePosition_;
+		prevInputState_.mouseButtonStates_ = currInputState_.mouseButtonStates_;
+		swap(prevInputState_.textInput_, currInputState_.textInput_);			
+		currInputState_.textInput_.clear();
+	}
+
 	void WindowImpl::HandleEvent(const SDL_Event& event)
 	{
 		switch(event.type)
 		{
 		case SDL_WINDOWEVENT:
-			HandleEvent(event);
+			HandleEventWindow(event);
 			break;
 		case SDL_KEYDOWN:
 		case SDL_KEYUP:
@@ -43,27 +57,149 @@ namespace Client
 	}
 
 	void WindowImpl::HandleEventWindow(const SDL_Event& event)
-	{
+	{ //
 	}
 
 	void WindowImpl::HandleEventKey(const SDL_Event& event)
 	{
+		bool state = event.key.type == SDL_KEYDOWN ? true : false;
+		currInputState_.SetKeyState(event.key.keysym.sym, state);
 	}
 
 	void WindowImpl::HandleEventTextEditing(const SDL_Event& event)
-	{
+	{ //
 	}
 
 	void WindowImpl::HandleEventTextInput(const SDL_Event& event)
-	{
+	{ //
+		auto& textInput = currInputState_.textInput_;
+
+		// Pop off null terminator to append.
+		if(textInput.size() > 0)
+		{
+			if(textInput.back() == '\0')
+				textInput.pop_back();
+		}
+
+		// Add all text input.
+		for(i32 i = 0; i < SDL_TEXTINPUTEVENT_TEXT_SIZE; ++i)
+		{
+			char text = event.text.text[i];
+			if(text != '\0')
+				textInput.push_back(text);
+		}
+		textInput.push_back('\0');
 	}
 
 	void WindowImpl::HandleEventMouse(const SDL_Event& event)
 	{
+		static const i32 BUTTON_MAPPING[8] = 
+		{
+			-1,
+			0,
+			2,
+			1,
+			3,
+			4,
+			5,
+			6,
+		};
+		if(event.button.button < 0 || event.button.button > 7)
+			return;
+
+		const i32 button = BUTTON_MAPPING[event.button.button];
+		if(button == -1)
+			return;
+		switch(event.type)
+		{
+		case SDL_MOUSEMOTION:
+		{
+			currInputState_.mousePosition_.x = (f32)event.motion.x;
+			currInputState_.mousePosition_.y = (f32)event.motion.y;
+		}
+		break;
+		case SDL_MOUSEBUTTONDOWN:
+		case SDL_MOUSEBUTTONUP:
+		{
+			if(event.button.button > 0)
+			{
+				currInputState_.mouseButtonStates_[button] = event.button.state == SDL_PRESSED;
+				currInputState_.mousePosition_.x = (f32)event.button.x;
+				currInputState_.mousePosition_.y = (f32)event.button.y;
+			}
+		}
+		break;
+		case SDL_MOUSEWHEEL:
+		{
+		}
+		break;
+		default:
+			DBG_BREAK;
+		}
 	}
 
 	void WindowImpl::HandleEventDrop(const SDL_Event& event)
+	{ //
+	}
+
+	bool WindowImpl::IsKeyDown(i32 keyCode) const
+	{ //
+		return currInputState_.GetKeyState(keyCode);
+	}
+
+	bool WindowImpl::IsKeyUp(i32 keyCode) const
+	{ //
+		return !currInputState_.GetKeyState(keyCode);
+	}
+
+	bool WindowImpl::WasKeyPressed(i32 keyCode) const
 	{
+		return !prevInputState_.GetKeyState(keyCode) && currInputState_.GetKeyState(keyCode);
+	}
+
+	bool WindowImpl::WasKeyReleased(i32 keyCode) const
+	{
+		return prevInputState_.GetKeyState(keyCode) && !currInputState_.GetKeyState(keyCode);
+	}
+
+	i32 WindowImpl::GetTextInput(char* outBuffer, i32 bytes) const
+	{
+		if(outBuffer == nullptr)
+		{
+			return currInputState_.textInput_.size();
+		}
+
+		if(currInputState_.textInput_.size() > 0)
+		{
+			strcpy_s(outBuffer, bytes, currInputState_.textInput_.data());
+			return (i32)Core::Min(strlen(currInputState_.textInput_.data()), bytes);
+		}
+		return 0; 
+	}
+
+	Math::Vec2 WindowImpl::GetMousePosition() const
+	{ //
+		return currInputState_.mousePosition_;
+	}
+
+	bool WindowImpl::IsMouseButtonDown(i32 buttonIdx) const
+	{ //
+		return currInputState_.mouseButtonStates_[buttonIdx];
+	}
+
+	bool WindowImpl::IsMouseButtonUp(i32 buttonIdx) const
+	{ //
+		return !currInputState_.mouseButtonStates_[buttonIdx];
+	}
+
+	bool WindowImpl::WasMouseButtonPressed(i32 buttonIdx) const
+	{ //
+		return !currInputState_.mouseButtonStates_[buttonIdx] && currInputState_.mouseButtonStates_[buttonIdx];
+	}
+
+	bool WindowImpl::WasMouseButtonReleased(i32 buttonIdx) const
+	{ //
+		return currInputState_.mouseButtonStates_[buttonIdx] && !currInputState_.mouseButtonStates_[buttonIdx];
 	}
 
 	Window::Window(const char* title, i32 x, i32 y, i32 w, i32 h, bool visible)
@@ -94,6 +230,7 @@ namespace Client
 
 	void Window::SetVisible(bool isVisible)
 	{
+		DBG_ASSERT(impl_);
 		if(isVisible)
 			SDL_ShowWindow(impl_->sdlWindow_);
 		else
@@ -101,12 +238,14 @@ namespace Client
 	}
 
 	void Window::SetPosition(i32 x, i32 y)
-	{ //
+	{
+		DBG_ASSERT(impl_);
 		SDL_SetWindowPosition(impl_->sdlWindow_, (int)x, (int)y);
 	}
 
 	void Window::GetPosition(i32& x, i32& y)
 	{
+		DBG_ASSERT(impl_);
 		int ix, iy;
 		SDL_GetWindowPosition(impl_->sdlWindow_, &ix, &iy);
 		x = (i32)ix;
@@ -115,6 +254,7 @@ namespace Client
 
 	void Window::SetSize(i32 w, i32 h)
 	{
+		DBG_ASSERT(impl_);
 		DBG_ASSERT(w >= 0);
 		DBG_ASSERT(h >= 0)
 		SDL_SetWindowSize(impl_->sdlWindow_, (int)w, (int)h);
@@ -122,6 +262,7 @@ namespace Client
 
 	void Window::GetSize(i32& w, i32& h)
 	{
+		DBG_ASSERT(impl_);
 		int iw, ih;
 		SDL_GetWindowSize(impl_->sdlWindow_, &iw, &ih);
 		w = (i32)iw;
@@ -130,6 +271,7 @@ namespace Client
 
 	WindowPlatformData Window::GetPlatformData()
 	{
+		DBG_ASSERT(impl_);
 		WindowPlatformData data = {};
 		SDL_SysWMinfo wmInfo = {};
 		SDL_GetWindowWMInfo(impl_->sdlWindow_, &wmInfo);
@@ -147,4 +289,11 @@ namespace Client
 #endif
 		return data;
 	}
+
+	const IInputProvider& Window::GetInputProvider()
+	{
+		DBG_ASSERT(impl_);
+		return *impl_;
+	}
+
 } // namespace Client

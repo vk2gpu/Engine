@@ -1,17 +1,11 @@
 #include "client/client.h"
+#include "client/input_provider.h"
 #include "client/window.h"
 #include "core/concurrency.h"
 #include "gpu/manager.h"
 #include "imgui/imgui.h"
 
 #include "catch.hpp"
-
-#if PLATFORM_WINDOWS
-#define WIN32_LEAN_AND_MEAN
-#include "core/os.h"
-#endif
-
-using namespace Core;
 
 namespace
 {
@@ -60,7 +54,9 @@ TEST_CASE("imgui-tests-run")
 
 	i32 testRunCounter = GPU::MAX_GPU_FRAMES * 10;
 
-	while(Client::PumpMessages() && (::IsDebuggerAttached() || testRunCounter-- > 0))
+	const Client::IInputProvider& input = window.GetInputProvider();
+
+	while(Client::Update() && (Core::IsDebuggerAttached() || testRunCounter-- > 0))
 	{
 		// Reset command list to reuse.
 		cmdList.Reset();
@@ -68,7 +64,7 @@ TEST_CASE("imgui-tests-run")
 		// Clear swapchain.
 		cmdList.ClearRTV(fbsHandle, 0, color);
 
-		ImGui::BeginFrame(scDesc.width_, scDesc.height_);
+		ImGui::BeginFrame(input, scDesc.width_, scDesc.height_);
 
 		ImGui::ShowTestWindow();
 
@@ -83,6 +79,9 @@ TEST_CASE("imgui-tests-run")
 
 		// Next frame.
 		manager.NextFrame();
+
+		// Force a sleep.
+		Core::Sleep(1.0 / 60.0);
 	}
 
 	ImGui::Finalize();

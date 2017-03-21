@@ -72,6 +72,7 @@ namespace Core
 	CORE_DLL_INLINE i64 AtomicCmpExchgRel(volatile i64* dest, i64 exchg, i64 comp) { return ::InterlockedCompareExchangeRelease64(dest, exchg, comp); }
 	
 	CORE_DLL_INLINE void YieldCPU() { ::YieldProcessor(); }
+	CORE_DLL_INLINE void Sleep(double seconds) { ::Sleep((DWORD)(1000 * seconds)); }
 	CORE_DLL_INLINE void Barrier() { ::MemoryBarrier(); }
 	CORE_DLL_INLINE void SwitchThread() { ::SwitchToThread(); };
 	// clang-format on

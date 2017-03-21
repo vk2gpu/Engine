@@ -60,7 +60,7 @@ namespace Client
 		LEFTBRACKET = 47,
 		RIGHTBRACKET = 48,
 		BACKSLASH = 49,
-		NONUSHASH = 50, 
+		NONUSHASH = 50,
 		SEMICOLON = 51,
 		APOSTROPHE = 52,
 		GRAVE = 53,
@@ -114,9 +114,19 @@ namespace Client
 		KP_9 = 97,
 		KP_0 = 98,
 		KP_PERIOD = 99,
+
+		LCTRL = 224,
+		LSHIFT = 225,
+		LALT = 226, /**< alt, option */
+		LGUI = 227, /**< windows, command (apple), meta */
+		RCTRL = 228,
+		RSHIFT = 229,
+		RALT = 230, /**< alt gr, option */
+		RGUI = 231, /**< windows, command (apple), meta */
 	};
 
-#define SCANCODE_TO_KEYCODE(CODE) (KeyCode)((i32)CODE | (i32)(1 << 30))
+	static const i32 SCAN_CODE_BIT = (1 << 30);
+#define SCANCODE_TO_KEYCODE(CODE) (KeyCode)((i32)CODE | SCAN_CODE_BIT)
 
 	/**
 	 * Key codes. Based on SDL2's key codes.
@@ -238,6 +248,15 @@ namespace Client
 		KP_9 = SCANCODE_TO_KEYCODE(ScanCode::KP_9),
 		KP_0 = SCANCODE_TO_KEYCODE(ScanCode::KP_0),
 		KP_PERIOD = SCANCODE_TO_KEYCODE(ScanCode::KP_PERIOD),
+
+		LCTRL = SCANCODE_TO_KEYCODE(ScanCode::LCTRL),
+		LSHIFT = SCANCODE_TO_KEYCODE(ScanCode::LSHIFT),
+		LALT = SCANCODE_TO_KEYCODE(ScanCode::LALT),
+		LGUI = SCANCODE_TO_KEYCODE(ScanCode::LGUI),
+		RCTRL = SCANCODE_TO_KEYCODE(ScanCode::RCTRL),
+		RSHIFT = SCANCODE_TO_KEYCODE(ScanCode::RSHIFT),
+		RALT = SCANCODE_TO_KEYCODE(ScanCode::RALT),
+		RGUI = SCANCODE_TO_KEYCODE(ScanCode::RGUI),
 	};
 #undef SCANCODE_TO_KEYCODE
 

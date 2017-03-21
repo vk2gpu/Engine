@@ -81,6 +81,7 @@ namespace Core
 	 * Utility.
 	 */
 	CORE_DLL_INLINE void YieldCPU();
+	CORE_DLL_INLINE void Sleep(double seconds);
 	CORE_DLL_INLINE void Barrier();
 	CORE_DLL_INLINE void SwitchThread();
 

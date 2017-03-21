@@ -281,6 +281,9 @@ namespace GPU
 		}
 
 		frameIdx_++;
+
+		// Reset upload allocators as we go along.
+		GetUploadAllocator().Reset();
 		d3dDirectQueue_->Signal(d3dFrameFence_.Get(), frameIdx_);
 	}
 

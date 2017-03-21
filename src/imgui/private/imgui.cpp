@@ -1,4 +1,6 @@
 #include "imgui/imgui.h"
+#include "client/input_provider.h"
+#include "client/key_input.h"
 #include "math/mat44.h"
 
 #include "gpu/manager.h"
@@ -13,8 +15,10 @@ namespace ImGui
 	{
 		GPU::Manager* gpuManager_ = nullptr;
 
-		static const i32 MAX_VERTICES = 1024 * 64;
-		static const i32 MAX_INDICES = 1024 * 64;
+		static const i32 MAX_VERTICES = 1024 * 256;
+		static const i32 MAX_INDICES = 1024 * 256;
+
+		int keyMap_[ImGuiKey_COUNT];
 
 		// GPU resources.
 		GPU::Handle vbHandle_;
@@ -128,13 +132,70 @@ namespace ImGui
 		pbsDesc.srvs_[0].mipLevels_NumElements_ = -1;
 		pbsDesc.samplers_[0].resource_ = smpHandle_;
 		pbsHandle_ = gpuManager.CreatePipelineBindingSet(pbsDesc, "ImGui PBS");
+
+		// Setup keymap.
+		keyMap_[ ImGuiKey_Tab ] = (int)Client::KeyCode::TAB;
+		keyMap_[ ImGuiKey_LeftArrow ] = (i32)Client::KeyCode::LEFT;
+		keyMap_[ ImGuiKey_RightArrow ] = (i32)Client::KeyCode::RIGHT;;
+		keyMap_[ ImGuiKey_UpArrow ] = (i32)Client::KeyCode::UP;
+		keyMap_[ ImGuiKey_DownArrow ] = (i32)Client::KeyCode::DOWN;
+		keyMap_[ ImGuiKey_PageUp ] = (i32)Client::KeyCode::PAGEUP;
+		keyMap_[ ImGuiKey_PageDown ] = (i32)Client::KeyCode::PAGEDOWN;
+		keyMap_[ ImGuiKey_Home ] = (i32)Client::KeyCode::HOME;
+		keyMap_[ ImGuiKey_End ] = (i32)Client::KeyCode::END;
+		keyMap_[ ImGuiKey_Delete ] = (i32)Client::KeyCode::DELETE;
+		keyMap_[ ImGuiKey_Backspace ] = (i32)Client::KeyCode::BACKSPACE;
+		keyMap_[ ImGuiKey_Enter ] = (i32)Client::KeyCode::RETURN;
+		keyMap_[ ImGuiKey_Escape ] = (i32)Client::KeyCode::ESCAPE;
+		keyMap_[ ImGuiKey_A ] = (i32)Client::KeyCode::CHAR_a;
+		keyMap_[ ImGuiKey_C ] = (i32)Client::KeyCode::CHAR_c;
+		keyMap_[ ImGuiKey_V ] = (i32)Client::KeyCode::CHAR_v;
+		keyMap_[ ImGuiKey_X ] = (i32)Client::KeyCode::CHAR_x;
+		keyMap_[ ImGuiKey_Y ] = (i32)Client::KeyCode::CHAR_y;
+		keyMap_[ ImGuiKey_Z ] = (i32)Client::KeyCode::CHAR_z;
+		for(i32 i = 0; i < ImGuiKey_COUNT; ++i)
+			IO.KeyMap[i] = i;
+
+#if PLATFORM_OSX
+		IO.OSXBehaviors = true;
+#endif
 	}
 
-	void BeginFrame(i32 w, i32 h)
+	void BeginFrame(const Client::IInputProvider& input, i32 w, i32 h)
 	{
 		ImGuiIO& IO = ImGui::GetIO();
 		IO.DisplaySize.x = (f32)w;
 		IO.DisplaySize.y = (f32)h;
+
+		// Setup mouse position.
+		IO.MousePos = input.GetMousePosition();
+		IO.MouseDown[0] = input.IsMouseButtonDown(0);
+		IO.MouseDown[1] = input.IsMouseButtonDown(1);
+		IO.MouseDown[2] = input.IsMouseButtonDown(2);
+		IO.MouseDown[3] = input.IsMouseButtonDown(3);
+		IO.MouseDown[4] = input.IsMouseButtonDown(4);
+
+		// Handle keyboard input.
+		IO.KeyCtrl = input.IsKeyDown(Client::KeyCode::LCTRL) || input.IsKeyDown(Client::KeyCode::RCTRL); 
+		IO.KeyShift = input.IsKeyDown(Client::KeyCode::LSHIFT) || input.IsKeyDown(Client::KeyCode::RSHIFT); 
+		IO.KeyAlt = input.IsKeyDown(Client::KeyCode::LALT) || input.IsKeyDown(Client::KeyCode::RALT); 
+		IO.KeySuper = input.IsKeyDown(Client::KeyCode::LGUI) || input.IsKeyDown(Client::KeyCode::RGUI); 
+
+		for(i32 i = 0; i < ImGuiKey_COUNT; ++i)
+		{
+			if(IO.KeyMap[i] != -1)
+				IO.KeysDown[i] = input.IsKeyDown(keyMap_[i]);
+			if(IO.KeysDown[i]) 
+				i = i;
+		}
+
+		char textBuffer[4096] = {0};
+		i32 numBytes = input.GetTextInput(textBuffer, sizeof(textBuffer));
+		if(numBytes > 0)
+		{
+			IO.AddInputCharactersUTF8(textBuffer);
+		}
+
 		ImGui::NewFrame();
 	}
 
