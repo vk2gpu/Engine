@@ -18,6 +18,8 @@ namespace Client
 	{
 		SDL_Init(SDL_INIT_EVERYTHING);
 
+		SDL_EventState(SDL_DROPFILE, SDL_ENABLE);
+
 		DBG_ASSERT(!impl_);
 		impl_ = new ClientImpl();
 	}

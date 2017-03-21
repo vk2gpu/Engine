@@ -66,7 +66,6 @@ namespace Client
 		void HandleEventTextInput(const SDL_Event& event);
 		void HandleEventMouse(const SDL_Event& event);
 		void HandleEventDrop(const SDL_Event& event);
-		void HandleEventDropComplete(const SDL_Event& event);
 
 		/// IInputProvider.
 		bool IsKeyDown(i32 keyCode) const override;
