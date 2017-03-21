@@ -382,6 +382,7 @@ TEST_CASE("gpu-tests-create-compute-pipeline-state")
 	GPU::ComputePipelineStateDesc pipelineDesc;
 	pipelineDesc.shader_ = shaderHandle;
 	GPU::Handle pipelineHandle = manager.CreateComputePipelineState(pipelineDesc, testName.c_str());
+	REQUIRE(pipelineHandle);
 
 	manager.DestroyResource(pipelineHandle);
 	manager.DestroyResource(shaderHandle);
@@ -440,6 +441,7 @@ TEST_CASE("gpu-tests-create-pipeline-binding-set")
 	GPU::ComputePipelineStateDesc pipelineDesc;
 	pipelineDesc.shader_ = shaderHandle;
 	GPU::Handle pipelineHandle = manager.CreateComputePipelineState(pipelineDesc, testName.c_str());
+	REQUIRE(pipelineHandle);
 
 	SECTION("no-views")
 	{
@@ -490,6 +492,7 @@ TEST_CASE("gpu-tests-create-pipeline-binding-set")
 		pipelineBindingSetDesc.uavs_[0].dimension_ = GPU::ViewDimension::TEX2D;
 		GPU::Handle pipelineBindingSetHandle =
 		    manager.CreatePipelineBindingSet(pipelineBindingSetDesc, testName.c_str());
+		REQUIRE(pipelineBindingSetHandle);
 
 		manager.DestroyResource(pipelineBindingSetHandle);
 	}
@@ -535,6 +538,7 @@ TEST_CASE("gpu-tests-create-graphics-pipeline-state")
 	pipelineDesc.numRTs_ = 0;
 	pipelineDesc.dsvFormat_ = GPU::Format::D24_UNORM_S8_UINT;
 	GPU::Handle pipelineHandle = manager.CreateGraphicsPipelineState(pipelineDesc, testName.c_str());
+	REQUIRE(pipelineHandle);
 
 	manager.DestroyResource(pipelineHandle);
 	manager.DestroyResource(shaderHandle);
