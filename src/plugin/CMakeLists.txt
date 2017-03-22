@@ -32,11 +32,12 @@ SOURCE_GROUP("Tests" FILES ${SOURCES_TESTS})
 
 # Plugins
 SET(SOURCES_TEST_BASIC
+	"tests/plugin_test_basic.h"
 	"tests/plugin_test_basic.cpp"
 )
 
 ADD_LIBRARY(plugin_test_basic SHARED ${SOURCES_TEST_BASIC})
 SET_TARGET_PROPERTIES(plugin_test_basic PROPERTIES FOLDER Tests/Plugins)
 TARGET_LINK_LIBRARIES(plugin_test_basic core plugin)
-SOURCE_GROUP("Private" FILES ${SOURCES_TEST_BASIC})
+SOURCE_GROUP("Public" FILES ${SOURCES_TEST_BASIC})
 

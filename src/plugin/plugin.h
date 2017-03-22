@@ -3,29 +3,49 @@
 #include "core/types.h"
 #include "plugin/dll.h"
 
+#include "core/uuid.h"
+
 namespace Plugin
 {
 	/**
-	 * Plugin export functions.
+	 * Get plugin info.
+	 * @param outPlugin Pointer to plugin structure to fill in. Must be valid for given @a uuid.
+	 * @param uuid UUID of plugin we wish to get info for. 
+	 * @return true if success, false if failure.
 	 */
-	typedef const char*(*GetPluginNameFn)();
-	typedef const char*(*GetPluginDescFn)();
-	typedef i32(*GetPluginVersionFn)();
-	typedef class IPlugin*(*CreatePluginFn)();
-	typedef void(*DestroyPluginFn)(class IPlugin*);
+	typedef bool (*GetPluginFn)(struct Plugin* outPlugin, Core::UUID uuid);
 
 	/**
-	 * Current plugin version.
+	 * Current plugin system version.
 	 */
-	static const i32 PLUGIN_VERSION = 1;
+	static const u32 PLUGIN_SYSTEM_VERSION = 0x00000001;
+
+	
+#define DECLARE_PLUGININFO(NAME, VERSION) \
+	static Core::UUID GetUUID() { return Core::UUID(#NAME); } \
+	static const u32 PLUGIN_VERSION = VERSION;
+
 
 	/**
-	 * Plugin interface.
+	 * Plugin.
+	 * This should always be the base struct of any user plugins.
 	 */
-	class PLUGIN_DLL IPlugin
+	struct Plugin
 	{
-	public:
-		virtual ~IPlugin() {}
+		DECLARE_PLUGININFO("Plugin", 0);
+
+		/// Plugin system version.
+		u32 systemVersion_ = 0x00000000;
+		/// Plugin version.
+		u32 pluginVersion_ = 0x00000000;
+		/// Plugin UUID.
+		Core::UUID uuid_;
+		/// Plugin name.
+		const char* name_ = nullptr;
+		/// Plugin description.
+		const char* desc_ = nullptr;
+		/// Internal UUID. Should not be used directly.
+		Core::UUID internalUuid_;
 	};
 
 } // namespace Plugin

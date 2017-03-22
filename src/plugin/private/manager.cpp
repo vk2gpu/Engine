@@ -7,8 +7,9 @@
 #include "core/library.h"
 #include "core/uuid.h"
 #include "core/vector.h"
+#include "core/random.h"
 
-#include <algorithm>
+#include <cstring>
 #include <utility>
 
 namespace Plugin
@@ -18,53 +19,44 @@ namespace Plugin
 		PluginDesc() = default;
 		PluginDesc(const char* libName)
 		{
-			handle_ = Core::LibraryOpen(libName);
+			fileName_.resize((i32)strlen(libName) + 1, 0);
+			strcat_s(fileName_.data(), fileName_.size(), libName);
+
+			Reload();
+		}
+
+		bool Reload()
+		{
 			if(handle_)
 			{
-				getPluginName_ = (GetPluginNameFn)Core::LibrarySymbol(handle_, "GetPluginName");
-				getPluginDesc_ = (GetPluginDescFn)Core::LibrarySymbol(handle_, "GetPluginDesc");
-				getPluginVersion_ = (GetPluginVersionFn)Core::LibrarySymbol(handle_, "GetPluginVersion");
-				createPlugin_ = (CreatePluginFn)Core::LibrarySymbol(handle_, "CreatePlugin");
-				destroyPlugin_ = (DestroyPluginFn)Core::LibrarySymbol(handle_, "DestroyPlugin");
+				Core::LibraryClose(handle_);
+			}
 
-				if(getPluginName_ && getPluginDesc_ && getPluginVersion_ && createPlugin_ && destroyPlugin_)
+			validPlugin_ = false;
+
+			handle_ = Core::LibraryOpen(fileName_.data());
+			if(handle_)
+			{
+				getPlugin_ = (GetPluginFn)Core::LibrarySymbol(handle_, "GetPlugin");
+				if(getPlugin_)
 				{
-					version_ = getPluginVersion_();
-					if(version_ == PLUGIN_VERSION)
+					if(getPlugin_(&plugin_, Plugin::GetUUID()))
 					{
-						name_ = getPluginName_();
-						desc_ = getPluginDesc_();
+						if(plugin_.systemVersion_ == PLUGIN_SYSTEM_VERSION)
+						{
+							validPlugin_ = true;
+						}
 					}
 				}
-
-				// Reset if version doesn't match.
-				if(version_ != PLUGIN_VERSION)
-				{
-					getPluginName_ = nullptr;
-					getPluginDesc_ = nullptr;
-					getPluginVersion_ = nullptr;
-					createPlugin_ = nullptr;
-					destroyPlugin_ = nullptr;
-					Core::LibraryClose(handle_);
-					handle_ = 0;
-				}
-				else
-				{
-					uuid_ = Core::UUID(name_);
-					plugin_ = createPlugin_();
-				}
 			}
+
+			return validPlugin_;
 		}
 
 		~PluginDesc()
 		{
 			if(handle_)
 			{
-				if(plugin_)
-				{
-					destroyPlugin_(plugin_);
-					plugin_ = nullptr;
-				}
 				Core::LibraryClose(handle_);
 			}
 		}
@@ -78,40 +70,27 @@ namespace Plugin
 		void swap(PluginDesc& other)
 		{
 			using std::swap;
+			swap(fileName_, other.fileName_);
 			swap(handle_, other.handle_);
-			swap(getPluginName_, other.getPluginName_);
-			swap(getPluginDesc_, other.getPluginDesc_);
-			swap(getPluginVersion_, other.getPluginVersion_);
-			swap(createPlugin_, other.createPlugin_);
-			swap(destroyPlugin_, other.destroyPlugin_);
-			swap(version_, other.version_);
-			swap(name_, other.name_);
-			swap(desc_, other.desc_);
-			swap(uuid_, other.uuid_);
+			swap(getPlugin_, other.getPlugin_);
 			swap(plugin_, other.plugin_);
+			swap(validPlugin_, other.validPlugin_);
 		}
 
-		operator bool() const { return !!handle_ && version_ == PLUGIN_VERSION && name_ && desc_; }
+		operator bool() const { return validPlugin_; }
 
+		Core::Vector<char> fileName_;
 		Core::LibHandle handle_ = 0;
-		GetPluginNameFn getPluginName_ = nullptr;
-		GetPluginDescFn getPluginDesc_ = nullptr;
-		GetPluginVersionFn getPluginVersion_ = nullptr;
-		CreatePluginFn createPlugin_ = nullptr;
-		DestroyPluginFn destroyPlugin_ = nullptr;
-
-		i32 version_ = 0;
-		const char* name_ = nullptr;
-		const char* desc_ = nullptr;
-		Core::UUID uuid_;
-
-		IPlugin* plugin_ = nullptr;
+		GetPluginFn getPlugin_ = nullptr;
+		Plugin plugin_;
+		bool validPlugin_ = false;
 	};
 
 	struct ManagerImpl
 	{
-		Core::Vector<PluginDesc> plugins_;
+		Core::Vector<PluginDesc> pluginDesc_;
 		Core::Mutex mutex_;
+		Core::Random rng_;
 	};
 
 	Manager::Manager()
@@ -132,7 +111,7 @@ namespace Plugin
 #elif PLATFORM_LINUX || PLATFORM_OSX
 		const char* libExt = "so";
 #endif
-		impl_->plugins_.clear();
+		impl_->pluginDesc_.clear();
 		i32 foundLibs = Core::FileFindInPath(path, libExt, nullptr, 0);
 		if(foundLibs)
 		{
@@ -145,18 +124,67 @@ namespace Plugin
 				PluginDesc pluginDesc(fileInfo.fileName_);
 				if(pluginDesc)
 				{
-					impl_->plugins_.emplace_back(std::move(pluginDesc));
+					pluginDesc.plugin_.internalUuid_ = Core::UUID(impl_->rng_, 0);
+					impl_->pluginDesc_.emplace_back(std::move(pluginDesc));
 				}
 			}
 		}
 
-		return impl_->plugins_.size();
+		return impl_->pluginDesc_.size();
 	}
 
-	IPlugin* GetPlugin(const char* name)
+	bool Manager::Reload(Plugin& inOutPlugin)
 	{
+		for(auto& pluginDesc : impl_->pluginDesc_)
+		{
+			if(pluginDesc.plugin_.internalUuid_ == inOutPlugin.internalUuid_)
+			{
+				bool retVal = pluginDesc.Reload();
+				if(retVal)
+				{
+					Plugin* plugin = &inOutPlugin;
+					i32 num = GetPlugins(plugin->uuid_, &plugin, 1);
+					if(num == 0)
+						retVal = false;
+				}
+				return retVal;
+			}
+		}
+		return false;
+	}
 
-		return nullptr;
+	i32 Manager::GetPlugins(Core::UUID uuid, Plugin** outPlugins, i32 maxPlugins)
+	{
+		Core::ScopedMutex lock(impl_->mutex_);
+
+		i32 found = 0;
+
+		if(outPlugins)
+		{
+			for(auto& pluginDesc : impl_->pluginDesc_)
+			{
+				if(found < maxPlugins)
+				{
+					if(pluginDesc.getPlugin_(outPlugins[found], uuid))
+					{
+						outPlugins[found]->internalUuid_ = pluginDesc.plugin_.internalUuid_;
+						++found;
+					}
+				}
+				else
+					return found;
+			}
+		}
+		else
+		{
+			for(auto& pluginDesc : impl_->pluginDesc_)
+			{
+				if(pluginDesc.getPlugin_(nullptr, uuid))
+					++found;
+			}
+		}
+
+		return found;
 	}
 
 

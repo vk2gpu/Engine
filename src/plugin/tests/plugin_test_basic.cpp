@@ -1,31 +1,53 @@
-#include "plugin/plugin.h"
-#include "plugin/dll.h"
+#include "plugin_test_basic.h"
+#include "core/debug.h"
+
+namespace
+{
+	int number_ = 0;
+}
 
 extern "C" 
 {
-	__declspec(dllexport) const char* GetPluginName()
+	__declspec(dllexport) bool GetPlugin(struct Plugin::Plugin* outPlugin, Core::UUID uuid)
 	{
-		return "plugin_test_basic";
+		bool retVal = false;
+
+		// Fill in base info.
+		if(uuid == Plugin::Plugin::GetUUID() || uuid == PluginTestBasic::GetUUID())
+		{
+			if(outPlugin)
+			{
+				outPlugin->systemVersion_ = Plugin::PLUGIN_SYSTEM_VERSION;
+				outPlugin->pluginVersion_ = PluginTestBasic::PLUGIN_VERSION;
+				outPlugin->uuid_ = PluginTestBasic::GetUUID();
+				outPlugin->name_ = "PluginTestBasic";
+				outPlugin->desc_ = "Basic plugin test.";
+			}
+			retVal = true;
+		}
+
+		// Fill in plugin specific.
+		if(uuid == PluginTestBasic::GetUUID())
+		{
+			auto* plugin = static_cast<PluginTestBasic*>(outPlugin);
+			plugin->successfullyLoaded_ = true;
+			plugin->testMagic_ = PluginTestBasic::TEST_MAGIC;
+
+			plugin->SetNumber = [](int num)
+			{
+				number_ = num;
+			};
+
+			plugin->GetNumber = []()->int
+			{
+				return number_;
+			};
+
+			retVal = true;
+		}
+
+		return retVal;
 	}
 
-	EXPORT const char* GetPluginDesc()
-	{
-		return "Basic test for plugins.";
-	}
-
-	EXPORT i32 GetPluginVersion()
-	{
-		return Plugin::PLUGIN_VERSION;
-	}
-
-	EXPORT Plugin::IPlugin* CreatePlugin()
-	{
-		return nullptr;
-	}
-
-	EXPORT void DestroyPlugin(Plugin::IPlugin*)
-	{
-
-	}
 }
 

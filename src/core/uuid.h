@@ -14,7 +14,7 @@ namespace Core
 		 * Generate UUID (v.4) from a random number generator.
 		 */
 		template<class RANDOM>
-		UUID(RANDOM& random, u8 variant = 0)
+		UUID(RANDOM& random, u8 variant)
 		{
 			SetInternal(random.Generate(), random.Generate(), random.Generate(), random.Generate(), 4, variant);
 		}

@@ -17,6 +17,6 @@ namespace Core
 		i32 Generate();
 
 	private:
-		u32 seed_;
+		u32 seed_ = 848256;
 	};
 } // namespace Core
