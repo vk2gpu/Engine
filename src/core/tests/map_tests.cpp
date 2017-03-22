@@ -60,8 +60,8 @@ namespace
 		for(index_type Idx = 0; Idx < SIZE; ++Idx)
 		{
 			auto Val = TestMap.find(IdxToKey(Idx));
-			Success &= Val->First_ == IdxToKey(Idx);
-			Success &= Val->Second_ == IdxToVal(Idx);
+			Success &= Val->first == IdxToKey(Idx);
+			Success &= Val->second == IdxToVal(Idx);
 		}
 		REQUIRE(Success);
 	}
@@ -80,8 +80,8 @@ namespace
 		for(index_type Idx = 0; Idx < SIZE; ++Idx)
 		{
 			auto Val = TestMap.find(IdxToKey(Idx));
-			Success &= Val->First_ == IdxToKey(Idx);
-			Success &= Val->Second_ == IdxToVal(Idx);
+			Success &= Val->first == IdxToKey(Idx);
+			Success &= Val->second == IdxToVal(Idx);
 		}
 		REQUIRE(Success);
 	}

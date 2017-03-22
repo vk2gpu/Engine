@@ -5,9 +5,8 @@
 #include "core/concurrency.h"
 #include "core/file.h"
 #include "core/library.h"
+#include "core/map.h"
 #include "core/uuid.h"
-#include "core/vector.h"
-#include "core/random.h"
 
 #include <cstring>
 #include <utility>
@@ -88,9 +87,8 @@ namespace Plugin
 
 	struct ManagerImpl
 	{
-		Core::Vector<PluginDesc> pluginDesc_;
+		Core::Map<Core::UUID, PluginDesc*> pluginDesc_;
 		Core::Mutex mutex_;
-		Core::Random rng_;
 	};
 
 	Manager::Manager()
@@ -100,6 +98,12 @@ namespace Plugin
 
 	Manager::~Manager()
 	{ //		
+		for(auto pluginDescIt : impl_->pluginDesc_)
+		{
+			delete pluginDescIt.second;
+		}
+		impl_->pluginDesc_.clear();
+
 		delete impl_; 
 	}
 
@@ -111,7 +115,6 @@ namespace Plugin
 #elif PLATFORM_LINUX || PLATFORM_OSX
 		const char* libExt = "so";
 #endif
-		impl_->pluginDesc_.clear();
 		i32 foundLibs = Core::FileFindInPath(path, libExt, nullptr, 0);
 		if(foundLibs)
 		{
@@ -121,11 +124,20 @@ namespace Plugin
 			for(i32 i = 0; i < foundLibs; ++i)
 			{
 				const Core::FileInfo& fileInfo = fileInfos[i];
-				PluginDesc pluginDesc(fileInfo.fileName_);
-				if(pluginDesc)
+				PluginDesc* pluginDesc = new PluginDesc(fileInfo.fileName_);
+				if(*pluginDesc)
 				{
-					pluginDesc.plugin_.internalUuid_ = Core::UUID(impl_->rng_, 0);
-					impl_->pluginDesc_.emplace_back(std::move(pluginDesc));
+					pluginDesc->plugin_.fileName_ = pluginDesc->fileName_.data();
+					pluginDesc->plugin_.fileUuid_ = Core::UUID(pluginDesc->plugin_.fileName_);
+
+					if(impl_->pluginDesc_.find(pluginDesc->plugin_.fileUuid_) == impl_->pluginDesc_.end())
+					{
+						impl_->pluginDesc_.insert(pluginDesc->plugin_.fileUuid_, pluginDesc);
+					}
+				}
+				else
+				{
+					delete pluginDesc;
 				}
 			}
 		}
@@ -135,20 +147,24 @@ namespace Plugin
 
 	bool Manager::Reload(Plugin& inOutPlugin)
 	{
-		for(auto& pluginDesc : impl_->pluginDesc_)
+		auto it = impl_->pluginDesc_.find(inOutPlugin.fileUuid_);
+		if(it != impl_->pluginDesc_.end())
 		{
-			if(pluginDesc.plugin_.internalUuid_ == inOutPlugin.internalUuid_)
+			bool retVal = it->second->Reload();
+			if(retVal)
 			{
-				bool retVal = pluginDesc.Reload();
-				if(retVal)
-				{
-					Plugin* plugin = &inOutPlugin;
-					i32 num = GetPlugins(plugin->uuid_, &plugin, 1);
-					if(num == 0)
-						retVal = false;
-				}
-				return retVal;
+				Plugin* plugin = &inOutPlugin;
+				i32 num = GetPlugins(plugin->uuid_, &plugin, 1);
+				if(num == 0)
+					retVal = false;
 			}
+			else
+			{
+				// Erase plugin that failed to reload?
+				delete it->second;
+				impl_->pluginDesc_.erase(it);
+			}
+			return retVal;
 		}
 		return false;
 	}
@@ -161,13 +177,14 @@ namespace Plugin
 
 		if(outPlugins)
 		{
-			for(auto& pluginDesc : impl_->pluginDesc_)
+			for(auto& it : impl_->pluginDesc_)
 			{
 				if(found < maxPlugins)
 				{
-					if(pluginDesc.getPlugin_(outPlugins[found], uuid))
+					if(it.second->getPlugin_(outPlugins[found], uuid))
 					{
-						outPlugins[found]->internalUuid_ = pluginDesc.plugin_.internalUuid_;
+						outPlugins[found]->fileUuid_ = it.second->plugin_.fileUuid_;
+						outPlugins[found]->fileName_ = it.second->fileName_.data();
 						++found;
 					}
 				}
@@ -177,9 +194,9 @@ namespace Plugin
 		}
 		else
 		{
-			for(auto& pluginDesc : impl_->pluginDesc_)
+			for(auto& it : impl_->pluginDesc_)
 			{
-				if(pluginDesc.getPlugin_(nullptr, uuid))
+				if(it.second->getPlugin_(nullptr, uuid))
 					++found;
 			}
 		}

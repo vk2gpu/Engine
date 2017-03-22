@@ -65,14 +65,14 @@ namespace Core
 				FoundValue = insert(Key, VALUE_TYPE());
 			}
 			DBG_ASSERT_MSG(FoundValue != end(), "Failed to insert element for key.");
-			return FoundValue->Second_;
+			return FoundValue->second;
 		}
 
 		const VALUE_TYPE& operator[](const KEY_TYPE& Key) const
 		{
 			iterator FoundValue = find(Key);
 			DBG_ASSERT_MSG(FoundValue != end(), "Key does not exist in map.");
-			return FoundValue->Second_;
+			return FoundValue->second;
 		}
 
 		void clear()
@@ -90,7 +90,7 @@ namespace Core
 			if(Idx != INVALID_INDEX)
 			{
 				// Got hit, check if hashes are same and replace or insert.
-				if(Hash(0, Values_[Idx].First_) == KeyHash)
+				if(Hash(0, Values_[Idx].first) == KeyHash)
 				{
 					Values_[Idx] = KeyValuePair;
 					return Values_.data() + Idx;
@@ -115,7 +115,7 @@ namespace Core
 		iterator erase(iterator It)
 		{
 			DBG_ASSERT_MSG(It >= begin() && It < end(), "Invalid iterator.");
-			index_type BaseIdx = It - begin();
+			index_type BaseIdx = (index_type)(It - begin());
 			Values_.erase(It);
 			for(auto& Idx : Indices_)
 			{
@@ -153,7 +153,7 @@ namespace Core
 			if(Idx != INVALID_INDEX)
 			{
 				iterator RetVal = Values_.data() + Idx;
-				if(Hash(0, RetVal->First_) == KeyHash)
+				if(Hash(0, RetVal->first) == KeyHash)
 				{
 					return RetVal;
 				}
@@ -182,7 +182,7 @@ namespace Core
 				// Reinsert all keys.
 				for(index_type Idx = 0; Idx < Values_.size(); ++Idx)
 				{
-					const u32 KeyHash = Hash(0, Values_[Idx].First_);
+					const u32 KeyHash = Hash(0, Values_[Idx].first);
 					const index_type IndicesIdx = KeyHash & Mask_;
 					if(Indices_[IndicesIdx] == INVALID_INDEX)
 					{

@@ -71,5 +71,3 @@ TEST_CASE("plugin-tests-reload")
 	plugin.SetNumber(1);
 	REQUIRE(plugin.GetNumber() == 1);
 }
-
-

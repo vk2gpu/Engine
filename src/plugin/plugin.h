@@ -44,8 +44,10 @@ namespace Plugin
 		const char* name_ = nullptr;
 		/// Plugin description.
 		const char* desc_ = nullptr;
-		/// Internal UUID. Should not be used directly.
-		Core::UUID internalUuid_;
+		/// File name.
+		const char* fileName_ = nullptr;
+		/// File UUID.
+		Core::UUID fileUuid_;
 	};
 
 } // namespace Plugin

@@ -407,17 +407,17 @@ namespace GPU
 			stateEntry = stateTracker_.insert(resource, resource->defaultState_);
 		}
 
-		if(state != stateEntry->Second_)
+		if(state != stateEntry->second)
 		{
 			D3D12_RESOURCE_BARRIER barrier;
 			barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
 			barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
 			barrier.Transition.pResource = resource->resource_.Get();
 			barrier.Transition.Subresource = 0xffffffff; // TODO.
-			barrier.Transition.StateBefore = stateEntry->Second_;
+			barrier.Transition.StateBefore = stateEntry->second;
 			barrier.Transition.StateAfter = state;
 			pendingBarriers_.insert(resource, barrier);
-			stateEntry->Second_ = state;
+			stateEntry->second = state;
 		}
 	}
 
@@ -428,7 +428,7 @@ namespace GPU
 			// Copy pending barriers into flat vector.
 			for(auto barrier : pendingBarriers_)
 			{
-				barriers_.push_back(barrier.Second_);
+				barriers_.push_back(barrier.second);
 			}
 			pendingBarriers_.clear();
 
@@ -442,7 +442,7 @@ namespace GPU
 	{
 		for(auto state : stateTracker_)
 		{
-			AddTransition(state.First_, state.First_->defaultState_);
+			AddTransition(state.first, state.first->defaultState_);
 		}
 		FlushTransitions();
 		stateTracker_.clear();
