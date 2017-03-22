@@ -10,7 +10,7 @@ namespace Plugin
 	/**
 	 * Get plugin info.
 	 * @param outPlugin Pointer to plugin structure to fill in. Must be valid for given @a uuid.
-	 * @param uuid UUID of plugin we wish to get info for. 
+	 * @param uuid UUID of plugin we wish to get info for.
 	 * @return true if success, false if failure.
 	 */
 	typedef bool (*GetPluginFn)(struct Plugin* outPlugin, Core::UUID uuid);
@@ -20,9 +20,9 @@ namespace Plugin
 	 */
 	static const u32 PLUGIN_SYSTEM_VERSION = 0x00000001;
 
-	
-#define DECLARE_PLUGININFO(NAME, VERSION) \
-	static Core::UUID GetUUID() { return Core::UUID(#NAME); } \
+
+#define DECLARE_PLUGININFO(NAME, VERSION)                                                                              \
+	static Core::UUID GetUUID() { return Core::UUID(#NAME); }                                                          \
 	static const u32 PLUGIN_VERSION = VERSION;
 
 

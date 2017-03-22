@@ -61,20 +61,8 @@ namespace Plugin
 		}
 
 		PluginDesc(const PluginDesc&) = delete;
-
-		PluginDesc(PluginDesc&& other) { swap(other); }
-
-		void operator=(PluginDesc&& other) { swap(other); }
-
-		void swap(PluginDesc& other)
-		{
-			using std::swap;
-			swap(fileName_, other.fileName_);
-			swap(handle_, other.handle_);
-			swap(getPlugin_, other.getPlugin_);
-			swap(plugin_, other.plugin_);
-			swap(validPlugin_, other.validPlugin_);
-		}
+		PluginDesc(PluginDesc&& other) = delete;
+		void operator=(PluginDesc&& other) = delete;
 
 		operator bool() const { return validPlugin_; }
 
@@ -93,11 +81,11 @@ namespace Plugin
 
 	Manager::Manager()
 	{ //
-		impl_ = new ManagerImpl(); 
+		impl_ = new ManagerImpl();
 	}
 
 	Manager::~Manager()
-	{ //		
+	{
 		for(auto pluginDescIt : impl_->pluginDesc_)
 		{
 			delete pluginDescIt.second;
