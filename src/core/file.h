@@ -151,6 +151,21 @@ namespace Core
 	CORE_DLL void FileGetCurrDir(char* buffer, i32 bufferLength);
 
 	/**
+	 * Split path into elements.
+	 * @param inPath Input path to split. ("C:\Path\To\File.txt" or "/path/to/file.txt")
+	 * @param outPath Output path (optional). ("C:\Path\To" or "/path/to")
+	 * @param pathLen Maximum length of output path buffer.
+	 * @param outPath Output file (optional). ("File" or "file")
+	 * @param pathLen Maximum length of output file buffer.
+	 * @param outPath Output extension (optional). ("txt" or"txt")
+	 * @param pathLen Maximum length of output ext buffer.
+	 * @pre strlen(inPath) < MAX_PATH_LENGTH.
+	 * @return true is successful. false if failure.
+	 */
+	CORE_DLL bool FileSplitPath(
+	    const char* inPath, char* outPath, i32 pathLen, char* outFile, i32 fileLen, char* outExt, i32 extLen);
+
+	/**
 	 * Flags which define behaviour or file.
 	 */
 	enum class FileFlags : u32

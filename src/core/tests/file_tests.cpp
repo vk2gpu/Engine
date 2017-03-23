@@ -1,5 +1,6 @@
 #include "core/file.h"
 #include "core/debug.h"
+#include "core/array.h"
 #include "core/vector.h"
 
 #include "catch.hpp"
@@ -195,6 +196,42 @@ TEST_CASE("file-tests-find-files")
 	Core::Vector<Core::FileInfo> fileInfos;
 	fileInfos.resize(foundFiles);
 
-	foundFiles = Core::FileFindInPath(".", nullptr, fileInfos.data(), fileInfos.size());	
+	foundFiles = Core::FileFindInPath(".", nullptr, fileInfos.data(), fileInfos.size());
 }
 
+TEST_CASE("file-tests-split-path")
+{
+	auto TestPath = [&](const char* input, const char* path, const char* file, const char* ext) {
+		Core::Array<char, Core::MAX_PATH_LENGTH> outPath;
+		Core::Array<char, Core::MAX_PATH_LENGTH> outFile;
+		Core::Array<char, Core::MAX_PATH_LENGTH> outExt;
+		memset(outPath.data(), 0, outPath.size());
+		memset(outFile.data(), 0, outFile.size());
+		memset(outExt.data(), 0, outExt.size());
+		REQUIRE(Core::FileSplitPath(
+		    input, outPath.data(), outPath.size(), outFile.data(), outFile.size(), outExt.data(), outExt.size()));
+		REQUIRE(strcmp(outPath.data(), path) == 0);
+		REQUIRE(strcmp(outFile.data(), file) == 0);
+		REQUIRE(strcmp(outExt.data(), ext) == 0);
+	};
+
+	TestPath("myfile.txt", "", "myfile", "txt");
+	TestPath("path/to/myfile.txt", "path/to", "myfile", "txt");
+	TestPath("path/to/myfile", "path/to", "myfile", "");
+
+	TestPath("path.to/myfile.txt", "path.to", "myfile", "txt");
+	TestPath("path.to/myfile/.txt", "path.to/myfile", "", "txt");
+
+	TestPath("myfile.txt.exe", "", "myfile.txt", "exe");
+	TestPath("path/to/myfile.txt.exe", "path/to", "myfile.txt", "exe");
+
+	TestPath("C:\\myfile.txt", "C:", "myfile", "txt");
+	TestPath("C:\\path\\to\\myfile.txt", "C:\\path\\to", "myfile", "txt");
+	TestPath("C:\\path\\to\\myfile", "C:\\path\\to", "myfile", "");
+
+	TestPath("C:\\path.to\\myfile.txt", "C:\\path.to", "myfile", "txt");
+	TestPath("C:\\path.to\\myfile\\.txt", "C:\\path.to\\myfile", "", "txt");
+
+	TestPath("C:\\myfile.txt.exe", "C:", "myfile.txt", "exe");
+	TestPath("C:\\path\\to\\myfile.txt.exe", "C:\\path\\to", "myfile.txt", "exe");
+}

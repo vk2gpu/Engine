@@ -68,9 +68,8 @@ namespace Core
 		void LogWin32Error(const char* message, DWORD win32Error)
 		{
 			LPSTR messageBuffer = nullptr;
-			FormatMessageA(
-			    FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL,
-			    win32Error, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPSTR)&messageBuffer, 0, NULL);
+			FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+			    NULL, win32Error, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPSTR)&messageBuffer, 0, NULL);
 			DBG_LOG("%s. Error: %s\n", message, messageBuffer);
 		}
 #endif
@@ -359,6 +358,73 @@ namespace Core
 	{
 		i32 length = ::GetCurrentDirectoryA(bufferLength, buffer);
 		FileNormalizePath(buffer, length, true);
+	}
+
+	bool FileSplitPath(
+	    const char* inPath, char* outPath, i32 pathLen, char* outFile, i32 fileLen, char* outExt, i32 extLen)
+	{
+		i32 inPathLen = (i32)strlen(inPath);
+		if(inPathLen >= MAX_PATH_LENGTH)
+		{
+			return false;
+		}
+		Core::Array<char, MAX_PATH_LENGTH> workBuffer;
+		strcpy_s(workBuffer.data(), workBuffer.size(), inPath);
+
+		i32 searchStart = inPathLen;
+
+		if(outExt && extLen > 0 && searchStart > 0)
+		{
+			for(i32 i = searchStart - 1; i >= 0; --i)
+			{
+				char currChar = workBuffer[i];
+				// Terminate on path separator, no extension.
+				if(currChar == '\\' || currChar == '/')
+				{
+					outExt[0] = '\0';
+					searchStart = inPathLen;
+					break;
+				}
+				// Found extension.
+				else if(currChar == '.')
+				{
+					strcpy_s(outExt, extLen, &workBuffer[i + 1]);
+					workBuffer[i] = '\0';
+					searchStart = i;
+					break;
+				}
+			}
+		}
+
+		if(outFile && fileLen > 0 && searchStart > 0)
+		{
+			for(i32 i = searchStart - 1; i >= 0; --i)
+			{
+				char currChar = workBuffer[i];
+				// Hit end.
+				if(i == 0)
+				{
+					strcpy_s(outFile, fileLen, &workBuffer[i]);
+					searchStart = i;
+					break;
+				}
+				// Found path separator.
+				else if(currChar == '\\' || currChar == '/')
+				{
+					strcpy_s(outFile, fileLen, &workBuffer[i + 1]);
+					workBuffer[i] = '\0';
+					searchStart = i;
+					break;
+				}
+			}
+		}
+
+		if(outPath && pathLen > 0 && searchStart > 0)
+		{
+			strcpy_s(outPath, pathLen, workBuffer.data());
+		}
+
+		return true;
 	}
 
 	struct FileImpl
