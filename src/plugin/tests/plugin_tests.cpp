@@ -10,6 +10,7 @@
 
 // Plugins.
 #include "plugin_test_basic.h"
+#include "plugin_test_advanced.h"
 
 namespace
 {
@@ -47,7 +48,29 @@ TEST_CASE("plugin-tests-basic-plugin")
 	REQUIRE(plugin.testMagic_ == PluginTestBasic::TEST_MAGIC);
 }
 
-TEST_CASE("plugin-tests-reload")
+TEST_CASE("plugin-tests-advanced-plugin")
+{
+	Plugin::Manager manager;
+
+	char path[Core::MAX_PATH_LENGTH];
+	Core::FileGetCurrDir(path, Core::MAX_PATH_LENGTH);
+	i32 found = manager.Scan(".");
+	found += manager.Scan("../../output/bin/Debug");
+	found += manager.Scan("../../../output/bin/Debug");
+	REQUIRE(found > 0);
+
+	PluginTestAdvanced plugin;
+	PluginTestAdvanced* pluginArray = &plugin;
+
+	found = manager.GetPlugins(&pluginArray, 1);
+	REQUIRE(found > 0);
+	
+	REQUIRE(plugin.GetNumber() == 0);
+	plugin.SetNumber(1);
+	REQUIRE(plugin.GetNumber() == 1);
+}
+
+TEST_CASE("plugin-tests-basic-reload")
 {
 	Plugin::Manager manager;
 

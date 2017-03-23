@@ -41,3 +41,15 @@ SET_TARGET_PROPERTIES(plugin_test_basic PROPERTIES FOLDER Tests/Plugins)
 TARGET_LINK_LIBRARIES(plugin_test_basic core plugin)
 SOURCE_GROUP("Public" FILES ${SOURCES_TEST_BASIC})
 
+SET(SOURCES_TEST_ADVANCED
+	"tests/plugin_test_advanced.h"
+	"tests/plugin_test_advanced.cpp"
+)
+
+ADD_LIBRARY(plugin_test_advanced SHARED ${SOURCES_TEST_ADVANCED})
+SET_TARGET_PROPERTIES(plugin_test_advanced PROPERTIES FOLDER Tests/Plugins)
+TARGET_LINK_LIBRARIES(plugin_test_advanced core plugin)
+SOURCE_GROUP("Public" FILES ${SOURCES_TEST_ADVANCED})
+
+
+
