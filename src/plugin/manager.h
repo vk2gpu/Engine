@@ -20,6 +20,12 @@ namespace Plugin
 		i32 Scan(const char* path);
 
 		/**
+		 * Has plugin changed?
+		 * @param plugin Plugin to check.
+		 */
+		bool HasChanged(const Plugin& plugin) const;
+
+		/**
 		 * Reload plugin.
 		 * @param inOutPlugin Plugin to reload.
 		 */

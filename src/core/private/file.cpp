@@ -50,20 +50,29 @@ namespace Core
 	namespace
 	{
 #if PLATFORM_WINDOWS
-	FileTimestamp GetTimestamp(FILETIME fileTime)
-	{
-		FileTimestamp timestamp;
-		SYSTEMTIME systemTime;
-		::FileTimeToSystemTime(&fileTime, &systemTime);
-		timestamp.year_ = systemTime.wYear - 1900;
-		timestamp.month_ = systemTime.wMonth - 1;
-		timestamp.day_ = systemTime.wDay;
-		timestamp.hours_ = systemTime.wHour;
-		timestamp.minutes_ = systemTime.wMinute;
-		timestamp.seconds_ = systemTime.wSecond;
-		timestamp.milliseconds_ = systemTime.wMilliseconds;	
-		return timestamp;
-	}
+		FileTimestamp GetTimestamp(FILETIME fileTime)
+		{
+			FileTimestamp timestamp;
+			SYSTEMTIME systemTime;
+			::FileTimeToSystemTime(&fileTime, &systemTime);
+			timestamp.year_ = systemTime.wYear - 1900;
+			timestamp.month_ = systemTime.wMonth - 1;
+			timestamp.day_ = systemTime.wDay;
+			timestamp.hours_ = systemTime.wHour;
+			timestamp.minutes_ = systemTime.wMinute;
+			timestamp.seconds_ = systemTime.wSecond;
+			timestamp.milliseconds_ = systemTime.wMilliseconds;
+			return timestamp;
+		}
+
+		void LogWin32Error(const char* message, DWORD win32Error)
+		{
+			LPSTR messageBuffer = nullptr;
+			FormatMessageA(
+			    FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL,
+			    win32Error, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPSTR)&messageBuffer, 0, NULL);
+			DBG_LOG("%s. Error: %s\n", message, messageBuffer);
+		}
 #endif
 	}
 
@@ -159,6 +168,23 @@ namespace Core
 		DBG_ASSERT(srcPath && destPath);
 #if PLATFORM_LINUX || PLATFORM_OSX || PLATFORM_WINDOWS
 		return rename(srcPath, destPath) == 0;
+#else
+#error "Unimplemented on this platform!";
+		return false;
+#endif
+	}
+
+	bool FileCopy(const char* srcPath, const char* destPath)
+	{
+		DBG_ASSERT(srcPath && destPath);
+#if PLATFORM_WINDOWS
+		BOOL retVal = ::CopyFile(srcPath, destPath, FALSE);
+		if(retVal == FALSE)
+		{
+			DWORD error = ::GetLastError();
+			LogWin32Error("FileCopy failed", error);
+		}
+		return !!retVal;
 #else
 #error "Unimplemented on this platform!";
 		return false;
@@ -264,7 +290,7 @@ namespace Core
 	i32 FileFindInPath(const char* path, const char* extension, FileInfo* outInfos, i32 maxInfos)
 	{
 #if PLATFORM_WINDOWS
-		char newPath[MAX_PATH_LENGTH] = { 0 };
+		char newPath[MAX_PATH_LENGTH] = {0};
 		strcpy_s(newPath, MAX_PATH_LENGTH, path);
 		FileNormalizePath(newPath, MAX_PATH_LENGTH, true);
 

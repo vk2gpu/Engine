@@ -27,6 +27,18 @@ namespace Core
 		i16 seconds_ = -1;
 		/// milliseconds after the second - [0, 999]
 		i16 milliseconds_ = -1;
+
+		bool operator==(const FileTimestamp& other) const
+		{
+			return year_ == other.year_ && month_ == other.month_ && day_ == other.day_ && hours_ == other.hours_ &&
+			       minutes_ == other.minutes_ && seconds_ == other.seconds_ && milliseconds_ == other.milliseconds_;
+		}
+
+		bool operator!=(const FileTimestamp& other) const
+		{
+			return year_ != other.year_ || month_ != other.month_ || day_ != other.day_ || hours_ != other.hours_ ||
+			       minutes_ != other.minutes_ || seconds_ != other.seconds_ || milliseconds_ != other.milliseconds_;
+		}
 	};
 
 	/**
@@ -89,6 +101,12 @@ namespace Core
 	 * @return Success.
 	 */
 	CORE_DLL bool FileRename(const char* srcPath, const char* destPath);
+
+	/**
+	 * Copy file. Will overwrite existing file.
+	 * @return Success.
+	 */
+	CORE_DLL bool FileCopy(const char* srcPath, const char* destPath);
 
 	/**
 	 * Create directories.

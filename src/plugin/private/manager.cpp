@@ -13,15 +13,37 @@
 
 namespace Plugin
 {
+	static const char* COPY_PREFIX = "_";
+
 	struct PluginDesc
 	{
 		PluginDesc() = default;
-		PluginDesc(const char* libName)
+		PluginDesc(const char* path, const char* libName)
 		{
-			fileName_.resize((i32)strlen(libName) + 1, 0);
+			i32 pathLength = (i32)strlen(path) + 1;
+			i32 fileNameLength = pathLength + (i32)strlen(libName);
+			i32 prefixLength = pathLength + (i32)strlen(COPY_PREFIX);
+
+			fileName_.resize(fileNameLength + 1, 0);
+			strcat_s(fileName_.data(), fileName_.size(), path);
+			strcat_s(fileName_.data(), fileName_.size(), "/");
 			strcat_s(fileName_.data(), fileName_.size(), libName);
 
+			tempFileName_.resize(fileNameLength + prefixLength + 1, 0);
+			strcat_s(tempFileName_.data(), tempFileName_.size(), path);
+			strcat_s(tempFileName_.data(), tempFileName_.size(), "/");
+			strcat_s(tempFileName_.data(), tempFileName_.size(), COPY_PREFIX);
+			strcat_s(tempFileName_.data(), tempFileName_.size(), libName);
+
 			Reload();
+		}
+
+		~PluginDesc()
+		{
+			if(handle_)
+			{
+				Core::LibraryClose(handle_);
+			}
 		}
 
 		bool Reload()
@@ -33,31 +55,74 @@ namespace Plugin
 
 			validPlugin_ = false;
 
-			handle_ = Core::LibraryOpen(fileName_.data());
-			if(handle_)
+			// First try to open + check for GetPlugin.
 			{
-				getPlugin_ = (GetPluginFn)Core::LibrarySymbol(handle_, "GetPlugin");
-				if(getPlugin_)
+				Core::LibHandle handle = Core::LibraryOpen(fileName_.data());
+				if(!handle)
 				{
-					if(getPlugin_(&plugin_, Plugin::GetUUID()))
-					{
-						if(plugin_.systemVersion_ == PLUGIN_SYSTEM_VERSION)
-						{
-							validPlugin_ = true;
-						}
-					}
+					return false;
 				}
+
+				GetPluginFn getPlugin = (GetPluginFn)Core::LibrarySymbol(handle, "GetPlugin");
+				if(!getPlugin)
+				{
+					Core::LibraryClose(handle);
+					return false;
+				}
+
+				// Record modified timestamp.
+				Core::FileStats(fileName_.data(), nullptr, &modifiedTimestamp_, nullptr);
+
+				// Now close.
+				Core::LibraryClose(handle);
 			}
 
+			// Make a copy to actually use to ensure the original file isn't locked when in use.
+			if(!Core::FileCopy(fileName_.data(), tempFileName_.data()))
+			{
+				DBG_LOG("Failed to copy plugin library %s!\n", fileName_.data());
+				return false;
+			}
+
+			handle_ = Core::LibraryOpen(tempFileName_.data());
+			if(!handle_)
+			{
+				DBG_LOG("Unable to load plugin library %s!\n", fileName_.data());
+				return false;
+			}
+
+			getPlugin_ = (GetPluginFn)Core::LibrarySymbol(handle_, "GetPlugin");
+			if(!getPlugin_)
+			{
+				DBG_LOG("Unable to find symbol 'GetPlugin' for plugin library %s!\n", fileName_.data());
+				return false;
+			}
+			
+
+			if(!getPlugin_(&plugin_, Plugin::GetUUID()))
+			{
+				DBG_LOG("Unable to find UUID for plugin library %s!\n", fileName_.data());
+				return false;
+			}
+
+			if(plugin_.systemVersion_ != PLUGIN_SYSTEM_VERSION)
+			{
+				DBG_LOG("System version mismatch for plugin library %s!\n", fileName_.data());
+				return false;
+			}
+
+			validPlugin_ = true;
 			return validPlugin_;
 		}
 
-		~PluginDesc()
+		bool HasChanged() const
 		{
-			if(handle_)
+			Core::FileTimestamp modifiedTimestamp;
+			if(Core::FileStats(fileName_.data(), nullptr, &modifiedTimestamp, nullptr))
 			{
-				Core::LibraryClose(handle_);
+				return modifiedTimestamp_ != modifiedTimestamp;
 			}
+			return false;
 		}
 
 		PluginDesc(const PluginDesc&) = delete;
@@ -67,6 +132,8 @@ namespace Plugin
 		operator bool() const { return validPlugin_; }
 
 		Core::Vector<char> fileName_;
+		Core::Vector<char> tempFileName_;
+		Core::FileTimestamp modifiedTimestamp_;
 		Core::LibHandle handle_ = 0;
 		GetPluginFn getPlugin_ = nullptr;
 		Plugin plugin_;
@@ -112,25 +179,38 @@ namespace Plugin
 			for(i32 i = 0; i < foundLibs; ++i)
 			{
 				const Core::FileInfo& fileInfo = fileInfos[i];
-				PluginDesc* pluginDesc = new PluginDesc(fileInfo.fileName_);
-				if(*pluginDesc)
+				if(strstr(fileInfo.fileName_, COPY_PREFIX) != fileInfo.fileName_)
 				{
-					pluginDesc->plugin_.fileName_ = pluginDesc->fileName_.data();
-					pluginDesc->plugin_.fileUuid_ = Core::UUID(pluginDesc->plugin_.fileName_);
-
-					if(impl_->pluginDesc_.find(pluginDesc->plugin_.fileUuid_) == impl_->pluginDesc_.end())
+					PluginDesc* pluginDesc = new PluginDesc(path, fileInfo.fileName_);
+					if(*pluginDesc)
 					{
-						impl_->pluginDesc_.insert(pluginDesc->plugin_.fileUuid_, pluginDesc);
+						pluginDesc->plugin_.fileName_ = pluginDesc->fileName_.data();
+						pluginDesc->plugin_.fileUuid_ = Core::UUID(pluginDesc->plugin_.fileName_);
+
+						if(impl_->pluginDesc_.find(pluginDesc->plugin_.fileUuid_) == impl_->pluginDesc_.end())
+						{
+							impl_->pluginDesc_.insert(pluginDesc->plugin_.fileUuid_, pluginDesc);
+						}
 					}
-				}
-				else
-				{
-					delete pluginDesc;
+					else
+					{
+						delete pluginDesc;
+					}
 				}
 			}
 		}
 
 		return impl_->pluginDesc_.size();
+	}
+
+	bool Manager::HasChanged(const Plugin& plugin) const
+	{
+		auto it = impl_->pluginDesc_.find(plugin.fileUuid_);
+		if(it != impl_->pluginDesc_.end())
+		{
+			return it->second->HasChanged();
+		}
+		return false;
 	}
 
 	bool Manager::Reload(Plugin& inOutPlugin)

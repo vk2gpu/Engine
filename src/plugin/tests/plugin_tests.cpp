@@ -2,7 +2,9 @@
 
 #include "catch.hpp"
 
+#include "core/debug.h"
 #include "core/file.h"
+#include "core/os.h"
 #include "plugin/manager.h"
 
 
@@ -19,7 +21,9 @@ TEST_CASE("plugin-tests-scan")
 
 	char path[Core::MAX_PATH_LENGTH];
 	Core::FileGetCurrDir(path, Core::MAX_PATH_LENGTH);
-	i32 found = manager.Scan("../../output/bin/Debug");
+	i32 found = manager.Scan(".");
+	found += manager.Scan("../../output/bin/Debug");
+	found += manager.Scan("../../../output/bin/Debug");
 	REQUIRE(found > 0);
 }
 
@@ -29,7 +33,9 @@ TEST_CASE("plugin-tests-basic-plugin")
 
 	char path[Core::MAX_PATH_LENGTH];
 	Core::FileGetCurrDir(path, Core::MAX_PATH_LENGTH);
-	i32 found = manager.Scan("../../output/bin/Debug");
+	i32 found = manager.Scan(".");
+	found += manager.Scan("../../output/bin/Debug");
+	found += manager.Scan("../../../output/bin/Debug");
 	REQUIRE(found > 0);
 
 	PluginTestBasic plugin;
@@ -47,7 +53,9 @@ TEST_CASE("plugin-tests-reload")
 
 	char path[Core::MAX_PATH_LENGTH];
 	Core::FileGetCurrDir(path, Core::MAX_PATH_LENGTH);
-	i32 found = manager.Scan("../../output/bin/Debug");
+	i32 found = manager.Scan(".");
+	found += manager.Scan("../../output/bin/Debug");
+	found += manager.Scan("../../../output/bin/Debug");
 	REQUIRE(found > 0);
 
 	PluginTestBasic plugin;
@@ -62,6 +70,14 @@ TEST_CASE("plugin-tests-reload")
 	REQUIRE(plugin.GetNumber() == 0);
 	plugin.SetNumber(1);
 	REQUIRE(plugin.GetNumber() == 1);
+
+#if 0 
+	while(manager.HasChanged(plugin) == false)
+	{
+		DBG_LOG("Waiting for recompilation...");
+		::Sleep(5000);
+	}
+#endif
 
 	bool reloaded = manager.Reload(plugin);
 	REQUIRE(reloaded);
