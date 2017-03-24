@@ -373,7 +373,7 @@ namespace Core
 
 		i32 searchStart = inPathLen;
 
-		if(outExt && extLen > 0 && searchStart > 0)
+		if(searchStart > 0)
 		{
 			for(i32 i = searchStart - 1; i >= 0; --i)
 			{
@@ -388,7 +388,8 @@ namespace Core
 				// Found extension.
 				else if(currChar == '.')
 				{
-					strcpy_s(outExt, extLen, &workBuffer[i + 1]);
+					if(outExt && extLen > 0)
+						strcpy_s(outExt, extLen, &workBuffer[i + 1]);
 					workBuffer[i] = '\0';
 					searchStart = i;
 					break;
@@ -396,7 +397,7 @@ namespace Core
 			}
 		}
 
-		if(outFile && fileLen > 0 && searchStart > 0)
+		if(searchStart > 0)
 		{
 			for(i32 i = searchStart - 1; i >= 0; --i)
 			{
@@ -404,14 +405,16 @@ namespace Core
 				// Hit end.
 				if(i == 0)
 				{
-					strcpy_s(outFile, fileLen, &workBuffer[i]);
+					if(outFile && fileLen > 0)
+						strcpy_s(outFile, fileLen, &workBuffer[i]);
 					searchStart = i;
 					break;
 				}
 				// Found path separator.
 				else if(currChar == '\\' || currChar == '/')
 				{
-					strcpy_s(outFile, fileLen, &workBuffer[i + 1]);
+					if(outFile && fileLen > 0)
+						strcpy_s(outFile, fileLen, &workBuffer[i + 1]);
 					workBuffer[i] = '\0';
 					searchStart = i;
 					break;

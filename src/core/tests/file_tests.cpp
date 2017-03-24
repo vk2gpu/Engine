@@ -208,11 +208,14 @@ TEST_CASE("file-tests-split-path")
 		memset(outPath.data(), 0, outPath.size());
 		memset(outFile.data(), 0, outFile.size());
 		memset(outExt.data(), 0, outExt.size());
-		REQUIRE(Core::FileSplitPath(
-		    input, outPath.data(), outPath.size(), outFile.data(), outFile.size(), outExt.data(), outExt.size()));
-		REQUIRE(strcmp(outPath.data(), path) == 0);
-		REQUIRE(strcmp(outFile.data(), file) == 0);
-		REQUIRE(strcmp(outExt.data(), ext) == 0);
+		REQUIRE(Core::FileSplitPath(input, path ? outPath.data() : nullptr, outPath.size(),
+		    file ? outFile.data() : nullptr, outFile.size(), ext ? outExt.data() : nullptr, outExt.size()));
+		if(path)
+			REQUIRE(strcmp(outPath.data(), path) == 0);
+		if(file)
+			REQUIRE(strcmp(outFile.data(), file) == 0);
+		if(ext)
+			REQUIRE(strcmp(outExt.data(), ext) == 0);
 	};
 
 	TestPath("myfile.txt", "", "myfile", "txt");
@@ -234,4 +237,9 @@ TEST_CASE("file-tests-split-path")
 
 	TestPath("C:\\myfile.txt.exe", "C:", "myfile.txt", "exe");
 	TestPath("C:\\path\\to\\myfile.txt.exe", "C:\\path\\to", "myfile.txt", "exe");
+
+
+	TestPath("path/to/myfile.txt", nullptr, "myfile", "txt");
+	TestPath("path/to/myfile.txt", "path/to", nullptr, "txt");
+	TestPath("path/to/myfile.txt", "path/to", "myfile", nullptr);
 }
