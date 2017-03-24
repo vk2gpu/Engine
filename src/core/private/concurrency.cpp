@@ -20,15 +20,40 @@ namespace Core
 		HANDLE threadHandle_ = 0;
 		Thread::EntryPointFunc entryPointFunc_ = nullptr;
 		void* userData_ = nullptr;
+#ifdef DEBUG
+		const char* debugName_ = nullptr;
+#endif
 	};
 
 	static DWORD WINAPI ThreadEntryPoint(LPVOID lpThreadParameter)
 	{
 		auto* impl = reinterpret_cast<ThreadImpl*>(lpThreadParameter);
+
+#ifdef DEBUG
+		if(IsDebuggerAttached() && impl->debugName_)
+		{
+#pragma pack(push, 8)
+			typedef struct tagTHREADNAME_INFO
+			{
+				DWORD dwType;     /* must be 0x1000 */
+				LPCSTR szName;    /* pointer to name (in user addr space) */
+				DWORD dwThreadID; /* thread ID (-1=caller thread) */
+				DWORD dwFlags;    /* reserved for future use, must be zero */
+			} THREADNAME_INFO;
+#pragma pack(pop)
+			THREADNAME_INFO info;
+			memset(&info, 0, sizeof(info));
+			info.dwType = 0x1000;
+			info.szName = impl->debugName_;
+			info.dwThreadID = (DWORD)-1;
+			info.dwFlags = 0;
+			::RaiseException(0x406D1388, 0, sizeof(info) / sizeof(ULONG), (const ULONG_PTR*)&info);
+		}
+#endif
 		return impl->entryPointFunc_(impl->userData_);
 	}
 
-	Thread::Thread(EntryPointFunc entryPointFunc, void* userData, i32 stackSize)
+	Thread::Thread(EntryPointFunc entryPointFunc, void* userData, i32 stackSize, const char* debugName)
 	{
 		DBG_ASSERT(entryPointFunc);
 		DWORD creationFlags = 0;
@@ -37,6 +62,9 @@ namespace Core
 		impl_->userData_ = userData;
 		impl_->threadHandle_ =
 		    ::CreateThread(nullptr, stackSize, ThreadEntryPoint, impl_, creationFlags, &impl_->threadId_);
+#ifdef DEBUG
+		impl_->debugName_ = debugName;
+#endif
 	}
 
 	Thread::~Thread()

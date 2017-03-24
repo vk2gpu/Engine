@@ -99,9 +99,11 @@ namespace Core
 		 * @param entryPointFunc Entry point for thread to call.
 		 * @param userData User data to pass to thread.
 		 * @param stackSize Size of stack for thread.
+		 * @param debugName Debug name of thread.
 		 * @pre entryPointFunc != nullptr.
 		 */
-		Thread(EntryPointFunc entryPointFunc, void* userData, i32 stackSize = DEFAULT_STACK_SIZE);
+		Thread(EntryPointFunc entryPointFunc, void* userData, i32 stackSize = DEFAULT_STACK_SIZE,
+		    const char* debugName = nullptr);
 
 		Thread() = default;
 		~Thread();

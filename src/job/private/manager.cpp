@@ -132,7 +132,7 @@ namespace Job
 		    : manager_(manager)
 		{
 			// Create thread.
-			thread_ = Core::Thread(ThreadEntryPoint, this);
+			thread_ = Core::Thread(ThreadEntryPoint, this, Core::Thread::DEFAULT_STACK_SIZE, "Job Worker Thread");
 		}
 
 		~Worker()
