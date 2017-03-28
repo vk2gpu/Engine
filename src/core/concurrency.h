@@ -208,8 +208,9 @@ namespace Core
 		 * Create event.
 		 * @param manualReset Should manual reset be required?
 		 * @param initialState Should start signalled?
+		 * @param debugName Debug name for event.
 		 */
-		Event(bool manualReset = false, bool initialState = false);
+		Event(bool manualReset = false, bool initialState = false, const char* debugName = nullptr);
 		~Event();
 
 		/**

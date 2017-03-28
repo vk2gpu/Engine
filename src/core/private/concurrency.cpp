@@ -250,13 +250,19 @@ namespace Core
 	struct EventImpl
 	{
 		HANDLE handle_;
+#ifdef DEBUG
+		const char* debugName_ = nullptr;
+#endif
 	};
 
-	Event::Event(bool manualReset, bool initialState)
+	Event::Event(bool manualReset, bool initialState, const char* debugName)
 	{
 		impl_ = new EventImpl();
-		impl_->handle_ =
-		    ::CreateEvent(nullptr, manualReset ? TRUE : FALSE, initialState ? TRUE : FALSE, "<debug name>");
+		// NOTE: Don't set debug name on event. If 2 names are the same, they'll reference the same event.
+		impl_->handle_ = ::CreateEvent(nullptr, manualReset ? TRUE : FALSE, initialState ? TRUE : FALSE, nullptr);
+#ifdef DEBUG
+		impl_->debugName_ = debugName;
+#endif
 	}
 
 	Event::~Event()
