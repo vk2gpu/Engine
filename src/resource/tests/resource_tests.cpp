@@ -30,7 +30,7 @@ TEST_CASE("resource-tests-manager")
 		do
 		{
 			Core::Log("%.2fms: Writing file %u%%...\n", timer.GetTime() * 1000.0,
-			    (u32)((f32)result.bytesProcessed_ / (f32)file.Size() * 100.0f));
+			    (u32)((f32)result.bytesProcessed_ / (f32)TEST_BUFFER_SIZE * 100.0f));
 		} while(result.workRemaining_ > 0);
 		Core::Log("%.2fms: Writing file complete!\n", timer.GetTime() * 1000.0);
 
@@ -54,7 +54,7 @@ TEST_CASE("resource-tests-manager")
 		do
 		{
 			Core::Log("%.2fms: Reading file %u%%...\n", timer.GetTime() * 1000.0,
-			    (u32)((f32)result.bytesProcessed_ / (f32)file.Size() * 100.0f));
+			    (u32)((f32)result.bytesProcessed_ / (f32)TEST_BUFFER_SIZE * 100.0f));
 		} while(result.workRemaining_ > 0);
 		Core::Log("%.2fms: Reading file complete!\n", timer.GetTime() * 1000.0);
 
