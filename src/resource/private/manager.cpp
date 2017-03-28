@@ -177,6 +177,11 @@ namespace Resource
 
 	bool Manager::ReadFileData(Core::File& file, i64 offset, i64 size, void* dest, AsyncResult* result)
 	{
+		DBG_ASSERT(Core::ContainsAllFlags(file.GetFlags(), Core::FileFlags::READ));
+		DBG_ASSERT(offset >= 0);
+		DBG_ASSERT(size > 0);
+		DBG_ASSERT(dest != nullptr);
+
 		ManagerImpl::FileIOJob job;
 		job.file_ = &file;
 		job.offset_ = offset;
@@ -199,6 +204,10 @@ namespace Resource
 
 	bool Manager::WriteFileData(Core::File& file, i64 size, void* src, AsyncResult* result)
 	{
+		DBG_ASSERT(Core::ContainsAllFlags(file.GetFlags(), Core::FileFlags::WRITE));
+		DBG_ASSERT(size > 0);
+		DBG_ASSERT(src != nullptr);
+
 		ManagerImpl::FileIOJob job;
 		job.file_ = &file;
 		job.offset_ = 0;

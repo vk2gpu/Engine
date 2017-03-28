@@ -24,6 +24,10 @@ namespace Resource
 		 * @param size Size to read from.
 		 * @param dest Destination address.
 		 * @param result Async result. If nullptr, read is immediate.
+		 * @pre @a file is valid for reading.
+		 * @pre offset >= 0.
+		 * @pre size > 0.
+		 * @pre dest != nullptr.
 		 */
 		bool ReadFileData(Core::File& file, i64 offset, i64 size, void* dest, AsyncResult* result = nullptr);
 
@@ -33,6 +37,9 @@ namespace Resource
 		 * @param size Size to write out.
 		 * @param src Source address.
 		 * @param result Async result. If nullptr, write is immediate.
+		 * @pre @a file is valid for writing.
+		 * @pre size > 0.
+		 * @pre src != nullptr.
 		 */
 		bool WriteFileData(Core::File& file, i64 size, void* src, AsyncResult* result = nullptr);
 

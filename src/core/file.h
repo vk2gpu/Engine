@@ -191,7 +191,9 @@ namespace Core
 		/**
 		 * Open file.
 		 * @param path Path to open.
-		 * @param
+		 * @param flags Flags to control file behaviour.
+		 * @pre flags only contains READ or WRITE, but not both.
+		 * @pre If flags contains READ, it doesn't contain APPEND or CREATE.
 		 */
 		File(const char* path, FileFlags flags);
 		~File();

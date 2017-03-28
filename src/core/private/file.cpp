@@ -439,6 +439,11 @@ namespace Core
 
 	File::File(const char* path, FileFlags flags)
 	{
+		DBG_ASSERT(ContainsAnyFlags(flags, FileFlags::READ) ^ ContainsAnyFlags(flags, FileFlags::WRITE));
+		DBG_ASSERT(ContainsAnyFlags(flags, FileFlags::WRITE) ||
+		           (ContainsAnyFlags(flags, FileFlags::READ) &&
+		               !ContainsAnyFlags(flags, FileFlags::APPEND | FileFlags::CREATE)));
+
 		impl_ = new FileImpl();
 
 		// Setup flags.
