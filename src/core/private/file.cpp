@@ -497,10 +497,7 @@ namespace Core
 			flags_ = flags;
 		}
 
-		virtual ~FileImplNative()
-		{
-			::fclose(fileHandle_);
-		}
+		virtual ~FileImplNative() { ::fclose(fileHandle_); }
 
 		i64 Read(void* buffer, i64 bytes) override
 		{
@@ -526,13 +523,11 @@ namespace Core
 
 		bool Seek(i64 offset) override
 		{
+			DBG_ASSERT(offset <= SIZE_MAX);
 			return 0 == ::fseek(fileHandle_, (long)offset, SEEK_SET);
 		}
 
-		i64 Tell() const override
-		{
-			return ::ftell(fileHandle_);
-		}
+		i64 Tell() const override { return ::ftell(fileHandle_); }
 
 		i64 Size() const override
 		{
@@ -545,15 +540,9 @@ namespace Core
 			return size;
 		}
 
-		FileFlags GetFlags() const override
-		{
-			return flags_;
-		}
+		FileFlags GetFlags() const override { return flags_; }
 
-		bool IsValid() const override
-		{
-			return fileDescriptor_ != -1;
-		}
+		bool IsValid() const override { return fileDescriptor_ != -1; }
 
 	private:
 		FILE* fileHandle_ = nullptr;
@@ -576,10 +565,7 @@ namespace Core
 		}
 	}
 
-	File::~File()
-	{
-		delete impl_;
-	}
+	File::~File() { delete impl_; }
 
 	File::File(File&& other)
 	{
@@ -612,7 +598,6 @@ namespace Core
 	{
 		DBG_ASSERT(ContainsAnyFlags(GetFlags(), FileFlags::READ | FileFlags::WRITE));
 		DBG_ASSERT(offset >= 0);
-		DBG_ASSERT(offset <= SIZE_MAX);
 		return impl_->Seek(offset);
 	}
 
