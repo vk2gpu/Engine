@@ -8,7 +8,7 @@ namespace
 
 extern "C" 
 {
-	__declspec(dllexport) bool GetPlugin(struct Plugin::Plugin* outPlugin, Core::UUID uuid)
+	EXPORT bool GetPlugin(struct Plugin::Plugin* outPlugin, Core::UUID uuid)
 	{
 		bool retVal = false;
 

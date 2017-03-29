@@ -6,17 +6,42 @@
 #include "core/timer.h"
 #include "core/vector.h"
 #include "core/os.h"
+#include "plugin/manager.h"
 #include "resource/manager.h"
+#include "resource/converter.h"
 
 namespace
 {
+	class ConverterContext : public Resource::IConverterContext
+	{
+	public:
+		ConverterContext() {}
+
+		virtual ~ConverterContext() {}
+
+		void AddDependency(const char* fileName) override { Core::Log("AddDependency: %s\n", fileName); }
+
+		void AddOutput(const char* fileName) override { Core::Log("AddOutput: %s\n", fileName); }
+
+		void AddError(const char* errorFile, int errorLine, const char* errorMsg) override
+		{
+			if(errorFile)
+			{
+				Core::Log("%s(%d): %s\n", errorFile, errorLine, errorMsg);
+			}
+			else
+			{
+				Core::Log("%s\n", errorMsg);
+			}
+		}
+	};
 }
 
 TEST_CASE("resource-tests-file-io")
 {
 	Resource::Manager manager;
 
-	static const i32 TEST_BUFFER_SIZE = 256 * 1024 * 1024;
+	static const i32 TEST_BUFFER_SIZE = 32 * 1024 * 1024;
 	const char* testFileName = "test_output.dat";
 
 	// Fill buffer with random data.
@@ -72,4 +97,46 @@ TEST_CASE("resource-tests-file-io")
 	}
 
 	Core::FileRemove(testFileName);
+}
+
+TEST_CASE("resource-tests-converter")
+{
+	Plugin::Manager pluginManager;
+
+	char path[Core::MAX_PATH_LENGTH];
+	Core::FileGetCurrDir(path, Core::MAX_PATH_LENGTH);
+	i32 found = pluginManager.Scan(".");
+	REQUIRE(found > 0);
+
+	Resource::ConverterPlugin converterPlugin;
+	Resource::ConverterPlugin* converterPluginArray = &converterPlugin;
+
+	found = pluginManager.GetPlugins(&converterPluginArray, 1);
+	REQUIRE(found > 0);
+
+	Resource::IConverter* converter = converterPlugin.CreateConverter();
+
+	// Check file type.
+	REQUIRE(converter->SupportsFileType("test"));
+
+	// Check failure.
+	ConverterContext context;
+	REQUIRE(!converter->Convert(context, "failure.test", "."));
+
+	// Setup converter input + output.
+	REQUIRE(Core::FileCreateDir("converter_output"));
+	Core::File testFile("converter.test", Core::FileFlags::CREATE | Core::FileFlags::WRITE);
+	REQUIRE(testFile);
+	const char* data = "conveter.test data";
+	testFile.Write(data, strlen(data));
+	testFile = Core::File();
+
+	REQUIRE(converter->Convert(context, "converter.test", "converter_output"));
+
+	// Check with trailing slashes.
+	REQUIRE(converter->Convert(context, "converter.test", "converter_output/"));
+	REQUIRE(converter->Convert(context, "converter.test", "converter_output\\"));
+
+
+	converterPlugin.DestroyConverter(converter);
 }
