@@ -430,8 +430,132 @@ namespace Core
 		return true;
 	}
 
-	struct FileImpl
+	class FileImpl
 	{
+	public:
+		virtual ~FileImpl() {}
+		virtual i64 Read(void* buffer, i64 bytes) = 0;
+		virtual i64 Write(const void* buffer, i64 bytes) = 0;
+		virtual bool Seek(i64 offset) = 0;
+		virtual i64 Tell() const = 0;
+		virtual i64 Size() const = 0;
+		virtual FileFlags GetFlags() const = 0;
+		virtual bool IsValid() const = 0;
+	};
+
+	/// Native file implementation.
+	class FileImplNative : public FileImpl
+	{
+	public:
+		FileImplNative(const char* path, FileFlags flags)
+		{
+			// Setup flags.
+			char openString[8] = {0};
+			int openStringIdx = 0;
+			int openPermissions = 0;
+			int lowLevelFlags = 0;
+			if(ContainsAllFlags(flags, FileFlags::READ))
+			{
+				lowLevelFlags |= lowLevelReadFlags;
+				openString[openStringIdx++] = 'r';
+				openString[openStringIdx++] = 'b';
+			}
+			if(ContainsAllFlags(flags, FileFlags::WRITE))
+			{
+				lowLevelFlags |= lowLevelWriteFlags;
+				openString[openStringIdx++] = 'w';
+				openString[openStringIdx++] = 'b';
+			}
+			if(ContainsAllFlags(flags, FileFlags::APPEND))
+			{
+				lowLevelFlags |= lowLevelAppendFlags;
+				openString[openStringIdx++] = 'a';
+			}
+			if(ContainsAllFlags(flags, FileFlags::CREATE))
+			{
+				lowLevelFlags |= lowLevelCreateFlags;
+				openString[openStringIdx++] = '+';
+				openPermissions = lowLevelPermissionFlags;
+			}
+
+			// Load as descriptor.
+			int desc = lowLevelOpen(path, lowLevelFlags, openPermissions);
+			if(-1 == desc)
+			{
+				return;
+			}
+			fileDescriptor_ = desc;
+
+			// Load as file handle.
+			fileHandle_ = ::fdopen(desc, openString);
+			if(nullptr == fileHandle_)
+			{
+				lowLevelClose(fileDescriptor_);
+				fileDescriptor_ = -1;
+			}
+
+			flags_ = flags;
+		}
+
+		virtual ~FileImplNative()
+		{
+			::fclose(fileHandle_);
+		}
+
+		i64 Read(void* buffer, i64 bytes) override
+		{
+			i64 bytesRead = 0;
+			if(ContainsAllFlags(GetFlags(), FileFlags::READ))
+			{
+				DBG_ASSERT(bytes <= SIZE_MAX);
+				bytesRead = ::fread(buffer, 1, bytes, fileHandle_);
+			}
+			return bytesRead;
+		}
+
+		i64 Write(const void* buffer, i64 bytes) override
+		{
+			i64 bytesWritten = 0;
+			if(ContainsAllFlags(GetFlags(), FileFlags::WRITE))
+			{
+				DBG_ASSERT(bytes <= SIZE_MAX);
+				bytesWritten = ::fwrite(buffer, 1, bytes, fileHandle_);
+			}
+			return bytesWritten;
+		}
+
+		bool Seek(i64 offset) override
+		{
+			return 0 == ::fseek(fileHandle_, (long)offset, SEEK_SET);
+		}
+
+		i64 Tell() const override
+		{
+			return ::ftell(fileHandle_);
+		}
+
+		i64 Size() const override
+		{
+			i64 size = 0;
+			struct stat attrib;
+			if(0 == ::fstat(fileDescriptor_, &attrib))
+			{
+				size = attrib.st_size;
+			}
+			return size;
+		}
+
+		FileFlags GetFlags() const override
+		{
+			return flags_;
+		}
+
+		bool IsValid() const override
+		{
+			return fileDescriptor_ != -1;
+		}
+
+	private:
 		FILE* fileHandle_ = nullptr;
 		int fileDescriptor_ = -1;
 		FileFlags flags_ = FileFlags::NONE;
@@ -444,66 +568,17 @@ namespace Core
 		           (ContainsAnyFlags(flags, FileFlags::READ) &&
 		               !ContainsAnyFlags(flags, FileFlags::APPEND | FileFlags::CREATE)));
 
-		impl_ = new FileImpl();
-
-		// Setup flags.
-		char openString[8] = {0};
-		int openStringIdx = 0;
-		int openPermissions = 0;
-		int lowLevelFlags = 0;
-		if(ContainsAllFlags(flags, FileFlags::READ))
-		{
-			lowLevelFlags |= lowLevelReadFlags;
-			openString[openStringIdx++] = 'r';
-			openString[openStringIdx++] = 'b';
-		}
-		if(ContainsAllFlags(flags, FileFlags::WRITE))
-		{
-			lowLevelFlags |= lowLevelWriteFlags;
-			openString[openStringIdx++] = 'w';
-			openString[openStringIdx++] = 'b';
-		}
-		if(ContainsAllFlags(flags, FileFlags::APPEND))
-		{
-			lowLevelFlags |= lowLevelAppendFlags;
-			openString[openStringIdx++] = 'a';
-		}
-		if(ContainsAllFlags(flags, FileFlags::CREATE))
-		{
-			lowLevelFlags |= lowLevelCreateFlags;
-			openString[openStringIdx++] = '+';
-			openPermissions = lowLevelPermissionFlags;
-		}
-
-		// Load as descriptor.
-		int desc = lowLevelOpen(path, lowLevelFlags, openPermissions);
-		if(-1 == desc)
+		impl_ = new FileImplNative(path, flags);
+		if(!impl_->IsValid())
 		{
 			delete impl_;
 			impl_ = nullptr;
-			return;
 		}
-		impl_->fileDescriptor_ = desc;
-
-		// Load as file handle.
-		impl_->fileHandle_ = ::fdopen(desc, openString);
-		if(nullptr == impl_->fileHandle_)
-		{
-			lowLevelClose(impl_->fileDescriptor_);
-			delete impl_;
-			impl_ = nullptr;
-		}
-
-		impl_->flags_ = flags;
 	}
 
 	File::~File()
 	{
-		if(impl_)
-		{
-			::fclose(impl_->fileHandle_);
-			delete impl_;
-		}
+		delete impl_;
 	}
 
 	File::File(File&& other)
@@ -523,26 +598,14 @@ namespace Core
 	i64 File::Read(void* buffer, i64 bytes)
 	{
 		DBG_ASSERT(ContainsAllFlags(GetFlags(), FileFlags::READ));
-		i64 bytesRead = 0;
-		if(ContainsAllFlags(GetFlags(), FileFlags::READ))
-		{
-			DBG_ASSERT(bytes <= SIZE_MAX);
-			bytesRead = fread(buffer, 1, bytes, impl_->fileHandle_);
-		}
-		return bytesRead;
+		return impl_->Read(buffer, bytes);
 	}
 
 	i64 File::Write(const void* buffer, i64 bytes)
 	{
 		DBG_ASSERT(ContainsAllFlags(GetFlags(), FileFlags::WRITE));
 		DBG_ASSERT(bytes > 0);
-		i64 bytesWritten = 0;
-		if(ContainsAllFlags(GetFlags(), FileFlags::WRITE))
-		{
-			DBG_ASSERT(bytes <= SIZE_MAX);
-			bytesWritten = fwrite(buffer, 1, bytes, impl_->fileHandle_);
-		}
-		return bytesWritten;
+		return impl_->Write(buffer, bytes);
 	}
 
 	bool File::Seek(i64 offset)
@@ -550,29 +613,23 @@ namespace Core
 		DBG_ASSERT(ContainsAnyFlags(GetFlags(), FileFlags::READ | FileFlags::WRITE));
 		DBG_ASSERT(offset >= 0);
 		DBG_ASSERT(offset <= SIZE_MAX);
-		return 0 == fseek(impl_->fileHandle_, (long)offset, SEEK_SET);
+		return impl_->Seek(offset);
 	}
 
 	i64 File::Tell() const
 	{
 		DBG_ASSERT(ContainsAnyFlags(GetFlags(), FileFlags::READ | FileFlags::WRITE));
-		return ftell(impl_->fileHandle_);
+		return impl_->Tell();
 	}
 
 	i64 File::Size() const
 	{
 		DBG_ASSERT(impl_);
-		i64 size = 0;
-		struct stat attrib;
-		if(0 == fstat(impl_->fileDescriptor_, &attrib))
-		{
-			size = attrib.st_size;
-		}
-		return size;
+		return impl_->Size();
 	}
 
 	FileFlags File::GetFlags() const
 	{ //
-		return impl_ ? impl_->flags_ : FileFlags::NONE;
+		return impl_ ? impl_->GetFlags() : FileFlags::NONE;
 	}
 } // namespace Core

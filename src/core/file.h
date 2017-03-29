@@ -258,6 +258,6 @@ namespace Core
 	private:
 		File(const File&) = delete;
 
-		struct FileImpl* impl_ = nullptr;
+		class FileImpl* impl_ = nullptr;
 	};
 } // namespace Core
