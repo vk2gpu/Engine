@@ -1,6 +1,8 @@
 SET(SOURCES_PUBLIC 
 	"dll.h"
 	"manager.h"
+	"converter.h"
+	"loader.h"
 )
 
 SET(SOURCES_PRIVATE 

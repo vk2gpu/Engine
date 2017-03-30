@@ -137,6 +137,5 @@ TEST_CASE("resource-tests-converter")
 	REQUIRE(converter->Convert(context, "converter.test", "converter_output/"));
 	REQUIRE(converter->Convert(context, "converter.test", "converter_output\\"));
 
-
 	converterPlugin.DestroyConverter(converter);
 }
