@@ -80,9 +80,14 @@ namespace Core
 	/**
 	 * Utility.
 	 */
+
+	/// Allow CPU to give resources to waiting threads.
 	CORE_DLL_INLINE void YieldCPU();
+	/// Sleep thread for a number of @a seconds.
 	CORE_DLL_INLINE void Sleep(double seconds);
+	/// Tell CPU not to reorder instructions prior to the barrier to after.
 	CORE_DLL_INLINE void Barrier();
+	/// Allow OS to switch threads.
 	CORE_DLL_INLINE void SwitchThread();
 
 	/**
