@@ -124,12 +124,12 @@ namespace Resource
 			// TODO: Mark jobs as cancelled.
 
 			while(readJobs_.Enqueue(FileIOJob()) == false)
-				;
+				Core::SwitchThread();
 			readJobEvent_.Signal();
 			readThread_.Join();
 
 			while(writeJobs_.Enqueue(FileIOJob()) == false)
-				;
+				Core::SwitchThread();
 			writeJobEvent_.Signal();
 			writeThread_.Join();
 		}
