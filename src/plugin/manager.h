@@ -38,15 +38,15 @@ namespace Plugin
 		 * @param maxPlugins Maximum number of plugins to enumerate.
 		 * @param Number of plugins enumerated.
 		 */
-		i32 GetPlugins(Core::UUID uuid, Plugin** outPlugins, i32 maxPlugins);
+		i32 GetPlugins(Core::UUID uuid, Plugin* outPlugins, i32 maxPlugins);
 
 		/**
 		 * Templated version of GetPlugins. See above.
 		 */
 		template<typename TYPE>
-		i32 GetPlugins(TYPE** outPlugins, i32 maxPlugins)
+		i32 GetPlugins(TYPE* outPlugins, i32 maxPlugins)
 		{
-			return GetPlugins(TYPE::GetUUID(), reinterpret_cast<Plugin**>(outPlugins), maxPlugins);
+			return GetPlugins(TYPE::GetUUID(), reinterpret_cast<Plugin*>(outPlugins), maxPlugins);
 		}
 
 	private:

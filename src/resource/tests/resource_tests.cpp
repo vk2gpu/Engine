@@ -108,16 +108,31 @@ TEST_CASE("resource-tests-converter")
 	i32 found = pluginManager.Scan(".");
 	REQUIRE(found > 0);
 
-	Resource::ConverterPlugin converterPlugin;
-	Resource::ConverterPlugin* converterPluginArray = &converterPlugin;
-
-	found = pluginManager.GetPlugins(&converterPluginArray, 1);
+	// Get number of converter plugins.
+	found = pluginManager.GetPlugins<Resource::ConverterPlugin>(nullptr, 0);
 	REQUIRE(found > 0);
 
-	Resource::IConverter* converter = converterPlugin.CreateConverter();
+	// Allocate + get all converter plugins.
+	Core::Vector<Resource::ConverterPlugin> converterPlugins;
+	converterPlugins.resize(found);
+	found = pluginManager.GetPlugins<Resource::ConverterPlugin>(converterPlugins.data(), converterPlugins.size());
+	REQUIRE(found > 0);
 
-	// Check file type.
-	REQUIRE(converter->SupportsFileType("test"));
+	// Find one that supports our file type.
+	Resource::IConverter* converter = nullptr;
+	Resource::ConverterPlugin converterPlugin;
+	for(i32 i = 0; i < converterPlugins.size(); ++i)
+	{
+		converterPlugin = converterPlugins[i];
+		converter = converterPlugin.CreateConverter();
+		if(converter->SupportsFileType("test"))
+			break;
+		converterPlugin.DestroyConverter(converter);
+		converter = nullptr;
+	}
+
+	// Check we found one.
+	REQUIRE(converter);
 
 	// Check failure.
 	ConverterContext context;

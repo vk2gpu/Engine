@@ -68,10 +68,12 @@ EXPORT bool GetPlugin(struct Plugin::Plugin* outPlugin, Core::UUID uuid)
 	// Fill in plugin specific.
 	if(uuid == Resource::ConverterPlugin::GetUUID())
 	{
-		auto* plugin = static_cast<Resource::ConverterPlugin*>(outPlugin);
-		plugin->CreateConverter = []() -> Resource::IConverter* { return new ConverterBasic(); };
-		plugin->DestroyConverter = [](Resource::IConverter* converter) { delete converter; };
-
+		if(outPlugin)
+		{
+			auto* plugin = static_cast<Resource::ConverterPlugin*>(outPlugin);
+			plugin->CreateConverter = []() -> Resource::IConverter* { return new ConverterBasic(); };
+			plugin->DestroyConverter = [](Resource::IConverter* converter) { delete converter; };
+		}
 		retVal = true;
 	}
 

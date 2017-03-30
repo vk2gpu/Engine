@@ -47,15 +47,17 @@ extern "C"
 		// Fill in plugin specific.
 		if(uuid == PluginTestAdvanced::GetUUID())
 		{
-			auto* plugin = static_cast<PluginTestAdvanced*>(outPlugin);
-
-			plugin->vtbl_ = &vtbl_;
-
-			if(!plugin->impl_)
+			if(outPlugin)
 			{
-				plugin->impl_ = new PluginTestAdvancedImpl;
-			}
-			
+				auto* plugin = static_cast<PluginTestAdvanced*>(outPlugin);
+
+				plugin->vtbl_ = &vtbl_;
+
+				if(!plugin->impl_)
+				{
+					plugin->impl_ = new PluginTestAdvancedImpl;
+				}
+			}			
 			retVal = true;
 		}
 
