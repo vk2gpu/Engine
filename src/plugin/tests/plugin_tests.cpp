@@ -36,9 +36,8 @@ TEST_CASE("plugin-tests-basic-plugin")
 	REQUIRE(found > 0);
 
 	PluginTestBasic plugin;
-	PluginTestBasic* pluginArray = &plugin;
 
-	found = manager.GetPlugins(&pluginArray, 1);
+	found = manager.GetPlugins(&plugin, 1);
 	REQUIRE(found > 0);
 	REQUIRE(plugin.successfullyLoaded_ == true);
 	REQUIRE(plugin.testMagic_ == PluginTestBasic::TEST_MAGIC);
@@ -54,9 +53,8 @@ TEST_CASE("plugin-tests-advanced-plugin")
 	REQUIRE(found > 0);
 
 	PluginTestAdvanced plugin;
-	PluginTestAdvanced* pluginArray = &plugin;
 
-	found = manager.GetPlugins(&pluginArray, 1);
+	found = manager.GetPlugins(&plugin, 1);
 	REQUIRE(found > 0);
 	
 	REQUIRE(plugin.GetNumber() == 0);
@@ -74,9 +72,8 @@ TEST_CASE("plugin-tests-basic-reload")
 	REQUIRE(found > 0);
 
 	PluginTestBasic plugin;
-	PluginTestBasic* pluginArray = &plugin;
 
-	found = manager.GetPlugins(&pluginArray, 1);
+	found = manager.GetPlugins(&plugin, 1);
 	REQUIRE(found > 0);
 	REQUIRE(plugin.successfullyLoaded_ == true);
 	REQUIRE(plugin.testMagic_ == PluginTestBasic::TEST_MAGIC);

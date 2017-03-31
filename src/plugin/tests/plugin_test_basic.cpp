@@ -29,19 +29,22 @@ extern "C"
 		// Fill in plugin specific.
 		if(uuid == PluginTestBasic::GetUUID())
 		{
-			auto* plugin = static_cast<PluginTestBasic*>(outPlugin);
-			plugin->successfullyLoaded_ = true;
-			plugin->testMagic_ = PluginTestBasic::TEST_MAGIC;
-
-			plugin->SetNumber = [](int num)
+			if(outPlugin)
 			{
-				number_ = num;
-			};
+				auto* plugin = static_cast<PluginTestBasic*>(outPlugin);
+				plugin->successfullyLoaded_ = true;
+				plugin->testMagic_ = PluginTestBasic::TEST_MAGIC;
 
-			plugin->GetNumber = []()->int
-			{
-				return number_;
-			};
+				plugin->SetNumber = [](int num)
+				{
+					number_ = num;
+				};
+
+				plugin->GetNumber = []()->int
+				{
+					return number_;
+				};
+			}
 
 			retVal = true;
 		}
