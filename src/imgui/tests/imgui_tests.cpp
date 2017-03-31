@@ -4,6 +4,7 @@
 #include "core/concurrency.h"
 #include "gpu/manager.h"
 #include "imgui/imgui.h"
+#include "plugin/manager.h"
 
 #include "catch.hpp"
 
@@ -15,8 +16,9 @@ namespace
 TEST_CASE("imgui-tests-run")
 {
 	auto testName = Catch::getResultCapture().getCurrentTestName();
+	Plugin::Manager pluginManager;
 	Client::Window window("imgui-tests", 100, 100, 1024, 768, true);
-	GPU::Manager manager(window.GetPlatformData().handle_, debuggerIntegrationFlags);
+	GPU::Manager manager(pluginManager, window.GetPlatformData().handle_, debuggerIntegrationFlags);
 
 	i32 numAdapters = manager.EnumerateAdapters(nullptr, 0);
 	REQUIRE(numAdapters > 0);

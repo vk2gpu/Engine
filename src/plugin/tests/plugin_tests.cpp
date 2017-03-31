@@ -20,8 +20,6 @@ TEST_CASE("plugin-tests-scan")
 {
 	Plugin::Manager manager;
 
-	char path[Core::MAX_PATH_LENGTH];
-	Core::FileGetCurrDir(path, Core::MAX_PATH_LENGTH);
 	i32 found = manager.Scan(".");
 	REQUIRE(found > 0);
 }
@@ -30,8 +28,6 @@ TEST_CASE("plugin-tests-basic-plugin")
 {
 	Plugin::Manager manager;
 
-	char path[Core::MAX_PATH_LENGTH];
-	Core::FileGetCurrDir(path, Core::MAX_PATH_LENGTH);
 	i32 found = manager.Scan(".");
 	REQUIRE(found > 0);
 
@@ -47,8 +43,6 @@ TEST_CASE("plugin-tests-advanced-plugin")
 {
 	Plugin::Manager manager;
 
-	char path[Core::MAX_PATH_LENGTH];
-	Core::FileGetCurrDir(path, Core::MAX_PATH_LENGTH);
 	i32 found = manager.Scan(".");
 	REQUIRE(found > 0);
 
@@ -66,8 +60,6 @@ TEST_CASE("plugin-tests-basic-reload")
 {
 	Plugin::Manager manager;
 
-	char path[Core::MAX_PATH_LENGTH];
-	Core::FileGetCurrDir(path, Core::MAX_PATH_LENGTH);
 	i32 found = manager.Scan(".");
 	REQUIRE(found > 0);
 

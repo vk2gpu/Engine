@@ -5,6 +5,7 @@
 #include "gpu/resources.h"
 #include "core/types.h"
 #include "core/handle.h"
+#include "plugin/plugin.h"
 
 namespace GPU
 {
@@ -62,4 +63,20 @@ namespace GPU
 		 */
 		virtual void NextFrame() = 0;
 	};
+
+	/**
+	 * Define backend plugin.
+	 */
+	struct BackendPlugin: Plugin::Plugin
+	{
+		DECLARE_PLUGININFO("GPU::BackendPlugin", 0);
+
+		typedef IBackend* (*CreateBackendFn)(void*);
+		CreateBackendFn CreateBackend = nullptr;
+
+		typedef void (*DestroyBackendFn)(IBackend*&);
+		DestroyBackendFn DestroyBackend = nullptr;
+	};
+
+
 } // namespace GPU

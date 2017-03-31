@@ -14,6 +14,8 @@
 
 #include "gpu/private/renderdoc_app.h"
 
+#include "plugin/manager.h"
+
 #include <utility>
 
 namespace RenderDoc
@@ -83,16 +85,32 @@ namespace GPU
 {
 	struct ManagerImpl
 	{
+		Plugin::Manager& pluginManager_;
 		void* deviceWindow_ = nullptr;
 		DebuggerIntegrationFlags debuggerIntegration_ = DebuggerIntegrationFlags::NONE;
 
+		BackendPlugin plugin_;
 		IBackend* backend_ = nullptr;
 
 		Core::Mutex mutex_;
 		Core::HandleAllocator handles_ = Core::HandleAllocator(ResourceType::MAX);
 		Core::Vector<Handle> deferredDeletions_;
 
-		~ManagerImpl() { delete backend_; }
+		ManagerImpl(Plugin::Manager& pluginManager, void* deviceWindow, DebuggerIntegrationFlags debuggerIntegration)
+			: pluginManager_(pluginManager)
+			, deviceWindow_(deviceWindow)
+			, debuggerIntegration_(debuggerIntegration)
+		{
+			auto found = pluginManager_.GetPlugins(&plugin_, 1);
+			DBG_ASSERT(found > 0);
+
+			backend_ = plugin_.CreateBackend(deviceWindow);
+		}
+
+		~ManagerImpl()
+		{
+			plugin_.DestroyBackend(backend_);
+		}
 
 		Handle AllocHandle(ResourceType type)
 		{
@@ -125,49 +143,11 @@ namespace GPU
 				return false;
 			}
 		}
-
-		// TODO: Proper API look up.
-		typedef GPU::IBackend* (*CreateBackendFn)(void*);
-		typedef void (*DestroyBackendFn)(GPU::IBackend*);
-		void CreateBackend()
-		{
-			// Before creating the backend, setup debugger integration.
-			if(Core::ContainsAllFlags(debuggerIntegration_, DebuggerIntegrationFlags::RENDERDOC))
-			{
-				RenderDoc::Load();
-			}
-
-			Core::LibHandle handle = Core::LibraryOpen("gpu_d3d12.dll");
-			if(handle)
-			{
-				auto createBackendFn = (CreateBackendFn)Core::LibrarySymbol(handle, "CreateBackend");
-				if(createBackendFn)
-				{
-					backend_ = createBackendFn(deviceWindow_);
-				}
-			}
-		}
-
-		void DestroyBackend()
-		{
-			Core::LibHandle handle = Core::LibraryOpen("gpu_d3d12.dll");
-			if(handle)
-			{
-				auto destroyBackendFn = (DestroyBackendFn)Core::LibrarySymbol(handle, "DestroyBackend");
-				if(destroyBackendFn)
-				{
-					destroyBackendFn(backend_);
-				}
-			}
-		}
 	};
 
-	Manager::Manager(void* deviceWindow, DebuggerIntegrationFlags debuggerIntegration)
+	Manager::Manager(Plugin::Manager& pluginManager, void* deviceWindow, DebuggerIntegrationFlags debuggerIntegration)
 	{
-		impl_ = new ManagerImpl();
-		impl_->deviceWindow_ = deviceWindow;
-		impl_->debuggerIntegration_ = debuggerIntegration;
-		impl_->CreateBackend();
+		impl_ = new ManagerImpl(pluginManager, deviceWindow, debuggerIntegration);
 	}
 
 	Manager::~Manager()

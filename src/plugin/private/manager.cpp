@@ -149,6 +149,9 @@ namespace Plugin
 	Manager::Manager()
 	{ //
 		impl_ = new ManagerImpl();
+
+		// Initial scan.
+		Scan(".");
 	}
 
 	Manager::~Manager()

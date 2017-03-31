@@ -5,6 +5,11 @@
 #include "gpu/command_list.h"
 #include "gpu/resources.h"
 
+namespace Plugin
+{
+	class Manager;
+} // namespace Plugin
+
 namespace GPU
 {
 	class GPU_DLL Manager final
@@ -12,10 +17,12 @@ namespace GPU
 	public:
 		/**
 		 * Create GPU manager
+		 * @param pluginManager Plugin manager to use
 		 * @param deviceWindow Window we use for device creation (if required).
 		 * @param debuggerIntegration Which debugger(s) to enable integration of.
 		 */
-		Manager(void* deviceWindow, DebuggerIntegrationFlags debuggerIntegration = DebuggerIntegrationFlags::NONE);
+		Manager(Plugin::Manager& pluginManager, void* deviceWindow,
+		    DebuggerIntegrationFlags debuggerIntegration = DebuggerIntegrationFlags::NONE);
 		~Manager();
 
 		/**

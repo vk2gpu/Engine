@@ -7,14 +7,41 @@
 #include <utility>
 
 extern "C" {
-EXPORT GPU::IBackend* CreateBackend(void* deviceWindow)
+EXPORT bool GetPlugin(struct Plugin::Plugin* outPlugin, Core::UUID uuid)
 {
-	return new GPU::D3D12Backend(deviceWindow);
-}
+	bool retVal = false;
 
-EXPORT void DestroyBackend(GPU::IBackend* backend)
-{
-	delete backend;
+	// Fill in base info.
+	if(uuid == Plugin::Plugin::GetUUID() || uuid == GPU::BackendPlugin::GetUUID())
+	{
+		if(outPlugin)
+		{
+			outPlugin->systemVersion_ = Plugin::PLUGIN_SYSTEM_VERSION;
+			outPlugin->pluginVersion_ = GPU::BackendPlugin::PLUGIN_VERSION;
+			outPlugin->uuid_ = GPU::BackendPlugin::GetUUID();
+			outPlugin->name_ = "D3D12 Backend";
+			outPlugin->desc_ = "DirextX 12 backend.";
+		}
+		retVal = true;
+	}
+
+	// Fill in plugin specific.
+	if(uuid == GPU::BackendPlugin::GetUUID())
+	{
+		if(outPlugin)
+		{
+			auto* plugin = static_cast<GPU::BackendPlugin*>(outPlugin);
+			plugin->CreateBackend = [](
+			    void* deviceWindow) -> GPU::IBackend* { return new GPU::D3D12Backend(deviceWindow); };
+			plugin->DestroyBackend = [](GPU::IBackend*& backend) {
+				delete backend;
+				backend = nullptr;
+			};
+		}
+		retVal = true;
+	}
+
+	return retVal;
 }
 }
 
@@ -877,13 +904,14 @@ namespace GPU
 						DBG_ASSERT(rtvIdx == 0 || !fbs.swapChain_);
 
 						// No holes allowed.
-						if(bufferIdx == 0 )
+						if(bufferIdx == 0)
 							if(rtvIdx != fbs.numRTs_++)
 								return ErrorCode::FAIL;
 
 						D3D12Texture* texture = GetD3D12Texture(resource, bufferIdx);
-						DBG_ASSERT(Core::ContainsAllFlags(texture->supportedStates_, D3D12_RESOURCE_STATE_RENDER_TARGET));
-						rtvResource = texture;					
+						DBG_ASSERT(
+						    Core::ContainsAllFlags(texture->supportedStates_, D3D12_RESOURCE_STATE_RENDER_TARGET));
+						rtvResource = texture;
 
 						rtvDesc.Format = GetFormat(rtv.format_);
 						rtvDesc.ViewDimension = GetRTVDimension(rtv.dimension_);
@@ -932,7 +960,7 @@ namespace GPU
 					DBG_ASSERT(resource.GetType() == ResourceType::TEXTURE);
 					D3D12Texture* texture = GetD3D12Texture(resource);
 					DBG_ASSERT(Core::ContainsAnyFlags(
-						texture->supportedStates_, D3D12_RESOURCE_STATE_DEPTH_WRITE | D3D12_RESOURCE_STATE_DEPTH_READ));
+					    texture->supportedStates_, D3D12_RESOURCE_STATE_DEPTH_WRITE | D3D12_RESOURCE_STATE_DEPTH_READ));
 					dsvResource = texture;
 
 					dsvDesc.Format = GetFormat(dsv.format_);
@@ -1073,10 +1101,7 @@ namespace GPU
 
 	ErrorCode D3D12Backend::ResizeSwapChain(Handle handle, i32 width, i32 height) { return ErrorCode::UNIMPLEMENTED; }
 
-	void D3D12Backend::NextFrame()
-	{
-		device_->NextFrame();
-	}
+	void D3D12Backend::NextFrame() { device_->NextFrame(); }
 
 
 	D3D12Resource* D3D12Backend::GetD3D12Resource(Handle handle)

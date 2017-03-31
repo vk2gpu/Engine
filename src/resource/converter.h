@@ -74,10 +74,10 @@ namespace Resource
 		DECLARE_PLUGININFO("ConverterPlugin", 0);
 
 		typedef IConverter* (*CreateConverterFn)();
-		CreateConverterFn CreateConverter;
+		CreateConverterFn CreateConverter = nullptr;
 
 		typedef void (*DestroyConverterFn)(IConverter*&);
-		DestroyConverterFn DestroyConverter;
+		DestroyConverterFn DestroyConverter = nullptr;
 	};
 
 } // namespace Resource
