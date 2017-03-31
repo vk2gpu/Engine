@@ -66,13 +66,16 @@ TEST_CASE("resource-tests-file-io")
 		do
 		{
 			Core::Log("%.2fms: Writing file %u%%...\n", timer.GetTime() * 1000.0,
-			    (u32)((f32)result.bytesProcessed_ / (f32)TEST_BUFFER_SIZE * 100.0f));
-		} while(result.workRemaining_ > 0);
+			    (u32)((f32)(TEST_BUFFER_SIZE - result.workRemaining_) / (f32)TEST_BUFFER_SIZE * 100.0f));
+		} while(!result.IsComplete());
 		Core::Log("%.2fms: Writing file complete!\n", timer.GetTime() * 1000.0);
+
+		REQUIRE(result.result_ == Resource::Result::SUCCESS);
 	}
 
 	REQUIRE(Core::FileExists(testFileName));
 
+	// Check success.
 	{
 		auto file = Core::File(testFileName, Core::FileFlags::READ);
 		REQUIRE(file);
@@ -85,16 +88,45 @@ TEST_CASE("resource-tests-file-io")
 
 		Core::Timer timer;
 		timer.Mark();
-		manager.ReadFileData(file, 0, file.Size(), inBuffer.data(), &result);
+		manager.ReadFileData(file, 0, inBuffer.size(), inBuffer.data(), &result);
 		do
 		{
 			Core::Log("%.2fms: Reading file %u%%...\n", timer.GetTime() * 1000.0,
-			    (u32)((f32)result.bytesProcessed_ / (f32)TEST_BUFFER_SIZE * 100.0f));
-		} while(result.workRemaining_ > 0);
+			    (u32)((f32)(TEST_BUFFER_SIZE - result.workRemaining_) / (f32)TEST_BUFFER_SIZE * 100.0f));
+		} while(!result.IsComplete());
 		Core::Log("%.2fms: Reading file complete!\n", timer.GetTime() * 1000.0);
 
+		REQUIRE(result.result_ == Resource::Result::SUCCESS);
 		REQUIRE(memcmp(outBuffer.data(), inBuffer.data(), TEST_BUFFER_SIZE) == 0);
 	}
+
+	// Check failure.
+	// NOTE: It will assert internally anyway.
+#if 0
+	{
+		auto file = Core::File(testFileName, Core::FileFlags::READ);
+		REQUIRE(file);
+
+		REQUIRE(file.Size() == TEST_BUFFER_SIZE);
+
+		Core::Vector<u8> inBuffer;
+		inBuffer.resize(TEST_BUFFER_SIZE * 2);
+		Resource::AsyncResult result;
+
+		Core::Timer timer;
+		timer.Mark();
+		manager.ReadFileData(file, 0, inBuffer.size(), inBuffer.data(), &result);
+		do
+		{
+			Core::Log("%.2fms: Reading file %u%%...\n", timer.GetTime() * 1000.0,
+			    (u32)((f32)(TEST_BUFFER_SIZE - result.workRemaining_) / (f32)TEST_BUFFER_SIZE * 100.0f));
+		} while(!result.IsComplete());
+		Core::Log("%.2fms: Reading file complete!\n", timer.GetTime() * 1000.0);
+
+		REQUIRE(result.result_ == Resource::Result::FAILURE);
+		REQUIRE(memcmp(outBuffer.data(), inBuffer.data(), TEST_BUFFER_SIZE) == 0);
+	}
+#endif
 
 	Core::FileRemove(testFileName);
 }

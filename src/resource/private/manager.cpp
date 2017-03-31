@@ -30,10 +30,17 @@ namespace Resource
 			void* addr_ = nullptr;
 			AsyncResult* result_ = nullptr;
 
-			bool DoRead()
+			Result DoRead()
 			{
 				DBG_ASSERT(file_);
 				DBG_ASSERT((offset_ + size_) <= file_->Size());
+
+				if(result_)
+				{
+					auto oldResult =
+					    (Result)Core::AtomicExchg((volatile i32*)&result_->result_, (i32)Result::RUNNING);
+					DBG_ASSERT(oldResult == Result::PENDING);
+				}
 
 				file_->Seek(offset_);
 
@@ -48,7 +55,7 @@ namespace Resource
 					dest += readSize;
 					if(result_)
 					{
-						Core::AtomicAdd(&result_->bytesProcessed_, bytesRead);
+						Core::AtomicAddRel(&result_->workRemaining_, -bytesRead);
 					}
 
 					// Check that we successfully read.
@@ -56,17 +63,27 @@ namespace Resource
 						break;
 				}
 
+				Result result = Result::FAILURE;
+				if(sizeRemaining == 0)
+					result = Result::SUCCESS;
 				if(result_)
 				{
-					Core::AtomicDec(&result_->workRemaining_);
+					Core::AtomicExchg((volatile i32*)&result_->result_, (i32)result);
 				}
-				return sizeRemaining == 0;
+				return result;
 			}
 
-			bool DoWrite()
+			Result DoWrite()
 			{
 				DBG_ASSERT(file_);
 				DBG_ASSERT(offset_ == 0);
+
+				if(result_)
+				{
+					auto oldResult =
+					    (Result)Core::AtomicExchg((volatile i32*)&result_->result_, (i32)Result::RUNNING);
+					DBG_ASSERT(oldResult == Result::PENDING);
+				}
 
 				// Write file in chunks.
 				char* src = (char*)addr_;
@@ -79,7 +96,7 @@ namespace Resource
 					src += writeSize;
 					if(result_)
 					{
-						Core::AtomicAdd(&result_->bytesProcessed_, bytesWrote);
+						Core::AtomicAddRel(&result_->workRemaining_, -bytesWrote);
 					}
 
 					// Check that we successfully read.
@@ -87,11 +104,14 @@ namespace Resource
 						break;
 				}
 
+				Result result = Result::FAILURE;
+				if(sizeRemaining == 0)
+					result = Result::SUCCESS;
 				if(result_)
 				{
-					Core::AtomicDec(&result_->workRemaining_);
+					Core::AtomicExchg((volatile i32*)&result_->result_, (i32)result);
 				}
-				return sizeRemaining == 0;
+				return result;
 			}
 		};
 
@@ -175,12 +195,19 @@ namespace Resource
 
 	Manager::~Manager() { delete impl_; }
 
-	bool Manager::ReadFileData(Core::File& file, i64 offset, i64 size, void* dest, AsyncResult* result)
+	Result Manager::ReadFileData(Core::File& file, i64 offset, i64 size, void* dest, AsyncResult* result)
 	{
 		DBG_ASSERT(Core::ContainsAllFlags(file.GetFlags(), Core::FileFlags::READ));
 		DBG_ASSERT(offset >= 0);
 		DBG_ASSERT(size > 0);
 		DBG_ASSERT(dest != nullptr);
+
+		Result outResult = Result::PENDING;
+		if(result)
+		{
+			auto oldResult = (Result)Core::AtomicExchg((volatile i32*)&result->result_, (i32)outResult);
+			DBG_ASSERT(oldResult == Result::INITIAL);
+		}
 
 		ManagerImpl::FileIOJob job;
 		job.file_ = &file;
@@ -191,22 +218,30 @@ namespace Resource
 
 		if(result)
 		{
-			Core::AtomicInc(&result->workRemaining_);
+			Core::AtomicAddAcq(&result->workRemaining_, size);
 			impl_->readJobs_.Enqueue(job);
 			impl_->readJobEvent_.Signal();
 		}
 		else
 		{
-			job.DoRead();
+			outResult = job.DoRead();
 		}
-		return true;
+		return outResult;
 	}
 
-	bool Manager::WriteFileData(Core::File& file, i64 size, void* src, AsyncResult* result)
+	Result Manager::WriteFileData(Core::File& file, i64 size, void* src, AsyncResult* result)
 	{
 		DBG_ASSERT(Core::ContainsAllFlags(file.GetFlags(), Core::FileFlags::WRITE));
 		DBG_ASSERT(size > 0);
 		DBG_ASSERT(src != nullptr);
+		DBG_ASSERT(!result || (result->result_ == Result::INITIAL && result->workRemaining_ == 0));
+
+		Result outResult = Result::PENDING;
+		if(result)
+		{
+			auto oldResult = (Result)Core::AtomicExchg((volatile i32*)&result->result_, (i32)outResult);
+			DBG_ASSERT(oldResult == Result::INITIAL);
+		}
 
 		ManagerImpl::FileIOJob job;
 		job.file_ = &file;
@@ -217,15 +252,15 @@ namespace Resource
 
 		if(result)
 		{
-			Core::AtomicInc(&result->workRemaining_);
+			Core::AtomicAddAcq(&result->workRemaining_, size);
 			impl_->writeJobs_.Enqueue(job);
 			impl_->writeJobEvent_.Signal();
 		}
 		else
 		{
-			job.DoWrite();
+			outResult = job.DoWrite();
 		}
-		return true;
+		return outResult;
 	}
 
 

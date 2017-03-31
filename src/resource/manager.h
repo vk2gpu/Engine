@@ -18,6 +18,14 @@ namespace Resource
 		~Manager();
 
 		/**
+		 * Get resource by name.
+		 * If a resource is loaded, it
+		 * @param name Name of resources.
+		 */
+		void* GetResource(const char* name);
+
+
+		/**
 		 * Read file data either synchronously or asynchronously.
 		 * @param file File to read from.
 		 * @param offset Offset to read from.
@@ -29,7 +37,7 @@ namespace Resource
 		 * @pre size > 0.
 		 * @pre dest != nullptr.
 		 */
-		bool ReadFileData(Core::File& file, i64 offset, i64 size, void* dest, AsyncResult* result = nullptr);
+		Result ReadFileData(Core::File& file, i64 offset, i64 size, void* dest, AsyncResult* result = nullptr);
 
 		/**
 		 * Write file data either synchronously or asynchronously.
@@ -41,7 +49,7 @@ namespace Resource
 		 * @pre size > 0.
 		 * @pre src != nullptr.
 		 */
-		bool WriteFileData(Core::File& file, i64 size, void* src, AsyncResult* result = nullptr);
+		Result WriteFileData(Core::File& file, i64 size, void* src, AsyncResult* result = nullptr);
 
 
 	private:

@@ -8,7 +8,7 @@ namespace Core
 	/**
 	 * Atomic operations.
 	 * Acq (acquire) variants:
-	 * - CPU is not permitted to reorder subsequent memory acceses to before the operation.
+	 * - CPU is not permitted to reorder subsequent memory accesses to before the operation.
 	 * Rel (release) variants:
 	 * - CPU is not permitted to reorder preceeding memory accesses to after the operation.
 	 */
