@@ -76,7 +76,7 @@ namespace Resource
 		typedef IConverter* (*CreateConverterFn)();
 		CreateConverterFn CreateConverter;
 
-		typedef void (*DestroyConverterFn)(IConverter*);
+		typedef void (*DestroyConverterFn)(IConverter*&);
 		DestroyConverterFn DestroyConverter;
 	};
 

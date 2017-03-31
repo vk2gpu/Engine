@@ -72,7 +72,10 @@ EXPORT bool GetPlugin(struct Plugin::Plugin* outPlugin, Core::UUID uuid)
 		{
 			auto* plugin = static_cast<Resource::ConverterPlugin*>(outPlugin);
 			plugin->CreateConverter = []() -> Resource::IConverter* { return new ConverterBasic(); };
-			plugin->DestroyConverter = [](Resource::IConverter* converter) { delete converter; };
+			plugin->DestroyConverter = [](Resource::IConverter*& converter) {
+				delete converter;
+				converter = nullptr;
+			};
 		}
 		retVal = true;
 	}
