@@ -21,9 +21,12 @@ typedef u8 BYTE;
 
 namespace
 {
-	GPU::DebuggerIntegrationFlags debuggerIntegrationFlags = GPU::DebuggerIntegrationFlags::NONE;
-
-
+	GPU::SetupParams GetDefaultSetupParams()
+	{
+		GPU::SetupParams setupParams;
+		setupParams.debuggerIntegration_ = GPU::DebuggerIntegrationFlags::NONE;
+		return setupParams;
+	}
 }
 
 TEST_CASE("gpu-tests-formats")
@@ -43,7 +46,7 @@ TEST_CASE("gpu-tests-manager")
 
 	Plugin::Manager pluginManager;
 	Client::Window window(testName.c_str(), 0, 0, 640, 480, false);
-	GPU::Manager manager(pluginManager, window.GetPlatformData().handle_, debuggerIntegrationFlags);
+	GPU::Manager manager(pluginManager, GetDefaultSetupParams());
 }
 
 TEST_CASE("gpu-tests-enumerate")
@@ -52,7 +55,7 @@ TEST_CASE("gpu-tests-enumerate")
 
 	Plugin::Manager pluginManager;
 	Client::Window window(testName.c_str(), 0, 0, 640, 480, false);
-	GPU::Manager manager(pluginManager, window.GetPlatformData().handle_, debuggerIntegrationFlags);
+	GPU::Manager manager(pluginManager, GetDefaultSetupParams());
 	i32 numAdapters = manager.EnumerateAdapters(nullptr, 0);
 	REQUIRE(numAdapters > 0);
 	Core::Vector<GPU::AdapterInfo> adapterInfos;
@@ -66,8 +69,7 @@ TEST_CASE("gpu-tests-initialize")
 
 	Plugin::Manager pluginManager;
 	Client::Window window(testName.c_str(), 0, 0, 640, 480, false);
-	GPU::Manager manager(pluginManager, window.GetPlatformData().handle_, debuggerIntegrationFlags);
-
+	GPU::Manager manager(pluginManager, GetDefaultSetupParams());
 
 	i32 numAdapters = manager.EnumerateAdapters(nullptr, 0);
 	REQUIRE(numAdapters > 0);
@@ -81,7 +83,7 @@ TEST_CASE("gpu-tests-create-swapchain")
 
 	Plugin::Manager pluginManager;
 	Client::Window window(testName.c_str(), 0, 0, 640, 480, false);
-	GPU::Manager manager(pluginManager, window.GetPlatformData().handle_, debuggerIntegrationFlags);
+	GPU::Manager manager(pluginManager, GetDefaultSetupParams());
 
 	i32 numAdapters = manager.EnumerateAdapters(nullptr, 0);
 	REQUIRE(numAdapters > 0);
@@ -110,7 +112,7 @@ TEST_CASE("gpu-tests-create-buffer")
 
 	Plugin::Manager pluginManager;
 	Client::Window window(testName.c_str(), 0, 0, 640, 480, false);
-	GPU::Manager manager(pluginManager, window.GetPlatformData().handle_, debuggerIntegrationFlags);
+	GPU::Manager manager(pluginManager, GetDefaultSetupParams());
 
 	i32 numAdapters = manager.EnumerateAdapters(nullptr, 0);
 	REQUIRE(numAdapters > 0);
@@ -158,7 +160,7 @@ TEST_CASE("gpu-tests-create-texture")
 
 	Plugin::Manager pluginManager;
 	Client::Window window(testName.c_str(), 0, 0, 640, 480, false);
-	GPU::Manager manager(pluginManager, window.GetPlatformData().handle_, debuggerIntegrationFlags);
+	GPU::Manager manager(pluginManager, GetDefaultSetupParams());
 
 	i32 numAdapters = manager.EnumerateAdapters(nullptr, 0);
 	REQUIRE(numAdapters > 0);
@@ -337,7 +339,7 @@ TEST_CASE("gpu-tests-create-commandlist")
 
 	Plugin::Manager pluginManager;
 	Client::Window window(testName.c_str(), 0, 0, 640, 480, false);
-	GPU::Manager manager(pluginManager, window.GetPlatformData().handle_, debuggerIntegrationFlags);
+	GPU::Manager manager(pluginManager, GetDefaultSetupParams());
 
 	i32 numAdapters = manager.EnumerateAdapters(nullptr, 0);
 	REQUIRE(numAdapters > 0);
@@ -358,7 +360,7 @@ TEST_CASE("gpu-tests-create-shader")
 
 	Plugin::Manager pluginManager;
 	Client::Window window(testName.c_str(), 0, 0, 640, 480, false);
-	GPU::Manager manager(pluginManager, window.GetPlatformData().handle_, debuggerIntegrationFlags);
+	GPU::Manager manager(pluginManager, GetDefaultSetupParams());
 
 	i32 numAdapters = manager.EnumerateAdapters(nullptr, 0);
 	REQUIRE(numAdapters > 0);
@@ -384,7 +386,7 @@ TEST_CASE("gpu-tests-create-compute-pipeline-state")
 
 	Plugin::Manager pluginManager;
 	Client::Window window(testName.c_str(), 0, 0, 640, 480, false);
-	GPU::Manager manager(pluginManager, window.GetPlatformData().handle_, debuggerIntegrationFlags);
+	GPU::Manager manager(pluginManager, GetDefaultSetupParams());
 
 	i32 numAdapters = manager.EnumerateAdapters(nullptr, 0);
 	REQUIRE(numAdapters > 0);
@@ -416,7 +418,7 @@ TEST_CASE("gpu-tests-create-pipeline-binding-set")
 
 	Plugin::Manager pluginManager;
 	Client::Window window(testName.c_str(), 0, 0, 640, 480, false);
-	GPU::Manager manager(pluginManager, window.GetPlatformData().handle_, debuggerIntegrationFlags);
+	GPU::Manager manager(pluginManager, GetDefaultSetupParams());
 
 	i32 numAdapters = manager.EnumerateAdapters(nullptr, 0);
 	REQUIRE(numAdapters > 0);
@@ -534,7 +536,7 @@ TEST_CASE("gpu-tests-create-graphics-pipeline-state")
 
 	Plugin::Manager pluginManager;
 	Client::Window window(testName.c_str(), 0, 0, 640, 480, false);
-	GPU::Manager manager(pluginManager, window.GetPlatformData().handle_, debuggerIntegrationFlags);
+	GPU::Manager manager(pluginManager, GetDefaultSetupParams());
 
 	i32 numAdapters = manager.EnumerateAdapters(nullptr, 0);
 	REQUIRE(numAdapters > 0);
@@ -576,7 +578,7 @@ TEST_CASE("gpu-tests-create-draw-binding-set")
 
 	Plugin::Manager pluginManager;
 	Client::Window window(testName.c_str(), 0, 0, 640, 480, false);
-	GPU::Manager manager(pluginManager, window.GetPlatformData().handle_, debuggerIntegrationFlags);
+	GPU::Manager manager(pluginManager, GetDefaultSetupParams());
 
 	i32 numAdapters = manager.EnumerateAdapters(nullptr, 0);
 	REQUIRE(numAdapters > 0);
@@ -613,7 +615,7 @@ TEST_CASE("gpu-tests-create-frame-binding-set")
 
 	Plugin::Manager pluginManager;
 	Client::Window window(testName.c_str(), 0, 0, 640, 480, false);
-	GPU::Manager manager(pluginManager, window.GetPlatformData().handle_, debuggerIntegrationFlags);
+	GPU::Manager manager(pluginManager, GetDefaultSetupParams());
 
 	i32 numAdapters = manager.EnumerateAdapters(nullptr, 0);
 	REQUIRE(numAdapters > 0);
@@ -661,7 +663,7 @@ TEST_CASE("gpu-tests-clears")
 	auto testName = Catch::getResultCapture().getCurrentTestName();
 	Plugin::Manager pluginManager;
 	Client::Window window(testName.c_str(), 0, 0, 640, 480, false);
-	GPU::Manager manager(pluginManager, window.GetPlatformData().handle_, debuggerIntegrationFlags);
+	GPU::Manager manager(pluginManager, GetDefaultSetupParams());
 
 	i32 numAdapters = manager.EnumerateAdapters(nullptr, 0);
 	REQUIRE(numAdapters > 0);
@@ -719,7 +721,7 @@ TEST_CASE("gpu-tests-compile-draw")
 	auto testName = Catch::getResultCapture().getCurrentTestName();
 	Plugin::Manager pluginManager;
 	Client::Window window(testName.c_str(), 0, 0, 640, 480, false);
-	GPU::Manager manager(pluginManager, window.GetPlatformData().handle_, debuggerIntegrationFlags);
+	GPU::Manager manager(pluginManager, GetDefaultSetupParams());
 
 	i32 numAdapters = manager.EnumerateAdapters(nullptr, 0);
 	REQUIRE(numAdapters > 0);
@@ -844,7 +846,7 @@ TEST_CASE("gpu-tests-compile-dispatch")
 	auto testName = Catch::getResultCapture().getCurrentTestName();
 	Plugin::Manager pluginManager;
 	Client::Window window(testName.c_str(), 0, 0, 640, 480, false);
-	GPU::Manager manager(pluginManager, window.GetPlatformData().handle_, debuggerIntegrationFlags);
+	GPU::Manager manager(pluginManager, GetDefaultSetupParams());
 
 	i32 numAdapters = manager.EnumerateAdapters(nullptr, 0);
 	REQUIRE(numAdapters > 0);
@@ -957,7 +959,7 @@ TEST_CASE("gpu-tests-compile-update-buffer")
 	auto testName = Catch::getResultCapture().getCurrentTestName();
 	Plugin::Manager pluginManager;
 	Client::Window window(testName.c_str(), 0, 0, 640, 480, false);
-	GPU::Manager manager(pluginManager, window.GetPlatformData().handle_, debuggerIntegrationFlags);
+	GPU::Manager manager(pluginManager, GetDefaultSetupParams());
 
 	i32 numAdapters = manager.EnumerateAdapters(nullptr, 0);
 	REQUIRE(numAdapters > 0);
@@ -989,7 +991,7 @@ TEST_CASE("gpu-tests-compile-update-texture")
 	auto testName = Catch::getResultCapture().getCurrentTestName();
 	Plugin::Manager pluginManager;
 	Client::Window window(testName.c_str(), 0, 0, 640, 480, false);
-	GPU::Manager manager(pluginManager, window.GetPlatformData().handle_, debuggerIntegrationFlags);
+	GPU::Manager manager(pluginManager, GetDefaultSetupParams());
 
 	i32 numAdapters = manager.EnumerateAdapters(nullptr, 0);
 	REQUIRE(numAdapters > 0);
@@ -1027,7 +1029,7 @@ TEST_CASE("gpu-tests-compile-copy-buffer")
 	auto testName = Catch::getResultCapture().getCurrentTestName();
 	Plugin::Manager pluginManager;
 	Client::Window window(testName.c_str(), 0, 0, 640, 480, false);
-	GPU::Manager manager(pluginManager, window.GetPlatformData().handle_, debuggerIntegrationFlags);
+	GPU::Manager manager(pluginManager, GetDefaultSetupParams());
 
 	i32 numAdapters = manager.EnumerateAdapters(nullptr, 0);
 	REQUIRE(numAdapters > 0);
@@ -1062,7 +1064,7 @@ TEST_CASE("gpu-tests-compile-copy-texture")
 	auto testName = Catch::getResultCapture().getCurrentTestName();
 	Plugin::Manager pluginManager;
 	Client::Window window(testName.c_str(), 0, 0, 640, 480, false);
-	GPU::Manager manager(pluginManager, window.GetPlatformData().handle_, debuggerIntegrationFlags);
+	GPU::Manager manager(pluginManager, GetDefaultSetupParams());
 
 	i32 numAdapters = manager.EnumerateAdapters(nullptr, 0);
 	REQUIRE(numAdapters > 0);
@@ -1107,7 +1109,7 @@ TEST_CASE("gpu-tests-compile-present")
 	auto testName = Catch::getResultCapture().getCurrentTestName();
 	Plugin::Manager pluginManager;
 	Client::Window window(testName.c_str(), 0, 0, 640, 480, true);
-	GPU::Manager manager(pluginManager, window.GetPlatformData().handle_, debuggerIntegrationFlags);
+	GPU::Manager manager(pluginManager, GetDefaultSetupParams());
 
 	i32 numAdapters = manager.EnumerateAdapters(nullptr, 0);
 	REQUIRE(numAdapters > 0);
@@ -1169,7 +1171,7 @@ TEST_CASE("gpu-tests-mt-create-buffers")
 	auto testName = Catch::getResultCapture().getCurrentTestName();
 	Plugin::Manager pluginManager;
 	Client::Window window(testName.c_str(), 0, 0, 640, 480, false);
-	GPU::Manager manager(pluginManager, window.GetPlatformData().handle_, debuggerIntegrationFlags);
+	GPU::Manager manager(pluginManager, GetDefaultSetupParams());
 
 	i32 numAdapters = manager.EnumerateAdapters(nullptr, 0);
 	REQUIRE(numAdapters > 0);

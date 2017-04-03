@@ -58,6 +58,19 @@ namespace GPU
 	DEFINE_ENUM_CLASS_FLAG_OPERATOR(DebuggerIntegrationFlags, &);
 	DEFINE_ENUM_CLASS_FLAG_OPERATOR(DebuggerIntegrationFlags, |);
 
+	/**
+	 * Setup parameters.
+	 */
+	struct SetupParams
+	{
+		/// API selection (i.e. "D3D12", "VLK", etc)
+		const char* api_ = nullptr;
+		/// Device window to use.
+		void* deviceWindow_ = nullptr;
+		/// Debuggers to natively support integration of.
+		DebuggerIntegrationFlags debuggerIntegration_ = DebuggerIntegrationFlags::NONE;
+	};
+
 /**
  * Utilities for handling error codes.
  */

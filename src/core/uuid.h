@@ -26,9 +26,9 @@ namespace Core
 
 		/**
 		 * Convert to string.
-		 * Pointer passed in MUST be at least 37 bytes long.
+		 * Pointer passed in MUST point to at least 37 bytes chars.
 		 */
-		void AsString(char* outStr);
+		void AsString(char* outStr) const;
 
 		bool operator==(const UUID& other) const
 		{

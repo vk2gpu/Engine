@@ -96,15 +96,41 @@ namespace GPU
 		Core::HandleAllocator handles_ = Core::HandleAllocator(ResourceType::MAX);
 		Core::Vector<Handle> deferredDeletions_;
 
-		ManagerImpl(Plugin::Manager& pluginManager, void* deviceWindow, DebuggerIntegrationFlags debuggerIntegration)
+		ManagerImpl(Plugin::Manager& pluginManager, const SetupParams& setupParams)
 			: pluginManager_(pluginManager)
-			, deviceWindow_(deviceWindow)
-			, debuggerIntegration_(debuggerIntegration)
+			, deviceWindow_(setupParams.deviceWindow_)
+			, debuggerIntegration_(setupParams.debuggerIntegration_)
 		{
-			auto found = pluginManager_.GetPlugins(&plugin_, 1);
+			// Create matching backend.
+			Core::Vector<BackendPlugin> plugins;
+
+			auto found = pluginManager_.GetPlugins<BackendPlugin>(nullptr, 0);
 			DBG_ASSERT(found > 0);
 
-			backend_ = plugin_.CreateBackend(deviceWindow);
+			plugins.resize(found);
+			found = pluginManager_.GetPlugins(plugins.data(), found);
+			DBG_ASSERT(found > 0);
+
+			for(const auto& plugin : plugins)
+			{
+				if(setupParams.api_ == nullptr || strcmp(setupParams.api_, plugin.api_) == 0)
+				{
+					plugin_ = plugin;
+					backend_ = plugin_.CreateBackend(setupParams);
+					break;
+				}
+			}
+
+			// Check for failure.
+			if(backend_ == nullptr)
+			{
+				DBG_LOG("No backend created. Valid APIs:\n");
+				for(const auto& plugin : plugins)
+				{
+					DBG_LOG(" - %s (%s)\n", plugin.api_, plugin.name_);
+				}
+				DBG_BREAK;
+			}
 		}
 
 		~ManagerImpl()
@@ -145,9 +171,9 @@ namespace GPU
 		}
 	};
 
-	Manager::Manager(Plugin::Manager& pluginManager, void* deviceWindow, DebuggerIntegrationFlags debuggerIntegration)
+	Manager::Manager(Plugin::Manager& pluginManager, const SetupParams& setupParams)
 	{
-		impl_ = new ManagerImpl(pluginManager, deviceWindow, debuggerIntegration);
+		impl_ = new ManagerImpl(pluginManager, setupParams);
 	}
 
 	Manager::~Manager()

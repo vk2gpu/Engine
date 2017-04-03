@@ -15,7 +15,7 @@ namespace GPU
 	class D3D12Backend : public IBackend
 	{
 	public:
-		D3D12Backend(void* deviceWindow);
+		D3D12Backend(const SetupParams& setupParams);
 		~D3D12Backend();
 
 		/**

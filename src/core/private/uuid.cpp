@@ -11,7 +11,7 @@ namespace Core
 		SetInternal(digest.data32_[0], digest.data32_[1], digest.data32_[2], digest.data32_[3], 5, variant);
 	}
 
-	void UUID::AsString(char* outStr)
+	void UUID::AsString(char* outStr) const
 	{
 		auto writeByte = [](char*& outStr, u8 byte) {
 			char base0 = '0';

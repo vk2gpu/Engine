@@ -4,6 +4,7 @@
 #include "gpu/dll.h"
 #include "gpu/command_list.h"
 #include "gpu/resources.h"
+#include "gpu/types.h"
 
 namespace Plugin
 {
@@ -18,11 +19,9 @@ namespace GPU
 		/**
 		 * Create GPU manager
 		 * @param pluginManager Plugin manager to use
-		 * @param deviceWindow Window we use for device creation (if required).
-		 * @param debuggerIntegration Which debugger(s) to enable integration of.
+		 * @param setpParams Setup parameters used to create appropriate backend.
 		 */
-		Manager(Plugin::Manager& pluginManager, void* deviceWindow,
-		    DebuggerIntegrationFlags debuggerIntegration = DebuggerIntegrationFlags::NONE);
+		Manager(Plugin::Manager& pluginManager, const SetupParams& setupParams);
 		~Manager();
 
 		/**

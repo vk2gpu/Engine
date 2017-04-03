@@ -71,7 +71,10 @@ namespace GPU
 	{
 		DECLARE_PLUGININFO("GPU::BackendPlugin", 0);
 
-		typedef IBackend* (*CreateBackendFn)(void*);
+		/// API this backend represents.
+		const char* api_ = nullptr;
+
+		typedef IBackend* (*CreateBackendFn)(const SetupParams&);
 		CreateBackendFn CreateBackend = nullptr;
 
 		typedef void (*DestroyBackendFn)(IBackend*&);

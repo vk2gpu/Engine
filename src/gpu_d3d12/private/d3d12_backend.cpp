@@ -20,7 +20,7 @@ EXPORT bool GetPlugin(struct Plugin::Plugin* outPlugin, Core::UUID uuid)
 			outPlugin->pluginVersion_ = GPU::BackendPlugin::PLUGIN_VERSION;
 			outPlugin->uuid_ = GPU::BackendPlugin::GetUUID();
 			outPlugin->name_ = "D3D12 Backend";
-			outPlugin->desc_ = "DirextX 12 backend.";
+			outPlugin->desc_ = "DirectX 12 backend.";
 		}
 		retVal = true;
 	}
@@ -31,8 +31,9 @@ EXPORT bool GetPlugin(struct Plugin::Plugin* outPlugin, Core::UUID uuid)
 		if(outPlugin)
 		{
 			auto* plugin = static_cast<GPU::BackendPlugin*>(outPlugin);
+			plugin->api_ = "D3D12";
 			plugin->CreateBackend = [](
-			    void* deviceWindow) -> GPU::IBackend* { return new GPU::D3D12Backend(deviceWindow); };
+			    const GPU::SetupParams& setupParams) -> GPU::IBackend* { return new GPU::D3D12Backend(setupParams); };
 			plugin->DestroyBackend = [](GPU::IBackend*& backend) {
 				delete backend;
 				backend = nullptr;
@@ -47,7 +48,7 @@ EXPORT bool GetPlugin(struct Plugin::Plugin* outPlugin, Core::UUID uuid)
 
 namespace GPU
 {
-	D3D12Backend::D3D12Backend(void* deviceWindow)
+	D3D12Backend::D3D12Backend(const SetupParams& setupParams)
 	{
 		auto retVal = LoadLibraries();
 		DBG_ASSERT(retVal == ErrorCode::OK);
