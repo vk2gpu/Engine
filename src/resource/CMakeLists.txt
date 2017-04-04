@@ -6,10 +6,13 @@ SET(SOURCES_PUBLIC
 )
 
 SET(SOURCES_PRIVATE 
+	"private/database.h"
+	"private/database.cpp"
 	"private/manager.cpp"
 )
 
 SET(SOURCES_TESTS
+	"tests/database_tests.cpp"
 	"tests/test_entry.cpp"
 	"tests/resource_tests.cpp"
 )

@@ -14,6 +14,7 @@ SET(SOURCES_PUBLIC
 	"pair.h"
 	"portability.h"
 	"random.h"
+	"set.h"
 	"string.h"
 	"timer.h"
 	"types.h"

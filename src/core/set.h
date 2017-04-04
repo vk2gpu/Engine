@@ -7,23 +7,22 @@
 namespace Core
 {
 	/**
-	 * Hash map.
+	 * Hash set.
 	 * TODO: Implement HashTable using robinhood hashing.
 	 */
-	template<typename KEY_TYPE, typename VALUE_TYPE>
-	class Map
+	template<typename KEY_TYPE>
+	class Set
 	{
 	public:
 		typedef i32 index_type;
-		typedef Pair<KEY_TYPE, VALUE_TYPE> value_type;
-		typedef value_type* iterator;
-		typedef const value_type* const_iterator;
+		typedef KEY_TYPE* iterator;
+		typedef const KEY_TYPE* const_iterator;
 
 		static const index_type INVALID_INDEX = (index_type)-1;
 
-		Map() { Indices_.resize(MaxIndex_, INVALID_INDEX); }
+		Set() { Indices_.resize(MaxIndex_, INVALID_INDEX); }
 
-		Map(const Map& Other)
+		Set(const Set& Other)
 		{
 			Values_ = Other.Values_;
 			Indices_ = Other.Indices_;
@@ -31,10 +30,10 @@ namespace Core
 			Mask_ = Other.Mask_;
 		}
 
-		Map(Map&& Other) { swap(Other); }
-		~Map() {}
+		Set(Set&& Other) { swap(Other); }
+		~Set() {}
 
-		Map& operator=(const Map& Other)
+		Set& operator=(const Set& Other)
 		{
 			Values_ = Other.Values_;
 			Indices_ = Other.Indices_;
@@ -43,13 +42,13 @@ namespace Core
 			return *this;
 		}
 
-		Map& operator=(Map&& Other)
+		Set& operator=(Set&& Other)
 		{
 			swap(Other);
 			return *this;
 		}
 
-		void swap(Map& Other)
+		void swap(Set& Other)
 		{
 			// Include <utility> in your cpp.
 			std::swap(Values_, Other.Values_);
@@ -58,47 +57,28 @@ namespace Core
 			std::swap(Mask_, Other.Mask_);
 		}
 
-		VALUE_TYPE& operator[](const KEY_TYPE& Key)
-		{
-			iterator FoundValue = find(Key);
-			if(FoundValue == end())
-			{
-				FoundValue = insert(Key, VALUE_TYPE());
-			}
-			DBG_ASSERT_MSG(FoundValue != end(), "Failed to insert element for key.");
-			return FoundValue->second;
-		}
-
-		const VALUE_TYPE& operator[](const KEY_TYPE& Key) const
-		{
-			iterator FoundValue = find(Key);
-			DBG_ASSERT_MSG(FoundValue != end(), "Key does not exist in map.");
-			return FoundValue->second;
-		}
-
 		void clear()
 		{
 			Values_.clear();
 			Indices_.fill(INVALID_INDEX);
 		}
 
-		iterator insert(const KEY_TYPE& Key, const VALUE_TYPE& Value)
+		iterator insert(const KEY_TYPE& Key)
 		{
-			const auto KeyValuePair = Pair<typename KEY_TYPE, typename VALUE_TYPE>(Key, Value);
 			const u32 KeyHash = Hash(0, Key);
 			const index_type IndicesIdx = KeyHash & Mask_;
 			const index_type Idx = Indices_[IndicesIdx];
 			if(Idx != INVALID_INDEX)
 			{
 				// Got hit, check if hashes are same and replace or insert.
-				if(Hash(0, Values_[Idx].first) == KeyHash)
+				if(Hash(0, Values_[Idx]) == KeyHash)
 				{
-					Values_[Idx] = KeyValuePair;
+					Values_[Idx] = Key;
 					return Values_.data() + Idx;
 				}
 				else
 				{
-					Values_.push_back(KeyValuePair);
+					Values_.push_back(Key);
 					resizeIndices(MaxIndex_ * 2);
 					return Values_.data() + Values_.size() - 1;
 				}
@@ -106,7 +86,7 @@ namespace Core
 			else
 			{
 				// No hit, insert.
-				Values_.push_back(KeyValuePair);
+				Values_.push_back(Key);
 				Indices_[IndicesIdx] = Values_.size() - 1;
 				return Values_.data() + Values_.size() - 1;
 			}
@@ -154,7 +134,7 @@ namespace Core
 			if(Idx != INVALID_INDEX)
 			{
 				iterator RetVal = Values_.data() + Idx;
-				if(Hash(0, RetVal->first) == KeyHash)
+				if(Hash(0, RetVal) == KeyHash)
 				{
 					return RetVal;
 				}
@@ -183,7 +163,7 @@ namespace Core
 				// Reinsert all keys.
 				for(index_type Idx = 0; Idx < Values_.size(); ++Idx)
 				{
-					const u32 KeyHash = Hash(0, Values_[Idx].first);
+					const u32 KeyHash = Hash(0, Values_[Idx]);
 					const index_type IndicesIdx = KeyHash & Mask_;
 					if(Indices_[IndicesIdx] == INVALID_INDEX)
 					{
@@ -204,7 +184,7 @@ namespace Core
 			}
 		}
 
-		Vector<value_type> Values_;
+		Vector<KEY_TYPE> Values_;
 		Vector<index_type> Indices_;
 
 		index_type MaxIndex_ = 0x8;
