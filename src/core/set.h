@@ -134,7 +134,7 @@ namespace Core
 			if(Idx != INVALID_INDEX)
 			{
 				iterator RetVal = Values_.data() + Idx;
-				if(Hash(0, RetVal) == KeyHash)
+				if(Hash(0, *RetVal) == KeyHash)
 				{
 					return RetVal;
 				}
