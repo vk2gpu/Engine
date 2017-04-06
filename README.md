@@ -7,7 +7,7 @@ Some of the goals I intend to keep in mind for this engine:
 - Unit tests:
   - Test as much as possible in isolation outside of a full engine instance, save myself time fixing bugs later.
 - Quick to build:
-  - My previous engine was taking on the scale of several minutes to build. I would prefer to keep the build times sub-minute to improve iteration time. I intend to remain dilligent here.
+  - My previous engine was taking on the scale of several minutes to build. I would prefer to keep the build times sub-minute to improve iteration time. I intend to remain dilligent here. In general public includes should include as few other headers as possible, and use pimpls to hide implementation details and avoid platform headers being pulled in.
 - Be more selective with 3rd party libraries:
   - As much as I love using code others have wrote to save myself time, sometimes dependencies can be pretty large. All dependencies will be committed straight to this repo and built as part of the engine solution, so they need to build quickly. Single header/one or two file libraries that do exactly what I need will always be preferenced to larger extendable frameworks which offer a much larger range of features.
 - Hot reloadable C++ support:
