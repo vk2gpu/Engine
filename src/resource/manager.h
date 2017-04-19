@@ -7,23 +7,100 @@
 namespace Core
 {
 	class File;
-}
+	class UUID;
+} // namespace Core
+
+namespace Job
+{
+	class Manager;
+} // namespace Job
+
+namespace Plugin
+{
+	class Manager;
+} // namespace Plugin
 
 namespace Resource
 {
+	class IFactory;
+
 	class RESOURCE_DLL Manager final
 	{
 	public:
-		Manager();
+		Manager(Job::Manager& jobManager, Plugin::Manager& pluginManager);
 		~Manager();
 
 		/**
-		 * Get resource by name.
+		 * Request resource by name & type.
 		 * If a resource is loaded, it
-		 * @param name Name of resources.
+		 * @param outResource Output resource.
+		 * @param name Name of resource.
+		 * @param type Type of resource.
+		 * @return true if success.
 		 */
-		void* GetResource(const char* name);
+		bool RequestResource(void*& outResource, const char* name, const Core::UUID& type);
+		template<typename TYPE>
+		bool RequestResource(TYPE*& outResource, const char* name)
+		{
+			return RequestResource(reinterpret_cast<void*&>(outResource), name, TYPE::GetTypeUUID());
+		}
 
+		/**
+		 * Release resource.
+		 * @param inResource Resource to release.
+		 * @return true if success.
+		 */
+		bool ReleaseResource(void*& inResource, const Core::UUID& type);
+		template<typename TYPE>
+		bool ReleaseResource(TYPE*& inResource)
+		{
+			return ReleaseResource(reinterpret_cast<void*&>(inResource), TYPE::GetTypeUUID());
+		}
+
+		/**
+		 * Is resource ready?
+		 * @retunr true if resource is ready.
+		 */
+		bool IsResourceReady(void* inResource, const Core::UUID& type);
+		template<typename TYPE>
+		bool IsResourceReady(TYPE* inResource)
+		{
+			return IsResourceReady(reinterpret_cast<void**>(inResource), TYPE::GetTypeUUID());
+		}
+
+		/**
+		 * Wait for resource to become ready.
+		 */
+		void WaitForResource(void* inResource, const Core::UUID& type);
+		template<typename TYPE>
+		void WaitForResource(TYPE* inResource)
+		{
+			return WaitForResource(reinterpret_cast<void**>(inResource), TYPE::GetTypeUUID());
+		}
+
+		/**
+		 * Convert resource.
+		 * @param name Name of resource.
+		 * @param convertedName Converted name of resource.
+		 * @param type Type of resource.
+		 * @return true if success.
+		 */
+		bool ConvertResource(const char* name, const char* convertedName, const Core::UUID& type);
+
+		/**
+		 * Register factory.
+		 * @param type Type to register factory for.
+		 * @param factory Factory for resource creation.
+		 * @return true for success. false if can't register (i.e. already registered).
+		 */
+		bool RegisterFactory(const Core::UUID& type, IFactory* factory);
+
+		/**
+		 * Unregister factory.
+		 * @param factory Factory to unregister. Will unregister for all types it references.
+		 * @param true for success. false if not registered.
+		 */
+		bool UnregisterFactory(IFactory* factory);
 
 		/**
 		 * Read file data either synchronously or asynchronously.

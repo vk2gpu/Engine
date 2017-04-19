@@ -15,8 +15,10 @@ namespace Job
 	 */
 	struct Counter final
 	{
+		/// Counter value. Decreases as job completes.
 		volatile i32 value_ = 0;
-		Core::Event* event_ = nullptr;
+		/// Should counter be freed by the last that's using it?
+		bool free_ = false;
 
 		Counter() = default;
 		Counter(const Counter&) = delete;
@@ -82,7 +84,8 @@ namespace Job
 				u32 counter = Core::AtomicDec(&fiber->job_.counter_->value_);
 				if(counter == 0)
 				{
-					fiber->job_.counter_->event_->Signal();
+					if(fiber->job_.counter_->free_)
+						delete fiber->job_.counter_;
 				}
 
 				fiber->job_.func_ = nullptr;
@@ -370,10 +373,12 @@ namespace Job
 
 	void Manager::RunJobs(JobDesc* jobDescs, i32 numJobDesc, Counter** counter)
 	{
+		DBG_ASSERT(counter == nullptr || *counter == nullptr);
+
 		// Setup counter.
 		auto* localCounter = new Counter();
 		localCounter->value_ = numJobDesc;
-		localCounter->event_ = new Core::Event(true, false);
+		localCounter->free_ = counter == nullptr;
 
 		Core::AtomicAdd(&impl_->jobCount_, numJobDesc);
 
@@ -412,12 +417,8 @@ namespace Job
 #endif
 		}
 
-		// If no counter is specified, wait on it.
-		if(counter == nullptr)
-		{
-			WaitForCounter(localCounter, 0);
-		}
-		else
+		// If counter is requests, store it.
+		if(counter != nullptr)
 		{
 			*counter = localCounter;
 		}
@@ -436,8 +437,6 @@ namespace Job
 		// TODO: Keep a pool of these?
 		if(value == 0)
 		{
-			delete counter->event_;
-			counter->event_ = nullptr;
 			delete counter;
 		}
 	}

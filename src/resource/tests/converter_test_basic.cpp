@@ -13,7 +13,10 @@ namespace
 
 		virtual ~ConverterBasic() {}
 
-		bool SupportsFileType(const char* extension) const override { return strcmp(extension, "test") == 0; }
+		bool SupportsFileType(const char* fileExt, const Core::UUID& type) const override
+		{
+			return (fileExt && strcmp(fileExt, "test") == 0) || type == Core::UUID("TestResource");
+		}
 
 		bool Convert(Resource::IConverterContext& context, const char* sourceFile, const char* destPath) override
 		{
@@ -35,10 +38,6 @@ namespace
 			memset(outFilename, 0, sizeof(outFilename));
 
 			strcat_s(outFilename, sizeof(outFilename), destPath);
-			Core::FileNormalizePath(outFilename, sizeof(outFilename), true);
-			strcat_s(outFilename, sizeof(outFilename), "/");
-			strcat_s(outFilename, sizeof(outFilename), file);
-			strcat_s(outFilename, sizeof(outFilename), ".test.converted");
 			Core::FileNormalizePath(outFilename, sizeof(outFilename), true);
 			return Core::FileCopy(sourceFile, outFilename);
 		}

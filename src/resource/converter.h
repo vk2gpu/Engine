@@ -4,6 +4,11 @@
 #include "resource/types.h"
 #include "plugin/plugin.h"
 
+namespace Core
+{
+	class UUID;
+} // namespace Core
+
 namespace Resource
 {
 	/**
@@ -51,10 +56,11 @@ namespace Resource
 		virtual ~IConverter() {}
 
 		/**
-		 * Does converter support file type?
-		 * @param extension File extesnion (i.e. fbx, png, dds)
+		 * Does converter support type?
+		 * @param fileExt File extesnion (i.e. fbx, png, dds)
+		 * @param type Type of resource.
 		 */
-		virtual bool SupportsFileType(const char* extension) const = 0;
+		virtual bool SupportsFileType(const char* fileExt, const Core::UUID& type) const = 0;
 
 		/**
 		 * Convert resource.
@@ -71,7 +77,7 @@ namespace Resource
 	 */
 	struct ConverterPlugin : Plugin::Plugin
 	{
-		DECLARE_PLUGININFO("ConverterPlugin", 0);
+		DECLARE_PLUGININFO(ConverterPlugin, 0);
 
 		typedef IConverter* (*CreateConverterFn)();
 		CreateConverterFn CreateConverter = nullptr;

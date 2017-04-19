@@ -54,7 +54,7 @@ namespace Plugin
 	 */
 	struct Plugin
 	{
-		DECLARE_PLUGININFO("Plugin", 0);
+		DECLARE_PLUGININFO(Plugin, 0);
 
 		/// Plugin system version.
 		u32 systemVersion_ = 0x00000000;

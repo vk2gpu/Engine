@@ -69,7 +69,7 @@ namespace GPU
 	 */
 	struct BackendPlugin: Plugin::Plugin
 	{
-		DECLARE_PLUGININFO("GPU::BackendPlugin", 0);
+		DECLARE_PLUGININFO(GPU::BackendPlugin, 0);
 
 		/// API this backend represents.
 		const char* api_ = nullptr;

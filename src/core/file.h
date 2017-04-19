@@ -166,6 +166,14 @@ namespace Core
 	    const char* inPath, char* outPath, i32 pathLen, char* outFile, i32 fileLen, char* outExt, i32 extLen);
 
 	/**
+	 * Append path.
+	 * @parma inOutPath Path to append to.
+	 * @param maxPathLen Maximum length of path.
+	 * @param appendPath Path to append.
+	 */
+	CORE_DLL bool FileAppendPath(char* inOutPath, i32 maxPathLen, const char* appendPath);
+
+	/**
 	 * Flags which define behaviour or file.
 	 */
 	enum class FileFlags : u32

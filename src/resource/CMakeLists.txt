@@ -2,7 +2,8 @@ SET(SOURCES_PUBLIC
 	"dll.h"
 	"manager.h"
 	"converter.h"
-	"loader.h"
+	"factory.h"
+	"resource.h"
 )
 
 SET(SOURCES_PRIVATE 
@@ -13,6 +14,7 @@ SET(SOURCES_PRIVATE
 
 SET(SOURCES_TESTS
 	"tests/database_tests.cpp"
+	"tests/manager_tests.cpp"
 	"tests/test_entry.cpp"
 	"tests/resource_tests.cpp"
 )
@@ -21,7 +23,7 @@ SET(SOURCES_TESTS
 # Add resource.
 ADD_LIBRARY(resource SHARED ${SOURCES_PUBLIC} ${SOURCES_PRIVATE})
 SET_TARGET_PROPERTIES(resource PROPERTIES FOLDER Libraries)
-TARGET_LINK_LIBRARIES(resource core)
+TARGET_LINK_LIBRARIES(resource core job plugin)
 TARGET_COMPILE_DEFINITIONS(resource PRIVATE RESOURCE_EXPORT=1)
 
 SOURCE_GROUP("Public" FILES ${SOURCES_PUBLIC})

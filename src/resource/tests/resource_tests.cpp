@@ -6,6 +6,7 @@
 #include "core/timer.h"
 #include "core/vector.h"
 #include "core/os.h"
+#include "job/manager.h"
 #include "plugin/manager.h"
 #include "resource/manager.h"
 #include "resource/converter.h"
@@ -39,7 +40,9 @@ namespace
 
 TEST_CASE("resource-tests-file-io")
 {
-	Resource::Manager manager;
+	Job::Manager jobManager(1, 256, 32 * 1024);
+	Plugin::Manager pluginManager;
+	Resource::Manager manager(jobManager, pluginManager);
 
 	static const i32 TEST_BUFFER_SIZE = 32 * 1024 * 1024;
 	const char* testFileName = "test_output.dat";
@@ -157,7 +160,7 @@ TEST_CASE("resource-tests-converter")
 	{
 		converterPlugin = converterPlugins[i];
 		converter = converterPlugin.CreateConverter();
-		if(converter->SupportsFileType("test"))
+		if(converter->SupportsFileType("test", Core::UUID()))
 			break;
 		converterPlugin.DestroyConverter(converter);
 		converter = nullptr;
@@ -174,7 +177,7 @@ TEST_CASE("resource-tests-converter")
 	REQUIRE(Core::FileCreateDir("converter_output"));
 	Core::File testFile("converter.test", Core::FileFlags::CREATE | Core::FileFlags::WRITE);
 	REQUIRE(testFile);
-	const char* data = "conveter.test data";
+	const char* data = "converter.test data";
 	testFile.Write(data, strlen(data));
 	testFile = Core::File();
 

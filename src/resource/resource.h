@@ -15,15 +15,15 @@ namespace Resource
  * class Model
  * {
  * public:
- *   DECLARE_RESOURCE("Scene::Model", 1);
+ *   DECLARE_RESOURCE(Scene.Model, 1);
  * };
  *
  * This will provide methods used by the templated interfaces
  * on Resource::Manager.
  * Version will be used by the loader to validate the resource.
  */
-
 #define DECLARE_RESOURCE(NAME, VERSION)                                                                                \
-	static Core::UUID GetUUID() { return Core::UUID(#NAME); }                                                          \
+	static const char* GetTypeName() { return #NAME; }                                                                 \
+	static Core::UUID GetTypeUUID() { return Core::UUID(GetTypeName()); }                                                  \
 	static const u32 RESOURCE_VERSION = VERSION
 }

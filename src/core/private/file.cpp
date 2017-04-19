@@ -430,6 +430,16 @@ namespace Core
 		return true;
 	}
 
+	bool FileAppendPath(char* inOutPath, i32 maxPathLen, const char* appendPath)
+	{
+		const char separator[2] = { FilePathSeparator(), '\0' };
+
+		FileNormalizePath(inOutPath, maxPathLen, true);
+		strcat_s(inOutPath, maxPathLen, separator);
+		strcat_s(inOutPath, maxPathLen, appendPath);
+		return true;
+	}
+
 	class FileImpl
 	{
 	public:
