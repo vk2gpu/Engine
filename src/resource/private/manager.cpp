@@ -44,133 +44,148 @@ namespace Core
 	{
 		return HashCRC32(input, &resourceEntry, sizeof(resourceEntry));
 	}
-}
+} // namespace Core
 
 namespace Resource
 {
+	/// Converter context to use during resource conversion.
+	class ConverterContext : public Resource::IConverterContext
+	{
+	public:
+		ConverterContext() {}
+
+		virtual ~ConverterContext() {}
+
+		void AddDependency(const char* fileName) override
+		{ //
+			Core::Log("AddDependency: %s\n", fileName);
+		}
+
+		void AddOutput(const char* fileName) override
+		{ //
+			Core::Log("AddOutput: %s\n", fileName);
+		}
+
+		void AddError(const char* errorFile, int errorLine, const char* errorMsg) override
+		{
+			if(errorFile)
+			{
+				Core::Log("%s(%d): %s\n", errorFile, errorLine, errorMsg);
+			}
+			else
+			{
+				Core::Log("%s\n", errorMsg);
+			}
+		}
+	};
+
+	/// Factory context to use during creation of resources.
+	class FactoryContext : public Resource::IFactoryContext
+	{
+	public:
+		FactoryContext() {}
+		virtual ~FactoryContext() {}
+	};
+
+	/// File IO Job. Can be read or write.
+	struct FileIOJob
+	{
+		static const i64 READ_CHUNK_SIZE = 8 * 1024 * 1024;  // TODO: Possibly have this configurable?
+		static const i64 WRITE_CHUNK_SIZE = 8 * 1024 * 1024; // TODO: Possibly have this configurable?
+
+		Core::File* file_ = nullptr;
+		i64 offset_ = 0;
+		i64 size_ = 0;
+		void* addr_ = nullptr;
+		AsyncResult* result_ = nullptr;
+
+		Result DoRead()
+		{
+			DBG_ASSERT(file_);
+			DBG_ASSERT((offset_ + size_) <= file_->Size());
+
+			if(result_)
+			{
+				auto oldResult = (Result)Core::AtomicExchg((volatile i32*)&result_->result_, (i32)Result::RUNNING);
+				DBG_ASSERT(oldResult == Result::PENDING);
+			}
+
+			file_->Seek(offset_);
+
+			// Read file in chunks.
+			char* dest = (char*)addr_;
+			i64 sizeRemaining = size_;
+			while(sizeRemaining > 0)
+			{
+				i64 readSize = Core::Min(READ_CHUNK_SIZE, sizeRemaining);
+				i64 bytesRead = file_->Read(dest, readSize);
+				sizeRemaining -= readSize;
+				dest += readSize;
+				if(result_)
+				{
+					Core::AtomicAddRel(&result_->workRemaining_, -bytesRead);
+				}
+
+				// Check that we successfully read.
+				if(bytesRead < readSize)
+					break;
+			}
+
+			Result result = Result::FAILURE;
+			if(sizeRemaining == 0)
+				result = Result::SUCCESS;
+			if(result_)
+			{
+				Core::AtomicExchg((volatile i32*)&result_->result_, (i32)result);
+			}
+			return result;
+		}
+
+		Result DoWrite()
+		{
+			DBG_ASSERT(file_);
+			DBG_ASSERT(offset_ == 0);
+
+			if(result_)
+			{
+				auto oldResult = (Result)Core::AtomicExchg((volatile i32*)&result_->result_, (i32)Result::RUNNING);
+				DBG_ASSERT(oldResult == Result::PENDING);
+			}
+
+			// Write file in chunks.
+			char* src = (char*)addr_;
+			i64 sizeRemaining = size_;
+			while(sizeRemaining > 0)
+			{
+				i64 writeSize = Core::Min(WRITE_CHUNK_SIZE, sizeRemaining);
+				i64 bytesWrote = file_->Write(src, writeSize);
+				sizeRemaining -= writeSize;
+				src += writeSize;
+				if(result_)
+				{
+					Core::AtomicAddRel(&result_->workRemaining_, -bytesWrote);
+				}
+
+				// Check that we successfully read.
+				if(bytesWrote < writeSize)
+					break;
+			}
+
+			Result result = Result::FAILURE;
+			if(sizeRemaining == 0)
+				result = Result::SUCCESS;
+			if(result_)
+			{
+				Core::AtomicExchg((volatile i32*)&result_->result_, (i32)result);
+			}
+			return result;
+		}
+	};
+
 	struct ManagerImpl
 	{
 		static const i32 MAX_READ_JOBS = 128;
 		static const i32 MAX_WRITE_JOBS = 128;
-		static const i64 READ_CHUNK_SIZE = 8 * 1024 * 1024;  // TODO: Possibly have this configurable?
-		static const i64 WRITE_CHUNK_SIZE = 8 * 1024 * 1024; // TODO: Possibly have this configurable?
-
-		/// File IO Job. Can be read or write.
-		struct FileIOJob
-		{
-			Core::File* file_ = nullptr;
-			i64 offset_ = 0;
-			i64 size_ = 0;
-			void* addr_ = nullptr;
-			AsyncResult* result_ = nullptr;
-
-			Result DoRead()
-			{
-				DBG_ASSERT(file_);
-				DBG_ASSERT((offset_ + size_) <= file_->Size());
-
-				if(result_)
-				{
-					auto oldResult = (Result)Core::AtomicExchg((volatile i32*)&result_->result_, (i32)Result::RUNNING);
-					DBG_ASSERT(oldResult == Result::PENDING);
-				}
-
-				file_->Seek(offset_);
-
-				// Read file in chunks.
-				char* dest = (char*)addr_;
-				i64 sizeRemaining = size_;
-				while(sizeRemaining > 0)
-				{
-					i64 readSize = Core::Min(READ_CHUNK_SIZE, sizeRemaining);
-					i64 bytesRead = file_->Read(dest, readSize);
-					sizeRemaining -= readSize;
-					dest += readSize;
-					if(result_)
-					{
-						Core::AtomicAddRel(&result_->workRemaining_, -bytesRead);
-					}
-
-					// Check that we successfully read.
-					if(bytesRead < readSize)
-						break;
-				}
-
-				Result result = Result::FAILURE;
-				if(sizeRemaining == 0)
-					result = Result::SUCCESS;
-				if(result_)
-				{
-					Core::AtomicExchg((volatile i32*)&result_->result_, (i32)result);
-				}
-				return result;
-			}
-
-			Result DoWrite()
-			{
-				DBG_ASSERT(file_);
-				DBG_ASSERT(offset_ == 0);
-
-				if(result_)
-				{
-					auto oldResult = (Result)Core::AtomicExchg((volatile i32*)&result_->result_, (i32)Result::RUNNING);
-					DBG_ASSERT(oldResult == Result::PENDING);
-				}
-
-				// Write file in chunks.
-				char* src = (char*)addr_;
-				i64 sizeRemaining = size_;
-				while(sizeRemaining > 0)
-				{
-					i64 writeSize = Core::Min(WRITE_CHUNK_SIZE, sizeRemaining);
-					i64 bytesWrote = file_->Write(src, writeSize);
-					sizeRemaining -= writeSize;
-					src += writeSize;
-					if(result_)
-					{
-						Core::AtomicAddRel(&result_->workRemaining_, -bytesWrote);
-					}
-
-					// Check that we successfully read.
-					if(bytesWrote < writeSize)
-						break;
-				}
-
-				Result result = Result::FAILURE;
-				if(sizeRemaining == 0)
-					result = Result::SUCCESS;
-				if(result_)
-				{
-					Core::AtomicExchg((volatile i32*)&result_->result_, (i32)result);
-				}
-				return result;
-			}
-		};
-
-		class ConverterContext : public Resource::IConverterContext
-		{
-		public:
-			ConverterContext() {}
-
-			virtual ~ConverterContext() {}
-
-			void AddDependency(const char* fileName) override { Core::Log("AddDependency: %s\n", fileName); }
-
-			void AddOutput(const char* fileName) override { Core::Log("AddOutput: %s\n", fileName); }
-
-			void AddError(const char* errorFile, int errorLine, const char* errorMsg) override
-			{
-				if(errorFile)
-				{
-					Core::Log("%s(%d): %s\n", errorFile, errorLine, errorMsg);
-				}
-				else
-				{
-					Core::Log("%s\n", errorMsg);
-				}
-			}
-		};
-
 
 		/// Job manager.
 		Job::Manager& jobManager_;
@@ -295,13 +310,9 @@ namespace Resource
 				releasedResourceList = releasedResourceList_;
 				releasedResourceList_.clear();
 			}
-			class FactoryContext : public IFactoryContext
-			{
-			public:
-				FactoryContext() {}
-			};
+
 			FactoryContext factoryContext;
-		
+
 			for(auto entry : releasedResourceList)
 			{
 				DBG_ASSERT(entry->loaded_);
@@ -389,6 +400,66 @@ namespace Resource
 		}
 	};
 
+	/// Resource load job.
+	struct ResourceLoadJob
+	{
+		ResourceLoadJob(ManagerImpl* impl, IFactory* factory, ResourceEntry* entry, Core::UUID type, Core::File&& file)
+		    : impl_(impl)
+		    , factory_(factory)
+		    , entry_(entry)
+		    , type_(type)
+		    , file_(std::move(file))
+		{
+		}
+
+		void RunJob()
+		{
+			FactoryContext factoryContext;
+			success_ = factory_->LoadResource(factoryContext, &entry_->resource_, type_, file_);
+			if(success_)
+				Core::AtomicInc(&entry_->loaded_);
+			impl_->ReleaseResourceEntry(entry_);
+			Core::AtomicDec(&impl_->pendingResourceJobs_);
+		}
+
+		ManagerImpl* impl_ = nullptr;
+		IFactory* factory_ = nullptr;
+		ResourceEntry* entry_ = nullptr;
+		Core::UUID type_;
+		Core::File file_;
+		bool success_ = false;
+	};
+
+	/// Resource convert job.
+	struct ResourceConvertJob
+	{
+		ResourceConvertJob(Manager* manager, ManagerImpl* impl, ResourceEntry* entry, Core::UUID type, const char* name,
+		    const char* convertedPath)
+		    : manager_(manager)
+		    , impl_(impl)
+		    , entry_(entry)
+		    , type_(type)
+		{
+			strcpy_s(name_.data(), name_.size(), name);
+			strcpy_s(convertedPath_.data(), convertedPath_.size(), convertedPath);
+		}
+
+		void RunJob()
+		{
+			success_ = manager_->ConvertResource(name_.data(), convertedPath_.data(), type_);
+			Core::AtomicDec(&impl_->pendingResourceJobs_);
+		}
+
+		Manager* manager_ = nullptr;
+		ManagerImpl* impl_ = nullptr;
+		ResourceEntry* entry_ = nullptr;
+		Core::UUID type_;
+		Core::Array<char, Core::MAX_PATH_LENGTH> name_;
+		Core::Array<char, Core::MAX_PATH_LENGTH> convertedPath_;
+		bool success_ = false;
+	};
+
+
 	Manager::Manager(Job::Manager& jobManager, Plugin::Manager& pluginManager)
 	{ //
 		impl_ = new ManagerImpl(jobManager, pluginManager);
@@ -432,11 +503,6 @@ namespace Resource
 			ResourceEntry* entry = impl_->AcquireResourceEntry(name, type);
 			if(entry->resource_ == nullptr)
 			{
-				class FactoryContext : public IFactoryContext
-				{
-				public:
-					FactoryContext() {}
-				};
 				FactoryContext factoryContext;
 
 				// First create resource.
@@ -449,29 +515,12 @@ namespace Resource
 					// TODO: This should be done async.
 					if(!Core::FileExists(convertedPath.data()))
 					{
-						struct ResourceConvertJobData
-						{
-							Manager* manager_ = nullptr;
-							ResourceEntry* entry_ = nullptr;
-							Core::Array<char, Core::MAX_PATH_LENGTH> name_;
-							Core::Array<char, Core::MAX_PATH_LENGTH> convertedPath_;
-							Core::UUID type_;
-							bool success_ = false;
-						};
-
-						auto* jobData = new ResourceConvertJobData();
-						jobData->manager_ = this;
-						jobData->entry_ = entry;
-						strcpy_s(jobData->name_.data(), jobData->name_.size(), name);
-						strcpy_s(jobData->convertedPath_.data(), jobData->convertedPath_.size(), convertedPath.data());
-						jobData->type_ = type;
+						auto* jobData = new ResourceConvertJob(this, impl_, entry, type, name, convertedPath.data());
 
 						Job::JobDesc jobDesc;
 						jobDesc.func_ = [](i32 inParam, void* inData) {
-							auto* data = reinterpret_cast<ResourceConvertJobData*>(inData);
-							data->success_ = data->manager_->ConvertResource(
-							    data->name_.data(), data->convertedPath_.data(), data->type_);
-							Core::AtomicDec(&data->manager_->impl_->pendingResourceJobs_);
+							auto* data = reinterpret_cast<ResourceConvertJob*>(inData);
+							data->RunJob();
 						};
 						jobDesc.param_ = 0;
 						jobDesc.data_ = jobData;
@@ -489,36 +538,16 @@ namespace Resource
 
 					// Do load.
 					{
-						struct ResourceLoadJobData
-						{
-							Manager* manager_ = nullptr;
-							IFactory* factory_ = nullptr;
-							ResourceEntry* entry_ = nullptr;
-							Core::UUID type_;
-							Core::File file_;
-							bool success_ = false;
-						};
-						
+
 						// Acquire entry for job.
 						impl_->AcquireResourceEntry(entry);
 
-						auto* jobData = new ResourceLoadJobData();
-						jobData->manager_ = this;
-						jobData->factory_ = factory;
-						jobData->entry_ = entry;
-						jobData->type_ = type;
-						jobData->file_ = Core::File(convertedPath.data(), Core::FileFlags::READ);
-
+						auto* jobData = new ResourceLoadJob(
+						    impl_, factory, entry, type, Core::File(convertedPath.data(), Core::FileFlags::READ));
 						Job::JobDesc jobDesc;
 						jobDesc.func_ = [](i32 inParam, void* inData) {
-							auto* data = reinterpret_cast<ResourceLoadJobData*>(inData);
-							FactoryContext factoryContext;
-							data->success_ = data->factory_->LoadResource(
-							    factoryContext, &data->entry_->resource_, data->type_, data->file_);
-							if(data->success_)
-								Core::AtomicInc(&data->entry_->loaded_);
-							data->manager_->impl_->ReleaseResourceEntry(data->entry_);
-							Core::AtomicDec(&data->manager_->impl_->pendingResourceJobs_);
+							auto* data = reinterpret_cast<ResourceLoadJob*>(inData);
+							data->RunJob();
 							delete data;
 						};
 						jobDesc.param_ = 0;
@@ -573,7 +602,7 @@ namespace Resource
 			auto* converter = converterPlugin.CreateConverter();
 			if(converter->SupportsFileType(nullptr, type))
 			{
-				ManagerImpl::ConverterContext converterContext;
+				ConverterContext converterContext;
 				retVal = converter->Convert(converterContext, name, convertedName);
 			}
 			converterPlugin.DestroyConverter(converter);
@@ -628,7 +657,7 @@ namespace Resource
 			DBG_ASSERT(oldResult == Result::INITIAL);
 		}
 
-		ManagerImpl::FileIOJob job;
+		FileIOJob job;
 		job.file_ = &file;
 		job.offset_ = offset;
 		job.size_ = size;
@@ -663,7 +692,7 @@ namespace Resource
 			DBG_ASSERT(oldResult == Result::INITIAL);
 		}
 
-		ManagerImpl::FileIOJob job;
+		FileIOJob job;
 		job.file_ = &file;
 		job.offset_ = 0;
 		job.size_ = size;

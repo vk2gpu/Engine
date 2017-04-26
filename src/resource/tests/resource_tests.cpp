@@ -181,11 +181,7 @@ TEST_CASE("resource-tests-converter")
 	testFile.Write(data, strlen(data));
 	testFile = Core::File();
 
-	REQUIRE(converter->Convert(context, "converter.test", "converter_output"));
-
-	// Check with trailing slashes.
-	REQUIRE(converter->Convert(context, "converter.test", "converter_output/"));
-	REQUIRE(converter->Convert(context, "converter.test", "converter_output\\"));
+	REQUIRE(converter->Convert(context, "converter.test", "converter_output/converter.test.converted"));
 
 	converterPlugin.DestroyConverter(converter);
 }
