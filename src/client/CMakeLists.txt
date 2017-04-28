@@ -1,14 +1,14 @@
 SET(SOURCES_PUBLIC 
 	"dll.h"
-	"client.h"
 	"input_provider.h"
 	"key_input.h"
+	"manager.h"
 	"window.h"
 )
 
 SET(SOURCES_PRIVATE 
-	"private/client.cpp"
-	"private/client_impl.h"
+	"private/manager_impl.h"
+	"private/manager.cpp"
 	"private/window.cpp"
 	"private/window_impl.h"
 )

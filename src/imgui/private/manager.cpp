@@ -1,4 +1,4 @@
-#include "imgui/imgui.h"
+#include "imgui/manager.h"
 #include "client/input_provider.h"
 #include "client/key_input.h"
 #include "math/mat44.h"
@@ -30,8 +30,11 @@ namespace ImGui
 		GPU::Handle pbsHandle_;
 	}
 
-	void Initialize()
+	void Manager::Initialize()
 	{
+		DBG_ASSERT(GPU::Manager::IsInitialized());
+		DBG_ASSERT(GPU::Manager::IsAdapterCreated());
+
 		ImGuiIO& IO = ImGui::GetIO();
 
 		GPU::BufferDesc vbDesc;
@@ -213,7 +216,7 @@ namespace ImGui
 		style.Colors[ImGuiCol_ModalWindowDarkening] = ImVec4(0.20f, 0.20f, 0.20f, 0.35f);
 	}
 
-	void BeginFrame(const Client::IInputProvider& input, i32 w, i32 h)
+	void Manager::BeginFrame(const Client::IInputProvider& input, i32 w, i32 h)
 	{
 		ImGuiIO& IO = ImGui::GetIO();
 		IO.DisplaySize.x = (f32)w;
@@ -252,7 +255,7 @@ namespace ImGui
 		ImGui::NewFrame();
 	}
 
-	void EndFrame(const GPU::Handle& fbs, GPU::CommandList& cmdList)
+	void Manager::EndFrame(const GPU::Handle& fbs, GPU::CommandList& cmdList)
 	{
 		ImGui::Render();
 
@@ -353,7 +356,7 @@ namespace ImGui
 		}
 	}
 
-	void Finalize()
+	void Manager::Finalize()
 	{
 		GPU::Manager::DestroyResource(pbsHandle_);
 		GPU::Manager::DestroyResource(smpHandle_);

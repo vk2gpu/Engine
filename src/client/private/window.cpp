@@ -1,5 +1,5 @@
 #include "client/window.h"
-#include "client/private/client_impl.h"
+#include "client/private/manager_impl.h"
 #include "client/key_input.h"
 #include "core/debug.h"
 #include "core/misc.h"

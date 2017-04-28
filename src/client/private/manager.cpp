@@ -1,5 +1,5 @@
-#include "client/client.h"
-#include "client/private/client_impl.h"
+#include "client/manager.h"
+#include "client/private/manager_impl.h"
 #include "client/private/window_impl.h"
 
 #define SDL_MAIN_HANDLED
@@ -11,20 +11,20 @@ namespace Client
 {
 	namespace
 	{
-		ClientImpl* impl_ = nullptr;
+		ManagerImpl* impl_ = nullptr;
 	}
 
-	void Initialize()
+	void Manager::Initialize()
 	{
 		SDL_Init(SDL_INIT_EVERYTHING);
 
 		SDL_EventState(SDL_DROPFILE, SDL_ENABLE);
 
 		DBG_ASSERT(!impl_);
-		impl_ = new ClientImpl();
+		impl_ = new ManagerImpl();
 	}
 
-	void Finalize()
+	void Manager::Finalize()
 	{
 		DBG_ASSERT(impl_);
 		delete impl_;
@@ -33,7 +33,7 @@ namespace Client
 		SDL_Quit();
 	}
 
-	bool Update()
+	bool Manager::Update()
 	{
 		// Update window input state.
 		for(auto it = impl_->windows_.begin(); it != impl_->windows_.end(); ++it)
@@ -45,7 +45,7 @@ namespace Client
 		return PumpMessages();
 	}
 
-	bool PumpMessages()
+	bool Manager::PumpMessages()
 	{
 		DBG_ASSERT(impl_);
 		Core::ScopedMutex lock(impl_->resourceMutex_);

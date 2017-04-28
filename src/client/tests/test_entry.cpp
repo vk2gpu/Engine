@@ -1,4 +1,4 @@
-#include "client/client.h"
+#include "client/manager.h"
 #include "core/debug.h"
 
 #define CATCH_CONFIG_RUNNER
@@ -8,13 +8,13 @@
 
 int main(int argc, char* const argv[])
 {
-	Client::Initialize();
+	Client::Manager::Scoped clientManager;
 
 	auto RetVal = Catch::Session().run(argc, argv);
 	if(Core::IsDebuggerAttached() && RetVal != 0)
 	{
 		DBG_BREAK;
 	}
-	Client::Finalize();
+	
 	return RetVal;
 }

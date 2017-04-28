@@ -1,10 +1,10 @@
 SET(SOURCES_PUBLIC 
 	"dll.h"
-	"imgui.h"
+	"manager.h"
 )
 
 SET(SOURCES_PRIVATE 
-	"private/imgui.cpp"
+	"private/manager.cpp"
 )
 
 SET(SOURCES_PRIVATE_IMGUI_MASTER
