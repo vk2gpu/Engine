@@ -8,7 +8,7 @@ namespace GPU
 	/**
 	 * Format info.
 	 */
-	struct FormatInfo
+	struct GPU_DLL FormatInfo
 	{
 		/// Block width.
 		i32 blockW_ = 0;
@@ -44,7 +44,7 @@ namespace GPU
 	/**
 	 * Texture layout info.
 	 */
-	struct TextureLayoutInfo
+	struct GPU_DLL TextureLayoutInfo
 	{
 		i32 pitch_ = 0;
 		i32 slicePitch_ = 0;

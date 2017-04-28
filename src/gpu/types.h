@@ -43,6 +43,16 @@ namespace GPU
 		UNSUPPORTED = -3,
 	};
 
+/**
+ * Utilities for handling error codes.
+ */
+#define RETURN_ON_ERROR(ERRORCODE)                                                                                     \
+	{                                                                                                                  \
+		auto errorCode_Internal = ERRORCODE;                                                                           \
+		if(errorCode_Internal != ErrorCode::OK)                                                                        \
+			return errorCode_Internal;                                                                                 \
+	}
+
 	/**
 	 * Debugger integration flags.
 	 */
@@ -57,46 +67,6 @@ namespace GPU
 
 	DEFINE_ENUM_CLASS_FLAG_OPERATOR(DebuggerIntegrationFlags, &);
 	DEFINE_ENUM_CLASS_FLAG_OPERATOR(DebuggerIntegrationFlags, |);
-
-	/**
-	 * Setup parameters.
-	 */
-	struct SetupParams
-	{
-		/// API selection (i.e. "D3D12", "VLK", etc)
-		const char* api_ = nullptr;
-		/// Device window to use.
-		void* deviceWindow_ = nullptr;
-		/// Debuggers to natively support integration of.
-		DebuggerIntegrationFlags debuggerIntegration_ = DebuggerIntegrationFlags::NONE;
-	};
-
-/**
- * Utilities for handling error codes.
- */
-#define RETURN_ON_ERROR(ERRORCODE)                                                                                     \
-	{                                                                                                                  \
-		auto errorCode_Internal = ERRORCODE;                                                                           \
-		if(errorCode_Internal != ErrorCode::OK)                                                                        \
-			return errorCode_Internal;                                                                                 \
-	}
-
-
-	/**
-	 * Adapter info.
-	 */
-	struct AdapterInfo
-	{
-		i32 deviceIdx_ = 0;
-		char description_[512];
-		u32 vendorId_;
-		u32 deviceId_;
-		u32 subSysId_;
-		u32 revision_;
-		i64 dedicatedVideoMemory_;
-		i64 dedicatedSystemMemory_;
-		i64 sharedSystemMemory_;
-	};
 
 	/**
 	 * Supported formats for resources.
@@ -324,6 +294,154 @@ namespace GPU
 		COLOR,
 
 		MAX
+	};
+
+	/**
+	 * Sampler types.
+	 */
+	enum class AddressingMode : u32
+	{
+		WRAP = 0,
+		MIRROR,
+		CLAMP,
+		BORDER,
+
+		MAX,
+	};
+
+	enum class FilteringMode : u32
+	{
+		NEAREST = 0,
+		LINEAR,
+		NEAREST_MIPMAP_NEAREST,
+		LINEAR_MIPMAP_NEAREST,
+		NEAREST_MIPMAP_LINEAR,
+		LINEAR_MIPMAP_LINEAR,
+
+		MAX,
+	};
+
+	/**
+	 * Render state types.
+	 */
+	enum class FillMode : i32
+	{
+		INVALID = -1,
+		SOLID = 0,
+		WIREFRAME,
+
+		MAX,
+	};
+
+	enum class CullMode : i32
+	{
+		INVALID = -1,
+		NONE = 0,
+		CCW,
+		CW,
+
+		MAX,
+	};
+
+	enum class BlendType : i32
+	{
+		INVALID = -1,
+		ZERO = 0,
+		ONE,
+		SRC_COLOR,
+		INV_SRC_COLOR,
+		SRC_ALPHA,
+		INV_SRC_ALPHA,
+		DEST_COLOR,
+		INV_DEST_COLOR,
+		DEST_ALPHA,
+		INV_DEST_ALPHA,
+
+		MAX,
+	};
+
+	enum class BlendFunc : i32
+	{
+		INVALID = -1,
+		ADD = 0,
+		SUBTRACT,
+		REV_SUBTRACT,
+		MINIMUM,
+		MAXIMUM,
+
+		MAX,
+	};
+
+	enum class CompareMode : i32
+	{
+		INVALID = -1,
+		NEVER = 0,
+		LESS,
+		EQUAL,
+		LESS_EQUAL,
+		GREATER,
+		NOT_EQUAL,
+		GREATER_EQUAL,
+		ALWAYS,
+
+		MAX,
+	};
+
+	enum class StencilFunc : i32
+	{
+		INVALID = -1,
+		KEEP = 0,
+		ZERO,
+		REPLACE,
+		INCR,
+		INCR_WRAP,
+		DECR,
+		DECR_WRAP,
+		INVERT,
+
+		MAX,
+	};
+
+	/**
+	 * DSV flags.
+	 */
+	enum class DSVFlags : u32
+	{
+		NONE = 0x0,
+		READ_ONLY_DEPTH = 0x1,
+		READ_ONLY_STENCIL = 0x2
+	};
+
+	DEFINE_ENUM_CLASS_FLAG_OPERATOR(DSVFlags, &);
+	DEFINE_ENUM_CLASS_FLAG_OPERATOR(DSVFlags, |);
+
+	/**
+	 * Setup parameters.
+	 */
+	struct GPU_DLL SetupParams
+	{
+		/// API selection (i.e. "D3D12", "VLK", etc)
+		const char* api_ = nullptr;
+		/// Device window to use.
+		void* deviceWindow_ = nullptr;
+		/// Debuggers to natively support integration of.
+		DebuggerIntegrationFlags debuggerIntegration_ = DebuggerIntegrationFlags::NONE;
+	};
+
+	/**
+	 * Adapter info.
+	 */
+	struct GPU_DLL AdapterInfo
+	{
+		i32 deviceIdx_ = 0;
+		char description_[512];
+		u32 vendorId_;
+		u32 deviceId_;
+		u32 subSysId_;
+		u32 revision_;
+		i64 dedicatedVideoMemory_;
+		i64 dedicatedSystemMemory_;
+		i64 sharedSystemMemory_;
 	};
 
 	/**

@@ -99,31 +99,6 @@ namespace GPU
 	};
 
 	/**
-	 * Sampler types.
-	 */
-	enum class AddressingMode : u32
-	{
-		WRAP = 0,
-		MIRROR,
-		CLAMP,
-		BORDER,
-
-		MAX,
-	};
-
-	enum class FilteringMode : u32
-	{
-		NEAREST = 0,
-		LINEAR,
-		NEAREST_MIPMAP_NEAREST,
-		LINEAR_MIPMAP_NEAREST,
-		NEAREST_MIPMAP_LINEAR,
-		LINEAR_MIPMAP_LINEAR,
-
-		MAX,
-	};
-
-	/**
 	 * Sampler state.
 	 */
 	struct GPU_DLL SamplerState
@@ -149,87 +124,6 @@ namespace GPU
 		ShaderType type_ = ShaderType::INVALID;
 		const void* data_ = nullptr;
 		i32 dataSize_ = 0;
-	};
-
-	/**
-	 * Render state types.
-	 */
-	enum class FillMode : i32
-	{
-		INVALID = -1,
-		SOLID = 0,
-		WIREFRAME,
-
-		MAX,
-	};
-
-	enum class CullMode : i32
-	{
-		INVALID = -1,
-		NONE = 0,
-		CCW,
-		CW,
-
-		MAX,
-	};
-
-	enum class BlendType : i32
-	{
-		INVALID = -1,
-		ZERO = 0,
-		ONE,
-		SRC_COLOR,
-		INV_SRC_COLOR,
-		SRC_ALPHA,
-		INV_SRC_ALPHA,
-		DEST_COLOR,
-		INV_DEST_COLOR,
-		DEST_ALPHA,
-		INV_DEST_ALPHA,
-
-		MAX,
-	};
-
-	enum class BlendFunc : i32
-	{
-		INVALID = -1,
-		ADD = 0,
-		SUBTRACT,
-		REV_SUBTRACT,
-		MINIMUM,
-		MAXIMUM,
-
-		MAX,
-	};
-
-	enum class CompareMode : i32
-	{
-		INVALID = -1,
-		NEVER = 0,
-		LESS,
-		EQUAL,
-		LESS_EQUAL,
-		GREATER,
-		NOT_EQUAL,
-		GREATER_EQUAL,
-		ALWAYS,
-
-		MAX,
-	};
-
-	enum class StencilFunc : i32
-	{
-		INVALID = -1,
-		KEEP = 0,
-		ZERO,
-		REPLACE,
-		INCR,
-		INCR_WRAP,
-		DECR,
-		DECR_WRAP,
-		INVERT,
-
-		MAX,
 	};
 
 	/**
@@ -310,19 +204,6 @@ namespace GPU
 	{
 		Handle shader_;
 	};
-
-	/**
-	 * DSV flags.
-	 */
-	enum class DSVFlags : u32
-	{
-		NONE = 0x0,
-		READ_ONLY_DEPTH = 0x1,
-		READ_ONLY_STENCIL = 0x2
-	};
-
-	DEFINE_ENUM_CLASS_FLAG_OPERATOR(DSVFlags, &);
-	DEFINE_ENUM_CLASS_FLAG_OPERATOR(DSVFlags, |);
 
 	/**
 	 * Binding for a render target view.

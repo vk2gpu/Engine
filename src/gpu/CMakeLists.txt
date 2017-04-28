@@ -3,6 +3,7 @@ SET(SOURCES_PUBLIC
 	"commands.h"
 	"command_list.h"
 	"dll.h"
+	"fwd_decls.h"
 	"manager.h"
 	"resources.h"
 	"types.h"
