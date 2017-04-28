@@ -476,7 +476,7 @@ namespace Resource
 
 	bool Manager::RequestResource(void*& outResource, const char* name, const Core::UUID& type)
 	{
-		DBG_ASSERT(impl_);
+		DBG_ASSERT(IsInitialized());
 		DBG_ASSERT(outResource == nullptr);
 
 		Core::Array<char, Core::MAX_PATH_LENGTH> path;
@@ -572,7 +572,7 @@ namespace Resource
 
 	bool Manager::ReleaseResource(void*& inResource, const Core::UUID& type)
 	{
-		DBG_ASSERT(impl_);
+		DBG_ASSERT(IsInitialized());
 		if(impl_->ReleaseResourceEntry(inResource, type))
 		{
 			impl_->ProcessReleasedResources();
@@ -583,14 +583,14 @@ namespace Resource
 
 	bool Manager::IsResourceReady(void* inResource, const Core::UUID& type)
 	{
-		DBG_ASSERT(impl_);
+		DBG_ASSERT(IsInitialized());
 		DBG_ASSERT(inResource != nullptr);
 		return impl_->IsResourceReady(inResource, type);
 	}
 
 	void Manager::WaitForResource(void* inResource, const Core::UUID& type)
 	{
-		DBG_ASSERT(impl_);
+		DBG_ASSERT(IsInitialized());
 		DBG_ASSERT(inResource != nullptr);
 		while(!IsResourceReady(inResource, type))
 		{
@@ -600,6 +600,7 @@ namespace Resource
 
 	bool Manager::ConvertResource(const char* name, const char* convertedName, const Core::UUID& type)
 	{
+		DBG_ASSERT(IsInitialized());
 		bool retVal = false;
 		for(auto converterPlugin : impl_->converterPlugins_)
 		{
@@ -618,7 +619,7 @@ namespace Resource
 
 	bool Manager::RegisterFactory(const Core::UUID& type, IFactory* factory)
 	{
-		DBG_ASSERT(impl_);
+		DBG_ASSERT(IsInitialized());
 
 		if(impl_->factories_.find(type) != impl_->factories_.end())
 			return false;
@@ -629,8 +630,7 @@ namespace Resource
 
 	bool Manager::UnregisterFactory(IFactory* factory)
 	{
-		DBG_ASSERT(impl_);
-
+		DBG_ASSERT(IsInitialized());
 		bool success = false;
 		for(auto it = impl_->factories_.begin(); it != impl_->factories_.end();)
 		{
@@ -648,7 +648,7 @@ namespace Resource
 
 	Result Manager::ReadFileData(Core::File& file, i64 offset, i64 size, void* dest, AsyncResult* result)
 	{
-		DBG_ASSERT(impl_);
+		DBG_ASSERT(IsInitialized());
 		DBG_ASSERT(Core::ContainsAllFlags(file.GetFlags(), Core::FileFlags::READ));
 		DBG_ASSERT(offset >= 0);
 		DBG_ASSERT(size > 0);
@@ -683,7 +683,7 @@ namespace Resource
 
 	Result Manager::WriteFileData(Core::File& file, i64 size, void* src, AsyncResult* result)
 	{
-		DBG_ASSERT(impl_);
+		DBG_ASSERT(IsInitialized());
 		DBG_ASSERT(Core::ContainsAllFlags(file.GetFlags(), Core::FileFlags::WRITE));
 		DBG_ASSERT(size > 0);
 		DBG_ASSERT(src != nullptr);

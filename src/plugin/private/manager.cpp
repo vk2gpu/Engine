@@ -177,6 +177,7 @@ namespace Plugin
 
 	i32 Manager::Scan(const char* path)
 	{
+		DBG_ASSERT(IsInitialized());
 		Core::ScopedMutex lock(impl_->mutex_);
 #if PLATFORM_WINDOWS
 		const char* libExt = "dll";
@@ -218,6 +219,7 @@ namespace Plugin
 
 	bool Manager::HasChanged(const Plugin& plugin)
 	{
+		DBG_ASSERT(IsInitialized());
 		auto it = impl_->pluginDesc_.find(plugin.fileUuid_);
 		if(it != impl_->pluginDesc_.end())
 		{
@@ -228,6 +230,7 @@ namespace Plugin
 
 	bool Manager::Reload(Plugin& inOutPlugin)
 	{
+		DBG_ASSERT(IsInitialized());
 		auto it = impl_->pluginDesc_.find(inOutPlugin.fileUuid_);
 		if(it != impl_->pluginDesc_.end())
 		{
@@ -251,6 +254,7 @@ namespace Plugin
 
 	i32 Manager::GetPlugins(Core::UUID uuid, Plugin* outPlugins, i32 maxPlugins)
 	{
+		DBG_ASSERT(IsInitialized());
 		Core::ScopedMutex lock(impl_->mutex_);
 
 		i32 found = 0;

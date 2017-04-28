@@ -384,6 +384,7 @@ namespace Job
 
 	void Manager::RunJobs(JobDesc* jobDescs, i32 numJobDesc, Counter** counter)
 	{
+		DBG_ASSERT(IsInitialized());
 		DBG_ASSERT(counter == nullptr || *counter == nullptr);
 
 		// Setup counter.
@@ -437,6 +438,7 @@ namespace Job
 
 	void Manager::WaitForCounter(Counter*& counter, i32 value)
 	{
+		DBG_ASSERT(IsInitialized());
 		DBG_ASSERT(counter);
 
 		while(counter->value_ > value)
@@ -454,6 +456,7 @@ namespace Job
 
 	void Manager::YieldCPU()
 	{
+		DBG_ASSERT(IsInitialized());
 		auto* callingFiber = Core::Fiber::GetCurrentFiber();
 		if(callingFiber)
 		{

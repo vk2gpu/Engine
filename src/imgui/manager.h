@@ -31,8 +31,13 @@ namespace ImGui
 		static void Finalize();
 
 		/**
+		 * Is ImGui initialized?
+		 */
+		static bool IsInitialized();
+
+		/**
 		 * Begin ImGui frame.
- 		*/
+ 		 */
 		static void BeginFrame(const Client::IInputProvider& input, i32 w, i32 h);
 
 		/**

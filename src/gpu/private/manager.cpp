@@ -199,7 +199,7 @@ namespace GPU
 
 	i32 Manager::EnumerateAdapters(AdapterInfo* outAdapters, i32 maxAdapters)
 	{
-		DBG_ASSERT(impl_->backend_);
+		DBG_ASSERT(IsInitialized());
 		return impl_->backend_->EnumerateAdapters(outAdapters, maxAdapters);
 	}
 
@@ -220,7 +220,6 @@ namespace GPU
 	Handle Manager::CreateSwapChain(const SwapChainDesc& desc, const char* debugName)
 	{
 		DBG_ASSERT(IsInitialized());
-		DBG_ASSERT(impl_->backend_);
 		Handle handle = impl_->AllocHandle(ResourceType::SWAP_CHAIN);
 		impl_->HandleErrorCode(handle, impl_->backend_->CreateSwapChain(handle, desc, debugName));
 		return handle;
@@ -228,7 +227,7 @@ namespace GPU
 
 	Handle Manager::CreateBuffer(const BufferDesc& desc, const void* initialData, const char* debugName)
 	{
-		DBG_ASSERT(impl_->backend_);
+		DBG_ASSERT(IsInitialized());
 		Handle handle = impl_->AllocHandle(ResourceType::BUFFER);
 		impl_->HandleErrorCode(handle, impl_->backend_->CreateBuffer(handle, desc, initialData, debugName));
 		return handle;
@@ -238,7 +237,6 @@ namespace GPU
 	    const TextureDesc& desc, const TextureSubResourceData* initialData, const char* debugName)
 	{
 		DBG_ASSERT(IsInitialized());
-		DBG_ASSERT(impl_->backend_);
 		Handle handle = impl_->AllocHandle(ResourceType::TEXTURE);
 		impl_->HandleErrorCode(handle, impl_->backend_->CreateTexture(handle, desc, initialData, debugName));
 		return handle;
@@ -247,7 +245,6 @@ namespace GPU
 	Handle Manager::CreateSamplerState(const SamplerState& state, const char* debugName)
 	{
 		DBG_ASSERT(IsInitialized());
-		DBG_ASSERT(impl_->backend_);
 		Handle handle = impl_->AllocHandle(ResourceType::SAMPLER_STATE);
 		impl_->HandleErrorCode(handle, impl_->backend_->CreateSamplerState(handle, state, debugName));
 		return handle;
@@ -256,7 +253,6 @@ namespace GPU
 	Handle Manager::CreateShader(const ShaderDesc& desc, const char* debugName)
 	{
 		DBG_ASSERT(IsInitialized());
-		DBG_ASSERT(impl_->backend_);
 		Handle handle = impl_->AllocHandle(ResourceType::SHADER);
 		impl_->HandleErrorCode(handle, impl_->backend_->CreateShader(handle, desc, debugName));
 		return handle;
@@ -265,7 +261,6 @@ namespace GPU
 	Handle Manager::CreateGraphicsPipelineState(const GraphicsPipelineStateDesc& desc, const char* debugName)
 	{
 		DBG_ASSERT(IsInitialized());
-		DBG_ASSERT(impl_->backend_);
 		Handle handle = impl_->AllocHandle(ResourceType::GRAPHICS_PIPELINE_STATE);
 		impl_->HandleErrorCode(handle, impl_->backend_->CreateGraphicsPipelineState(handle, desc, debugName));
 		return handle;
@@ -283,7 +278,6 @@ namespace GPU
 	Handle Manager::CreatePipelineBindingSet(const PipelineBindingSetDesc& desc, const char* debugName)
 	{
 		DBG_ASSERT(IsInitialized());
-		DBG_ASSERT(impl_->backend_);
 		Handle handle = impl_->AllocHandle(ResourceType::PIPELINE_BINDING_SET);
 		impl_->HandleErrorCode(handle, impl_->backend_->CreatePipelineBindingSet(handle, desc, debugName));
 		return handle;
@@ -301,7 +295,6 @@ namespace GPU
 	Handle Manager::CreateFrameBindingSet(const FrameBindingSetDesc& desc, const char* debugName)
 	{
 		DBG_ASSERT(IsInitialized());
-		DBG_ASSERT(impl_->backend_);
 		Handle handle = impl_->AllocHandle(ResourceType::FRAME_BINDING_SET);
 		impl_->HandleErrorCode(handle, impl_->backend_->CreateFrameBindingSet(handle, desc, debugName));
 		return handle;
@@ -310,7 +303,6 @@ namespace GPU
 	Handle Manager::CreateCommandList(const char* debugName)
 	{
 		DBG_ASSERT(IsInitialized());
-		DBG_ASSERT(impl_->backend_);
 		Handle handle = impl_->AllocHandle(ResourceType::COMMAND_LIST);
 		impl_->HandleErrorCode(handle, impl_->backend_->CreateCommandList(handle, debugName));
 		return handle;
@@ -319,7 +311,6 @@ namespace GPU
 	Handle Manager::CreateFence(const char* debugName)
 	{
 		DBG_ASSERT(IsInitialized());
-		DBG_ASSERT(impl_->backend_);
 		Handle handle = impl_->AllocHandle(ResourceType::FENCE);
 		impl_->HandleErrorCode(handle, impl_->backend_->CreateFence(handle, debugName));
 		return handle;
@@ -328,7 +319,6 @@ namespace GPU
 	void Manager::DestroyResource(Handle handle)
 	{
 		DBG_ASSERT(IsInitialized());
-		DBG_ASSERT(impl_->backend_);
 		Core::ScopedMutex lock(impl_->mutex_);
 		impl_->deferredDeletions_.push_back(handle);
 	}
@@ -336,7 +326,6 @@ namespace GPU
 	bool Manager::CompileCommandList(Handle handle, const CommandList& commandList)
 	{
 		DBG_ASSERT(IsInitialized());
-		DBG_ASSERT(impl_->backend_);
 		DBG_ASSERT(handle.GetType() == ResourceType::COMMAND_LIST);
 		return impl_->HandleErrorCode(handle, impl_->backend_->CompileCommandList(handle, commandList));
 	}
@@ -344,7 +333,6 @@ namespace GPU
 	bool Manager::SubmitCommandList(Handle handle)
 	{
 		DBG_ASSERT(IsInitialized());
-		DBG_ASSERT(impl_->backend_);
 		DBG_ASSERT(handle.GetType() == ResourceType::COMMAND_LIST);
 		return impl_->HandleErrorCode(handle, impl_->backend_->SubmitCommandList(handle));
 	}
@@ -352,7 +340,6 @@ namespace GPU
 	bool Manager::PresentSwapChain(Handle handle)
 	{
 		DBG_ASSERT(IsInitialized());
-		DBG_ASSERT(impl_->backend_);
 		DBG_ASSERT(handle.GetType() == ResourceType::SWAP_CHAIN);
 		return impl_->HandleErrorCode(handle, impl_->backend_->PresentSwapChain(handle));
 	}
@@ -360,7 +347,6 @@ namespace GPU
 	bool Manager::ResizeSwapChain(Handle handle, i32 width, i32 height)
 	{
 		DBG_ASSERT(IsInitialized());
-		DBG_ASSERT(impl_->backend_);
 		DBG_ASSERT(handle.GetType() == ResourceType::SWAP_CHAIN);
 		return impl_->HandleErrorCode(handle, impl_->backend_->ResizeSwapChain(handle, width, height));
 	}
@@ -368,17 +354,20 @@ namespace GPU
 	void Manager::NextFrame() { impl_->backend_->NextFrame(); }
 
 	bool Manager::IsValidHandle(Handle handle)
-	{ //
+	{
+		DBG_ASSERT(IsInitialized());
 		return impl_->handles_.IsValid(handle);
 	}
 
 	const Core::HandleAllocator& Manager::GetHandleAllocator()
-	{ //
+	{
+		DBG_ASSERT(IsInitialized());
 		return impl_->handles_;
 	}
 
 	void Manager::BeginDebugCapture(const char* name)
 	{
+		DBG_ASSERT(IsInitialized());
 		if(Core::ContainsAllFlags(impl_->debuggerIntegration_, DebuggerIntegrationFlags::RENDERDOC))
 		{
 			RenderDoc::BeginCapture(name);
@@ -387,6 +376,7 @@ namespace GPU
 
 	void Manager::EndDebugCapture()
 	{
+		DBG_ASSERT(IsInitialized());
 		if(Core::ContainsAllFlags(impl_->debuggerIntegration_, DebuggerIntegrationFlags::RENDERDOC))
 		{
 			RenderDoc::EndCapture();

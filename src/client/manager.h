@@ -18,6 +18,11 @@ namespace Client
 		static void Finalize();
 
 		/**
+		 * Is client initialized?
+		 */
+		static bool IsInitialized();
+
+		/**
 		 * Update.
 		 * Will ensure all client systems are updated (input, messages, etc).
 		 * @return false if we should exit.

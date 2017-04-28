@@ -33,8 +33,15 @@ namespace Client
 		SDL_Quit();
 	}
 
+	bool Manager::IsInitialized()
+	{
+		return !!impl_;
+	}
+
 	bool Manager::Update()
 	{
+		DBG_ASSERT(IsInitialized());
+
 		// Update window input state.
 		for(auto it = impl_->windows_.begin(); it != impl_->windows_.end(); ++it)
 		{
@@ -47,7 +54,8 @@ namespace Client
 
 	bool Manager::PumpMessages()
 	{
-		DBG_ASSERT(impl_);
+		DBG_ASSERT(IsInitialized());
+
 		Core::ScopedMutex lock(impl_->resourceMutex_);
 
 		SDL_Event event;
@@ -70,14 +78,16 @@ namespace Client
 
 	void RegisterWindow(WindowImpl* window)
 	{
-		DBG_ASSERT(impl_);
+		DBG_ASSERT(Manager::IsInitialized());
+
 		Core::ScopedMutex lock(impl_->resourceMutex_);
 		impl_->windows_.push_back(window);
 	}
 
 	void DeregisterWindow(WindowImpl* window)
 	{
-		DBG_ASSERT(impl_);
+		DBG_ASSERT(Manager::IsInitialized());
+
 		Core::ScopedMutex lock(impl_->resourceMutex_);
 		for(auto it = impl_->windows_.begin(); it != impl_->windows_.end(); ++it)
 		{
@@ -91,6 +101,8 @@ namespace Client
 
 	void HandleEvent(const SDL_Event& event)
 	{
+		DBG_ASSERT(Manager::IsInitialized());
+
 		switch(event.type)
 		{
 		case SDL_WINDOWEVENT:

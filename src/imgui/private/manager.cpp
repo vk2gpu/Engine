@@ -28,6 +28,8 @@ namespace ImGui
 		GPU::Handle gpsHandle_;
 		GPU::Handle smpHandle_;
 		GPU::Handle pbsHandle_;
+		
+		bool isInitialized_ = false;
 	}
 
 	void Manager::Initialize()
@@ -214,10 +216,36 @@ namespace ImGui
 		style.Colors[ImGuiCol_PlotHistogramHovered] = ImVec4(0.38f, 0.38f, 1.00f, 1.00f);
 		style.Colors[ImGuiCol_TextSelectedBg] = ImVec4(0.45f, 0.45f, 1.00f, 0.35f);
 		style.Colors[ImGuiCol_ModalWindowDarkening] = ImVec4(0.20f, 0.20f, 0.20f, 0.35f);
+
+		isInitialized_ = true;
+	}
+
+	void Manager::Finalize()
+	{
+		DBG_ASSERT(IsInitialized());
+
+		GPU::Manager::DestroyResource(pbsHandle_);
+		GPU::Manager::DestroyResource(smpHandle_);
+		GPU::Manager::DestroyResource(gpsHandle_);
+		GPU::Manager::DestroyResource(psHandle_);
+		GPU::Manager::DestroyResource(vsHandle_);
+		GPU::Manager::DestroyResource(fontHandle_);
+		GPU::Manager::DestroyResource(dbsHandle_);
+		GPU::Manager::DestroyResource(ibHandle_);
+		GPU::Manager::DestroyResource(vbHandle_);
+
+		isInitialized_ = false;
+	}
+
+	bool Manager::IsInitialized()
+	{
+		return isInitialized_;
 	}
 
 	void Manager::BeginFrame(const Client::IInputProvider& input, i32 w, i32 h)
 	{
+		DBG_ASSERT(IsInitialized());
+
 		ImGuiIO& IO = ImGui::GetIO();
 		IO.DisplaySize.x = (f32)w;
 		IO.DisplaySize.y = (f32)h;
@@ -257,6 +285,8 @@ namespace ImGui
 
 	void Manager::EndFrame(const GPU::Handle& fbs, GPU::CommandList& cmdList)
 	{
+		DBG_ASSERT(IsInitialized());
+
 		ImGui::Render();
 
 		ImGuiIO& IO = ImGui::GetIO();
@@ -354,19 +384,6 @@ namespace ImGui
 				indexOffset += cmd->ElemCount;
 			}
 		}
-	}
-
-	void Manager::Finalize()
-	{
-		GPU::Manager::DestroyResource(pbsHandle_);
-		GPU::Manager::DestroyResource(smpHandle_);
-		GPU::Manager::DestroyResource(gpsHandle_);
-		GPU::Manager::DestroyResource(psHandle_);
-		GPU::Manager::DestroyResource(vsHandle_);
-		GPU::Manager::DestroyResource(fontHandle_);
-		GPU::Manager::DestroyResource(dbsHandle_);
-		GPU::Manager::DestroyResource(ibHandle_);
-		GPU::Manager::DestroyResource(vbHandle_);
 	}
 
 } // namespace ImGui
