@@ -85,7 +85,6 @@ namespace GPU
 {
 	struct ManagerImpl
 	{
-		Plugin::Manager& pluginManager_;
 		void* deviceWindow_ = nullptr;
 		DebuggerIntegrationFlags debuggerIntegration_ = DebuggerIntegrationFlags::NONE;
 
@@ -96,19 +95,18 @@ namespace GPU
 		Core::HandleAllocator handles_ = Core::HandleAllocator(ResourceType::MAX);
 		Core::Vector<Handle> deferredDeletions_;
 
-		ManagerImpl(Plugin::Manager& pluginManager, const SetupParams& setupParams)
-			: pluginManager_(pluginManager)
-			, deviceWindow_(setupParams.deviceWindow_)
+		ManagerImpl(const SetupParams& setupParams)
+			: deviceWindow_(setupParams.deviceWindow_)
 			, debuggerIntegration_(setupParams.debuggerIntegration_)
 		{
 			// Create matching backend.
 			Core::Vector<BackendPlugin> plugins;
 
-			auto found = pluginManager_.GetPlugins<BackendPlugin>(nullptr, 0);
+			auto found = Plugin::Manager::GetPlugins<BackendPlugin>(nullptr, 0);
 			DBG_ASSERT(found > 0);
 
 			plugins.resize(found);
-			found = pluginManager_.GetPlugins(plugins.data(), found);
+			found = Plugin::Manager::GetPlugins(plugins.data(), found);
 			DBG_ASSERT(found > 0);
 
 			for(const auto& plugin : plugins)
@@ -171,13 +169,18 @@ namespace GPU
 		}
 	};
 
-	Manager::Manager(Plugin::Manager& pluginManager, const SetupParams& setupParams)
+	ManagerImpl* impl_ = nullptr;
+
+	void Manager::Initialize(const SetupParams& setupParams)
 	{
-		impl_ = new ManagerImpl(pluginManager, setupParams);
+		DBG_ASSERT(impl_ == nullptr);
+		DBG_ASSERT(Plugin::Manager::IsInitialized());
+		impl_ = new ManagerImpl(setupParams);
 	}
 
-	Manager::~Manager()
+	void Manager::Finalize()
 	{
+		DBG_ASSERT(impl_);
 		impl_->ProcessDeletions();
 
 #if !defined(FINAL)
@@ -186,6 +189,12 @@ namespace GPU
 			    impl_->handles_.GetTotalHandles(i) == 0, "Handles still remain allocated for resource type %u", i);
 #endif
 		delete impl_;
+		impl_ = nullptr;
+	}
+
+	bool Manager::IsInitialized()
+	{ //
+		return !!impl_;
 	}
 
 	i32 Manager::EnumerateAdapters(AdapterInfo* outAdapters, i32 maxAdapters)
@@ -194,17 +203,23 @@ namespace GPU
 		return impl_->backend_->EnumerateAdapters(outAdapters, maxAdapters);
 	}
 
-	ErrorCode Manager::Initialize(i32 adapterIdx)
+	ErrorCode Manager::CreateAdapter(i32 adapterIdx)
 	{
-		DBG_ASSERT(!IsInitialized());
+		DBG_ASSERT(IsInitialized());
+		DBG_ASSERT(!IsAdapterCreated());
 		DBG_ASSERT(impl_->backend_);
 		return impl_->backend_->Initialize(adapterIdx);
 	}
 
-	bool Manager::IsInitialized() const { return impl_->backend_ && impl_->backend_->IsInitialized(); }
+	bool Manager::IsAdapterCreated()
+	{ //
+		DBG_ASSERT(IsInitialized());
+		return impl_->backend_ && impl_->backend_->IsInitialized();
+	}
 
 	Handle Manager::CreateSwapChain(const SwapChainDesc& desc, const char* debugName)
 	{
+		DBG_ASSERT(IsInitialized());
 		DBG_ASSERT(impl_->backend_);
 		Handle handle = impl_->AllocHandle(ResourceType::SWAP_CHAIN);
 		impl_->HandleErrorCode(handle, impl_->backend_->CreateSwapChain(handle, desc, debugName));
@@ -222,6 +237,7 @@ namespace GPU
 	Handle Manager::CreateTexture(
 	    const TextureDesc& desc, const TextureSubResourceData* initialData, const char* debugName)
 	{
+		DBG_ASSERT(IsInitialized());
 		DBG_ASSERT(impl_->backend_);
 		Handle handle = impl_->AllocHandle(ResourceType::TEXTURE);
 		impl_->HandleErrorCode(handle, impl_->backend_->CreateTexture(handle, desc, initialData, debugName));
@@ -230,6 +246,7 @@ namespace GPU
 
 	Handle Manager::CreateSamplerState(const SamplerState& state, const char* debugName)
 	{
+		DBG_ASSERT(IsInitialized());
 		DBG_ASSERT(impl_->backend_);
 		Handle handle = impl_->AllocHandle(ResourceType::SAMPLER_STATE);
 		impl_->HandleErrorCode(handle, impl_->backend_->CreateSamplerState(handle, state, debugName));
@@ -238,6 +255,7 @@ namespace GPU
 
 	Handle Manager::CreateShader(const ShaderDesc& desc, const char* debugName)
 	{
+		DBG_ASSERT(IsInitialized());
 		DBG_ASSERT(impl_->backend_);
 		Handle handle = impl_->AllocHandle(ResourceType::SHADER);
 		impl_->HandleErrorCode(handle, impl_->backend_->CreateShader(handle, desc, debugName));
@@ -246,6 +264,7 @@ namespace GPU
 
 	Handle Manager::CreateGraphicsPipelineState(const GraphicsPipelineStateDesc& desc, const char* debugName)
 	{
+		DBG_ASSERT(IsInitialized());
 		DBG_ASSERT(impl_->backend_);
 		Handle handle = impl_->AllocHandle(ResourceType::GRAPHICS_PIPELINE_STATE);
 		impl_->HandleErrorCode(handle, impl_->backend_->CreateGraphicsPipelineState(handle, desc, debugName));
@@ -254,6 +273,7 @@ namespace GPU
 
 	Handle Manager::CreateComputePipelineState(const ComputePipelineStateDesc& desc, const char* debugName)
 	{
+		DBG_ASSERT(IsInitialized());
 		DBG_ASSERT(impl_->backend_);
 		Handle handle = impl_->AllocHandle(ResourceType::COMPUTE_PIPELINE_STATE);
 		impl_->HandleErrorCode(handle, impl_->backend_->CreateComputePipelineState(handle, desc, debugName));
@@ -262,6 +282,7 @@ namespace GPU
 
 	Handle Manager::CreatePipelineBindingSet(const PipelineBindingSetDesc& desc, const char* debugName)
 	{
+		DBG_ASSERT(IsInitialized());
 		DBG_ASSERT(impl_->backend_);
 		Handle handle = impl_->AllocHandle(ResourceType::PIPELINE_BINDING_SET);
 		impl_->HandleErrorCode(handle, impl_->backend_->CreatePipelineBindingSet(handle, desc, debugName));
@@ -270,6 +291,7 @@ namespace GPU
 
 	Handle Manager::CreateDrawBindingSet(const DrawBindingSetDesc& desc, const char* debugName)
 	{
+		DBG_ASSERT(IsInitialized());
 		DBG_ASSERT(impl_->backend_);
 		Handle handle = impl_->AllocHandle(ResourceType::DRAW_BINDING_SET);
 		impl_->HandleErrorCode(handle, impl_->backend_->CreateDrawBindingSet(handle, desc, debugName));
@@ -278,6 +300,7 @@ namespace GPU
 
 	Handle Manager::CreateFrameBindingSet(const FrameBindingSetDesc& desc, const char* debugName)
 	{
+		DBG_ASSERT(IsInitialized());
 		DBG_ASSERT(impl_->backend_);
 		Handle handle = impl_->AllocHandle(ResourceType::FRAME_BINDING_SET);
 		impl_->HandleErrorCode(handle, impl_->backend_->CreateFrameBindingSet(handle, desc, debugName));
@@ -286,6 +309,7 @@ namespace GPU
 
 	Handle Manager::CreateCommandList(const char* debugName)
 	{
+		DBG_ASSERT(IsInitialized());
 		DBG_ASSERT(impl_->backend_);
 		Handle handle = impl_->AllocHandle(ResourceType::COMMAND_LIST);
 		impl_->HandleErrorCode(handle, impl_->backend_->CreateCommandList(handle, debugName));
@@ -294,6 +318,7 @@ namespace GPU
 
 	Handle Manager::CreateFence(const char* debugName)
 	{
+		DBG_ASSERT(IsInitialized());
 		DBG_ASSERT(impl_->backend_);
 		Handle handle = impl_->AllocHandle(ResourceType::FENCE);
 		impl_->HandleErrorCode(handle, impl_->backend_->CreateFence(handle, debugName));
@@ -302,6 +327,7 @@ namespace GPU
 
 	void Manager::DestroyResource(Handle handle)
 	{
+		DBG_ASSERT(IsInitialized());
 		DBG_ASSERT(impl_->backend_);
 		Core::ScopedMutex lock(impl_->mutex_);
 		impl_->deferredDeletions_.push_back(handle);
@@ -309,6 +335,7 @@ namespace GPU
 
 	bool Manager::CompileCommandList(Handle handle, const CommandList& commandList)
 	{
+		DBG_ASSERT(IsInitialized());
 		DBG_ASSERT(impl_->backend_);
 		DBG_ASSERT(handle.GetType() == ResourceType::COMMAND_LIST);
 		return impl_->HandleErrorCode(handle, impl_->backend_->CompileCommandList(handle, commandList));
@@ -316,6 +343,7 @@ namespace GPU
 
 	bool Manager::SubmitCommandList(Handle handle)
 	{
+		DBG_ASSERT(IsInitialized());
 		DBG_ASSERT(impl_->backend_);
 		DBG_ASSERT(handle.GetType() == ResourceType::COMMAND_LIST);
 		return impl_->HandleErrorCode(handle, impl_->backend_->SubmitCommandList(handle));
@@ -323,6 +351,7 @@ namespace GPU
 
 	bool Manager::PresentSwapChain(Handle handle)
 	{
+		DBG_ASSERT(IsInitialized());
 		DBG_ASSERT(impl_->backend_);
 		DBG_ASSERT(handle.GetType() == ResourceType::SWAP_CHAIN);
 		return impl_->HandleErrorCode(handle, impl_->backend_->PresentSwapChain(handle));
@@ -330,6 +359,7 @@ namespace GPU
 
 	bool Manager::ResizeSwapChain(Handle handle, i32 width, i32 height)
 	{
+		DBG_ASSERT(IsInitialized());
 		DBG_ASSERT(impl_->backend_);
 		DBG_ASSERT(handle.GetType() == ResourceType::SWAP_CHAIN);
 		return impl_->HandleErrorCode(handle, impl_->backend_->ResizeSwapChain(handle, width, height));
@@ -337,12 +367,12 @@ namespace GPU
 
 	void Manager::NextFrame() { impl_->backend_->NextFrame(); }
 
-	bool Manager::IsValidHandle(Handle handle) const
+	bool Manager::IsValidHandle(Handle handle)
 	{ //
 		return impl_->handles_.IsValid(handle);
 	}
 
-	const Core::HandleAllocator& Manager::GetHandleAllocator() const
+	const Core::HandleAllocator& Manager::GetHandleAllocator()
 	{ //
 		return impl_->handles_;
 	}

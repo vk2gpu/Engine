@@ -40,9 +40,9 @@ namespace
 
 TEST_CASE("resource-tests-file-io")
 {
-	Job::Manager jobManager(1, 256, 32 * 1024);
-	Plugin::Manager pluginManager;
-	Resource::Manager manager(jobManager, pluginManager);
+	Job::Manager::Initialize(1, 256, 32 * 1024);
+	Plugin::Manager::Scoped pluginManager;
+	Resource::Manager::Scoped resourceManager;
 
 	static const i32 TEST_BUFFER_SIZE = 32 * 1024 * 1024;
 	const char* testFileName = "test_output.dat";
@@ -65,7 +65,7 @@ TEST_CASE("resource-tests-file-io")
 
 		Core::Timer timer;
 		timer.Mark();
-		manager.WriteFileData(file, TEST_BUFFER_SIZE, outBuffer.data(), &result);
+		Resource::Manager::WriteFileData(file, TEST_BUFFER_SIZE, outBuffer.data(), &result);
 		do
 		{
 			Core::Log("%.2fms: Writing file %u%%...\n", timer.GetTime() * 1000.0,
@@ -91,7 +91,7 @@ TEST_CASE("resource-tests-file-io")
 
 		Core::Timer timer;
 		timer.Mark();
-		manager.ReadFileData(file, 0, inBuffer.size(), inBuffer.data(), &result);
+		Resource::Manager::ReadFileData(file, 0, inBuffer.size(), inBuffer.data(), &result);
 		do
 		{
 			Core::Log("%.2fms: Reading file %u%%...\n", timer.GetTime() * 1000.0,
@@ -136,21 +136,21 @@ TEST_CASE("resource-tests-file-io")
 
 TEST_CASE("resource-tests-converter")
 {
-	Plugin::Manager pluginManager;
+	Plugin::Manager::Scoped pluginManager;
 
 	char path[Core::MAX_PATH_LENGTH];
 	Core::FileGetCurrDir(path, Core::MAX_PATH_LENGTH);
-	i32 found = pluginManager.Scan(".");
+	i32 found = Plugin::Manager::Scan(".");
 	REQUIRE(found > 0);
 
 	// Get number of converter plugins.
-	found = pluginManager.GetPlugins<Resource::ConverterPlugin>(nullptr, 0);
+	found = Plugin::Manager::GetPlugins<Resource::ConverterPlugin>(nullptr, 0);
 	REQUIRE(found > 0);
 
 	// Allocate + get all converter plugins.
 	Core::Vector<Resource::ConverterPlugin> converterPlugins;
 	converterPlugins.resize(found);
-	found = pluginManager.GetPlugins<Resource::ConverterPlugin>(converterPlugins.data(), converterPlugins.size());
+	found = Plugin::Manager::GetPlugins<Resource::ConverterPlugin>(converterPlugins.data(), converterPlugins.size());
 	REQUIRE(found > 0);
 
 	// Find one that supports our file type.

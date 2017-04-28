@@ -18,22 +18,21 @@ namespace
 
 TEST_CASE("plugin-tests-scan")
 {
-	Plugin::Manager manager;
-
-	i32 found = manager.Scan(".");
+	Plugin::Manager::Scoped manager;
+	i32 found = Plugin::Manager::Scan(".");
 	REQUIRE(found > 0);
 }
 
 TEST_CASE("plugin-tests-basic-plugin")
 {
-	Plugin::Manager manager;
+	Plugin::Manager::Scoped manager;
 
-	i32 found = manager.Scan(".");
+	i32 found = Plugin::Manager::Scan(".");
 	REQUIRE(found > 0);
 
 	PluginTestBasic plugin;
 
-	found = manager.GetPlugins(&plugin, 1);
+	found = Plugin::Manager::GetPlugins(&plugin, 1);
 	REQUIRE(found > 0);
 	REQUIRE(plugin.successfullyLoaded_ == true);
 	REQUIRE(plugin.testMagic_ == PluginTestBasic::TEST_MAGIC);
@@ -41,14 +40,14 @@ TEST_CASE("plugin-tests-basic-plugin")
 
 TEST_CASE("plugin-tests-advanced-plugin")
 {
-	Plugin::Manager manager;
+	Plugin::Manager::Scoped manager;
 
-	i32 found = manager.Scan(".");
+	i32 found = Plugin::Manager::Scan(".");
 	REQUIRE(found > 0);
 
 	PluginTestAdvanced plugin;
 
-	found = manager.GetPlugins(&plugin, 1);
+	found = Plugin::Manager::GetPlugins(&plugin, 1);
 	REQUIRE(found > 0);
 	
 	REQUIRE(plugin.GetNumber() == 0);
@@ -58,14 +57,14 @@ TEST_CASE("plugin-tests-advanced-plugin")
 
 TEST_CASE("plugin-tests-basic-reload")
 {
-	Plugin::Manager manager;
+	Plugin::Manager::Scoped manager;
 
-	i32 found = manager.Scan(".");
+	i32 found = Plugin::Manager::Scan(".");
 	REQUIRE(found > 0);
 
 	PluginTestBasic plugin;
 
-	found = manager.GetPlugins(&plugin, 1);
+	found = Plugin::Manager::GetPlugins(&plugin, 1);
 	REQUIRE(found > 0);
 	REQUIRE(plugin.successfullyLoaded_ == true);
 	REQUIRE(plugin.testMagic_ == PluginTestBasic::TEST_MAGIC);
@@ -76,14 +75,14 @@ TEST_CASE("plugin-tests-basic-reload")
 	REQUIRE(plugin.GetNumber() == 1);
 
 #if 0 
-	while(manager.HasChanged(plugin) == false)
+	while(Plugin::Manager::HasChanged(plugin) == false)
 	{
 		DBG_LOG("Waiting for recompilation...");
 		::Sleep(5000);
 	}
 #endif
 
-	bool reloaded = manager.Reload(plugin);
+	bool reloaded = Plugin::Manager::Reload(plugin);
 	REQUIRE(reloaded);
 
 	// Test reloading has reset state.

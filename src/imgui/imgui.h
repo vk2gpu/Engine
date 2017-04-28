@@ -19,9 +19,8 @@ namespace ImGui
 {
 	/**
 	 * Initialize ImGui.
-	 * @param gpuManager GPU manager to use for setup.
 	 */
-	IMGUI_DLL void Initialize(GPU::Manager& gpuManager);
+	IMGUI_DLL void Initialize();
 
 	/**
 	 * Finalize ImGui.

@@ -35,7 +35,7 @@ namespace
 		}
 	}
 
-	void RunJobTest(Job::Manager& jobManager, i32 numJobs, const char* name, bool log = true)
+	void RunJobTest(i32 numJobs, const char* name, bool log = true)
 	{
 		Core::Vector<i32> jobDatas;
 		jobDatas.resize(numJobs, 0);
@@ -59,9 +59,9 @@ namespace
 
 		Timer timer;
 		timer.Mark();
-		jobManager.RunJobs(jobDescs.data(), jobDescs.size(), &counter);
+		Job::Manager::RunJobs(jobDescs.data(), jobDescs.size(), &counter);
 		double runTime = timer.GetTime();
-		jobManager.WaitForCounter(counter, 0);
+		Job::Manager::WaitForCounter(counter, 0);
 		double time = timer.GetTime();
 		if(log)
 		{
@@ -75,18 +75,16 @@ namespace
 		}
 	}
 
-	void RunJobTest2(Job::Manager& jobManager, i32 numJobs, const char* name)
+	void RunJobTest2(i32 numJobs, const char* name)
 	{
 		struct JobData
 		{
-			Job::Manager* jobManager = nullptr;
 			i32 jobsToLaunch = 1;
 		};
 		Core::Vector<JobData> jobDatas;
 		jobDatas.resize(numJobs);
 		for(i32 i = 0; i < numJobs; ++i)
 		{
-			jobDatas[i].jobManager = &jobManager;
 			jobDatas[i].jobsToLaunch = (i / 8) + 1;
 		}
 
@@ -97,7 +95,7 @@ namespace
 			Job::JobDesc jobDesc;
 			jobDesc.func_ = [](i32 param, void* data) {
 				auto jobData = reinterpret_cast<JobData*>(data);
-				RunJobTest(*jobData->jobManager, jobData->jobsToLaunch, "testJobRecursive");
+				RunJobTest(jobData->jobsToLaunch, "testJobRecursive");
 			};
 			jobDesc.param_ = i + 1;
 			jobDesc.data_ = &jobDatas[i];
@@ -109,9 +107,9 @@ namespace
 
 		Timer timer;
 		timer.Mark();
-		jobManager.RunJobs(jobDescs.data(), jobDescs.size(), &counter);
+		Job::Manager::RunJobs(jobDescs.data(), jobDescs.size(), &counter);
 		double runTime = timer.GetTime();
-		jobManager.WaitForCounter(counter, 0);
+		Job::Manager::WaitForCounter(counter, 0);
 		double time = timer.GetTime();
 		Core::Log("\"%s\"\n", name);
 		Core::Log("\tRubJobs: %f ms (%f ms. avg)\n", runTime * 1000.0, runTime * 1000.0 / (double)numJobs);
@@ -127,130 +125,130 @@ namespace
 
 TEST_CASE("job-tests-create-st-1")
 {
-	Job::Manager jobManager(1, MAX_FIBERS, FIBER_STACK_SIZE);
+	Job::Manager::Scoped manager(1, MAX_FIBERS, FIBER_STACK_SIZE);
 }
 
 TEST_CASE("job-tests-create-mt-4")
 {
-	Job::Manager jobManager(4, MAX_FIBERS, FIBER_STACK_SIZE);
+	Job::Manager::Scoped manager(4, MAX_FIBERS, FIBER_STACK_SIZE);
 }
 
 TEST_CASE("job-tests-run-job-1-st-1")
 {
-	Job::Manager jobManager(1, MAX_FIBERS, FIBER_STACK_SIZE);
-	RunJobTest(jobManager, 1, "job-tests-run-job-1-st-1");
+	Job::Manager::Scoped manager(1, MAX_FIBERS, FIBER_STACK_SIZE);
+	RunJobTest( 1, "job-tests-run-job-1-st-1");
 }
 
 TEST_CASE("job-tests-run-job-1-mt-4")
 {
-	Job::Manager jobManager(4, MAX_FIBERS, FIBER_STACK_SIZE);
-	RunJobTest(jobManager, 1, "job-tests-run-job-1-mt-4");
+	Job::Manager::Scoped manager(4, MAX_FIBERS, FIBER_STACK_SIZE);
+	RunJobTest(1, "job-tests-run-job-1-mt-4");
 }
 
 TEST_CASE("job-tests-run-job-1-mt-8")
 {
-	Job::Manager jobManager(8, MAX_FIBERS, FIBER_STACK_SIZE);
-	RunJobTest(jobManager, 1, "job-tests-run-job-1-mt-8");
+	Job::Manager::Scoped manager(8, MAX_FIBERS, FIBER_STACK_SIZE);
+	RunJobTest(1, "job-tests-run-job-1-mt-8");
 }
 
 TEST_CASE("job-tests-run-job-100-st-1")
 {
-	Job::Manager jobManager(1, MAX_FIBERS, FIBER_STACK_SIZE);
-	RunJobTest(jobManager, 100, "job-tests-run-job-100-st-1");
+	Job::Manager::Scoped manager(1, MAX_FIBERS, FIBER_STACK_SIZE);
+	RunJobTest(100, "job-tests-run-job-100-st-1");
 }
 
 TEST_CASE("job-tests-run-job-100-mt-4")
 {
-	Job::Manager jobManager(4, MAX_FIBERS, FIBER_STACK_SIZE);
-	RunJobTest(jobManager, 100, "job-tests-run-job-100-mt-4");
+	Job::Manager::Scoped manager(4, MAX_FIBERS, FIBER_STACK_SIZE);
+	RunJobTest(100, "job-tests-run-job-100-mt-4");
 }
 
 TEST_CASE("job-tests-run-job-100-mt-8")
 {
-	Job::Manager jobManager(4, MAX_FIBERS, FIBER_STACK_SIZE);
-	RunJobTest(jobManager, 100, "job-tests-run-job-100-mt-8");
+	Job::Manager::Scoped manager(4, MAX_FIBERS, FIBER_STACK_SIZE);
+	RunJobTest(100, "job-tests-run-job-100-mt-8");
 }
 
 TEST_CASE("job-tests-run-job-1000-st-1")
 {
-	Job::Manager jobManager(1, MAX_FIBERS, FIBER_STACK_SIZE);
-	RunJobTest(jobManager, 1000, "job-tests-run-job-1000-st-1");
+	Job::Manager::Scoped manager(1, MAX_FIBERS, FIBER_STACK_SIZE);
+	RunJobTest(1000, "job-tests-run-job-1000-st-1");
 }
 
 TEST_CASE("job-tests-run-job-1000-mt-4")
 {
-	Job::Manager jobManager(4, MAX_FIBERS, FIBER_STACK_SIZE);
-	RunJobTest(jobManager, 1000, "job-tests-run-job-1000-mt-4");
+	Job::Manager::Scoped manager(4, MAX_FIBERS, FIBER_STACK_SIZE);
+	RunJobTest(1000, "job-tests-run-job-1000-mt-4");
 }
 
 TEST_CASE("job-tests-run-job-1000-mt-8")
 {
-	Job::Manager jobManager(8, MAX_FIBERS, FIBER_STACK_SIZE);
-	RunJobTest(jobManager, 1000, "job-tests-run-job-1000-mt-8");
+	Job::Manager::Scoped manager(8, MAX_FIBERS, FIBER_STACK_SIZE);
+	RunJobTest(1000, "job-tests-run-job-1000-mt-8");
 }
 
 TEST_CASE("job-tests-run-job-1000-mt-4-fiber-blocked")
 {
-	Job::Manager jobManager(4, 2, FIBER_STACK_SIZE);
-	RunJobTest(jobManager, 1000, "job-tests-run-job-100-mt-4-fiber-blocked");
+	Job::Manager::Scoped manager(4, 2, FIBER_STACK_SIZE);
+	RunJobTest(1000, "job-tests-run-job-100-mt-4-fiber-blocked");
 }
 
 TEST_CASE("job-tests-run-job-1000-mt-8-fiber-blocked")
 {
-	Job::Manager jobManager(8, 4, FIBER_STACK_SIZE);
-	RunJobTest(jobManager, 1000, "job-tests-run-job-100-mt-8-fiber-blocked");
+	Job::Manager::Scoped manager(8, 4, FIBER_STACK_SIZE);
+	RunJobTest(1000, "job-tests-run-job-100-mt-8-fiber-blocked");
 }
 
 TEST_CASE("job-tests-run-job-recursive-1-mt-1")
 {
-	Job::Manager jobManager(1, MAX_FIBERS, FIBER_STACK_SIZE);
-	RunJobTest2(jobManager, 1, "job-tests-run-job-recursive-1-mt-1");
+	Job::Manager::Scoped manager(1, MAX_FIBERS, FIBER_STACK_SIZE);
+	RunJobTest2(1, "job-tests-run-job-recursive-1-mt-1");
 }
 
 TEST_CASE("job-tests-run-job-recursive-10-mt-1")
 {
-	Job::Manager jobManager(1, MAX_FIBERS, FIBER_STACK_SIZE);
-	RunJobTest2(jobManager, 10, "job-tests-run-job-recursive-10-mt-1");
+	Job::Manager::Scoped manager(1, MAX_FIBERS, FIBER_STACK_SIZE);
+	RunJobTest2(10, "job-tests-run-job-recursive-10-mt-1");
 }
 
 TEST_CASE("job-tests-run-job-recursive-100-mt-1")
 {
-	Job::Manager jobManager(1, MAX_FIBERS, FIBER_STACK_SIZE);
-	RunJobTest2(jobManager, 100, "job-tests-run-job-recursive-100-mt-1");
+	Job::Manager::Scoped manager(1, MAX_FIBERS, FIBER_STACK_SIZE);
+	RunJobTest2(100, "job-tests-run-job-recursive-100-mt-1");
 }
 
 TEST_CASE("job-tests-run-job-recursive-1-mt-4")
 {
-	Job::Manager jobManager(4, MAX_FIBERS, FIBER_STACK_SIZE);
-	RunJobTest2(jobManager, 1, "job-tests-run-job-recursive-1-mt-4");
+	Job::Manager::Scoped manager(4, MAX_FIBERS, FIBER_STACK_SIZE);
+	RunJobTest2(1, "job-tests-run-job-recursive-1-mt-4");
 }
 
 TEST_CASE("job-tests-run-job-recursive-2-mt-4")
 {
-	Job::Manager jobManager(4, MAX_FIBERS, FIBER_STACK_SIZE);
-	RunJobTest2(jobManager, 10, "job-tests-run-job-recursive-10-mt-4");
+	Job::Manager::Scoped manager(4, MAX_FIBERS, FIBER_STACK_SIZE);
+	RunJobTest2(10, "job-tests-run-job-recursive-10-mt-4");
 }
 
 TEST_CASE("job-tests-run-job-recursive-3-mt-4")
 {
-	Job::Manager jobManager(4, MAX_FIBERS, FIBER_STACK_SIZE);
-	RunJobTest2(jobManager, 100, "job-tests-run-job-recursive-100-mt-4");
+	Job::Manager::Scoped manager(4, MAX_FIBERS, FIBER_STACK_SIZE);
+	RunJobTest2(100, "job-tests-run-job-recursive-100-mt-4");
 }
 
 TEST_CASE("job-tests-run-job-recursive-1-mt-8")
 {
-	Job::Manager jobManager(8, MAX_FIBERS, FIBER_STACK_SIZE);
-	RunJobTest2(jobManager, 1, "job-tests-run-job-recursive-1-mt-8");
+	Job::Manager::Scoped manager(8, MAX_FIBERS, FIBER_STACK_SIZE);
+	RunJobTest2(1, "job-tests-run-job-recursive-1-mt-8");
 }
 
 TEST_CASE("job-tests-run-job-recursive-2-mt-8")
 {
-	Job::Manager jobManager(8, MAX_FIBERS, FIBER_STACK_SIZE);
-	RunJobTest2(jobManager, 10, "job-tests-run-job-recursive-10-mt-8");
+	Job::Manager::Scoped manager(8, MAX_FIBERS, FIBER_STACK_SIZE);
+	RunJobTest2(10, "job-tests-run-job-recursive-10-mt-8");
 }
 
 TEST_CASE("job-tests-run-job-recursive-3-mt-8")
 {
-	Job::Manager jobManager(8, MAX_FIBERS, FIBER_STACK_SIZE);
-	RunJobTest2(jobManager, 100, "job-tests-run-job-recursive-100-mt-8");
+	Job::Manager::Scoped manager(8, MAX_FIBERS, FIBER_STACK_SIZE);
+	RunJobTest2(100, "job-tests-run-job-recursive-100-mt-8");
 }

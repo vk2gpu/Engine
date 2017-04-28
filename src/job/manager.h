@@ -14,13 +14,22 @@ namespace Job
 	{
 	public:
 		/**
-		 * Create job manager.
+		 * Initialize job manager.
 		 * @param numWorkers Number of workers to create.
 		 * @param numFibers Number of fibers to allocate.
 		 * @param fiberStackSize Stack size for each fiber.
 		 */
-		Manager(i32 numWorkers, i32 numFibers, i32 fiberStackSize);
-		~Manager();
+		static void Initialize(i32 numWorkers, i32 numFibers, i32 fiberStackSize);
+
+		/**
+		 * Shutdown job manager.
+		 */
+		static void Finalize();
+
+		/**
+		 * Is job manager initialized?
+		 */
+		static bool IsInitialized();
 
 		/**
 		 * Run jobs.
@@ -30,7 +39,7 @@ namespace Job
 		 * @pre jobDescs != nullptr.
 		 * @pre numJobDesc > 0.
 		 */
-		void RunJobs(JobDesc* jobDescs, i32 numJobDesc, Counter** counter = nullptr);
+		static void RunJobs(JobDesc* jobDescs, i32 numJobDesc, Counter** counter = nullptr);
 
 		/**
 		 * Wait for counter.
@@ -38,16 +47,30 @@ namespace Job
 		 * @param counter Counter to wait on.
 		 * @param value Value to wait on.
 		 */
-		void WaitForCounter(Counter*& counter, i32 value);
+		static void WaitForCounter(Counter*& counter, i32 value);
 
 		/**
 		 * Yield execution.
 		 */
 		static void YieldCPU();
 
+		/**
+		 * Scoped manager init/fini.
+		 * Mostly a convenience for unit tests.
+		 */
+		class Scoped
+		{
+		public:
+			Scoped(i32 numWorkers, i32 numFibers, i32 fiberStackSize)
+			{
+				Initialize(numWorkers, numFibers, fiberStackSize);
+			}
+			~Scoped() { Finalize(); }
+		};
 
 	private:
+		Manager() = delete;
+		~Manager() = delete;
 		Manager(const Manager&) = delete;
-		struct ManagerImpl* impl_ = nullptr;
 	};
 } // namespace Job

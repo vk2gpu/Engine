@@ -146,16 +146,20 @@ namespace Plugin
 		Core::Mutex mutex_;
 	};
 
-	Manager::Manager()
-	{ //
+	ManagerImpl* impl_ = nullptr;
+
+	void Manager::Initialize()
+	{
+		DBG_ASSERT(impl_ == nullptr);
 		impl_ = new ManagerImpl();
 
 		// Initial scan.
 		Scan(".");
 	}
 
-	Manager::~Manager()
+	void Manager::Finalize()
 	{
+		DBG_ASSERT(impl_);
 		for(auto pluginDescIt : impl_->pluginDesc_)
 		{
 			delete pluginDescIt.second;
@@ -163,6 +167,12 @@ namespace Plugin
 		impl_->pluginDesc_.clear();
 
 		delete impl_; 
+		impl_ = nullptr;
+	}
+
+	bool Manager::IsInitialized()
+	{
+		return !!impl_;
 	}
 
 	i32 Manager::Scan(const char* path)
@@ -206,7 +216,7 @@ namespace Plugin
 		return impl_->pluginDesc_.size();
 	}
 
-	bool Manager::HasChanged(const Plugin& plugin) const
+	bool Manager::HasChanged(const Plugin& plugin)
 	{
 		auto it = impl_->pluginDesc_.find(plugin.fileUuid_);
 		if(it != impl_->pluginDesc_.end())

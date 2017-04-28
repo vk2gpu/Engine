@@ -133,58 +133,58 @@ namespace
 
 TEST_CASE("resource-tests-manager")
 {
-	Job::Manager jobManager(1, 256, 32 * 1024);
-	Plugin::Manager pluginManager;
-	Resource::Manager manager(jobManager, pluginManager);
+	Job::Manager::Scoped jobManager(1, 256, 32 * 1024);
+	Plugin::Manager::Scoped pluginManager;
+	Resource::Manager::Scoped manager;
 }
 
 
 TEST_CASE("resource-tests-request")
 {
-	Job::Manager jobManager(1, 256, 32 * 1024);
-	Plugin::Manager pluginManager;
-	Resource::Manager manager(jobManager, pluginManager);
+	Job::Manager::Scoped jobManager(1, 256, 32 * 1024);
+	Plugin::Manager::Scoped pluginManager;
+	Resource::Manager::Scoped manager;
 
 	// Register factory.
 	auto* factory = new TestFactory();
-	REQUIRE(manager.RegisterFactory(TestResource::GetTypeUUID(), factory));
+	REQUIRE(Resource::Manager::RegisterFactory(TestResource::GetTypeUUID(), factory));
 
 	TestResource* testResource = nullptr;
-	REQUIRE(manager.RequestResource(testResource, "converter.test"));
+	REQUIRE(Resource::Manager::RequestResource(testResource, "converter.test"));
 	REQUIRE(testResource);
-	REQUIRE(manager.ReleaseResource(testResource));
+	REQUIRE(Resource::Manager::ReleaseResource(testResource));
 	REQUIRE(!testResource);
 
-	REQUIRE(manager.UnregisterFactory(factory));
+	REQUIRE(Resource::Manager::UnregisterFactory(factory));
 }
 
 TEST_CASE("resource-tests-request-multiple")
 {
-	Job::Manager jobManager(1, 256, 32 * 1024);
-	Plugin::Manager pluginManager;
-	Resource::Manager manager(jobManager, pluginManager);
+	Job::Manager::Scoped jobManager(1, 256, 32 * 1024);
+	Plugin::Manager::Scoped pluginManager;
+	Resource::Manager::Scoped manager;
 
 	// Register factory.
 	auto* factory = new TestFactory();
-	REQUIRE(manager.RegisterFactory(TestResource::GetTypeUUID(), factory));
+	REQUIRE(Resource::Manager::RegisterFactory(TestResource::GetTypeUUID(), factory));
 
 	TestResource* testResourceA = nullptr;
 	TestResource* testResourceB = nullptr;
 
-	REQUIRE(manager.RequestResource(testResourceA, "converter.test"));
+	REQUIRE(Resource::Manager::RequestResource(testResourceA, "converter.test"));
 	REQUIRE(testResourceA);
-	REQUIRE(manager.RequestResource(testResourceB, "converter.test"));
+	REQUIRE(Resource::Manager::RequestResource(testResourceB, "converter.test"));
 	REQUIRE(testResourceB);
 
 	REQUIRE(testResourceA == testResourceB);
 
-	REQUIRE(manager.ReleaseResource(testResourceA));
+	REQUIRE(Resource::Manager::ReleaseResource(testResourceA));
 	REQUIRE(!testResourceA);
 
-	manager.WaitForResource(testResourceB);
+	Resource::Manager::WaitForResource(testResourceB);
 
-	REQUIRE(manager.ReleaseResource(testResourceB));
+	REQUIRE(Resource::Manager::ReleaseResource(testResourceB));
 	REQUIRE(!testResourceB);
 
-	REQUIRE(manager.UnregisterFactory(factory));
+	REQUIRE(Resource::Manager::UnregisterFactory(factory));
 }

@@ -21,16 +21,16 @@ namespace
 TEST_CASE("imgui-tests-run")
 {
 	auto testName = Catch::getResultCapture().getCurrentTestName();
-	Plugin::Manager pluginManager;
+	Plugin::Manager::Scoped pluginManager;
 	Client::Window window("imgui-tests", 100, 100, 1024, 768, true);
-	GPU::Manager manager(pluginManager, GetDefaultSetupParams());
+	GPU::Manager::Scoped manager(GetDefaultSetupParams());
 
-	i32 numAdapters = manager.EnumerateAdapters(nullptr, 0);
+	i32 numAdapters = GPU::Manager::EnumerateAdapters(nullptr, 0);
 	REQUIRE(numAdapters > 0);
 
-	REQUIRE(manager.Initialize(0) == GPU::ErrorCode::OK);
+	REQUIRE(GPU::Manager::CreateAdapter(0) == GPU::ErrorCode::OK);
 
-	GPU::Manager::ScopedDebugCapture capture(manager, testName.c_str());
+	GPU::Manager::ScopedDebugCapture capture(testName.c_str());
 
 	GPU::SwapChainDesc scDesc;
 	scDesc.width_ = 1024;
@@ -40,7 +40,7 @@ TEST_CASE("imgui-tests-run")
 	scDesc.outputWindow_ = window.GetPlatformData().handle_;
 
 	GPU::Handle scHandle;
-	scHandle = manager.CreateSwapChain(scDesc, testName.c_str());
+	scHandle = GPU::Manager::CreateSwapChain(scDesc, testName.c_str());
 	REQUIRE(scHandle);
 
 	GPU::FrameBindingSetDesc fbDesc;
@@ -48,14 +48,14 @@ TEST_CASE("imgui-tests-run")
 	fbDesc.rtvs_[0].format_ = scDesc.format_;
 	fbDesc.rtvs_[0].dimension_ = GPU::ViewDimension::TEX2D;
 
-	GPU::Handle fbsHandle = manager.CreateFrameBindingSet(fbDesc, testName.c_str());
+	GPU::Handle fbsHandle = GPU::Manager::CreateFrameBindingSet(fbDesc, testName.c_str());
 	REQUIRE(fbsHandle);
 
-	GPU::Handle cmdHandle = manager.CreateCommandList(testName.c_str());
+	GPU::Handle cmdHandle = GPU::Manager::CreateCommandList(testName.c_str());
 	REQUIRE(cmdHandle);
-	GPU::CommandList cmdList(manager.GetHandleAllocator());
+	GPU::CommandList cmdList(GPU::Manager::GetHandleAllocator());
 
-	ImGui::Initialize(manager);
+	ImGui::Initialize();
 
 	f32 color[] = {0.1f, 0.1f, 0.2f, 1.0f};
 
@@ -78,14 +78,14 @@ TEST_CASE("imgui-tests-run")
 		ImGui::EndFrame(fbsHandle, cmdList);
 
 		// Compile and submit.
-		manager.CompileCommandList(cmdHandle, cmdList);
-		manager.SubmitCommandList(cmdHandle);
+		GPU::Manager::CompileCommandList(cmdHandle, cmdList);
+		GPU::Manager::SubmitCommandList(cmdHandle);
 
 		// Present.
-		manager.PresentSwapChain(scHandle);
+		GPU::Manager::PresentSwapChain(scHandle);
 
 		// Next frame.
-		manager.NextFrame();
+		GPU::Manager::NextFrame();
 
 		// Force a sleep.
 		Core::Sleep(1.0 / 60.0);
@@ -93,7 +93,7 @@ TEST_CASE("imgui-tests-run")
 
 	ImGui::Finalize();
 
-	manager.DestroyResource(cmdHandle);
-	manager.DestroyResource(fbsHandle);
-	manager.DestroyResource(scHandle);
+	GPU::Manager::DestroyResource(cmdHandle);
+	GPU::Manager::DestroyResource(fbsHandle);
+	GPU::Manager::DestroyResource(scHandle);
 }
