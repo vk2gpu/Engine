@@ -27,8 +27,20 @@ namespace Resource
 	class RESOURCE_DLL Manager final
 	{
 	public:
-		Manager(Job::Manager& jobManager, Plugin::Manager& pluginManager);
-		~Manager();
+		/**
+		 * Initialize resource manager.
+		 */
+		static void Initialize();
+		
+		/**
+		 * Finalize resource manager.
+		 */
+		static void Finalize();
+
+		/**
+		 * Is resource manager initialized?
+		 */
+		static bool IsInitialized();
 
 		/**
 		 * Request resource by name & type.
@@ -38,9 +50,9 @@ namespace Resource
 		 * @param type Type of resource.
 		 * @return true if success.
 		 */
-		bool RequestResource(void*& outResource, const char* name, const Core::UUID& type);
+		static bool RequestResource(void*& outResource, const char* name, const Core::UUID& type);
 		template<typename TYPE>
-		bool RequestResource(TYPE*& outResource, const char* name)
+		static bool RequestResource(TYPE*& outResource, const char* name)
 		{
 			return RequestResource(reinterpret_cast<void*&>(outResource), name, TYPE::GetTypeUUID());
 		}
@@ -50,9 +62,9 @@ namespace Resource
 		 * @param inResource Resource to release.
 		 * @return true if success.
 		 */
-		bool ReleaseResource(void*& inResource, const Core::UUID& type);
+		static bool ReleaseResource(void*& inResource, const Core::UUID& type);
 		template<typename TYPE>
-		bool ReleaseResource(TYPE*& inResource)
+		static bool ReleaseResource(TYPE*& inResource)
 		{
 			return ReleaseResource(reinterpret_cast<void*&>(inResource), TYPE::GetTypeUUID());
 		}
@@ -61,9 +73,9 @@ namespace Resource
 		 * Is resource ready?
 		 * @retunr true if resource is ready.
 		 */
-		bool IsResourceReady(void* inResource, const Core::UUID& type);
+		static bool IsResourceReady(void* inResource, const Core::UUID& type);
 		template<typename TYPE>
-		bool IsResourceReady(TYPE* inResource)
+		static bool IsResourceReady(TYPE* inResource)
 		{
 			return IsResourceReady(reinterpret_cast<void**>(inResource), TYPE::GetTypeUUID());
 		}
@@ -71,9 +83,9 @@ namespace Resource
 		/**
 		 * Wait for resource to become ready.
 		 */
-		void WaitForResource(void* inResource, const Core::UUID& type);
+		static void WaitForResource(void* inResource, const Core::UUID& type);
 		template<typename TYPE>
-		void WaitForResource(TYPE* inResource)
+		static void WaitForResource(TYPE* inResource)
 		{
 			return WaitForResource(reinterpret_cast<void**>(inResource), TYPE::GetTypeUUID());
 		}
@@ -85,7 +97,7 @@ namespace Resource
 		 * @param type Type of resource.
 		 * @return true if success.
 		 */
-		bool ConvertResource(const char* name, const char* convertedName, const Core::UUID& type);
+		static bool ConvertResource(const char* name, const char* convertedName, const Core::UUID& type);
 
 		/**
 		 * Register factory.
@@ -93,14 +105,14 @@ namespace Resource
 		 * @param factory Factory for resource creation.
 		 * @return true for success. false if can't register (i.e. already registered).
 		 */
-		bool RegisterFactory(const Core::UUID& type, IFactory* factory);
+		static bool RegisterFactory(const Core::UUID& type, IFactory* factory);
 
 		/**
 		 * Unregister factory.
 		 * @param factory Factory to unregister. Will unregister for all types it references.
 		 * @param true for success. false if not registered.
 		 */
-		bool UnregisterFactory(IFactory* factory);
+		static bool UnregisterFactory(IFactory* factory);
 
 		/**
 		 * Read file data either synchronously or asynchronously.
@@ -114,7 +126,7 @@ namespace Resource
 		 * @pre size > 0.
 		 * @pre dest != nullptr.
 		 */
-		Result ReadFileData(Core::File& file, i64 offset, i64 size, void* dest, AsyncResult* result = nullptr);
+		static Result ReadFileData(Core::File& file, i64 offset, i64 size, void* dest, AsyncResult* result = nullptr);
 
 		/**
 		 * Write file data either synchronously or asynchronously.
@@ -126,11 +138,21 @@ namespace Resource
 		 * @pre size > 0.
 		 * @pre src != nullptr.
 		 */
-		Result WriteFileData(Core::File& file, i64 size, void* src, AsyncResult* result = nullptr);
+		static Result WriteFileData(Core::File& file, i64 size, void* src, AsyncResult* result = nullptr);
 
+		/**
+		 * Scoped manager init/fini.
+		 * Mostly a convenience for unit tests.
+		 */
+		class Scoped
+		{
+		public:
+			Scoped() { Initialize(); }
+			~Scoped() { Finalize(); }
+		};
 
 	private:
-		Manager(const Manager&) = delete;
-		struct ManagerImpl* impl_ = nullptr;
+		Manager() = delete;
+		~Manager() = delete;
 	};
 } // namespace Plugin

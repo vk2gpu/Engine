@@ -6,23 +6,26 @@
 #include "gpu/resources.h"
 #include "gpu/types.h"
 
-namespace Plugin
-{
-	class Manager;
-} // namespace Plugin
-
 namespace GPU
 {
 	class GPU_DLL Manager final
 	{
 	public:
 		/**
-		 * Create GPU manager
-		 * @param pluginManager Plugin manager to use
+		 * Initialize GPU manager
 		 * @param setpParams Setup parameters used to create appropriate backend.
 		 */
-		Manager(Plugin::Manager& pluginManager, const SetupParams& setupParams);
-		~Manager();
+		static void Initialize(const SetupParams& setupParams);
+		
+		/**
+		 * Finalize GPU manager.
+		 */
+		static void Finalize();
+
+		/**
+		 * Is initialized?
+		 */
+		static bool IsInitialized();
 
 		/**
 		 * Enumerate adapters.
@@ -30,26 +33,26 @@ namespace GPU
 		 * @param maxAdapters Maximum number to enumerate.
 		 * @return Total number of adapters.
 		 */
-		i32 EnumerateAdapters(AdapterInfo* outAdapters, i32 maxAdapters);
+		static i32 EnumerateAdapters(AdapterInfo* outAdapters, i32 maxAdapters);
 
 		/**
-		 * Is initialized?
-		 */
-		bool IsInitialized() const;
-
-		/**
-		 * Initialize.
+		 * Create adapter.
 		 * @param adapterIdx Adapter index.
 		 * @pre !IsInitialized()
 		 */
-		ErrorCode Initialize(i32 adapterIdx);
+		static ErrorCode CreateAdapter(i32 adapterIdx);
+
+		/**
+		 * Is adapter created?
+		 */
+		static bool IsAdapterCreated();
 
 		/**
 		 * Create swapchain.
 		 * @param desc Swapchain descriptor.
 		 * @param debugName Debug name.
 		 */
-		Handle CreateSwapChain(const SwapChainDesc& desc, const char* debugName);
+		static Handle CreateSwapChain(const SwapChainDesc& desc, const char* debugName);
 
 		/**
 		 * Create buffer.
@@ -58,7 +61,7 @@ namespace GPU
 		 * @param debugName Debug name.
 		 * @pre initialData == nullptr, or allocated size matches one in @a desc
 		 */
-		Handle CreateBuffer(const BufferDesc& desc, const void* initialData, const char* debugName);
+		static Handle CreateBuffer(const BufferDesc& desc, const void* initialData, const char* debugName);
 
 		/**
 		 * Create texture.
@@ -67,61 +70,61 @@ namespace GPU
 		 * @param debugName Debug name.
 		 * @pre initialData == nullptr, or has enough for (levels * elements).
 		 */
-		Handle CreateTexture(const TextureDesc& desc, const TextureSubResourceData* initialData, const char* debugName);
+		static Handle CreateTexture(const TextureDesc& desc, const TextureSubResourceData* initialData, const char* debugName);
 
 		/**
 		 * Create sample state.
 		 * @param samplerState Sampler state to create.
 		 */
-		Handle CreateSamplerState(const SamplerState& state, const char* debugName);
+		static Handle CreateSamplerState(const SamplerState& state, const char* debugName);
 
 		/**
 		 * Create shader.
 		 * @param desc Shader desc, contains byte code and type.
 		 * @param debugName Debug name.
 		 */
-		Handle CreateShader(const ShaderDesc& desc, const char* debugName);
+		static Handle CreateShader(const ShaderDesc& desc, const char* debugName);
 
 		/**
 		 * Create graphics pipeline state.
 		 */
-		Handle CreateGraphicsPipelineState(const GraphicsPipelineStateDesc& desc, const char* debugName);
+		static Handle CreateGraphicsPipelineState(const GraphicsPipelineStateDesc& desc, const char* debugName);
 
 		/**
 		 * Create compute pipeline state.
 		 */
-		Handle CreateComputePipelineState(const ComputePipelineStateDesc& desc, const char* debugName);
+		static Handle CreateComputePipelineState(const ComputePipelineStateDesc& desc, const char* debugName);
 
 		/**
 		 * Create pipeline binding set.
 		 */
-		Handle CreatePipelineBindingSet(const PipelineBindingSetDesc& desc, const char* debugName);
+		static Handle CreatePipelineBindingSet(const PipelineBindingSetDesc& desc, const char* debugName);
 
 		/**
 		 * Create draw binding set.
 		 */
-		Handle CreateDrawBindingSet(const DrawBindingSetDesc& desc, const char* debugName);
+		static Handle CreateDrawBindingSet(const DrawBindingSetDesc& desc, const char* debugName);
 
 		/**
 		 * Create frame binding set.
 		 */
-		Handle CreateFrameBindingSet(const FrameBindingSetDesc& desc, const char* debugName);
+		static Handle CreateFrameBindingSet(const FrameBindingSetDesc& desc, const char* debugName);
 
 		/**
 		 * Create command list.
 		 */
-		Handle CreateCommandList(const char* debugName);
+		static Handle CreateCommandList(const char* debugName);
 
 		/**
 		 * Create fence.
 		 * Used for synchronisation in and around queues.
 		 */
-		Handle CreateFence(const char* debugName);
+		static Handle CreateFence(const char* debugName);
 
 		/**
 		 * Destroy resource.
 		 */
-		void DestroyResource(Handle handle);
+		static void DestroyResource(Handle handle);
 
 		/**
 		 * Compile command list.
@@ -129,50 +132,49 @@ namespace GPU
 		 * @param commandList Input software command list.
 		 * @return Success.
 		 */
-		bool CompileCommandList(Handle handle, const CommandList& commandList);
+		static bool CompileCommandList(Handle handle, const CommandList& commandList);
 
 		/**
 		 * Submit command list.
 		 * @param handle Handle to command list.
 		 * @return Success.
 		 */
-		bool SubmitCommandList(Handle handle);
+		static bool SubmitCommandList(Handle handle);
 
 		/**
 		 * Present swapchain.
 		 */
-		bool PresentSwapChain(Handle handle);
+		static bool PresentSwapChain(Handle handle);
 
 		/**
 		 * Resize swapchain.
 		 */
-		bool ResizeSwapChain(Handle handle, i32 width, i32 height);
+		static bool ResizeSwapChain(Handle handle, i32 width, i32 height);
 
 		/**
 		 * Next frame.
 		 */
-		void NextFrame();
+		static void NextFrame();
 
 		/**
 		 * Is valid handle?
 		 */
-		bool IsValidHandle(Handle handle) const;
+		static bool IsValidHandle(Handle handle);
 
 		/**
 		 * Get handle allocator.
 		 */
-		const Core::HandleAllocator& GetHandleAllocator() const;
-
+		static const Core::HandleAllocator& GetHandleAllocator();
 
 		/**
 		 * Begin debug capture.
 		 */
-		void BeginDebugCapture(const char* name);
+		static void BeginDebugCapture(const char* name);
 
 		/**
 		 * End debug capture.
 		 */
-		void EndDebugCapture();
+		static void EndDebugCapture();
 
 		/**
 		 * Scoped Debug capture.
@@ -180,21 +182,31 @@ namespace GPU
 		class ScopedDebugCapture
 		{
 		public:
-			ScopedDebugCapture(Manager& manager, const char* name)
-			    : manager_(manager)
+			ScopedDebugCapture(const char* name)
 			{
-				manager_.BeginDebugCapture(name);
+				BeginDebugCapture(name);
 			}
+			~ScopedDebugCapture() { EndDebugCapture(); }
+		};
 
-			~ScopedDebugCapture() { manager_.EndDebugCapture(); }
-
-		private:
-			Manager& manager_;
+		/**
+		 * Scoped manager init/fini.
+		 * Mostly a convenience for unit tests.
+		 */
+		class Scoped
+		{
+		public:
+			Scoped(const SetupParams& setupParams)
+			{
+				Initialize(setupParams);
+			}
+			~Scoped() { Finalize(); }
 		};
 
 
 	private:
+		Manager() = delete;
+		~Manager() = delete;
 		Manager(const Manager&) = delete;
-		struct ManagerImpl* impl_ = nullptr;
 	};
 } // namespace GPU

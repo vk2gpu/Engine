@@ -1,4 +1,4 @@
-#include "client/client.h"
+#include "client/manager.h"
 #include "core/debug.h"
 #include "core/file.h"
 
@@ -9,7 +9,7 @@
 
 int main(int argc, char* const argv[])
 {
-	Client::Initialize();
+	Client::Manager::Scoped clientManager;
 
 	// Change to executable path.
 	char path[Core::MAX_PATH_LENGTH];
@@ -23,6 +23,6 @@ int main(int argc, char* const argv[])
 	{
 		DBG_BREAK;
 	}
-	Client::Finalize();
+	
 	return RetVal;
 }

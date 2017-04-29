@@ -187,11 +187,7 @@ namespace Resource
 		static const i32 MAX_READ_JOBS = 128;
 		static const i32 MAX_WRITE_JOBS = 128;
 
-		/// Job manager.
-		Job::Manager& jobManager_;
-
-		/// Plugin manager.
-		Plugin::Manager& pluginManager_;
+		/// Plugins.
 		Core::Vector<ConverterPlugin> converterPlugins_;
 
 		/// Read job queue.
@@ -325,10 +321,8 @@ namespace Resource
 			}
 		}
 
-		ManagerImpl(Job::Manager& jobManager, Plugin::Manager& pluginManager)
-		    : jobManager_(jobManager)
-		    , pluginManager_(pluginManager)
-		    , readJobs_(MAX_READ_JOBS)
+		ManagerImpl()
+		    : readJobs_(MAX_READ_JOBS)
 		    , readJobEvent_(false, false, "Resource Manager Read Event")
 		    , readThread_(ReadIOThread, this, 65536, "Resource Manager Read Thread")
 		    , writeJobs_(MAX_WRITE_JOBS)
@@ -336,9 +330,9 @@ namespace Resource
 		    , writeThread_(WriteIOThread, this, 65536, "Resource Manager Write Thread")
 		{
 			// Get converter plugins.
-			i32 found = pluginManager_.GetPlugins<ConverterPlugin>(nullptr, 0);
+			i32 found = Plugin::Manager::GetPlugins<ConverterPlugin>(nullptr, 0);
 			converterPlugins_.resize(found);
-			pluginManager_.GetPlugins<ConverterPlugin>(converterPlugins_.data(), converterPlugins_.size());
+			Plugin::Manager::GetPlugins<ConverterPlugin>(converterPlugins_.data(), converterPlugins_.size());
 		}
 
 		~ManagerImpl()
@@ -430,14 +424,14 @@ namespace Resource
 		bool success_ = false;
 	};
 
+	ManagerImpl* impl_ = nullptr;
+
 	/// Resource convert job.
 	struct ResourceConvertJob
 	{
-		ResourceConvertJob(Manager* manager, ManagerImpl* impl, ResourceEntry* entry, Core::UUID type, const char* name,
+		ResourceConvertJob(ResourceEntry* entry, Core::UUID type, const char* name,
 		    const char* convertedPath)
-		    : manager_(manager)
-		    , impl_(impl)
-		    , entry_(entry)
+			: entry_(entry)
 		    , type_(type)
 		{
 			strcpy_s(name_.data(), name_.size(), name);
@@ -460,19 +454,29 @@ namespace Resource
 	};
 
 
-	Manager::Manager(Job::Manager& jobManager, Plugin::Manager& pluginManager)
-	{ //
-		impl_ = new ManagerImpl(jobManager, pluginManager);
+	void Manager::Initialize()
+	{
+		DBG_ASSERT(impl_ == nullptr);
+		DBG_ASSERT(Job::Manager::IsInitialized());
+		DBG_ASSERT(Plugin::Manager::IsInitialized());
+		impl_ = new ManagerImpl();
 	}
 
-	Manager::~Manager()
-	{ //
+	void Manager::Finalize()
+	{
+		DBG_ASSERT(impl_);
 		delete impl_;
+		impl_ = nullptr;
+	}
+
+	bool Manager::IsInitialized()
+	{
+		return !!impl_;
 	}
 
 	bool Manager::RequestResource(void*& outResource, const char* name, const Core::UUID& type)
 	{
-		DBG_ASSERT(impl_);
+		DBG_ASSERT(IsInitialized());
 		DBG_ASSERT(outResource == nullptr);
 
 		Core::Array<char, Core::MAX_PATH_LENGTH> path;
@@ -515,7 +519,7 @@ namespace Resource
 					// TODO: This should be done async.
 					if(!Core::FileExists(convertedPath.data()))
 					{
-						auto* jobData = new ResourceConvertJob(this, impl_, entry, type, name, convertedPath.data());
+						auto* jobData = new ResourceConvertJob(entry, type, name, convertedPath.data());
 
 						Job::JobDesc jobDesc;
 						jobDesc.func_ = [](i32 inParam, void* inData) {
@@ -530,8 +534,8 @@ namespace Resource
 
 						// TODO: Run async.
 						Job::Counter* counter = nullptr;
-						impl_->jobManager_.RunJobs(&jobDesc, 1, &counter);
-						impl_->jobManager_.WaitForCounter(counter, 0);
+						Job::Manager::RunJobs(&jobDesc, 1, &counter);
+						Job::Manager::WaitForCounter(counter, 0);
 						DBG_ASSERT(jobData->success_);
 						delete jobData;
 					}
@@ -555,7 +559,7 @@ namespace Resource
 						jobDesc.name_ = "ResourceLoadJob";
 
 						Core::AtomicInc(&impl_->pendingResourceJobs_);
-						impl_->jobManager_.RunJobs(&jobDesc, 1, nullptr);
+						Job::Manager::RunJobs(&jobDesc, 1, nullptr);
 					}
 				}
 			}
@@ -568,7 +572,7 @@ namespace Resource
 
 	bool Manager::ReleaseResource(void*& inResource, const Core::UUID& type)
 	{
-		DBG_ASSERT(impl_);
+		DBG_ASSERT(IsInitialized());
 		if(impl_->ReleaseResourceEntry(inResource, type))
 		{
 			impl_->ProcessReleasedResources();
@@ -579,14 +583,14 @@ namespace Resource
 
 	bool Manager::IsResourceReady(void* inResource, const Core::UUID& type)
 	{
-		DBG_ASSERT(impl_);
+		DBG_ASSERT(IsInitialized());
 		DBG_ASSERT(inResource != nullptr);
 		return impl_->IsResourceReady(inResource, type);
 	}
 
 	void Manager::WaitForResource(void* inResource, const Core::UUID& type)
 	{
-		DBG_ASSERT(impl_);
+		DBG_ASSERT(IsInitialized());
 		DBG_ASSERT(inResource != nullptr);
 		while(!IsResourceReady(inResource, type))
 		{
@@ -596,6 +600,7 @@ namespace Resource
 
 	bool Manager::ConvertResource(const char* name, const char* convertedName, const Core::UUID& type)
 	{
+		DBG_ASSERT(IsInitialized());
 		bool retVal = false;
 		for(auto converterPlugin : impl_->converterPlugins_)
 		{
@@ -614,7 +619,7 @@ namespace Resource
 
 	bool Manager::RegisterFactory(const Core::UUID& type, IFactory* factory)
 	{
-		DBG_ASSERT(impl_);
+		DBG_ASSERT(IsInitialized());
 
 		if(impl_->factories_.find(type) != impl_->factories_.end())
 			return false;
@@ -625,8 +630,7 @@ namespace Resource
 
 	bool Manager::UnregisterFactory(IFactory* factory)
 	{
-		DBG_ASSERT(impl_);
-
+		DBG_ASSERT(IsInitialized());
 		bool success = false;
 		for(auto it = impl_->factories_.begin(); it != impl_->factories_.end();)
 		{
@@ -644,7 +648,7 @@ namespace Resource
 
 	Result Manager::ReadFileData(Core::File& file, i64 offset, i64 size, void* dest, AsyncResult* result)
 	{
-		DBG_ASSERT(impl_);
+		DBG_ASSERT(IsInitialized());
 		DBG_ASSERT(Core::ContainsAllFlags(file.GetFlags(), Core::FileFlags::READ));
 		DBG_ASSERT(offset >= 0);
 		DBG_ASSERT(size > 0);
@@ -679,7 +683,7 @@ namespace Resource
 
 	Result Manager::WriteFileData(Core::File& file, i64 size, void* src, AsyncResult* result)
 	{
-		DBG_ASSERT(impl_);
+		DBG_ASSERT(IsInitialized());
 		DBG_ASSERT(Core::ContainsAllFlags(file.GetFlags(), Core::FileFlags::WRITE));
 		DBG_ASSERT(size > 0);
 		DBG_ASSERT(src != nullptr);

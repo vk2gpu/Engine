@@ -1,4 +1,4 @@
-#include "imgui/imgui.h"
+#include "imgui/manager.h"
 #include "client/input_provider.h"
 #include "client/key_input.h"
 #include "math/mat44.h"
@@ -12,9 +12,7 @@ typedef u8 BYTE;
 namespace ImGui
 {
 	namespace
-	{
-		GPU::Manager* gpuManager_ = nullptr;
-
+	{	
 		static const i32 MAX_VERTICES = 1024 * 256;
 		static const i32 MAX_INDICES = 1024 * 256;
 
@@ -30,23 +28,26 @@ namespace ImGui
 		GPU::Handle gpsHandle_;
 		GPU::Handle smpHandle_;
 		GPU::Handle pbsHandle_;
+		
+		bool isInitialized_ = false;
 	}
 
-	void Initialize(GPU::Manager& gpuManager)
+	void Manager::Initialize()
 	{
-		gpuManager_ = &gpuManager;
+		DBG_ASSERT(GPU::Manager::IsInitialized());
+		DBG_ASSERT(GPU::Manager::IsAdapterCreated());
 
 		ImGuiIO& IO = ImGui::GetIO();
 
 		GPU::BufferDesc vbDesc;
 		vbDesc.size_ = MAX_VERTICES * sizeof(ImDrawVert);
 		vbDesc.bindFlags_ = GPU::BindFlags::VERTEX_BUFFER;
-		vbHandle_ = gpuManager.CreateBuffer(vbDesc, nullptr, "ImGui VB");
+		vbHandle_ = GPU::Manager::CreateBuffer(vbDesc, nullptr, "ImGui VB");
 
 		GPU::BufferDesc ibDesc;
 		ibDesc.size_ = MAX_INDICES * sizeof(ImDrawIdx);
 		ibDesc.bindFlags_ = GPU::BindFlags::INDEX_BUFFER;
-		ibHandle_ = gpuManager.CreateBuffer(ibDesc, nullptr, "ImGui IB");
+		ibHandle_ = GPU::Manager::CreateBuffer(ibDesc, nullptr, "ImGui IB");
 
 		GPU::DrawBindingSetDesc dbsDesc;
 		dbsDesc.vbs_[0].offset_ = 0;
@@ -57,7 +58,7 @@ namespace ImGui
 		dbsDesc.ib_.size_ = (i32)ibDesc.size_;
 		dbsDesc.ib_.stride_ = sizeof(ImDrawIdx);
 		dbsDesc.ib_.resource_ = ibHandle_;
-		dbsHandle_ = gpuManager.CreateDrawBindingSet(dbsDesc, "ImGui DBS");
+		dbsHandle_ = GPU::Manager::CreateDrawBindingSet(dbsDesc, "ImGui DBS");
 
 		GPU::TextureDesc fontDesc;
 		unsigned char* pixels = nullptr;
@@ -71,21 +72,21 @@ namespace ImGui
 		texSubRscData.data_ = pixels;
 		texSubRscData.rowPitch_ = width * sizeof(u32);
 		texSubRscData.slicePitch_ = 0;
-		fontHandle_ = gpuManager.CreateTexture(fontDesc, &texSubRscData, "ImGui Font Texture");
+		fontHandle_ = GPU::Manager::CreateTexture(fontDesc, &texSubRscData, "ImGui Font Texture");
 		DBG_ASSERT(fontHandle_);
 
 		GPU::ShaderDesc vsDesc;
 		vsDesc.type_ = GPU::ShaderType::VERTEX;
 		vsDesc.data_ = g_VShader;
 		vsDesc.dataSize_ = sizeof(g_VShader);
-		vsHandle_ = gpuManager.CreateShader(vsDesc, "ImGui VS");
+		vsHandle_ = GPU::Manager::CreateShader(vsDesc, "ImGui VS");
 		DBG_ASSERT(vsHandle_);
 
 		GPU::ShaderDesc psDesc;
 		psDesc.type_ = GPU::ShaderType::PIXEL;
 		psDesc.data_ = g_PShader;
 		psDesc.dataSize_ = sizeof(g_PShader);
-		psHandle_ = gpuManager.CreateShader(psDesc, "ImGui PS");
+		psHandle_ = GPU::Manager::CreateShader(psDesc, "ImGui PS");
 		DBG_ASSERT(psHandle_);
 
 		GPU::GraphicsPipelineStateDesc gpsDesc;
@@ -115,11 +116,11 @@ namespace ImGui
 		gpsDesc.topology_ = GPU::TopologyType::TRIANGLE;
 		gpsDesc.numRTs_ = 1;
 		gpsDesc.rtvFormats_[0] = GPU::Format::R8G8B8A8_UNORM;
-		gpsHandle_ = gpuManager.CreateGraphicsPipelineState(gpsDesc, "ImGui GPS");
+		gpsHandle_ = GPU::Manager::CreateGraphicsPipelineState(gpsDesc, "ImGui GPS");
 		DBG_ASSERT(gpsHandle_);
 
 		GPU::SamplerState smpDesc;
-		smpHandle_ = gpuManager.CreateSamplerState(smpDesc, "ImGui Sampler");
+		smpHandle_ = GPU::Manager::CreateSamplerState(smpDesc, "ImGui Sampler");
 		DBG_ASSERT(smpHandle_);
 
 		GPU::PipelineBindingSetDesc pbsDesc;
@@ -131,7 +132,7 @@ namespace ImGui
 		pbsDesc.srvs_[0].format_ = fontDesc.format_;
 		pbsDesc.srvs_[0].mipLevels_NumElements_ = -1;
 		pbsDesc.samplers_[0].resource_ = smpHandle_;
-		pbsHandle_ = gpuManager.CreatePipelineBindingSet(pbsDesc, "ImGui PBS");
+		pbsHandle_ = GPU::Manager::CreatePipelineBindingSet(pbsDesc, "ImGui PBS");
 
 		// Setup keymap.
 		keyMap_[ImGuiKey_Tab] = (int)Client::KeyCode::TAB;
@@ -215,10 +216,36 @@ namespace ImGui
 		style.Colors[ImGuiCol_PlotHistogramHovered] = ImVec4(0.38f, 0.38f, 1.00f, 1.00f);
 		style.Colors[ImGuiCol_TextSelectedBg] = ImVec4(0.45f, 0.45f, 1.00f, 0.35f);
 		style.Colors[ImGuiCol_ModalWindowDarkening] = ImVec4(0.20f, 0.20f, 0.20f, 0.35f);
+
+		isInitialized_ = true;
 	}
 
-	void BeginFrame(const Client::IInputProvider& input, i32 w, i32 h)
+	void Manager::Finalize()
 	{
+		DBG_ASSERT(IsInitialized());
+
+		GPU::Manager::DestroyResource(pbsHandle_);
+		GPU::Manager::DestroyResource(smpHandle_);
+		GPU::Manager::DestroyResource(gpsHandle_);
+		GPU::Manager::DestroyResource(psHandle_);
+		GPU::Manager::DestroyResource(vsHandle_);
+		GPU::Manager::DestroyResource(fontHandle_);
+		GPU::Manager::DestroyResource(dbsHandle_);
+		GPU::Manager::DestroyResource(ibHandle_);
+		GPU::Manager::DestroyResource(vbHandle_);
+
+		isInitialized_ = false;
+	}
+
+	bool Manager::IsInitialized()
+	{
+		return isInitialized_;
+	}
+
+	void Manager::BeginFrame(const Client::IInputProvider& input, i32 w, i32 h)
+	{
+		DBG_ASSERT(IsInitialized());
+
 		ImGuiIO& IO = ImGui::GetIO();
 		IO.DisplaySize.x = (f32)w;
 		IO.DisplaySize.y = (f32)h;
@@ -256,8 +283,10 @@ namespace ImGui
 		ImGui::NewFrame();
 	}
 
-	void EndFrame(const GPU::Handle& fbs, GPU::CommandList& cmdList)
+	void Manager::EndFrame(const GPU::Handle& fbs, GPU::CommandList& cmdList)
 	{
+		DBG_ASSERT(IsInitialized());
+
 		ImGui::Render();
 
 		ImGuiIO& IO = ImGui::GetIO();
@@ -355,21 +384,6 @@ namespace ImGui
 				indexOffset += cmd->ElemCount;
 			}
 		}
-	}
-
-	void Finalize()
-	{
-		gpuManager_->DestroyResource(pbsHandle_);
-		gpuManager_->DestroyResource(smpHandle_);
-		gpuManager_->DestroyResource(gpsHandle_);
-		gpuManager_->DestroyResource(psHandle_);
-		gpuManager_->DestroyResource(vsHandle_);
-		gpuManager_->DestroyResource(fontHandle_);
-		gpuManager_->DestroyResource(dbsHandle_);
-		gpuManager_->DestroyResource(ibHandle_);
-		gpuManager_->DestroyResource(vbHandle_);
-
-		gpuManager_ = nullptr;
 	}
 
 } // namespace ImGui

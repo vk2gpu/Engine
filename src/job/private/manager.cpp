@@ -59,6 +59,8 @@ namespace Job
 		void ReleaseFiber(Fiber* fiber, bool complete);
 	};
 
+	ManagerImpl* impl_ = nullptr;
+
 	class Fiber final
 	{
 	public:
@@ -308,8 +310,9 @@ namespace Job
 		}
 	}
 
-	Manager::Manager(i32 numWorkers, i32 numFibers, i32 fiberStackSize)
+	void Manager::Initialize(i32 numWorkers, i32 numFibers, i32 fiberStackSize)
 	{
+		DBG_ASSERT(impl_ == nullptr);
 		DBG_ASSERT(numWorkers > 0);
 		DBG_ASSERT(numFibers > 0);
 		DBG_ASSERT(fiberStackSize > (4 * 1024));
@@ -335,8 +338,10 @@ namespace Job
 		}
 	}
 
-	Manager::~Manager()
+	void Manager::Finalize()
 	{
+		DBG_ASSERT(impl_);
+
 		impl_->exiting_ = true;
 
 		// Wait for jobs to complete, and exit all fibers.
@@ -369,10 +374,17 @@ namespace Job
 			}
 		}
 		delete impl_;
+		impl_ = nullptr;
+	}
+
+	bool Manager::IsInitialized()
+	{
+		return !!impl_;
 	}
 
 	void Manager::RunJobs(JobDesc* jobDescs, i32 numJobDesc, Counter** counter)
 	{
+		DBG_ASSERT(IsInitialized());
 		DBG_ASSERT(counter == nullptr || *counter == nullptr);
 
 		// Setup counter.
@@ -426,6 +438,7 @@ namespace Job
 
 	void Manager::WaitForCounter(Counter*& counter, i32 value)
 	{
+		DBG_ASSERT(IsInitialized());
 		DBG_ASSERT(counter);
 
 		while(counter->value_ > value)
@@ -443,6 +456,7 @@ namespace Job
 
 	void Manager::YieldCPU()
 	{
+		DBG_ASSERT(IsInitialized());
 		auto* callingFiber = Core::Fiber::GetCurrentFiber();
 		if(callingFiber)
 		{
