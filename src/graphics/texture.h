@@ -16,6 +16,9 @@ namespace Graphics
 		/// @return Is texture ready for use?
 		bool IsReady() const { return !!impl_; }
 
+		/// @return Texture desc.
+		const GPU::TextureDesc& GetDesc() const;
+
 	private:
 		Texture(const Texture&) = delete;
 		Texture& operator=(const Texture&) = delete;

@@ -10,9 +10,14 @@ SET(SOURCES_PRIVATE
 )
 
 SET(SOURCES_TESTS
+	"tests/converter_tests.cpp"
 	"tests/test_entry.cpp"
 )
 
+INCLUDE_DIRECTORIES(
+	# 3rd party includes.
+	"../../3rdparty/stb"
+)
 
 # Add graphics.
 ADD_LIBRARY(graphics SHARED ${SOURCES_PUBLIC} ${SOURCES_PRIVATE})
@@ -37,7 +42,7 @@ SET(SOURCES_TEXTURE_CONVERTER
 )
 
 ADD_LIBRARY(converter_graphics_texture SHARED ${SOURCES_TEXTURE_CONVERTER})
-SET_TARGET_PROPERTIES(converter_graphics_texture PROPERTIES FOLDER Tests/Plugins)
+SET_TARGET_PROPERTIES(converter_graphics_texture PROPERTIES FOLDER Libraries/Plugins)
 TARGET_LINK_LIBRARIES(converter_graphics_texture core graphics resource)
 SOURCE_GROUP("Public" FILES ${SOURCES_TEXTURE_CONVERTER})
 

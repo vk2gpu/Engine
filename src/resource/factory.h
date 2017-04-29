@@ -16,7 +16,7 @@ namespace Resource
 	 * Passed into IFactory during some operations for error reporting,
 	 * handle allocation, or even loading other resources.
 	 */
-	class IFactoryContext
+	class RESOURCE_DLL IFactoryContext
 	{
 	public:
 		virtual ~IFactoryContext() {}
@@ -27,7 +27,7 @@ namespace Resource
 	 * Can be used to implement loading of multiple types of resources.
 	 * 
 	 */
-	class IFactory
+	class RESOURCE_DLL IFactory
 	{
 	public:
 		virtual ~IFactory() {}

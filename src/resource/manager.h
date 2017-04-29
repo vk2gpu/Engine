@@ -106,6 +106,11 @@ namespace Resource
 		 * @return true for success. false if can't register (i.e. already registered).
 		 */
 		static bool RegisterFactory(const Core::UUID& type, IFactory* factory);
+		template<typename TYPE>
+		static bool RegisterFactory(IFactory* factory)
+		{
+			return RegisterFactory(TYPE::GetTypeUUID(), factory);
+		}
 
 		/**
 		 * Unregister factory.

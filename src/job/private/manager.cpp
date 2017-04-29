@@ -457,6 +457,8 @@ namespace Job
 	void Manager::YieldCPU()
 	{
 		DBG_ASSERT(IsInitialized());
+#if 0 // TODO: Yield when on a worker thread. Don't check via fibers as other systems can be using them.
+
 		auto* callingFiber = Core::Fiber::GetCurrentFiber();
 		if(callingFiber)
 		{
@@ -473,6 +475,7 @@ namespace Job
 			fiber->workerFiber_->SwitchTo();
 		}
 		else
+#endif
 		{
 			Core::SwitchThread();
 		}

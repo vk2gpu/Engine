@@ -1,10 +1,11 @@
 #pragma once
 
+#include "graphics/dll.h"
 #include "resource/factory.h"
 
 namespace Graphics
 {
-	class Factory : public Resource::IFactory
+	class GRAPHICS_DLL Factory : public Resource::IFactory
 	{
 	public:
 		bool CreateResource(Resource::IFactoryContext& context, void** outResource, const Core::UUID& type) override;

@@ -237,7 +237,7 @@ namespace Plugin
 			bool retVal = it->second->Reload();
 			if(retVal)
 			{
-				i32 num = GetPlugins(inOutPlugin.uuid_, &inOutPlugin, 1);
+				i32 num = GetPlugins(inOutPlugin.uuid_, &inOutPlugin, sizeof(Plugin), 1);
 				if(num == 0)
 					retVal = false;
 			}
@@ -252,7 +252,7 @@ namespace Plugin
 		return false;
 	}
 
-	i32 Manager::GetPlugins(Core::UUID uuid, Plugin* outPlugins, i32 maxPlugins)
+	i32 Manager::GetPlugins(Core::UUID uuid, void* outPlugins, i32 pluginSize, i32 maxPlugins)
 	{
 		DBG_ASSERT(IsInitialized());
 		Core::ScopedMutex lock(impl_->mutex_);
@@ -263,12 +263,13 @@ namespace Plugin
 		{
 			for(auto& it : impl_->pluginDesc_)
 			{
+				Plugin* plugin = (Plugin*)((u8*)outPlugins + (pluginSize * found));
 				if(found < maxPlugins)
 				{
-					if(it.second->getPlugin_(&outPlugins[found], uuid))
+					if(it.second->getPlugin_(plugin, uuid))
 					{
-						outPlugins[found].fileUuid_ = it.second->plugin_.fileUuid_;
-						outPlugins[found].fileName_ = it.second->fileName_.data();
+						plugin->fileUuid_ = it.second->plugin_.fileUuid_;
+						plugin->fileName_ = it.second->fileName_.data();
 						++found;
 					}
 				}

@@ -3,10 +3,27 @@
 #include "core/debug.h"
 #include "core/file.h"
 
+#include "gpu/resources.h"
+#include "gpu/utils.h"
+
+#pragma warning(push)
+#pragma warning(disable : 4244)
+#pragma warning(disable : 4456)
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
+#pragma warning(pop)
+
 #include <cstring>
 
 namespace
 {
+	struct Image
+	{
+		i32 width_ = 0;
+		i32 height_ = 0;
+		unsigned char* data_ = 0;
+	};
+
 	class ConverterTexture : public Resource::IConverter
 	{
 	public:
@@ -16,7 +33,9 @@ namespace
 
 		bool SupportsFileType(const char* fileExt, const Core::UUID& type) const override
 		{
-			return fileExt && (strcmp(fileExt, "png") == 0 || strcmp(fileExt, "jpg") == 0 || strcmp(fileExt, "dds") == 0);
+			return (type == Graphics::Texture::GetTypeUUID()) ||
+			       (fileExt &&
+			           (strcmp(fileExt, "png") == 0 || strcmp(fileExt, "jpg") == 0 || strcmp(fileExt, "tga") == 0));
 		}
 
 		bool Convert(Resource::IConverterContext& context, const char* sourceFile, const char* destPath) override
@@ -37,12 +56,59 @@ namespace
 
 			char outFilename[Core::MAX_PATH_LENGTH];
 			memset(outFilename, 0, sizeof(outFilename));
-
-
-
 			strcat_s(outFilename, sizeof(outFilename), destPath);
 			Core::FileNormalizePath(outFilename, sizeof(outFilename), true);
-			return Core::FileCopy(sourceFile, outFilename);
+
+			// Load image with stb_image.
+			context.AddDependency(sourceFile);
+
+			Image image = LoadImage(sourceFile);
+
+			if(image.data_ == nullptr)
+			{
+				context.AddError(__FILE__, __LINE__, "ERROR: Failed to load image."); // TODO: AddError needs varargs.
+				return false;
+			}
+
+			// TODO: Implement texture compression process.
+			GPU::TextureDesc desc;
+			desc.type_ = GPU::TextureType::TEX2D;
+			desc.bindFlags_ = GPU::BindFlags::SHADER_RESOURCE;
+			desc.format_ = GPU::Format::R8G8B8A8_UNORM;
+			desc.width_ = image.width_;
+			desc.height_ = image.height_;
+
+			// Write out texture data.
+			Core::File outFile(outFilename, Core::FileFlags::CREATE | Core::FileFlags::WRITE);
+			if(outFile)
+			{
+				outFile.Write(&desc, sizeof(desc));
+				i64 size = GPU::GetTextureSize(
+				    desc.format_, desc.width_, desc.height_, desc.depth_, desc.levels_, desc.elements_);
+				outFile.Write(image.data_, size);
+
+				context.AddOutput(outFilename);
+
+				return true;
+			}
+
+			return false;
+		}
+
+		Image LoadImage(const char* sourceFile)
+		{
+			Image image;
+			image.data_ = stbi_load(sourceFile, &image.width_, &image.height_, nullptr, STBI_rgb_alpha);
+			return image;
+		}
+
+		void UnloadImage(Image& image)
+		{
+			stbi_image_free(image.data_);
+
+			image.width_ = 0;
+			image.height_ = 0;
+			image.data_ = nullptr;
 		}
 	};
 }

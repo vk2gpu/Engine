@@ -40,6 +40,14 @@ namespace Graphics
 
 	bool Factory::DestroyResource(Resource::IFactoryContext& context, void** inResource, const Core::UUID& type)
 	{
+		if(type == Texture::GetTypeUUID())
+		{
+			auto* texture = reinterpret_cast<Texture*>(*inResource);
+			delete texture;	
+			*inResource = nullptr;
+			return true;
+		}
+
 		return false;
 	}
 
@@ -90,8 +98,12 @@ namespace Graphics
 			}
 		}
 
-		// Create GPU texture.
-		GPU::Handle handle = GPU::Manager::CreateTexture(desc, subRscs.data(), "TODO NAME");
+		// Create GPU texture if initialized.
+		GPU::Handle handle;
+		if(GPU::Manager::IsInitialized())
+		{
+			handle = GPU::Manager::CreateTexture(desc, subRscs.data(), "TODO NAME");
+		}
 
 		// Finish creating texture.
 		inResource->impl_ = new TextureImpl();

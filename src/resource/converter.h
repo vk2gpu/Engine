@@ -17,7 +17,7 @@ namespace Resource
 	 * to provide conversion parameters, and receive back infomation
 	 * from conversion, such as dependencies and outputs.
 	 */
-	class IConverterContext
+	class RESOURCE_DLL IConverterContext
 	{
 	public:
 		virtual ~IConverterContext() {}
@@ -50,7 +50,7 @@ namespace Resource
 	 * This is responsible for converting individual resources into
 	 * something usable by the engine.
 	 */
-	class IConverter
+	class RESOURCE_DLL IConverter
 	{
 	public:
 		virtual ~IConverter() {}

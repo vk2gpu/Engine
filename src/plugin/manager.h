@@ -47,10 +47,11 @@ namespace Plugin
 		 * Get plugins for UUID.
 		 * @param uuid Plugin UUID to search for.
 		 * @param outPlugins Output array of plugin infos to fill.
+		 * @param pluginSize Size of plugin structure to fill.
 		 * @param maxPlugins Maximum number of plugins to enumerate.
 		 * @param Number of plugins enumerated.
 		 */
-		static i32 GetPlugins(Core::UUID uuid, Plugin* outPlugins, i32 maxPlugins);
+		static i32 GetPlugins(Core::UUID uuid, void* outPlugins, i32 pluginSize, i32 maxPlugins);
 
 		/**
 		 * Templated version of GetPlugins. See above.
@@ -58,7 +59,7 @@ namespace Plugin
 		template<typename TYPE>
 		static i32 GetPlugins(TYPE* outPlugins, i32 maxPlugins)
 		{
-			return GetPlugins(TYPE::GetUUID(), reinterpret_cast<Plugin*>(outPlugins), maxPlugins);
+			return GetPlugins(TYPE::GetUUID(), reinterpret_cast<void*>(outPlugins), sizeof(TYPE), maxPlugins);
 		}
 
 		/**
