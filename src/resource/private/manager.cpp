@@ -77,6 +77,44 @@ namespace Resource
 				Core::Log("%s\n", errorMsg);
 			}
 		}
+
+		Core::IFilePathResolver* GetPathResolver() override
+		{
+			class PathResolver : public Core::IFilePathResolver
+			{
+			public:
+				PathResolver() {}
+
+				virtual ~PathResolver() {}
+
+				bool ResolvePath(const char* inPath, char* outPath, i32 maxOutPath)
+				{
+					const char* paths[] = 
+					{
+						"",
+						"../../../../res"
+					};
+
+					char intPath[Core::MAX_PATH_LENGTH];
+					for(i32 i = 0; i < sizeof(paths)/sizeof(paths[0]); ++i)
+					{
+						memset(intPath, 0, sizeof(intPath));
+						Core::FileAppendPath(intPath, sizeof(intPath), paths[i]);
+						Core::FileAppendPath(intPath, sizeof(intPath), inPath);
+						if(Core::FileExists(intPath))
+						{
+							strcpy_s(outPath, maxOutPath, intPath);
+							return true;
+						}
+					}
+
+					return false;
+				}
+			};
+
+			static PathResolver pathResolver;
+			return &pathResolver;
+		}
 	};
 
 	/// Factory context to use during creation of resources.
@@ -429,9 +467,8 @@ namespace Resource
 	/// Resource convert job.
 	struct ResourceConvertJob
 	{
-		ResourceConvertJob(ResourceEntry* entry, Core::UUID type, const char* name,
-		    const char* convertedPath)
-			: entry_(entry)
+		ResourceConvertJob(ResourceEntry* entry, Core::UUID type, const char* name, const char* convertedPath)
+		    : entry_(entry)
 		    , type_(type)
 		{
 			strcpy_s(name_.data(), name_.size(), name);
@@ -440,12 +477,10 @@ namespace Resource
 
 		void RunJob()
 		{
-			success_ = manager_->ConvertResource(name_.data(), convertedPath_.data(), type_);
+			success_ = Manager::ConvertResource(name_.data(), convertedPath_.data(), type_);
 			Core::AtomicDec(&impl_->pendingResourceJobs_);
 		}
 
-		Manager* manager_ = nullptr;
-		ManagerImpl* impl_ = nullptr;
 		ResourceEntry* entry_ = nullptr;
 		Core::UUID type_;
 		Core::Array<char, Core::MAX_PATH_LENGTH> name_;
@@ -469,10 +504,7 @@ namespace Resource
 		impl_ = nullptr;
 	}
 
-	bool Manager::IsInitialized()
-	{
-		return !!impl_;
-	}
+	bool Manager::IsInitialized() { return !!impl_; }
 
 	bool Manager::RequestResource(void*& outResource, const char* name, const Core::UUID& type)
 	{

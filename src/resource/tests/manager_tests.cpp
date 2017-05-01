@@ -127,6 +127,11 @@ namespace
 				Core::Log("%s\n", errorMsg);
 			}
 		}
+
+		Core::IFilePathResolver* GetPathResolver() override
+		{
+			return nullptr;
+		}
 	};
 }
 

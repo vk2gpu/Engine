@@ -6,6 +6,7 @@
 
 namespace Core
 {
+	class IFilePathResolver;
 	class UUID;
 } // namespace Core
 
@@ -42,6 +43,11 @@ namespace Resource
 		 * @param errorMsg Error message.
 		 */
 		virtual void AddError(const char* errorFile, int errorLine, const char* errorMsg) = 0;
+
+		/**
+		 * Get path resolver.	
+ 		 */
+		virtual Core::IFilePathResolver* GetPathResolver() = 0;
 	};
 
 

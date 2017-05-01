@@ -2,6 +2,7 @@
 #include "resource/converter.h"
 #include "core/debug.h"
 #include "core/file.h"
+#include "core/vector.h"
 
 #include "gpu/resources.h"
 #include "gpu/utils.h"
@@ -14,6 +15,7 @@
 #pragma warning(pop)
 
 #include <cstring>
+#include <utility>
 
 namespace
 {
@@ -40,12 +42,6 @@ namespace
 
 		bool Convert(Resource::IConverterContext& context, const char* sourceFile, const char* destPath) override
 		{
-			if(!Core::FileExists(sourceFile))
-			{
-				context.AddError(__FILE__, __LINE__, "ERROR: Source file does not exist.");
-				return false;
-			}
-
 			char file[Core::MAX_PATH_LENGTH];
 			memset(file, 0, sizeof(file));
 			if(!Core::FileSplitPath(sourceFile, nullptr, 0, file, sizeof(file), nullptr, 0))
@@ -60,15 +56,15 @@ namespace
 			Core::FileNormalizePath(outFilename, sizeof(outFilename), true);
 
 			// Load image with stb_image.
-			context.AddDependency(sourceFile);
-
-			Image image = LoadImage(sourceFile);
+			Image image = LoadImage(context, sourceFile);
 
 			if(image.data_ == nullptr)
 			{
 				context.AddError(__FILE__, __LINE__, "ERROR: Failed to load image."); // TODO: AddError needs varargs.
 				return false;
 			}
+
+			context.AddDependency(sourceFile);
 
 			// TODO: Implement texture compression process.
 			GPU::TextureDesc desc;
@@ -95,10 +91,16 @@ namespace
 			return false;
 		}
 
-		Image LoadImage(const char* sourceFile)
+		Image LoadImage(Resource::IConverterContext& context, const char* sourceFile)
 		{
+			Core::File imageFile(sourceFile, Core::FileFlags::READ, context.GetPathResolver());
+			Core::Vector<u8> imageData;
+			imageData.resize((i32)imageFile.Size());
+			imageFile.Read(imageData.data(), imageFile.Size());
+
 			Image image;
-			image.data_ = stbi_load(sourceFile, &image.width_, &image.height_, nullptr, STBI_rgb_alpha);
+			image.data_ = stbi_load_from_memory(
+			    imageData.data(), imageData.size(), &image.width_, &image.height_, nullptr, STBI_rgb_alpha);
 			return image;
 		}
 
