@@ -435,7 +435,8 @@ namespace Core
 		const char separator[2] = { FilePathSeparator(), '\0' };
 
 		FileNormalizePath(inOutPath, maxPathLen, true);
-		strcat_s(inOutPath, maxPathLen, separator);
+		if(strlen(inOutPath) > 0)
+			strcat_s(inOutPath, maxPathLen, separator);
 		strcat_s(inOutPath, maxPathLen, appendPath);
 		return true;
 	}
@@ -457,8 +458,17 @@ namespace Core
 	class FileImplNative : public FileImpl
 	{
 	public:
-		FileImplNative(const char* path, FileFlags flags)
+		FileImplNative(const char* path, FileFlags flags, IFilePathResolver* resolver)
 		{
+			char resolvedPath[MAX_PATH_LENGTH];
+			
+			// Resolve path if required.
+			if(resolver)
+			{
+				if(resolver->ResolvePath(path, resolvedPath, sizeof(resolvedPath)))
+					path = &resolvedPath[0];
+			}
+			
 			// Setup flags.
 			char openString[8] = {0};
 			int openStringIdx = 0;
@@ -560,14 +570,14 @@ namespace Core
 		FileFlags flags_ = FileFlags::NONE;
 	};
 
-	File::File(const char* path, FileFlags flags)
+	File::File(const char* path, FileFlags flags, IFilePathResolver* resolver)
 	{
 		DBG_ASSERT(ContainsAnyFlags(flags, FileFlags::READ) ^ ContainsAnyFlags(flags, FileFlags::WRITE));
 		DBG_ASSERT(ContainsAnyFlags(flags, FileFlags::WRITE) ||
 		           (ContainsAnyFlags(flags, FileFlags::READ) &&
 		               !ContainsAnyFlags(flags, FileFlags::APPEND | FileFlags::CREATE)));
 
-		impl_ = new FileImplNative(path, flags);
+		impl_ = new FileImplNative(path, flags, resolver);
 		if(!impl_->IsValid())
 		{
 			delete impl_;

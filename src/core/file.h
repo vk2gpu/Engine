@@ -189,6 +189,25 @@ namespace Core
 	DEFINE_ENUM_CLASS_FLAG_OPERATOR(FileFlags, &);
 
 	/**
+	 * Path resolver.
+	 */
+	class IFilePathResolver
+	{
+	public:
+		IFilePathResolver() {}
+		virtual ~IFilePathResolver() {}
+
+		/**
+		 * Resolve path.
+		 * @param inPath Input path. (i.e. my_file.txt)
+		 * @param outPath Output path. (i.e. res/my_file.txt)
+		 * @param maxOutPath Maximum output path length.
+		 * @return true if successfully resolved.
+		 */
+		virtual bool ResolvePath(const char* inPath, char* outPath, i32 maxOutPath) = 0;
+	};
+
+	/**
 	 * File class.
 	 */
 	class CORE_DLL File final
@@ -200,10 +219,11 @@ namespace Core
 		 * Open file.
 		 * @param path Path to open.
 		 * @param flags Flags to control file behaviour.
+		 * @param resolver Path resolver to use. Can be nullptr.
 		 * @pre flags only contains READ or WRITE, but not both.
 		 * @pre If flags contains READ, it doesn't contain APPEND or CREATE.
 		 */
-		File(const char* path, FileFlags flags);
+		File(const char* path, FileFlags flags, IFilePathResolver* resolver = nullptr);
 		~File();
 
 		/// Move operators.
