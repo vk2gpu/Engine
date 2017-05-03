@@ -14,11 +14,6 @@ SET(SOURCES_TESTS
 	"tests/test_entry.cpp"
 )
 
-INCLUDE_DIRECTORIES(
-	# 3rd party includes.
-	"../../3rdparty/stb"
-)
-
 # Add graphics.
 ADD_LIBRARY(graphics SHARED ${SOURCES_PUBLIC} ${SOURCES_PRIVATE})
 SET_TARGET_PROPERTIES(graphics PROPERTIES FOLDER Libraries)
@@ -41,8 +36,14 @@ SET(SOURCES_TEXTURE_CONVERTER
 	"converters/converter_texture.cpp"
 )
 
+INCLUDE_DIRECTORIES(
+	# 3rd party includes.
+	"../../3rdparty/stb"
+	"../../3rdparty/squish"
+)
+
 ADD_LIBRARY(converter_graphics_texture SHARED ${SOURCES_TEXTURE_CONVERTER})
 SET_TARGET_PROPERTIES(converter_graphics_texture PROPERTIES FOLDER Libraries/Plugins)
-TARGET_LINK_LIBRARIES(converter_graphics_texture core graphics resource)
+TARGET_LINK_LIBRARIES(converter_graphics_texture core graphics resource squish)
 SOURCE_GROUP("Public" FILES ${SOURCES_TEXTURE_CONVERTER})
 
