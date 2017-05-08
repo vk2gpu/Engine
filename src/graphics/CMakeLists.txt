@@ -34,6 +34,10 @@ SOURCE_GROUP("Tests" FILES ${SOURCES_TESTS})
 # Plugins
 SET(SOURCES_TEXTURE_CONVERTER
 	"converters/converter_texture.cpp"
+	"converters/dds.h"
+	"converters/dds.cpp"
+	"converters/image.h"
+	"converters/image.cpp"
 )
 
 INCLUDE_DIRECTORIES(

@@ -1,8 +1,11 @@
+#include "graphics/converters/dds.h"
+#include "graphics/converters/image.h"
 #include "graphics/texture.h"
 #include "resource/converter.h"
 #include "core/array.h"
 #include "core/debug.h"
 #include "core/file.h"
+#include "core/misc.h"
 #include "core/vector.h"
 
 #include "gpu/resources.h"
@@ -22,13 +25,6 @@
 
 namespace
 {
-	struct Image
-	{
-		i32 width_ = 0;
-		i32 height_ = 0;
-		unsigned char* data_ = 0;
-	};
-
 	class ConverterTexture : public Resource::IConverter
 	{
 	public:
@@ -39,8 +35,8 @@ namespace
 		bool SupportsFileType(const char* fileExt, const Core::UUID& type) const override
 		{
 			return (type == Graphics::Texture::GetTypeUUID()) ||
-			       (fileExt &&
-			           (strcmp(fileExt, "png") == 0 || strcmp(fileExt, "jpg") == 0 || strcmp(fileExt, "tga") == 0));
+			       (fileExt && (strcmp(fileExt, "png") == 0 || strcmp(fileExt, "jpg") == 0 ||
+			                       strcmp(fileExt, "tga") == 0 || strcmp(fileExt, "dds")));
 		}
 
 		bool Convert(Resource::IConverterContext& context, const char* sourceFile, const char* destPath) override
@@ -59,9 +55,9 @@ namespace
 			Core::FileNormalizePath(outFilename, sizeof(outFilename), true);
 
 			// Load image with stb_image.
-			Image image = LoadImage(context, sourceFile);
+			Graphics::Image image = LoadImage(context, sourceFile);
 
-			if(image.data_ == nullptr)
+			if(!image)
 			{
 				context.AddError(__FILE__, __LINE__, "ERROR: Failed to load image."); // TODO: AddError needs varargs.
 				return false;
@@ -69,21 +65,62 @@ namespace
 
 			context.AddDependency(sourceFile);
 
-#if 0
-			// Test compression.
-			u8* outData = nullptr;
-			i32 outSize = 0;
-			EncodeAsBCn(image, GPU::Format::BC3_UNORM, outData, outSize);
-#endif
-
-			// TODO: Implement texture compression process.
 			GPU::TextureDesc desc;
 			desc.type_ = GPU::TextureType::TEX2D;
 			desc.bindFlags_ = GPU::BindFlags::SHADER_RESOURCE;
-			desc.format_ = GPU::Format::R8G8B8A8_UNORM;
+			desc.format_ = image.format_;
 			desc.width_ = image.width_;
 			desc.height_ = image.height_;
+			desc.depth_ = (i16)image.depth_;
+			desc.levels_ = (i16)image.levels_;
 
+			// TODO: Read format conversion info metadata.
+			bool retVal = false;
+			if(image.format_ == GPU::Format::R8G8B8A8_UNORM)
+			{
+				Graphics::Image encodedImage = EncodeAsBCn(image, GPU::Format::BC3_UNORM);
+				if(encodedImage)
+				{
+					image = std::move(encodedImage);
+				}
+			}
+
+			desc.format_ = image.format_;
+			retVal = WriteTexture(outFilename, desc, image.data_);
+
+			if(retVal)
+			{
+				context.AddOutput(outFilename);
+			}
+			return retVal;
+		}
+
+		Graphics::Image LoadImage(Resource::IConverterContext& context, const char* sourceFile)
+		{
+			char fileExt[8] = {0};
+			Core::FileSplitPath(sourceFile, nullptr, 0, nullptr, 0, fileExt, sizeof(fileExt));
+			if(strcmp(fileExt, "dds") == 0)
+			{
+				return Graphics::DDS::LoadImage(context, sourceFile);
+			}
+
+			// Fall through to stb_image for loading other images.
+			Core::File imageFile(sourceFile, Core::FileFlags::READ, context.GetPathResolver());
+			Core::Vector<u8> imageData;
+			imageData.resize((i32)imageFile.Size());
+			imageFile.Read(imageData.data(), imageFile.Size());
+
+			int w, h;
+			u8* data = stbi_load_from_memory(imageData.data(), imageData.size(), &w, &h, nullptr, STBI_rgb_alpha);
+
+			Graphics::Image image(GPU::TextureType::TEX2D, GPU::Format::R8G8B8A8_UNORM, w, h, 1, 1, data,
+			    [](u8* data) { stbi_image_free(data); });
+
+			return image;
+		}
+
+		bool WriteTexture(const char* outFilename, const GPU::TextureDesc& desc, const u8* data)
+		{
 			// Write out texture data.
 			Core::File outFile(outFilename, Core::FileFlags::CREATE | Core::FileFlags::WRITE);
 			if(outFile)
@@ -91,41 +128,28 @@ namespace
 				outFile.Write(&desc, sizeof(desc));
 				i64 size = GPU::GetTextureSize(
 				    desc.format_, desc.width_, desc.height_, desc.depth_, desc.levels_, desc.elements_);
-				outFile.Write(image.data_, size);
-
-				context.AddOutput(outFilename);
+				outFile.Write(data, size);
 
 				return true;
 			}
-
 			return false;
 		}
 
-		Image LoadImage(Resource::IConverterContext& context, const char* sourceFile)
-		{
-			Core::File imageFile(sourceFile, Core::FileFlags::READ, context.GetPathResolver());
-			Core::Vector<u8> imageData;
-			imageData.resize((i32)imageFile.Size());
-			imageFile.Read(imageData.data(), imageFile.Size());
-
-			Image image;
-			image.data_ = stbi_load_from_memory(
-			    imageData.data(), imageData.size(), &image.width_, &image.height_, nullptr, STBI_rgb_alpha);
-			return image;
-		}
-
-		void UnloadImage(Image& image)
-		{
-			stbi_image_free(image.data_);
-
-			image.width_ = 0;
-			image.height_ = 0;
-			image.data_ = nullptr;
-		}
-
-		bool EncodeAsBCn(Image& image, GPU::Format format, u8*& outData, i32& outSize)
+		Graphics::Image EncodeAsBCn(const Graphics::Image& image, GPU::Format format)
 		{
 			auto formatInfo = GPU::GetFormatInfo(format);
+
+			if(image.type_ != GPU::TextureType::TEX2D)
+			{
+				Core::Log("ERROR: Can only encode TEX2D as BC (for now)");
+				return Graphics::Image();
+			}
+
+			if(image.levels_ != 1)
+			{
+				Core::Log("ERROR: Can only encode single mip level images (for now)");
+				return Graphics::Image();
+			}
 
 			if(format == GPU::Format::BC1_TYPELESS || format == GPU::Format::BC1_UNORM ||
 			    format == GPU::Format::BC1_UNORM_SRGB || format == GPU::Format::BC2_TYPELESS ||
@@ -170,8 +194,8 @@ namespace
 				}
 
 				// Find out what space squish needs.
-				outSize = squish::GetStorageRequirements(image.width_, image.height_, squishFormat);
-				outData = new u8[outSize];
+				i32 outSize = squish::GetStorageRequirements(image.width_, image.height_, squishFormat);
+				u8* outData = new u8[outSize];
 
 				// Squish takes RGBA8, so no need to convert before passing in.
 				if(image.width_ >= 4 && image.height_ >= 4)
@@ -202,16 +226,15 @@ namespace
 				{
 					Core::Log("ERROR: Image can't be encoded. (%ux%u)", image.width_, image.height_);
 					delete[] outData;
-					outData = nullptr;
-					outSize = 0;
-					return false;
+					return Graphics::Image();
 				}
 
 				//
-				return true;
+				return Graphics::Image(image.type_, format, image.width_, image.height_, image.depth_, image.levels_,
+				    outData, [](u8* data) { delete[] data; });
 			}
 
-			return false;
+			return Graphics::Image();
 		}
 	};
 }

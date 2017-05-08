@@ -45,9 +45,27 @@ TEST_CASE("graphics-tests-converter-texture")
 
 	Graphics::Texture* texture = nullptr;
 
-	REQUIRE(Resource::Manager::RequestResource(texture, "test_texture.png"));
-
+	REQUIRE(Resource::Manager::RequestResource(texture, "test_texture_png.png"));
 	Resource::Manager::WaitForResource(texture);
+	REQUIRE(Resource::Manager::ReleaseResource(texture));
 
+	REQUIRE(Resource::Manager::RequestResource(texture, "test_texture_jpg.jpg"));
+	Resource::Manager::WaitForResource(texture);
+	REQUIRE(Resource::Manager::ReleaseResource(texture));
+
+	REQUIRE(Resource::Manager::RequestResource(texture, "test_texture_tga.tga"));
+	Resource::Manager::WaitForResource(texture);
+	REQUIRE(Resource::Manager::ReleaseResource(texture));
+
+	REQUIRE(Resource::Manager::RequestResource(texture, "test_texture_bc3.dds"));
+	Resource::Manager::WaitForResource(texture);
+	REQUIRE(Resource::Manager::ReleaseResource(texture));
+
+	REQUIRE(Resource::Manager::RequestResource(texture, "test_texture_bc6.dds"));
+	Resource::Manager::WaitForResource(texture);
+	REQUIRE(Resource::Manager::ReleaseResource(texture));
+
+	REQUIRE(Resource::Manager::RequestResource(texture, "test_texture_bc7.dds"));
+	Resource::Manager::WaitForResource(texture);
 	REQUIRE(Resource::Manager::ReleaseResource(texture));
 }
