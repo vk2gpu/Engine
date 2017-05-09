@@ -3,6 +3,7 @@ SET(SOURCES_PUBLIC
 	"commands.h"
 	"command_list.h"
 	"dll.h"
+	"enum.h"
 	"fwd_decls.h"
 	"manager.h"
 	"resources.h"
@@ -13,6 +14,7 @@ SET(SOURCES_PUBLIC
 SET(SOURCES_PRIVATE 
 	"private/command_list.cpp"
 	"private/command_list.inl"
+	"private/enum.cpp"
 	"private/manager.cpp"
 	"private/utils.cpp"
 	"private/renderdoc_app.h"

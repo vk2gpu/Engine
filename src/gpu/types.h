@@ -299,8 +299,9 @@ namespace GPU
 	/**
 	 * Sampler types.
 	 */
-	enum class AddressingMode : u32
+	enum class AddressingMode : i32
 	{
+		INVALID = -1,
 		WRAP = 0,
 		MIRROR,
 		CLAMP,
@@ -309,8 +310,9 @@ namespace GPU
 		MAX,
 	};
 
-	enum class FilteringMode : u32
+	enum class FilteringMode : i32
 	{
+		INVALID = -1,
 		NEAREST = 0,
 		LINEAR,
 		NEAREST_MIPMAP_NEAREST,

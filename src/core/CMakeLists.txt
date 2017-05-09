@@ -3,6 +3,7 @@ SET(SOURCES_PUBLIC
 	"concurrency.h"
 	"debug.h"
 	"dll.h"
+	"enum.h"
 	"file.h"
 	"float.h"
 	"handle.h"

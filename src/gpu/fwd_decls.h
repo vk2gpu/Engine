@@ -16,8 +16,8 @@ namespace GPU
 	enum class TopologyType : i32;
 	enum class PrimitiveTopology : i32;
 	enum class VertexUsage : i32;
-	enum class AddressingMode : u32;
-	enum class FilteringMode : u32;
+	enum class AddressingMode : i32;
+	enum class FilteringMode : i32;
 	enum class FillMode : i32;
 	enum class CullMode : i32;
 	enum class BlendType : i32;
