@@ -27,6 +27,7 @@ SET(SOURCES_PRIVATE
 	"private/concurrency.cpp"
 	"private/concurrency.inl"
 	"private/debug.cpp"
+	"private/enum.cpp"
 	"private/file.cpp"
 	"private/float.cpp"
 	"private/handle.cpp"

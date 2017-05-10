@@ -9,16 +9,15 @@ namespace Core
 		for(i32 i = 0; ; ++i)
 		{
 			const char* valStr = convFn(i);
+			// Hit end of enum.
+			if(valStr == nullptr)
+				break;
 
-			if(_stricmp(valStr, str))
+			if(_stricmp(valStr, str) == 0)
 			{
 				outVal = i;
 				return true;
 			}
-
-			// Hit end of enum.
-			if(valStr == nullptr)
-				break;
 		}
 		return false;
 	}

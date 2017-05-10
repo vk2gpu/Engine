@@ -6,63 +6,14 @@
 
 namespace Core
 {
-	template<>
-	struct GPU_DLL Enum<GPU::Format>
-	{
-		static const char* ToString(i32 val);
-	};
-
-	template<>
-	struct GPU_DLL Enum<GPU::TextureType>
-	{
-		static const char* ToString(i32 val);
-	};
-
-	template<>
-	struct GPU_DLL Enum<GPU::AddressingMode>
-	{
-		static const char* ToString(i32 val);
-	};
-
-	template<>
-	struct GPU_DLL Enum<GPU::FilteringMode>
-	{
-		static const char* ToString(i32 val);
-	};
-
-	template<>
-	struct GPU_DLL Enum<GPU::FillMode>
-	{
-		static const char* ToString(i32 val);
-	};
-
-	template<>
-	struct GPU_DLL Enum<GPU::CullMode>
-	{
-		static const char* ToString(i32 val);
-	};
-
-	template<>
-	struct GPU_DLL Enum<GPU::BlendType>
-	{
-		static const char* ToString(i32 val);
-	};
-
-	template<>
-	struct GPU_DLL Enum<GPU::BlendFunc>
-	{
-		static const char* ToString(i32 val);
-	};
-
-	template<>
-	struct GPU_DLL Enum<GPU::CompareMode>
-	{
-		static const char* ToString(i32 val);
-	};
-
-	template<>
-	struct GPU_DLL Enum<GPU::StencilFunc>
-	{
-		static const char* ToString(i32 val);
-	};
+	GPU_DLL const char* EnumToString(GPU::Format);
+	GPU_DLL const char* EnumToString(GPU::TextureType val);
+	GPU_DLL const char* EnumToString(GPU::AddressingMode val);
+	GPU_DLL const char* EnumToString(GPU::FilteringMode val);
+	GPU_DLL const char* EnumToString(GPU::FillMode val);
+	GPU_DLL const char* EnumToString(GPU::CullMode val);
+	GPU_DLL const char* EnumToString(GPU::BlendType val);
+	GPU_DLL const char* EnumToString(GPU::BlendFunc val);
+	GPU_DLL const char* EnumToString(GPU::CompareMode val);
+	GPU_DLL const char* EnumToString(GPU::StencilFunc val);
 }
