@@ -218,12 +218,31 @@ namespace Core
 		/**
 		 * Open file.
 		 * @param path Path to open.
-		 * @param flags Flags to control file behaviour.
+		 * @param flags Flags to control file behavior.
 		 * @param resolver Path resolver to use. Can be nullptr.
-		 * @pre flags only contains READ or WRITE, but not both.
-		 * @pre If flags contains READ, it doesn't contain APPEND or CREATE.
+		 * @pre @a flags only contains READ or WRITE, but not both.
+		 * @pre If @a flags contains READ, it doesn't contain APPEND or CREATE.
 		 */
 		File(const char* path, FileFlags flags, IFilePathResolver* resolver = nullptr);
+
+		/**
+		 * Create file from memory.
+		 * @param data Pointer to data.
+		 * @param size Size available for use.
+		 * @param Flags to control file behavior.
+		 * @pre size > 0.
+		 * @pre flags only contains READ or WRITE, but not both.
+		 */
+		File(void* data, i64 size, FileFlags flags);
+
+		/**
+		 * Create file from memory (read-only).
+		 * @param data Pointer to data.
+		 * @param size Size available for use.
+		 * @pre size > 0.
+		 */
+		File(const void* data, i64 size);
+
 		~File();
 
 		/// Move operators.

@@ -432,7 +432,7 @@ namespace Core
 
 	bool FileAppendPath(char* inOutPath, i32 maxPathLen, const char* appendPath)
 	{
-		const char separator[2] = { FilePathSeparator(), '\0' };
+		const char separator[2] = {FilePathSeparator(), '\0'};
 
 		FileNormalizePath(inOutPath, maxPathLen, true);
 		if(strlen(inOutPath) > 0)
@@ -461,14 +461,14 @@ namespace Core
 		FileImplNative(const char* path, FileFlags flags, IFilePathResolver* resolver)
 		{
 			char resolvedPath[MAX_PATH_LENGTH];
-			
+
 			// Resolve path if required.
 			if(resolver)
 			{
 				if(resolver->ResolvePath(path, resolvedPath, sizeof(resolvedPath)))
 					path = &resolvedPath[0];
 			}
-			
+
 			// Setup flags.
 			char openString[8] = {0};
 			int openStringIdx = 0;
@@ -570,6 +570,83 @@ namespace Core
 		FileFlags flags_ = FileFlags::NONE;
 	};
 
+	class FileImplMem : public FileImpl
+	{
+	public:
+		FileImplMem(void* data, i64 size, FileFlags flags)
+		    : data_(data)
+		    , size_(size)
+		    , flags_(flags)
+		{
+		}
+
+		FileImplMem(const void* data, i64 size)
+		    : constData_(data)
+		    , size_(size)
+		    , flags_(FileFlags::READ)
+		{
+		}
+
+		~FileImplMem()
+		{ //
+		}
+
+		i64 Read(void* buffer, i64 bytes) override
+		{
+			if(ContainsAnyFlags(flags_, FileFlags::READ))
+			{
+				const i64 remaining = size_ - offset_;
+				const i64 copyBytes = Min(remaining, bytes);
+				memcpy(buffer, (const u8*)constData_ + offset_, copyBytes);
+				offset_ += copyBytes;
+				return copyBytes;
+			}
+			return 0;
+		}
+
+		i64 Write(const void* buffer, i64 bytes) override
+		{
+			if(ContainsAnyFlags(flags_, FileFlags::WRITE))
+			{
+				const i64 remaining = size_ - offset_;
+				const i64 copyBytes = Min(remaining, bytes);
+				memcpy((u8*)data_ + offset_, buffer, copyBytes);
+				offset_ += copyBytes;
+				return copyBytes;
+			}
+			return 0;
+		}
+
+		bool Seek(i64 offset) override
+		{
+			if(offset < size_)
+			{
+				offset_ = offset;
+				return true;
+			}
+			return false;
+		}
+
+		i64 Tell() const override { return offset_; }
+
+		i64 Size() const override { return size_; }
+
+		FileFlags GetFlags() const override { return flags_; }
+
+		bool IsValid() const override { return !!constData_; }
+
+	private:
+		/// Choosing this over const_cast.
+		union
+		{
+			void* data_ = nullptr;
+			const void* constData_;
+		};
+		i64 size_ = 0;
+		FileFlags flags_ = FileFlags::NONE;
+		i64 offset_ = 0;
+	};
+
 	File::File(const char* path, FileFlags flags, IFilePathResolver* resolver)
 	{
 		DBG_ASSERT(ContainsAnyFlags(flags, FileFlags::READ) ^ ContainsAnyFlags(flags, FileFlags::WRITE));
@@ -584,6 +661,23 @@ namespace Core
 			impl_ = nullptr;
 		}
 	}
+
+	File::File(void* data, i64 size, FileFlags flags)
+	{
+		DBG_ASSERT(data);
+		DBG_ASSERT(size > 0);
+		DBG_ASSERT(ContainsAnyFlags(flags, FileFlags::READ) ^ ContainsAnyFlags(flags, FileFlags::WRITE));
+		DBG_ASSERT(!ContainsAnyFlags(flags, FileFlags::APPEND | FileFlags::CREATE));
+		impl_ = new FileImplMem(data, size, flags);
+	}
+
+	File::File(const void* data, i64 size)
+	{
+		DBG_ASSERT(data);
+		DBG_ASSERT(size > 0);
+		impl_ = new FileImplMem(data, size);
+	}
+
 
 	File::~File() { delete impl_; }
 

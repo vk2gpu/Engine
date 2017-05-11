@@ -171,6 +171,41 @@ TEST_CASE("file-tests-size")
 	}
 }
 
+TEST_CASE("file-tests-mem")
+{
+	Core::Vector<u8> fileData;
+	fileData.resize(64 * 1024);
+	fileData.fill(0xff);
+
+	const i64 halfSize = fileData.size() / 2;
+
+	{
+		Core::Vector<u8> writeData;
+		writeData.resize(fileData.size());
+		writeData.fill(0x00);
+
+		Core::File file(fileData.data(), halfSize, Core::FileFlags::WRITE);
+		REQUIRE(file.Write(writeData.data(), writeData.size()) == file.Size());
+		REQUIRE(fileData[0] == 0x00);
+		REQUIRE(fileData[(i32)halfSize - 1] == 0x00);
+		REQUIRE(fileData[(i32)halfSize] == 0xff);
+	}
+
+	{
+		Core::Vector<u8> readData;
+		readData.resize(fileData.size());
+		readData.fill(0x00);
+
+		fileData.fill(0xff);
+		Core::File file(fileData.data(), halfSize, Core::FileFlags::READ);
+		REQUIRE(file.Read(readData.data(), readData.size()) == file.Size());
+		REQUIRE(readData[0] == 0xff);
+		REQUIRE(readData[(i32)halfSize - 1] == 0xff);
+		REQUIRE(readData[(i32)halfSize] == 0x00);
+	}
+}
+
+
 TEST_CASE("file-tests-create-dir")
 {
 	ScopedCleanup scopedCleanup;
