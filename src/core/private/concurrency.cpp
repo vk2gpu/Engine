@@ -106,6 +106,8 @@ namespace Core
 		return 0;
 	}
 
+	/// Use Fiber Local Storage to store current fiber.
+	static FLS thisFiber_;
 
 	struct FiberImpl
 	{
@@ -124,6 +126,8 @@ namespace Core
 	static void __stdcall FiberEntryPoint(LPVOID lpParameter)
 	{
 		auto* impl = reinterpret_cast<FiberImpl*>(lpParameter);
+		thisFiber_.Set(impl);
+
 		impl->entryPointFunc_(impl->userData_);
 		DBG_ASSERT(impl->exitFiber_);
 		::SwitchToFiber(impl->exitFiber_);
@@ -233,17 +237,9 @@ namespace Core
 
 	Fiber* Fiber::GetCurrentFiber()
 	{
-		if(auto fiber = ::GetCurrentFiber())
-		{
-			auto* impl = reinterpret_cast<FiberImpl*>(::GetFiberData());
-			if(impl != nullptr)
-			{
-				if(impl->sentinal_ == FiberImpl::SENTINAL)
-				{
-					return impl->parent_;
-				}
-			}
-		}
+		auto* impl = (FiberImpl*)thisFiber_.Get();
+		if(impl)
+			return impl->parent_;
 		return nullptr;
 	}
 
@@ -394,8 +390,9 @@ namespace Core
 	};
 
 	TLS::TLS()
-	{ //
+	{
 		impl_ = new TLSImpl();
+		impl_->handle_ = TlsAlloc();
 	}
 
 	TLS::~TLS()
@@ -415,6 +412,37 @@ namespace Core
 		DBG_ASSERT(impl_);
 		return ::TlsGetValue(impl_->handle_);
 	}
+
+
+	struct FLSImpl
+	{
+		DWORD handle_ = 0;
+	};
+
+	FLS::FLS()
+	{
+		impl_ = new FLSImpl();
+		impl_->handle_ = FlsAlloc(nullptr);
+	}
+
+	FLS::~FLS()
+	{
+		::FlsFree(impl_->handle_);
+		delete impl_;
+	}
+
+	bool FLS::Set(void* data)
+	{
+		DBG_ASSERT(impl_);
+		return !!::FlsSetValue(impl_->handle_, data);
+	}
+
+	void* FLS::Get() const
+	{
+		DBG_ASSERT(impl_);
+		return ::FlsGetValue(impl_->handle_);
+	}
+
 } // namespace Core
 #else
 #error "Not implemented for platform!""

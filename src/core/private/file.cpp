@@ -517,7 +517,11 @@ namespace Core
 			flags_ = flags;
 		}
 
-		virtual ~FileImplNative() { ::fclose(fileHandle_); }
+		virtual ~FileImplNative()
+		{ 
+			if(fileHandle_)
+				::fclose(fileHandle_);
+		}
 
 		i64 Read(void* buffer, i64 bytes) override
 		{

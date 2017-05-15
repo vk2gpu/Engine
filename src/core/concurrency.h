@@ -414,6 +414,42 @@ namespace Core
 		struct TLSImpl* impl_ = nullptr;
 	};
 
+	/**
+	 * Fiber local storage.
+	 */
+	class CORE_DLL FLS final
+	{
+	public:
+		FLS();
+		~FLS();
+
+		/**
+		 * Set data.
+		 * @param data Data to set.
+		 * @return Success.
+		 */
+		bool Set(void* data);
+
+		/**
+		 * Get data.
+		 * @param data
+		 * @return Data. nullptr if none set.
+		 */
+		void* Get() const;
+
+		/**
+		 * @return Is valid?
+		 */
+		operator bool() { return impl_ != nullptr; }
+
+	private:
+		FLS(FLS&&) = delete;
+		FLS& operator=(FLS&&) = delete;
+		FLS(const FLS&) = delete;
+
+		struct FLSImpl* impl_ = nullptr;
+	};
+
 } // namespace Core
 #if CODE_INLINE
 #include "core/private/concurrency.inl"
