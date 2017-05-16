@@ -1,0 +1,15 @@
+#pragma once
+
+#include "core/portability.h"
+
+#if SERIALIZATION_EXPORT
+#define SERIALIZATION_DLL EXPORT
+#else
+#define SERIALIZATION_DLL IMPORT
+#endif
+
+#if SERIALIZATION_INLINE
+#define SERIALIZATION_DLL_INLINE INLINE
+#else
+#define SERIALIZATION_DLL_INLINE SERIALIZATION_DLL
+#endif
