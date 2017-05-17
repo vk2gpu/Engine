@@ -102,6 +102,11 @@ namespace GPU
 			// Create matching backend.
 			Core::Vector<BackendPlugin> plugins;
 
+			if(Core::ContainsAnyFlags(debuggerIntegration_, DebuggerIntegrationFlags::RENDERDOC))
+			{
+				RenderDoc::Load();
+			}
+
 			auto found = Plugin::Manager::GetPlugins<BackendPlugin>(nullptr, 0);
 			DBG_ASSERT(found > 0);
 
