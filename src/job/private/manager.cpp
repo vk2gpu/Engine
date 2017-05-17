@@ -377,10 +377,7 @@ namespace Job
 		impl_ = nullptr;
 	}
 
-	bool Manager::IsInitialized()
-	{
-		return !!impl_;
-	}
+	bool Manager::IsInitialized() { return !!impl_; }
 
 	void Manager::RunJobs(JobDesc* jobDescs, i32 numJobDesc, Counter** counter)
 	{

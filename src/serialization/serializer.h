@@ -25,8 +25,12 @@ namespace Serialization
 	class SERIALIZATION_DLL Serializer
 	{
 	public:
+		Serializer() = default;
 		Serializer(Core::File& file, Flags flags);
 		~Serializer();
+
+		Serializer(Serializer&&);
+		Serializer& operator=(Serializer&&);
 
 		bool Serialize(const char* key, bool& value);
 		bool Serialize(const char* key, i32& value);
@@ -97,7 +101,7 @@ namespace Serialization
 		Serializer(const Serializer&) = delete;
 		Serializer& operator=(const Serializer&) = delete;
 
-		struct SerializerImpl* impl_;
+		struct SerializerImpl* impl_ = nullptr;
 	};
 } // namespace Serialization
 

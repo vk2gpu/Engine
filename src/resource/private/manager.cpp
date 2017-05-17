@@ -15,6 +15,7 @@
 
 #include "job/manager.h"
 #include "plugin/manager.h"
+#include "serialization/serializer.h"
 
 #include <algorithm>
 #include <utility>
@@ -89,14 +90,10 @@ namespace Resource
 
 				bool ResolvePath(const char* inPath, char* outPath, i32 maxOutPath)
 				{
-					const char* paths[] = 
-					{
-						"",
-						"../../../../res"
-					};
+					const char* paths[] = {"", "../../../../res"};
 
 					char intPath[Core::MAX_PATH_LENGTH];
-					for(i32 i = 0; i < sizeof(paths)/sizeof(paths[0]); ++i)
+					for(i32 i = 0; i < sizeof(paths) / sizeof(paths[0]); ++i)
 					{
 						memset(intPath, 0, sizeof(intPath));
 						Core::FileAppendPath(intPath, sizeof(intPath), paths[i]);
@@ -115,6 +112,55 @@ namespace Resource
 			static PathResolver pathResolver;
 			return &pathResolver;
 		}
+
+		bool Convert(IConverter* converter, const char* sourceFile, const char* destPath)
+		{
+			// Setup metadata path.
+			if(GetPathResolver()->ResolvePath(sourceFile, metaDataFileName_, sizeof(metaDataFileName_)))
+			{
+				strcat_s(metaDataFileName_, sizeof(metaDataFileName_), ".metadata");
+			}
+
+			// Do conversion.
+			return converter->Convert(*this, sourceFile, destPath);
+		}
+
+		void SetMetaData(MetaDataCb callback, void* metaData) override
+		{
+			metaDataFile_ = Core::File(metaDataFileName_, Core::FileFlags::CREATE | Core::FileFlags::WRITE);
+			metaDataSer_ = Serialization::Serializer(metaDataFile_, Serialization::Flags::TEXT);
+
+			if(callback)
+			{
+				callback(metaDataSer_, metaData);
+			}
+
+			AddDependency(metaDataFileName_);
+
+			metaDataSer_ = Serialization::Serializer();
+			metaDataFile_ = Core::File();
+		}
+
+		void GetMetaData(MetaDataCb callback, void* metaData) override
+		{
+			// If we don't have a metadata file for red, attempt to open for read.
+			if(!Core::ContainsAnyFlags(metaDataFile_.GetFlags(), Core::FileFlags::READ) &&
+			    Core::FileExists(metaDataFileName_))
+			{
+				metaDataFile_ = Core::File(metaDataFileName_, Core::FileFlags::READ);
+				metaDataSer_ = Serialization::Serializer(metaDataFile_, Serialization::Flags::TEXT);
+
+				if(callback)
+				{
+					callback(metaDataSer_, metaData);
+				}
+			}
+		}
+
+	private:
+		char metaDataFileName_[Core::MAX_PATH_LENGTH] = {0};
+		Core::File metaDataFile_;
+		Serialization::Serializer metaDataSer_;
 	};
 
 	/// Factory context to use during creation of resources.
@@ -640,7 +686,7 @@ namespace Resource
 			if(converter->SupportsFileType(nullptr, type))
 			{
 				ConverterContext converterContext;
-				retVal = converter->Convert(converterContext, name, convertedName);
+				retVal = converterContext.Convert(converter, name, convertedName);
 			}
 			converterPlugin.DestroyConverter(converter);
 			if(retVal)

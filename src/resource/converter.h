@@ -10,6 +10,11 @@ namespace Core
 	class UUID;
 } // namespace Core
 
+namespace Serialization
+{
+	class Serializer;
+} // namespace Serialization
+
 namespace Resource
 {
 	/**
@@ -45,9 +50,38 @@ namespace Resource
 		virtual void AddError(const char* errorFile, int errorLine, const char* errorMsg) = 0;
 
 		/**
-		 * Get path resolver.	
- 		 */
+		 * Get path resolver.
+		 */
 		virtual Core::IFilePathResolver* GetPathResolver() = 0;
+
+		/**
+		 * Set metadata.
+		 */
+		template<typename TYPE>
+		void SetMetaData(TYPE& metaData)
+		{
+			SetMetaData([](Serialization::Serializer& ser,
+			                void* metaData) { reinterpret_cast<TYPE*>(metaData)->Serialize(ser); },
+			    &metaData);
+		}
+
+		/**
+		 * Get metadata.
+		 */
+		template<typename TYPE>
+		TYPE GetMetaData()
+		{
+			TYPE metaData;
+			GetMetaData([](Serialization::Serializer& ser,
+			                void* metaData) { reinterpret_cast<TYPE*>(metaData)->Serialize(ser); },
+			    &metaData);
+			return metaData;
+		}
+
+	protected:
+		using MetaDataCb = void (*)(Serialization::Serializer& ser, void*);
+		virtual void SetMetaData(MetaDataCb callback, void* metaData) = 0;
+		virtual void GetMetaData(MetaDataCb callback, void* metaData) = 0;
 	};
 
 

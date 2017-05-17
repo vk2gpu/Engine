@@ -132,6 +132,15 @@ namespace
 		{
 			return nullptr;
 		}
+
+		void SetMetaData(MetaDataCb callback, void* metaData) override
+		{
+		}
+
+		void GetMetaData(MetaDataCb callback, void* metaData) override
+		{
+		}
+
 	};
 }
 

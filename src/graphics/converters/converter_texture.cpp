@@ -4,21 +4,26 @@
 #include "resource/converter.h"
 #include "core/array.h"
 #include "core/debug.h"
+#include "core/enum.h"
 #include "core/file.h"
+#include "core/hash.h"
 #include "core/misc.h"
 #include "core/vector.h"
 
+#include "gpu/enum.h"
 #include "gpu/resources.h"
 #include "gpu/utils.h"
+
+#include "serialization/serializer.h"
 
 #pragma warning(push)
 #pragma warning(disable : 4244)
 #pragma warning(disable : 4456)
 #define STB_IMAGE_IMPLEMENTATION
-#include "stb_image.h"
+#include <stb_image.h>
 #pragma warning(pop)
 
-#include "squish.h"
+#include <squish.h>
 
 #include <cstring>
 #include <utility>
@@ -32,15 +37,34 @@ namespace
 
 		virtual ~ConverterTexture() {}
 
+		struct MetaData
+		{
+			bool isInitialized_ = false;
+			GPU::Format format_ = GPU::Format::INVALID;
+			bool generateMipLevels_ = false;
+
+			bool Serialize(Serialization::Serializer& serializer)
+			{
+				isInitialized_ = true;
+
+				bool retVal = true;
+				retVal &= serializer.Serialize("format", format_);
+				retVal &= serializer.Serialize("generateMipLevels", generateMipLevels_);
+				return retVal;
+			}
+		};
+
 		bool SupportsFileType(const char* fileExt, const Core::UUID& type) const override
 		{
 			return (type == Graphics::Texture::GetTypeUUID()) ||
 			       (fileExt && (strcmp(fileExt, "png") == 0 || strcmp(fileExt, "jpg") == 0 ||
-			                       strcmp(fileExt, "tga") == 0 || strcmp(fileExt, "dds")));
+			                       strcmp(fileExt, "tga") == 0 || strcmp(fileExt, "dds") == 0));
 		}
 
 		bool Convert(Resource::IConverterContext& context, const char* sourceFile, const char* destPath) override
 		{
+			MetaData metaData = context.GetMetaData<MetaData>();
+
 			char file[Core::MAX_PATH_LENGTH];
 			memset(file, 0, sizeof(file));
 			if(!Core::FileSplitPath(sourceFile, nullptr, 0, file, sizeof(file), nullptr, 0))
@@ -74,15 +98,30 @@ namespace
 			desc.depth_ = (i16)image.depth_;
 			desc.levels_ = (i16)image.levels_;
 
-			// TODO: Read format conversion info metadata.
+			// If we get an R8G8B8A8 image in, we want to attempt to compress it
+			// to an appropriate format.
 			bool retVal = false;
 			if(image.format_ == GPU::Format::R8G8B8A8_UNORM)
 			{
-				Graphics::Image encodedImage = EncodeAsBCn(image, GPU::Format::BC3_UNORM);
-				if(encodedImage)
+				if(metaData.isInitialized_ == false)
 				{
-					image = std::move(encodedImage);
+					metaData.format_ = GPU::Format::BC3_UNORM;
+					metaData.generateMipLevels_ = true;
 				}
+
+				auto formatInfo = GPU::GetFormatInfo(metaData.format_);
+				if(formatInfo.blockW_ > 1 || formatInfo.blockH_ > 1)
+				{
+					Graphics::Image encodedImage = EncodeAsBCn(image, metaData.format_);
+					if(encodedImage)
+					{
+						image = std::move(encodedImage);
+					}
+				}
+			}
+			else
+			{
+				metaData.generateMipLevels_ = false;
 			}
 
 			desc.format_ = image.format_;
@@ -92,6 +131,11 @@ namespace
 			{
 				context.AddOutput(outFilename);
 			}
+
+			// Setup metadata.
+			metaData.format_ = image.format_;
+			context.SetMetaData(metaData);
+
 			return retVal;
 		}
 

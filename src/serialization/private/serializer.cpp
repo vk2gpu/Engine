@@ -455,6 +455,20 @@ namespace Serialization
 
 	Serializer::~Serializer() { delete impl_; }
 
+	Serializer::Serializer(Serializer&& other)
+	{
+		using std::swap;
+		swap(impl_, other.impl_);
+	}
+
+	Serializer& Serializer::operator=(Serializer&& other)
+	{
+		using std::swap;
+		swap(impl_, other.impl_);
+		return *this;
+	}
+
+
 	bool Serializer::Serialize(const char* key, bool& value) { return impl_->Serialize(key, value); }
 
 	bool Serializer::Serialize(const char* key, i32& value) { return impl_->Serialize(key, value); }
