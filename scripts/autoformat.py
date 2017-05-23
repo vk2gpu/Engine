@@ -30,6 +30,7 @@ def autoformat():
 	clangFormat = findClangFormat()
 	if clangFormat != None:
 		for source in filteredSource:
+			print " -", source
 			subprocess.call([clangFormat, "-i", source])
 
 	pass

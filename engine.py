@@ -7,6 +7,7 @@ commands = {
 
 if len(sys.argv) > 1:
 	command = commands[sys.argv[1]]
+	print "Running", sys.argv[1], "..."
 	command[1]()
 else:
 	print "Available commands:"
