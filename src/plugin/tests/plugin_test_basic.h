@@ -11,10 +11,9 @@ struct PluginTestBasic : Plugin::Plugin
 	bool successfullyLoaded_ = false;
 	u32 testMagic_ = 0x00000000;
 
-	typedef void(*SetNumberFn)(int);
-	typedef int(*GetNumberFn)();
+	typedef void (*SetNumberFn)(int);
+	typedef int (*GetNumberFn)();
 
 	SetNumberFn SetNumber = nullptr;
 	GetNumberFn GetNumber = nullptr;
-
 };

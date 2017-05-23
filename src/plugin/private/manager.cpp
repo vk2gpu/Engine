@@ -97,7 +97,7 @@ namespace Plugin
 				DBG_LOG("Unable to find symbol 'GetPlugin' for plugin library %s!\n", fileName_.data());
 				return false;
 			}
-			
+
 
 			if(!getPlugin_(&plugin_, Plugin::GetUUID()))
 			{
@@ -166,14 +166,11 @@ namespace Plugin
 		}
 		impl_->pluginDesc_.clear();
 
-		delete impl_; 
+		delete impl_;
 		impl_ = nullptr;
 	}
 
-	bool Manager::IsInitialized()
-	{
-		return !!impl_;
-	}
+	bool Manager::IsInitialized() { return !!impl_; }
 
 	i32 Manager::Scan(const char* path)
 	{

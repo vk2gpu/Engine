@@ -157,7 +157,7 @@ namespace GPU
 				std::sort(block.freeAllocations_.begin(), block.freeAllocations_.end(),
 				    [](const DescriptorBlock::Allocation& a, const DescriptorBlock::Allocation& b) {
 					    return a.offset_ < b.offset_;
-				    });
+					});
 
 				// Merge adjacent blocks.
 				auto itA = block.freeAllocations_.begin();

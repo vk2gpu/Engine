@@ -7,7 +7,7 @@
 TEST_CASE("uuid-tests-string")
 {
 	Core::UUID uuid;
-	char outBuffer[128] = { 0 };
+	char outBuffer[128] = {0};
 
 	uuid = Core::UUID("uuid-tests-string::test_uuid_0");
 	uuid.AsString(outBuffer);
@@ -39,5 +39,4 @@ TEST_CASE("uuid-tests-random")
 	uuid0 = Core::UUID(rng0, 0);
 	uuid1 = Core::UUID(rng1, 1);
 	REQUIRE(uuid0 != uuid1);
-
 }

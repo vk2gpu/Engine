@@ -49,7 +49,7 @@ TEST_CASE("plugin-tests-advanced-plugin")
 
 	found = Plugin::Manager::GetPlugins(&plugin, 1);
 	REQUIRE(found > 0);
-	
+
 	REQUIRE(plugin.GetNumber() == 0);
 	plugin.SetNumber(1);
 	REQUIRE(plugin.GetNumber() == 1);

@@ -12,7 +12,7 @@ typedef u8 BYTE;
 namespace ImGui
 {
 	namespace
-	{	
+	{
 		static const i32 MAX_VERTICES = 1024 * 256;
 		static const i32 MAX_INDICES = 1024 * 256;
 
@@ -28,7 +28,7 @@ namespace ImGui
 		GPU::Handle gpsHandle_;
 		GPU::Handle smpHandle_;
 		GPU::Handle pbsHandle_;
-		
+
 		bool isInitialized_ = false;
 	}
 
@@ -237,10 +237,7 @@ namespace ImGui
 		isInitialized_ = false;
 	}
 
-	bool Manager::IsInitialized()
-	{
-		return isInitialized_;
-	}
+	bool Manager::IsInitialized() { return isInitialized_; }
 
 	void Manager::BeginFrame(const Client::IInputProvider& input, i32 w, i32 h)
 	{

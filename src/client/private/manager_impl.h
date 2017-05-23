@@ -12,7 +12,7 @@ namespace Client
 		Core::Mutex resourceMutex_;
 		Core::Vector<WindowImpl*> windows_;
 	};
-	
+
 	void RegisterWindow(WindowImpl* window);
 	void DeregisterWindow(WindowImpl* window);
 	void HandleEvent(const SDL_Event& event);

@@ -8,10 +8,7 @@ using namespace Core;
 #include <string>
 namespace Core
 {
-	u32 Hash(u32 Input, const std::string& String)
-	{
-		return Hash(Input, String.c_str());
-	}
+	u32 Hash(u32 Input, const std::string& String) { return Hash(Input, String.c_str()); }
 }
 
 namespace

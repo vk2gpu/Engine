@@ -47,7 +47,7 @@ namespace Core
 			swap(enqueuePos_, other.enqueuePos_);
 			swap(dequeuePos_, other.dequeuePos_);
 		}
-		MPMCBoundedQueue& operator = (MPMCBoundedQueue&& other)
+		MPMCBoundedQueue& operator=(MPMCBoundedQueue&& other)
 		{
 			using std::swap;
 			swap(buffer_, other.buffer_);
@@ -57,10 +57,7 @@ namespace Core
 			return *this;
 		}
 
-		~MPMCBoundedQueue()
-		{
-			delete [] buffer_;
-		}
+		~MPMCBoundedQueue() { delete[] buffer_; }
 
 
 		/**
@@ -81,7 +78,7 @@ namespace Core
 					if(Core::AtomicCmpExchg(&enqueuePos_, pos + 1, pos) == pos)
 						break;
 				}
-				else if (dif < 0)
+				else if(dif < 0)
 					return false;
 				else
 					pos = Core::AtomicCmpExchg(&enqueuePos_, 0, 0);
@@ -110,7 +107,7 @@ namespace Core
 					if(Core::AtomicCmpExchg(&dequeuePos_, pos + 1, pos) == pos)
 						break;
 				}
-				else if (dif < 0)
+				else if(dif < 0)
 					return false;
 				else
 					pos = Core::AtomicCmpExchg(&dequeuePos_, 0, 0);
@@ -131,14 +128,14 @@ namespace Core
 		static i32 const CACHE_LINE_SIZE = 64;
 		typedef char CacheLinePad[CACHE_LINE_SIZE];
 
-		CacheLinePad pad0_ = { 0 };
+		CacheLinePad pad0_ = {0};
 		Cell* buffer_ = nullptr;
 		i32 bufferMask_ = 0;
-		CacheLinePad pad1_ = { 0 };
+		CacheLinePad pad1_ = {0};
 		volatile i32 enqueuePos_ = 0;
-		CacheLinePad pad2_ = { 0 };
+		CacheLinePad pad2_ = {0};
 		volatile i32 dequeuePos_ = 0;
-		CacheLinePad pad3_ = { 0 };
+		CacheLinePad pad3_ = {0};
 
 		MPMCBoundedQueue(const MPMCBoundedQueue&) = delete;
 		void operator=(const MPMCBoundedQueue&) = delete;

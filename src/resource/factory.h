@@ -49,7 +49,8 @@ namespace Resource
 		 * @param type Type UUID.
 		 * @param inFile File to load resource from.
 		 */
-		virtual bool LoadResource(IFactoryContext& context, void** inResource, const Core::UUID& type, Core::File& inFile) = 0;
+		virtual bool LoadResource(
+		    IFactoryContext& context, void** inResource, const Core::UUID& type, Core::File& inFile) = 0;
 
 		/**
 		 * Destroy resource.	
@@ -61,6 +62,5 @@ namespace Resource
 		virtual bool DestroyResource(IFactoryContext& context, void** inResource, const Core::UUID& type) = 0;
 
 	private:
-
 	};
 } // namespace Resource

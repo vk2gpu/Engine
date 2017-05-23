@@ -31,7 +31,7 @@ namespace Resource
 		 * Initialize resource manager.
 		 */
 		static void Initialize();
-		
+
 		/**
 		 * Finalize resource manager.
 		 */

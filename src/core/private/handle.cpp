@@ -38,7 +38,7 @@ namespace Core
 	HandleAllocator::~HandleAllocator()
 	{
 		delete impl_;
-		delete [] magicIDs_;
+		delete[] magicIDs_;
 	}
 
 	Handle HandleAllocator::Alloc(i32 type)
@@ -81,7 +81,7 @@ namespace Core
 		}
 		return handle;
 	}
-	
+
 	void HandleAllocator::Free(Handle handle)
 	{
 		DBG_ASSERT_MSG(IsValid(handle), "Attempting to free invalid handle.");
@@ -115,7 +115,6 @@ namespace Core
 		}
 		return totalHandles;
 	}
-
 
 
 } // namespace Core

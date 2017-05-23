@@ -64,5 +64,5 @@ namespace Core
 	inline u32 Hash(u32 Input, i16 Data) { return Input ^ Data; }
 	inline u32 Hash(u32 Input, i32 Data) { return Input ^ Data; }
 	inline u32 Hash(u32 Input, i64 Data) { return HashCRC32(Input, &Data, sizeof(Data)); }
-	
+
 } // namespace Core

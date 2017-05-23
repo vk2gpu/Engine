@@ -41,4 +41,3 @@ namespace Job
  * Define a job entrypoint.
  */
 #define JOB_ENTRY_POINT(NAME) static void NAME(i32 jobParam, void* jobData)
-

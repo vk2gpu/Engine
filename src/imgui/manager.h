@@ -61,6 +61,6 @@ namespace ImGui
 		~Manager() = delete;
 		Manager(const Manager&) = delete;
 	};
-	
+
 
 } // namespace ImGui

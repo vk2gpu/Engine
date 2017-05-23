@@ -15,6 +15,6 @@ int main(int argc, char* const argv[])
 	{
 		DBG_BREAK;
 	}
-	
+
 	return RetVal;
 }

@@ -15,7 +15,7 @@ namespace Core
 		DBG_ASSERT(srcLength > 0);
 		DBG_ASSERT(dstLength > 1);
 
-		// TODO: Platform agnostic conversion. Taking a shortcut here for speed.
+// TODO: Platform agnostic conversion. Taking a shortcut here for speed.
 #if PLATFORM_WINDOWS
 		auto retVal = ::WideCharToMultiByte(CP_UTF8, 0, src, srcLength, dst, dstLength, nullptr, nullptr);
 		return retVal > 0;
@@ -31,7 +31,7 @@ namespace Core
 		DBG_ASSERT(srcLength > 0);
 		DBG_ASSERT(dstLength > 1);
 
-		// TODO: Platform agnostic conversion. Taking a shortcut here for speed.
+// TODO: Platform agnostic conversion. Taking a shortcut here for speed.
 #if PLATFORM_WINDOWS
 		auto retVal = ::MultiByteToWideChar(CP_UTF8, 0, src, srcLength, dst, dstLength);
 		return retVal > 0;

@@ -13,9 +13,6 @@ namespace Job
 	public:
 		Task();
 		virtual ~Task();
-
-
-
 	};
 
 } // namespace Job

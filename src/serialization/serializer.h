@@ -62,12 +62,12 @@ namespace Serialization
 		struct ScopedObject
 		{
 			ScopedObject(Serializer& serializer, const char* key)
-				: serializer_(serializer)
-				, key_(key)
+			    : serializer_(serializer)
+			    , key_(key)
 			{
 				valid_ = serializer_.BeginObject(key);
 			}
-		
+
 			~ScopedObject()
 			{
 				if(valid_)
@@ -104,4 +104,3 @@ namespace Serialization
 		struct SerializerImpl* impl_ = nullptr;
 	};
 } // namespace Serialization
-

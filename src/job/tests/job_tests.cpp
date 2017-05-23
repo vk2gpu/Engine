@@ -68,7 +68,8 @@ namespace
 			Core::ScopedMutex lock(loggingMutex_);
 			Core::Log("\"%s\"\n", name);
 			Core::Log("\tRubJobs: %f ms (%f ms. avg)\n", runTime * 1000.0, runTime * 1000.0 / (double)numJobs);
-			Core::Log("\tWaitForCounter: %f ms (%f ms. avg)\n", (time - runTime) * 1000.0, (time - runTime) * 1000.0 / (double)numJobs);
+			Core::Log("\tWaitForCounter: %f ms (%f ms. avg)\n", (time - runTime) * 1000.0,
+			    (time - runTime) * 1000.0 / (double)numJobs);
 			Core::Log("\tTotal: %f ms (%f ms. avg)\n", time * 1000.0, time * 1000.0 / (double)numJobs);
 			for(i32 i = 0; i < numJobs; ++i)
 				REQUIRE(jobDatas[i] == jobDescs[i].param_);
@@ -113,7 +114,8 @@ namespace
 		double time = timer.GetTime();
 		Core::Log("\"%s\"\n", name);
 		Core::Log("\tRubJobs: %f ms (%f ms. avg)\n", runTime * 1000.0, runTime * 1000.0 / (double)numJobs);
-		Core::Log("\tWaitForCounter: %f ms (%f ms. avg)\n", (time - runTime) * 1000.0, (time - runTime) * 1000.0 / (double)numJobs);
+		Core::Log("\tWaitForCounter: %f ms (%f ms. avg)\n", (time - runTime) * 1000.0,
+		    (time - runTime) * 1000.0 / (double)numJobs);
 		Core::Log("\tTotal: %f ms (%f ms. avg)\n", time * 1000.0, time * 1000.0 / (double)numJobs);
 	}
 
@@ -136,7 +138,7 @@ TEST_CASE("job-tests-create-mt-4")
 TEST_CASE("job-tests-run-job-1-st-1")
 {
 	Job::Manager::Scoped manager(1, MAX_FIBERS, FIBER_STACK_SIZE);
-	RunJobTest( 1, "job-tests-run-job-1-st-1");
+	RunJobTest(1, "job-tests-run-job-1-st-1");
 }
 
 TEST_CASE("job-tests-run-job-1-mt-4")

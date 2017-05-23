@@ -60,9 +60,10 @@ TEST_CASE("commandlist-tests-commands")
 	GPU::DrawState drawState;
 
 	// Draws.
-	REQUIRE(commandList.Draw(
-	    pipelineBindingHandle, drawBindingHandle, frameBindingHandle, drawState, GPU::PrimitiveTopology::TRIANGLE_LIST, 0, 0, 3, 0, 1));
-	REQUIRE(commandList.DrawIndirect(pipelineBindingHandle, drawBindingHandle, frameBindingHandle, drawState, buffer0Handle, 0));
+	REQUIRE(commandList.Draw(pipelineBindingHandle, drawBindingHandle, frameBindingHandle, drawState,
+	    GPU::PrimitiveTopology::TRIANGLE_LIST, 0, 0, 3, 0, 1));
+	REQUIRE(commandList.DrawIndirect(
+	    pipelineBindingHandle, drawBindingHandle, frameBindingHandle, drawState, buffer0Handle, 0));
 	// Dispatches.
 	REQUIRE(commandList.Dispatch(pipelineBindingHandle, 1, 1, 1));
 	REQUIRE(commandList.DispatchIndirect(pipelineBindingHandle, buffer0Handle, 0));

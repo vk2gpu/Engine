@@ -18,7 +18,5 @@ namespace Graphics
 			i16 levels_;
 			i16 elements_;
 		};
-
-
 	};
 } // namespace Graphics

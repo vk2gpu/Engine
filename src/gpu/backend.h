@@ -67,7 +67,7 @@ namespace GPU
 	/**
 	 * Define backend plugin.
 	 */
-	struct BackendPlugin: Plugin::Plugin
+	struct BackendPlugin : Plugin::Plugin
 	{
 		DECLARE_PLUGININFO(GPU::BackendPlugin, 0);
 

@@ -518,7 +518,7 @@ namespace Core
 		}
 
 		virtual ~FileImplNative()
-		{
+		{ 
 			if(fileHandle_)
 				::fclose(fileHandle_);
 		}

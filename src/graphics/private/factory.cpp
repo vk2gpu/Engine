@@ -22,7 +22,7 @@ namespace Graphics
 			*outResource = new Texture();
 			return true;
 		}
-		
+
 		return false;
 	}
 
@@ -43,7 +43,7 @@ namespace Graphics
 		if(type == Texture::GetTypeUUID())
 		{
 			auto* texture = reinterpret_cast<Texture*>(*inResource);
-			delete texture;	
+			delete texture;
 			*inResource = nullptr;
 			return true;
 		}
@@ -61,13 +61,14 @@ namespace Graphics
 		{
 			return false;
 		}
-		i64 bytes = GPU::GetTextureSize(desc.format_, desc.width_, desc.height_, desc.depth_, desc.levels_, desc.elements_);
+		i64 bytes =
+		    GPU::GetTextureSize(desc.format_, desc.width_, desc.height_, desc.depth_, desc.levels_, desc.elements_);
 
 		// Allocate bytes to read in.
 		// TODO: Implement a Map/Unmap interface on Core::File to allow reading in-place or memory mapping.
 		std::unique_ptr<u8> texData(new u8[bytes]);
 		memset(texData.get(), 0, bytes);
-		
+
 		// Read texture data in.
 		inFile.Read(texData.get(), bytes);
 

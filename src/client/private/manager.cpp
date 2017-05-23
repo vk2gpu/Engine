@@ -33,10 +33,7 @@ namespace Client
 		SDL_Quit();
 	}
 
-	bool Manager::IsInitialized()
-	{
-		return !!impl_;
-	}
+	bool Manager::IsInitialized() { return !!impl_; }
 
 	bool Manager::Update()
 	{

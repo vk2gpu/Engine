@@ -5,8 +5,8 @@
 
 struct PluginTestAdvancedVtbl
 {
-	typedef void(*SetNumberFn)(class PluginTestAdvanced*, int);
-	typedef int(*GetNumberFn)(const class PluginTestAdvanced*);
+	typedef void (*SetNumberFn)(class PluginTestAdvanced*, int);
+	typedef int (*GetNumberFn)(const class PluginTestAdvanced*);
 	SetNumberFn SetNumber_ = nullptr;
 	GetNumberFn GetNumber_ = nullptr;
 };
@@ -19,9 +19,6 @@ public:
 	void SetNumber(int num) { vtbl_->SetNumber_(this, num); }
 	int GetNumber() const { return vtbl_->GetNumber_(this); }
 
-PLUGIN_PRIVATE:
-	PluginTestAdvancedVtbl* vtbl_ = nullptr;
+	PLUGIN_PRIVATE : PluginTestAdvancedVtbl* vtbl_ = nullptr;
 	struct PluginTestAdvancedImpl* impl_ = nullptr;
-
 };
-

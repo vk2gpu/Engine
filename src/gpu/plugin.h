@@ -6,6 +6,5 @@ namespace GPU
 {
 	class IPlugin : public Plugin::IPlugin
 	{
-
 	};
 }

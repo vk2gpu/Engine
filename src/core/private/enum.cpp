@@ -4,9 +4,9 @@
 
 namespace Core
 {
-	bool EnumFromString(i32& outVal, const char* str, const char*(*convFn)(i32))
+	bool EnumFromString(i32& outVal, const char* str, const char* (*convFn)(i32))
 	{
-		for(i32 i = 0; ; ++i)
+		for(i32 i = 0;; ++i)
 		{
 			const char* valStr = convFn(i);
 			// Hit end of enum.

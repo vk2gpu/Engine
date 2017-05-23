@@ -65,17 +65,17 @@ namespace Math
 
 	inline Quat::Quat(f32* Val)
 	    : x(Val[0])
-		, y(Val[1])
-		, z(Val[2])
-		, w(Val[3])
+	    , y(Val[1])
+	    , z(Val[2])
+	    , w(Val[3])
 	{
 	}
 
 	inline Quat::Quat(f32 lX, f32 lY, f32 lZ, f32 lW)
 	    : x(lX)
-		, y(lY)
-		, z(lZ)
-		, w(lW)
-    {
+	    , y(lY)
+	    , z(lZ)
+	    , w(lW)
+	{
 	}
 } // namespace Math

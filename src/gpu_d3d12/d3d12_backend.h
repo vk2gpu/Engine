@@ -49,7 +49,7 @@ namespace GPU
 
 		ErrorCode CompileCommandList(Handle handle, const CommandList& commandList) override;
 		ErrorCode SubmitCommandList(Handle handle) override;
-		
+
 		ErrorCode PresentSwapChain(Handle handle) override;
 		ErrorCode ResizeSwapChain(Handle handle, i32 width, i32 height) override;
 
