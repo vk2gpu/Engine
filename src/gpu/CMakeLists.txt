@@ -1,3 +1,7 @@
+INCLUDE_DIRECTORIES(
+	"${ENGINE_3RDPARTY_PATH}/renderdoc"
+)
+
 SET(SOURCES_PUBLIC 
 	"backend.h"
 	"commands.h"
@@ -17,7 +21,6 @@ SET(SOURCES_PRIVATE
 	"private/enum.cpp"
 	"private/manager.cpp"
 	"private/utils.cpp"
-	"private/renderdoc_app.h"
 )
 
 SET(SOURCES_TESTS

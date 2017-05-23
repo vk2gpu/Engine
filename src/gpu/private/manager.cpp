@@ -12,7 +12,7 @@
 #include "core/misc.h"
 #include "core/vector.h"
 
-#include "gpu/private/renderdoc_app.h"
+#include "renderdoc_app.h"
 
 #include "plugin/manager.h"
 
