@@ -439,7 +439,7 @@ namespace Graphics
 			const u32 Flags3D = DDSD_WIDTH | DDSD_HEIGHT | DDSD_DEPTH;
 			const u32 FlagsCube = DDSCAPS2_CUBEMAP;
 
-			GPU::TextureType type;
+			GPU::TextureType type = GPU::TextureType::INVALID;
 
 			if(Core::ContainsAllFlags(ddsHeader.dwFlags, Flags1D))
 			{

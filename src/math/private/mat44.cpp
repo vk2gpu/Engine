@@ -4,6 +4,8 @@
 #include "math/vec2.h"
 #include "math/vec3.h"
 
+#include "math/ispc/mat44_ispc.h"
+
 #include <cmath>
 
 namespace Math
@@ -25,7 +27,6 @@ namespace Math
 	Mat44 Mat44::operator*(const Mat44& Rhs) const
 	{
 		const Mat44& Lhs = (*this);
-
 		return Mat44(Lhs[0][0] * Rhs[0][0] + Lhs[0][1] * Rhs[1][0] + Lhs[0][2] * Rhs[2][0] + Lhs[0][3] * Rhs[3][0],
 		    Lhs[0][0] * Rhs[0][1] + Lhs[0][1] * Rhs[1][1] + Lhs[0][2] * Rhs[2][1] + Lhs[0][3] * Rhs[3][1],
 		    Lhs[0][0] * Rhs[0][2] + Lhs[0][1] * Rhs[1][2] + Lhs[0][2] * Rhs[2][2] + Lhs[0][3] * Rhs[3][2],
@@ -169,7 +170,6 @@ namespace Math
 
 	void Mat44::OrthoProjection(f32 left, f32 right, f32 bottom, f32 top, f32 near, f32 far)
 	{
-		// TODO: Optimise.
 		Mat44& projection = (*this);
 
 		projection[0][0] = 2.0f / (right - left);
@@ -211,7 +211,6 @@ namespace Math
 
 	void Mat44::Frustum(f32 left, f32 right, f32 bottom, f32 top, f32 near, f32 far)
 	{
-		// TODO: Optimise.
 		Mat44& projection = (*this);
 
 		projection[0][0] = (2.0f * near) / (right - left);

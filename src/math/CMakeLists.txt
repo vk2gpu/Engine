@@ -22,10 +22,15 @@ SET(SOURCES_PRIVATE
 	"private/vec4.cpp"
 )
 
+SET(SOURCES_ISPC
+	"ispc/mat44.ispc"
+)
+
 SET(SOURCES_TESTS
 	"tests/test_entry.cpp"
 	"tests/vec2_tests.cpp"
+	"tests/mat44_tests.cpp"
 )
 
-ADD_ENGINE_LIBRARY(math ${SOURCES_PUBLIC} ${SOURCES_PRIVATE} ${SOURCES_TESTS})
+ADD_ENGINE_LIBRARY(math ${SOURCES_PUBLIC} ${SOURCES_PRIVATE} ${SOURCES_ISPC} ${SOURCES_TESTS})
 TARGET_LINK_LIBRARIES(math core)

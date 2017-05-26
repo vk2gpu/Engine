@@ -448,6 +448,7 @@ namespace Job
 		if(value == 0)
 		{
 			delete counter;
+			counter = nullptr;
 		}
 	}
 
