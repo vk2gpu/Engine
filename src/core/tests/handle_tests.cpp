@@ -62,4 +62,3 @@ TEST_CASE("handle-tests-types")
 	REQUIRE(alloc.GetTotalHandles(0) == 0);
 	REQUIRE(alloc.GetTotalHandles(1) == 0);
 }
-

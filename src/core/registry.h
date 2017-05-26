@@ -22,7 +22,7 @@ namespace Core
 		 * @param value Value to store in registry.
 		 */
 		void Set(const Core::UUID& uuid, void* value);
-		
+
 		/**
 		 * Get entry from registry.
 		 * @param uuid UUID of entry.
@@ -38,7 +38,7 @@ namespace Core
 
 	private:
 		Registry(const Registry&) = delete;
-		Registry& operator = (const Registry&) = delete;
+		Registry& operator=(const Registry&) = delete;
 
 		struct RegistryImpl* impl_ = nullptr;
 	};

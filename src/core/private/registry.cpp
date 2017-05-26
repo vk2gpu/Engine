@@ -12,22 +12,16 @@ namespace Core
 		Core::Map<Core::UUID, void*> entries_;
 	};
 
-	Registry::Registry()
-	{
-		impl_ = new RegistryImpl();
-	}
+	Registry::Registry() { impl_ = new RegistryImpl(); }
 
-	Registry::~Registry()
-	{
-		delete impl_;
-	}
+	Registry::~Registry() { delete impl_; }
 
 	void Registry::Set(const Core::UUID& uuid, void* value)
 	{
 		DBG_ASSERT(impl_);
 		impl_->entries_.insert(uuid, value);
 	}
-		
+
 	void* Registry::Get(const Core::UUID& uuid)
 	{
 		DBG_ASSERT(impl_);

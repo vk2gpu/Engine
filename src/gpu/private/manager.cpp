@@ -12,7 +12,7 @@
 #include "core/misc.h"
 #include "core/vector.h"
 
-#include "gpu/private/renderdoc_app.h"
+#include "renderdoc_app.h"
 
 #include "plugin/manager.h"
 
@@ -96,8 +96,8 @@ namespace GPU
 		Core::Vector<Handle> deferredDeletions_;
 
 		ManagerImpl(const SetupParams& setupParams)
-			: deviceWindow_(setupParams.deviceWindow_)
-			, debuggerIntegration_(setupParams.debuggerIntegration_)
+		    : deviceWindow_(setupParams.deviceWindow_)
+		    , debuggerIntegration_(setupParams.debuggerIntegration_)
 		{
 			// Create matching backend.
 			Core::Vector<BackendPlugin> plugins;
@@ -136,10 +136,7 @@ namespace GPU
 			}
 		}
 
-		~ManagerImpl()
-		{
-			plugin_.DestroyBackend(backend_);
-		}
+		~ManagerImpl() { plugin_.DestroyBackend(backend_); }
 
 		Handle AllocHandle(ResourceType type)
 		{

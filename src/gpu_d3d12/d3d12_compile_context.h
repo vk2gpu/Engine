@@ -27,7 +27,7 @@ namespace GPU
 
 		DrawState drawState_;
 		DrawState* cachedDrawState_ = nullptr;
-		Viewport cachedViewport_;	
+		Viewport cachedViewport_;
 		ScissorRect cachedScissorRect_;
 		u8 cachedStencilRef_ = 0;
 

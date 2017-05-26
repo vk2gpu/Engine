@@ -19,7 +19,8 @@ int main()
 
 	for(const auto Val : IntArray)
 	{
-		int a = 0; ++a;
+		int a = 0;
+		++a;
 	}
 
 	Vector<int> IntVector;

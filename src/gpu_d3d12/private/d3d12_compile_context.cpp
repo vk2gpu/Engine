@@ -331,8 +331,9 @@ namespace GPU
 				AddTransition(fbs.rtvResources_[rtvBaseIdx + i], D3D12_RESOURCE_STATE_RENDER_TARGET);
 			}
 
-			rtvDesc->ptr += rtvBaseIdx * backend_.device_->d3dDevice_->GetDescriptorHandleIncrementSize(
-			                                 D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+			rtvDesc->ptr +=
+			    rtvBaseIdx *
+			    backend_.device_->d3dDevice_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 		}
 		if(fbs.desc_.dsv_.resource_)
 		{
@@ -348,8 +349,9 @@ namespace GPU
 				AddTransition(fbs.dsvResources_[dsvBaseIdx], D3D12_RESOURCE_STATE_DEPTH_WRITE);
 			}
 
-			dsvDesc->ptr += dsvBaseIdx * backend_.device_->d3dDevice_->GetDescriptorHandleIncrementSize(
-			                                 D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
+			dsvDesc->ptr +=
+			    dsvBaseIdx *
+			    backend_.device_->d3dDevice_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
 		}
 
 		FlushTransitions();
@@ -358,7 +360,7 @@ namespace GPU
 
 		return ErrorCode::OK;
 	}
-	
+
 	ErrorCode D3D12CompileContext::SetDrawState(const DrawState* drawState)
 	{
 		if(cachedDrawState_ == nullptr || drawState != cachedDrawState_)

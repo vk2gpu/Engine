@@ -46,8 +46,7 @@ namespace
 		TestFactory() {}
 		virtual ~TestFactory() {}
 
-		bool CreateResource(
-			Resource::IFactoryContext& context, void** outResource, const Core::UUID& type) override
+		bool CreateResource(Resource::IFactoryContext& context, void** outResource, const Core::UUID& type) override
 		{
 			// Check type.
 			if(type != TestResource::GetTypeUUID())
@@ -128,19 +127,11 @@ namespace
 			}
 		}
 
-		Core::IFilePathResolver* GetPathResolver() override
-		{
-			return nullptr;
-		}
+		Core::IFilePathResolver* GetPathResolver() override { return nullptr; }
 
-		void SetMetaData(MetaDataCb callback, void* metaData) override
-		{
-		}
+		void SetMetaData(MetaDataCb callback, void* metaData) override {}
 
-		void GetMetaData(MetaDataCb callback, void* metaData) override
-		{
-		}
-
+		void GetMetaData(MetaDataCb callback, void* metaData) override {}
 	};
 }
 

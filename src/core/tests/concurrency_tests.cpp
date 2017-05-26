@@ -316,7 +316,7 @@ TEST_CASE("concurrency-tests-thread")
 		    [](void* userData) -> int {
 			    AtomicDec((volatile i32*)userData);
 			    return 123;
-		    },
+			},
 		    (void*)&value);
 		REQUIRE(thread);
 		int retVal = thread.Join();
@@ -332,7 +332,7 @@ TEST_CASE("concurrency-tests-thread")
 		    [](void* userData) -> int {
 			    AtomicDec((volatile i32*)userData);
 			    return 123;
-		    },
+			},
 		    (void*)&value);
 		REQUIRE(thread);
 
@@ -435,7 +435,7 @@ TEST_CASE("concurrency-tests-event")
 		    [](void* userData) -> int {
 			    auto* event = (Event*)userData;
 			    return event->Signal() ? 1 : 0;
-		    },
+			},
 		    (void*)&event);
 		REQUIRE(event.Wait(-1));
 		REQUIRE(thread.Join());
@@ -450,7 +450,7 @@ TEST_CASE("concurrency-tests-event")
 		    [](void* userData) -> int {
 			    auto* event = (Event*)userData;
 			    return event->Signal() ? 1 : 0;
-		    },
+			},
 		    (void*)&event);
 		REQUIRE(event.Wait(-1));
 		REQUIRE(thread.Join());
@@ -475,7 +475,7 @@ TEST_CASE("concurrency-tests-event")
 		    [](void* userData) -> int {
 			    auto* event = (Event*)userData;
 			    return event->Signal() ? 1 : 0;
-		    },
+			},
 		    (void*)&event);
 		REQUIRE(event.Wait(-1));
 		REQUIRE(thread.Join());

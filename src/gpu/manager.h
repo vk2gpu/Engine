@@ -16,7 +16,7 @@ namespace GPU
 		 * @param setpParams Setup parameters used to create appropriate backend.
 		 */
 		static void Initialize(const SetupParams& setupParams);
-		
+
 		/**
 		 * Finalize GPU manager.
 		 */
@@ -70,7 +70,8 @@ namespace GPU
 		 * @param debugName Debug name.
 		 * @pre initialData == nullptr, or has enough for (levels * elements).
 		 */
-		static Handle CreateTexture(const TextureDesc& desc, const TextureSubResourceData* initialData, const char* debugName);
+		static Handle CreateTexture(
+		    const TextureDesc& desc, const TextureSubResourceData* initialData, const char* debugName);
 
 		/**
 		 * Create sample state.
@@ -182,10 +183,7 @@ namespace GPU
 		class ScopedDebugCapture
 		{
 		public:
-			ScopedDebugCapture(const char* name)
-			{
-				BeginDebugCapture(name);
-			}
+			ScopedDebugCapture(const char* name) { BeginDebugCapture(name); }
 			~ScopedDebugCapture() { EndDebugCapture(); }
 		};
 
@@ -196,10 +194,7 @@ namespace GPU
 		class Scoped
 		{
 		public:
-			Scoped(const SetupParams& setupParams)
-			{
-				Initialize(setupParams);
-			}
+			Scoped(const SetupParams& setupParams) { Initialize(setupParams); }
 			~Scoped() { Finalize(); }
 		};
 

@@ -37,7 +37,7 @@ namespace Graphics
 		~Image();
 		void swap(Image& other);
 
-		operator bool() const{ return data_ != nullptr; }
+		operator bool() const { return data_ != nullptr; }
 
 		GPU::TextureType type_ = GPU::TextureType::TEX2D;
 		GPU::Format format_ = GPU::Format::INVALID;

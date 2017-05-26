@@ -36,18 +36,11 @@ namespace
 			}
 		}
 
-		Core::IFilePathResolver* GetPathResolver() override
-		{
-			return nullptr;
-		}
+		Core::IFilePathResolver* GetPathResolver() override { return nullptr; }
 
-		void SetMetaData(MetaDataCb callback, void* metaData) override
-		{
-		}
+		void SetMetaData(MetaDataCb callback, void* metaData) override {}
 
-		void GetMetaData(MetaDataCb callback, void* metaData) override
-		{
-		}
+		void GetMetaData(MetaDataCb callback, void* metaData) override {}
 	};
 }
 
@@ -116,8 +109,8 @@ TEST_CASE("resource-tests-file-io")
 		REQUIRE(memcmp(outBuffer.data(), inBuffer.data(), TEST_BUFFER_SIZE) == 0);
 	}
 
-	// Check failure.
-	// NOTE: It will assert internally anyway.
+// Check failure.
+// NOTE: It will assert internally anyway.
 #if 0
 	{
 		auto file = Core::File(testFileName, Core::FileFlags::READ);
