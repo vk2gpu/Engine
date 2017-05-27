@@ -147,8 +147,8 @@ MACRO (ISPC_COMPILE)
       --arch=${ISPC_ARCHITECTURE}
       ${ISPC_OPT_FLAGS}
       --target=${ISPC_TARGET_ARGS}
-      --woff
       --opt=fast-math
+      -O3
       ${ISPC_ADDITIONAL_ARGS}
       -h ${ISPC_HEADER_DIR}/ispc/${fname}_ispc.h
       -MMM  ${outdir}/${fname}.dev.idep

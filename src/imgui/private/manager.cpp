@@ -13,8 +13,8 @@ namespace ImGui
 {
 	namespace
 	{
-		static const i32 MAX_VERTICES = 1024 * 256;
-		static const i32 MAX_INDICES = 1024 * 256;
+		static const i32 MAX_VERTICES = 1024 * 1024;
+		static const i32 MAX_INDICES = 1024 * 1024;
 
 		int keyMap_[ImGuiKey_COUNT];
 

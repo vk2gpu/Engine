@@ -431,8 +431,9 @@ namespace Serialization
 			if(object.isObject())
 			{
 				objectStack_.push_back(&object);
+				return true;
 			}
-			return true;
+			return false;
 		}
 
 		void EndObject() override { objectStack_.pop_back(); }
