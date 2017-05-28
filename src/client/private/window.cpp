@@ -261,7 +261,7 @@ namespace Client
 		SDL_SetWindowSize(impl_->sdlWindow_, (int)w, (int)h);
 	}
 
-	void Window::GetSize(i32& w, i32& h)
+	void Window::GetSize(i32& w, i32& h) const
 	{
 		DBG_ASSERT(impl_);
 		int iw, ih;

@@ -58,7 +58,7 @@ namespace Client
 		/**
 		 * Get window size.
 		 */
-		void GetSize(i32& w, i32& h);
+		void GetSize(i32& w, i32& h) const;
 
 		/**
 		 * Get platform data.
