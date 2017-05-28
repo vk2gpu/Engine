@@ -12,6 +12,9 @@ def findSource(root):
 
 
 def findClangFormat():
+	check = "C:\\Program Files\\LLVM\\bin\\clang-format.exe"
+	if os.path.exists(check):
+		return check
 	check = "C:\\Program Files (x86)\\LLVM\\bin\\clang-format.exe"
 	if os.path.exists(check):
 		return check
