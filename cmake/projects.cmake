@@ -122,10 +122,6 @@ MACRO(ADD_ENGINE_EXECUTABLE name)
 
 	MESSAGE("Adding Engine Executable: ${name}")
 
-	MESSAGE("- Public ${PUBLIC_SOURCES}")
-	MESSAGE("- Private ${PRIVATE_SOURCES}")
-	MESSAGE("- ISPC ${ISPC_SOURCES}")
-
 	# Setup engine library.
 	ADD_ISPC_EXECUTABLE(${name} ${PRIVATE_SOURCES} ${PUBLIC_SOURCES} ${ISPC_SOURCES})
 
