@@ -30,6 +30,11 @@ namespace Core
 		 */
 		void AsString(char* outStr) const;
 
+		/**
+		 * Convert from string.
+		 */
+		bool FromString(const char* inStr);
+
 		bool operator==(const UUID& other) const
 		{
 			return data64_[0] == other.data64_[0] && data64_[1] == other.data64_[1];

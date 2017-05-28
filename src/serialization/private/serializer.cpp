@@ -1,7 +1,9 @@
 #include "serialization/serializer.h"
+#include "core/array.h"
 #include "core/debug.h"
 #include "core/file.h"
 #include "core/misc.h"
+#include "core/uuid.h"
 #include "core/vector.h"
 
 #include <json/json.h>
@@ -475,6 +477,26 @@ namespace Serialization
 	bool Serializer::Serialize(const char* key, i32& value) { return impl_->Serialize(key, value); }
 
 	bool Serializer::Serialize(const char* key, f32& value) { return impl_->Serialize(key, value); }
+
+	bool Serializer::Serialize(const char* key, Core::UUID& value)
+	{
+		if(IsReading())
+		{
+			Core::Array<char, 37> str;
+			if(SerializeString(key, str.data(), str.size()))
+			{
+				return value.FromString(str.data());
+			}
+			return false;
+		}
+		else if(IsWriting())
+		{
+			Core::Array<char, 37> str;
+			value.AsString(str.data());
+			return SerializeString(key, str.data(), str.size());
+		}
+		return false;
+	}
 
 	bool Serializer::SerializeString(const char* key, char* str, i32 maxLength)
 	{

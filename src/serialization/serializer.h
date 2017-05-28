@@ -6,6 +6,7 @@
 namespace Core
 {
 	class File;
+	class UUID;
 } // namespace Core
 
 namespace Serialization
@@ -35,6 +36,7 @@ namespace Serialization
 		bool Serialize(const char* key, bool& value);
 		bool Serialize(const char* key, i32& value);
 		bool Serialize(const char* key, f32& value);
+		bool Serialize(const char* key, Core::UUID& value);
 
 		bool SerializeString(const char* key, char* str, i32 maxLength);
 		bool SerializeBinary(const char* key, char* data, i32 size);

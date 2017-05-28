@@ -40,3 +40,15 @@ TEST_CASE("uuid-tests-random")
 	uuid1 = Core::UUID(rng1, 1);
 	REQUIRE(uuid0 != uuid1);
 }
+
+TEST_CASE("uuid-tests-as-from-string")
+{
+	char outBuffer[128] = {0};
+	auto uuid = Core::UUID("uuid-tests-string::test_uuid_0");
+	uuid.AsString(outBuffer);
+
+	Core::UUID uuid2;
+	REQUIRE(uuid2.FromString(outBuffer));
+
+	REQUIRE(uuid == uuid2);
+}

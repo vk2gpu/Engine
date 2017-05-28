@@ -102,4 +102,3 @@ TEST_CASE("mat44-tests-inverse")
 		Core::Log("ISPC Avg. cycles: %f\n", avgCycles);
 	}
 }
-

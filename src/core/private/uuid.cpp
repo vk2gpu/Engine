@@ -45,6 +45,67 @@ namespace Core
 		*outStr++ = '\0';
 	}
 
+	bool UUID::FromString(const char* inStr)
+	{
+		auto readByte = [](const char*& inStr) -> int {
+			int val = 0;
+			int ch = 0;
+
+			ch = *inStr++;
+			if(ch >= '0' && ch <= '9')
+				ch = ch - '0';
+			else if(ch >= 'a' && ch <= 'f')
+				ch = ch - 'a' + 10;
+			else
+				return -1;
+			val = ch << 4;
+
+			ch = *inStr++;
+			if(ch >= '0' && ch <= '9')
+				ch = ch - '0';
+			else if(ch >= 'a' && ch <= 'f')
+				ch = ch - 'a' + 10;
+			else
+				return -1;
+
+			val |= ch;
+			return val;
+		};
+
+		auto readBytes = [this, &readByte](const char*& inStr, int b, int e) {
+			for(i32 i = b; i < e; ++i)
+			{
+				int val = readByte(inStr);
+				if(val < 0)
+					return false;
+				data8_[i] = (u8)val;
+			}
+			return true;
+		};
+
+		if(!readBytes(inStr, 0, 4))
+			return false;
+		if(*inStr++ != '-')
+			return false;
+		if(!readBytes(inStr, 4, 6))
+			return false;
+		if(*inStr++ != '-')
+			return false;
+		if(!readBytes(inStr, 6, 8))
+			return false;
+		if(*inStr++ != '-')
+			return false;
+		if(!readBytes(inStr, 8, 10))
+			return false;
+		if(*inStr++ != '-')
+			return false;
+		if(!readBytes(inStr, 10, 16))
+			return false;
+
+		return true;
+	}
+
+
 	void UUID::SetInternal(u32 data0, u32 data1, u32 data2, u32 data3, u8 version, u8 variant)
 	{
 		data32_[0] = data0;
