@@ -1,15 +1,9 @@
 #include "core/map.h"
+#include "core/string.h"
 
 #include "catch.hpp"
 
 using namespace Core;
-
-// Use std::string for non-trivial map example, must define hash function for it.
-#include <string>
-namespace Core
-{
-	u32 Hash(u32 Input, const std::string& String) { return Hash(Input, String.c_str()); }
-}
 
 namespace
 {
@@ -104,11 +98,11 @@ namespace
 
 	index_type IdxToVal_index_type(index_type Idx) { return Idx; }
 
-	std::string IdxToVal_string(index_type Idx)
+	Core::String IdxToVal_string(index_type Idx)
 	{
-		char Buffer[1024] = {0};
-		sprintf_s(Buffer, sizeof(Buffer), "%u", (int)Idx);
-		return Buffer;
+		Core::String str;
+		str.Printf("%u", (int)Idx);
+		return str;
 	}
 }
 
@@ -129,10 +123,10 @@ TEST_CASE("map-tests-insert")
 
 	SECTION("non-trivial")
 	{
-		MapTestInsert<std::string, std::string, 0x1>(IdxToVal_string, IdxToVal_string);
-		MapTestInsert<std::string, std::string, 0x2>(IdxToVal_string, IdxToVal_string);
-		MapTestInsert<std::string, std::string, 0xff>(IdxToVal_string, IdxToVal_string);
-		MapTestInsert<std::string, std::string, 0x100>(IdxToVal_string, IdxToVal_string);
+		MapTestInsert<Core::String, Core::String, 0x1>(IdxToVal_string, IdxToVal_string);
+		MapTestInsert<Core::String, Core::String, 0x2>(IdxToVal_string, IdxToVal_string);
+		MapTestInsert<Core::String, Core::String, 0xff>(IdxToVal_string, IdxToVal_string);
+		MapTestInsert<Core::String, Core::String, 0x100>(IdxToVal_string, IdxToVal_string);
 	}
 }
 
@@ -149,10 +143,10 @@ TEST_CASE("map-tests-find")
 
 	SECTION("non-trivial")
 	{
-		MapTestFind<std::string, std::string, 0x1>(IdxToVal_string, IdxToVal_string);
-		MapTestFind<std::string, std::string, 0x2>(IdxToVal_string, IdxToVal_string);
-		MapTestFind<std::string, std::string, 0xff>(IdxToVal_string, IdxToVal_string);
-		MapTestFind<std::string, std::string, 0x100>(IdxToVal_string, IdxToVal_string);
+		MapTestFind<Core::String, Core::String, 0x1>(IdxToVal_string, IdxToVal_string);
+		MapTestFind<Core::String, Core::String, 0x2>(IdxToVal_string, IdxToVal_string);
+		MapTestFind<Core::String, Core::String, 0xff>(IdxToVal_string, IdxToVal_string);
+		MapTestFind<Core::String, Core::String, 0x100>(IdxToVal_string, IdxToVal_string);
 	}
 }
 
@@ -168,10 +162,10 @@ TEST_CASE("map-tests-operator-insert")
 
 	SECTION("non-trivial")
 	{
-		MapTestOperatorInsert<std::string, std::string, 0x1>(IdxToVal_string, IdxToVal_string);
-		MapTestOperatorInsert<std::string, std::string, 0x2>(IdxToVal_string, IdxToVal_string);
-		MapTestOperatorInsert<std::string, std::string, 0xff>(IdxToVal_string, IdxToVal_string);
-		MapTestOperatorInsert<std::string, std::string, 0x100>(IdxToVal_string, IdxToVal_string);
+		MapTestOperatorInsert<Core::String, Core::String, 0x1>(IdxToVal_string, IdxToVal_string);
+		MapTestOperatorInsert<Core::String, Core::String, 0x2>(IdxToVal_string, IdxToVal_string);
+		MapTestOperatorInsert<Core::String, Core::String, 0xff>(IdxToVal_string, IdxToVal_string);
+		MapTestOperatorInsert<Core::String, Core::String, 0x100>(IdxToVal_string, IdxToVal_string);
 	}
 }
 
@@ -188,9 +182,9 @@ TEST_CASE("map-tests-operator-find")
 
 	SECTION("non-trivial")
 	{
-		MapTestOperatorFind<std::string, std::string, 0x1>(IdxToVal_string, IdxToVal_string);
-		MapTestOperatorFind<std::string, std::string, 0x2>(IdxToVal_string, IdxToVal_string);
-		MapTestOperatorFind<std::string, std::string, 0xff>(IdxToVal_string, IdxToVal_string);
-		MapTestOperatorFind<std::string, std::string, 0x100>(IdxToVal_string, IdxToVal_string);
+		MapTestOperatorFind<Core::String, Core::String, 0x1>(IdxToVal_string, IdxToVal_string);
+		MapTestOperatorFind<Core::String, Core::String, 0x2>(IdxToVal_string, IdxToVal_string);
+		MapTestOperatorFind<Core::String, Core::String, 0xff>(IdxToVal_string, IdxToVal_string);
+		MapTestOperatorFind<Core::String, Core::String, 0x100>(IdxToVal_string, IdxToVal_string);
 	}
 }

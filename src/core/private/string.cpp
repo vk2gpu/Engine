@@ -83,26 +83,35 @@ namespace Core
 
 	String& String::internalSet(const char* str)
 	{
-		DBG_ASSERT(str);
-		i32 len = (i32)strlen(str) + 1;
-		data_.reserve(len);
-		data_.clear();
-		data_.insert(str, str + len);
+		if(str)
+		{
+			i32 len = (i32)strlen(str) + 1;
+			data_.reserve(len);
+			data_.clear();
+			data_.insert(str, str + len);
+		}
+		else
+		{
+			data_.clear();
+		}
 		return *this;
 	}
 
 	String& String::internalAppend(const char* str)
 	{
-		DBG_ASSERT(str);
-		i32 len = (i32)strlen(str) + 1;
-		internalRemoveNullTerminator();
-		data_.insert(str, str + len);
+		if(str)
+		{
+			i32 len = (i32)strlen(str) + 1;
+			internalRemoveNullTerminator();
+			data_.insert(str, str + len);
+		}
 		return *this;
 	}
 
 	int String::internalCompare(const char* str) const
 	{
-		DBG_ASSERT(str);
+		if(!str)
+			str = "";
 		if(data_.size() > 0)
 		{
 			return strcmp(data_.data(), str);
@@ -115,7 +124,7 @@ namespace Core
 		if(str.size() > 0)
 			return Hash(input, str.c_str());
 		else
-			return Hash(input, "\0");
+			return Hash(input, "");
 	}
 
 } // end namespace
