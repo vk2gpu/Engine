@@ -135,7 +135,7 @@ namespace GPU
 		return command;
 	}
 
-	INLINE CommandClearRTV* CommandList::ClearRTV(Handle frameBinding, i32 rtvIdx, f32 color[4])
+	INLINE CommandClearRTV* CommandList::ClearRTV(Handle frameBinding, i32 rtvIdx, const f32 color[4])
 	{
 		DBG_ASSERT(handleAllocator_.IsValid(frameBinding));
 		DBG_ASSERT(frameBinding.GetType() == ResourceType::FRAME_BINDING_SET);

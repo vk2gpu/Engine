@@ -104,7 +104,7 @@ namespace GPU
 		 * @pre @a rtvIdx >= 0.
 		 * @return Clear command. nullptr if failure.
 		 */
-		GPU_DLL CommandClearRTV* ClearRTV(Handle frameBinding, i32 rtvIdx, f32 color_[4]);
+		GPU_DLL CommandClearRTV* ClearRTV(Handle frameBinding, i32 rtvIdx, const f32 color_[4]);
 
 		/**
 		 * See @a CommandClearDSV.
