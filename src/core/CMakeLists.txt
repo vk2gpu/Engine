@@ -45,6 +45,7 @@ SET(SOURCES_TESTS
 	"tests/file_tests.cpp"
 	"tests/handle_tests.cpp"
 	"tests/map_tests.cpp"
+	"tests/string_tests.cpp"
 	"tests/test_entry.cpp"
 	"tests/uuid_tests.cpp"
 	"tests/vector_tests.cpp"
