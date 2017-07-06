@@ -297,15 +297,14 @@ TEST_CASE("vector-tests-emplace-back")
 		{
 			TestType() = default;
 			TestType(int a, int b)
-				: a_(a), b_(b)
-			{}
-
-			bool operator == (const TestType& other)
+			    : a_(a)
+			    , b_(b)
 			{
-				return a_ == other.a_ && b_ == other.b_;
 			}
 
-			int a_ = 0; 
+			bool operator==(const TestType& other) { return a_ == other.a_ && b_ == other.b_; }
+
+			int a_ = 0;
 			int b_ = 0;
 		};
 
@@ -316,7 +315,6 @@ TEST_CASE("vector-tests-emplace-back")
 		REQUIRE(vec[0] == TestType(0, 1));
 		REQUIRE(vec[1] == TestType(1, 2));
 		REQUIRE(vec[2] == TestType(2, 4));
-
 	}
 }
 

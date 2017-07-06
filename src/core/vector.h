@@ -94,13 +94,13 @@ namespace Core
 			++size_;
 		}
 
-		template<class ... VAL_TYPE>
+		template<class... VAL_TYPE>
 		void emplace_back(VAL_TYPE&&... value)
 		{
 			if(capacity_ < (size_ + 1))
 				internalResize(getGrowCapacity(capacity_));
 			auto& ref = Data_[size_];
-			new (&ref) TYPE(std::forward<VAL_TYPE>(value)...);
+			new(&ref) TYPE(std::forward<VAL_TYPE>(value)...);
 			++size_;
 		}
 
