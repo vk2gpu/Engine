@@ -23,10 +23,10 @@ namespace Core
 
 		Vector(const Vector& Other)
 		{
-			if(Other.Size_ != Size_)
-				internalResize(Other.Size_);
-			Size_ = Other.Size_;
-			for(index_type Idx = 0; Idx < Other.Size_; ++Idx)
+			if(Other.size_ != size_)
+				internalResize(Other.size_);
+			size_ = Other.size_;
+			for(index_type Idx = 0; Idx < Other.size_; ++Idx)
 				Data_[Idx] = Other.Data_[Idx];
 		}
 
@@ -36,10 +36,10 @@ namespace Core
 
 		Vector& operator=(const Vector& Other)
 		{
-			if(Other.Size_ != Size_)
-				internalResize(Other.Size_);
-			Size_ = Other.Size_;
-			for(index_type Idx = 0; Idx < Other.Size_; ++Idx)
+			if(Other.size_ != size_)
+				internalResize(Other.size_);
+			size_ = Other.size_;
+			for(index_type Idx = 0; Idx < Other.size_; ++Idx)
 				Data_[Idx] = Other.Data_[Idx];
 			return *this;
 		}
@@ -53,27 +53,27 @@ namespace Core
 		void swap(Vector& Other)
 		{
 			std::swap(Data_, Other.Data_);
-			std::swap(Size_, Other.Size_);
-			std::swap(Capacity_, Other.Capacity_);
+			std::swap(size_, Other.size_);
+			std::swap(capacity_, Other.capacity_);
 		}
 
 		TYPE& operator[](index_type Idx)
 		{
-			DBG_ASSERT_MSG(Idx >= 0 && Idx < Size_, "Index out of bounds. (index %u, size %u)", Idx, Size_);
+			DBG_ASSERT_MSG(Idx >= 0 && Idx < size_, "Index out of bounds. (index %u, size %u)", Idx, size_);
 			return Data_[Idx];
 		}
 
 		const TYPE& operator[](index_type Idx) const
 		{
-			DBG_ASSERT_MSG(Idx >= 0 && Idx < Size_, "Index out of bounds. (%u, size %u)", Idx, Size_);
+			DBG_ASSERT_MSG(Idx >= 0 && Idx < size_, "Index out of bounds. (%u, size %u)", Idx, size_);
 			return Data_[Idx];
 		}
 
-		void clear() { Size_ = 0; }
+		void clear() { size_ = 0; }
 
 		void fill(const TYPE& Val)
 		{
-			for(index_type Idx = 0; Idx < Size_; ++Idx)
+			for(index_type Idx = 0; Idx < size_; ++Idx)
 				Data_[Idx] = Val;
 		}
 
@@ -82,104 +82,108 @@ namespace Core
 			DBG_ASSERT_MSG(It >= begin() && It < end(), "Invalid iterator.");
 			for(iterator DstIt = It, SrcIt = It + 1; SrcIt != end(); ++DstIt, ++SrcIt)
 				*DstIt = std::move(*SrcIt);
-			--Size_;
+			--size_;
 			return It;
 		}
 
 		void push_back(const TYPE& Value)
 		{
-			if(Capacity_ < (Size_ + 1))
-				internalResize(getGrowCapacity(Capacity_));
-			Data_[Size_++] = Value;
+			if(capacity_ < (size_ + 1))
+				internalResize(getGrowCapacity(capacity_));
+			Data_[size_] = Value;
+			++size_;
 		}
 
-		void emplace_back(TYPE&& value)
+		template<class ... VAL_TYPE>
+		void emplace_back(VAL_TYPE&&... value)
 		{
-			if(Capacity_ < (Size_ + 1))
-				internalResize(getGrowCapacity(Capacity_));
-			Data_[Size_++] = std::forward<TYPE>(value);
+			if(capacity_ < (size_ + 1))
+				internalResize(getGrowCapacity(capacity_));
+			auto& ref = Data_[size_];
+			new (&ref) TYPE(std::forward<VAL_TYPE>(value)...);
+			++size_;
 		}
 
 		void insert(const_iterator Begin, const_iterator End)
 		{
 			i32 NumValues = (i32)(End - Begin);
-			if(Capacity_ < (Size_ + NumValues))
-				internalResize(Size_ + NumValues);
+			if(capacity_ < (size_ + NumValues))
+				internalResize(size_ + NumValues);
 			for(const_iterator It = Begin; It != End; ++It)
 			{
-				Data_[Size_++] = *It;
+				Data_[size_++] = *It;
 			}
 		}
 
 		void pop_back()
 		{
-			DBG_ASSERT_MSG(Size_ > 0, "No elements in vector.");
-			--Size_;
+			DBG_ASSERT_MSG(size_ > 0, "No elements in vector.");
+			--size_;
 		}
 
 		void reserve(index_type Capacity)
 		{
-			if(Capacity_ < Capacity)
+			if(capacity_ < Capacity)
 				internalResize(Capacity);
 		}
 
 		void resize(index_type Size)
 		{
-			if(Size_ != Size)
+			if(size_ != Size)
 				internalResize(Size);
-			Size_ = Size;
+			size_ = Size;
 		}
 
 		void resize(index_type Size, const TYPE& Default)
 		{
-			i32 OldSize = Size_;
-			if(Size_ != Size)
+			i32 OldSize = size_;
+			if(size_ != Size)
 				internalResize(Size);
-			Size_ = Size;
-			for(index_type Idx = OldSize; Idx < Size_; ++Idx)
+			size_ = Size;
+			for(index_type Idx = OldSize; Idx < size_; ++Idx)
 				Data_[Idx] = Default;
 		}
 
 		void shrink_to_fit()
 		{
-			if(Capacity_ > Size_)
-				internalResize(Size_);
+			if(capacity_ > size_)
+				internalResize(size_);
 		}
 
 		TYPE& front()
 		{
-			DBG_ASSERT_MSG(Size_ > 0, "No elements in vector.");
+			DBG_ASSERT_MSG(size_ > 0, "No elements in vector.");
 			return Data_[0];
 		}
 
 		const TYPE& front() const
 		{
-			DBG_ASSERT_MSG(Size_ > 0, "No elements in vector.");
+			DBG_ASSERT_MSG(size_ > 0, "No elements in vector.");
 			return Data_[0];
 		}
 
 		TYPE& back()
 		{
-			DBG_ASSERT_MSG(Size_ > 0, "No elements in vector.");
-			return Data_[Size_ - 1];
+			DBG_ASSERT_MSG(size_ > 0, "No elements in vector.");
+			return Data_[size_ - 1];
 		}
 
 		const TYPE& back() const
 		{
-			DBG_ASSERT_MSG(Size_ > 0, "No elements in vector.");
-			return Data_[Size_ - 1];
+			DBG_ASSERT_MSG(size_ > 0, "No elements in vector.");
+			return Data_[size_ - 1];
 		}
 
 		iterator begin() { return Data_; }
 		const_iterator begin() const { return Data_; }
-		iterator end() { return Data_ + Size_; }
-		const_iterator end() const { return Data_ + Size_; }
+		iterator end() { return Data_ + size_; }
+		const_iterator end() const { return Data_ + size_; }
 
 		TYPE* data() { return &Data_[0]; }
 		const TYPE* data() const { return &Data_[0]; }
-		index_type size() const { return Size_; }
-		index_type capacity() const { return Capacity_; }
-		bool empty() const { return Size_ == 0; }
+		index_type size() const { return size_; }
+		index_type capacity() const { return capacity_; }
+		bool empty() const { return size_ == 0; }
 
 	private:
 		static TYPE* alloc(index_type Size)
@@ -195,7 +199,7 @@ namespace Core
 		}
 		void internalResize(index_type NewCapacity)
 		{
-			index_type CopySize = NewCapacity < Size_ ? NewCapacity : Size_;
+			index_type CopySize = NewCapacity < size_ ? NewCapacity : size_;
 			TYPE* NewData = nullptr;
 			if(NewCapacity > 0)
 			{
@@ -205,14 +209,14 @@ namespace Core
 			}
 			dealloc(Data_);
 			Data_ = NewData;
-			Size_ = CopySize;
-			Capacity_ = NewCapacity;
+			size_ = CopySize;
+			capacity_ = NewCapacity;
 		}
 
 
 	private:
 		TYPE* Data_ = nullptr;
-		index_type Size_ = 0;
-		index_type Capacity_ = 0;
+		index_type size_ = 0;
+		index_type capacity_ = 0;
 	};
 } // namespace Core

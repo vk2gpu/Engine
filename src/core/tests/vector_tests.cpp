@@ -278,6 +278,48 @@ TEST_CASE("vector-tests-push-back")
 	}
 }
 
+TEST_CASE("vector-tests-emplace-back")
+{
+	SECTION("trivial")
+	{
+		Core::Vector<i32> vec;
+		vec.emplace_back(0);
+		vec.emplace_back(1);
+		vec.emplace_back(2);
+		REQUIRE(vec[0] == 0);
+		REQUIRE(vec[1] == 1);
+		REQUIRE(vec[2] == 2);
+	}
+
+	SECTION("non-trivial")
+	{
+		struct TestType
+		{
+			TestType() = default;
+			TestType(int a, int b)
+				: a_(a), b_(b)
+			{}
+
+			bool operator == (const TestType& other)
+			{
+				return a_ == other.a_ && b_ == other.b_;
+			}
+
+			int a_ = 0; 
+			int b_ = 0;
+		};
+
+		Core::Vector<TestType> vec;
+		vec.emplace_back(0, 1);
+		vec.emplace_back(1, 2);
+		vec.emplace_back(2, 4);
+		REQUIRE(vec[0] == TestType(0, 1));
+		REQUIRE(vec[1] == TestType(1, 2));
+		REQUIRE(vec[2] == TestType(2, 4));
+
+	}
+}
+
 TEST_CASE("vector-tests-push-back-reserve")
 {
 	SECTION("trivial")
