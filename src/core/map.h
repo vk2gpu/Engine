@@ -12,7 +12,7 @@ namespace Core
 	 * Hash map.
 	 * TODO: Implement HashTable using robinhood hashing.
 	 */
-	template<typename KEY_TYPE, typename VALUE_TYPE>
+	template<typename KEY_TYPE, typename VALUE_TYPE, typename ALLOCATOR = Allocator>
 	class Map
 	{
 	public:
@@ -23,93 +23,93 @@ namespace Core
 
 		static const index_type INVALID_INDEX = (index_type)-1;
 
-		Map() { Indices_.resize(MaxIndex_, INVALID_INDEX); }
+		Map() { indices_.resize(maxIndex_, INVALID_INDEX); }
 
-		Map(const Map& Other)
+		Map(const Map& other)
 		{
-			Values_ = Other.Values_;
-			Indices_ = Other.Indices_;
-			MaxIndex_ = Other.MaxIndex_;
-			Mask_ = Other.Mask_;
+			values_ = other.values_;
+			indices_ = other.indices_;
+			maxIndex_ = other.maxIndex_;
+			mask_ = other.mask_;
 		}
 
-		Map(Map&& Other) { swap(Other); }
+		Map(Map&& other) { swap(other); }
 		~Map() {}
 
-		Map& operator=(const Map& Other)
+		Map& operator=(const Map& other)
 		{
-			Values_ = Other.Values_;
-			Indices_ = Other.Indices_;
-			MaxIndex_ = Other.MaxIndex_;
-			Mask_ = Other.Mask_;
+			values_ = other.values_;
+			indices_ = other.indices_;
+			maxIndex_ = other.maxIndex_;
+			mask_ = other.mask_;
 			return *this;
 		}
 
-		Map& operator=(Map&& Other)
+		Map& operator=(Map&& other)
 		{
-			swap(Other);
+			swap(other);
 			return *this;
 		}
 
-		void swap(Map& Other)
+		void swap(Map& other)
 		{
-			std::swap(Values_, Other.Values_);
-			std::swap(Indices_, Other.Indices_);
-			std::swap(MaxIndex_, Other.MaxIndex_);
-			std::swap(Mask_, Other.Mask_);
+			std::swap(values_, other.values_);
+			std::swap(indices_, other.indices_);
+			std::swap(maxIndex_, other.maxIndex_);
+			std::swap(mask_, other.mask_);
 		}
 
-		VALUE_TYPE& operator[](const KEY_TYPE& Key)
+		VALUE_TYPE& operator[](const KEY_TYPE& key)
 		{
-			iterator FoundValue = find(Key);
-			if(FoundValue == end())
+			iterator foundValue = find(key);
+			if(foundValue == end())
 			{
-				FoundValue = insert(Key, VALUE_TYPE());
+				foundValue = insert(key, VALUE_TYPE());
 			}
-			DBG_ASSERT_MSG(FoundValue != end(), "Failed to insert element for key.");
-			return FoundValue->second;
+			DBG_ASSERT_MSG(foundValue != end(), "Failed to insert element for key.");
+			return foundValue->second;
 		}
 
-		const VALUE_TYPE& operator[](const KEY_TYPE& Key) const
+		const VALUE_TYPE& operator[](const KEY_TYPE& key) const
 		{
-			iterator FoundValue = find(Key);
-			DBG_ASSERT_MSG(FoundValue != end(), "Key does not exist in map.");
-			return FoundValue->second;
+			iterator foundValue = find(key);
+			DBG_ASSERT_MSG(foundValue != end(), "key does not exist in map.");
+			return foundValue->second;
 		}
 
 		void clear()
 		{
-			Values_.clear();
-			Indices_.fill(INVALID_INDEX);
+			values_.clear();
+			indices_.fill(INVALID_INDEX);
 		}
 
-		iterator insert(const KEY_TYPE& Key, const VALUE_TYPE& Value)
+		iterator insert(const KEY_TYPE& key, const VALUE_TYPE& value)
 		{
-			const auto KeyValuePair = Pair<typename KEY_TYPE, typename VALUE_TYPE>(Key, Value);
-			const u32 KeyHash = Hash(0, Key);
-			const index_type IndicesIdx = KeyHash & Mask_;
-			const index_type Idx = Indices_[IndicesIdx];
-			if(Idx != INVALID_INDEX)
+			const auto keyValuePair = Pair<typename KEY_TYPE, typename VALUE_TYPE>(key, value);
+			const u32 keyHash = Hash(0, key);
+			const index_type IndicesIdx = keyHash & mask_;
+			const index_type idx = indices_[IndicesIdx];
+			if(idx != INVALID_INDEX)
 			{
 				// Got hit, check if hashes are same and replace or insert.
-				if(Hash(0, Values_[Idx].first) == KeyHash)
+				if(Hash(0, values_[idx].first) == keyHash)
 				{
-					Values_[Idx] = KeyValuePair;
-					return Values_.data() + Idx;
+					values_[idx] = keyValuePair;
+					return values_.data() + idx;
 				}
 				else
 				{
-					Values_.push_back(KeyValuePair);
-					resizeIndices(MaxIndex_ * 2);
-					return Values_.data() + Values_.size() - 1;
+					values_.push_back(keyValuePair);
+					resizeIndices(maxIndex_ * 2);
+					return values_.data() + values_.size() - 1;
 				}
 			}
 			else
 			{
 				// No hit, insert.
-				Values_.push_back(KeyValuePair);
-				Indices_[IndicesIdx] = Values_.size() - 1;
-				return Values_.data() + Values_.size() - 1;
+				values_.push_back(keyValuePair);
+				indices_[IndicesIdx] = values_.size() - 1;
+				return values_.data() + values_.size() - 1;
 			}
 		}
 
@@ -118,97 +118,97 @@ namespace Core
 		{
 			DBG_ASSERT_MSG(It >= begin() && It < end(), "Invalid iterator.");
 			index_type BaseIdx = (index_type)(It - begin());
-			Values_.erase(It);
-			for(auto& Idx : Indices_)
+			values_.erase(It);
+			for(auto& idx : indices_)
 			{
-				if(Idx == BaseIdx)
-					Idx = INVALID_INDEX;
-				else if(Idx > BaseIdx)
-					--Idx;
+				if(idx == BaseIdx)
+					idx = INVALID_INDEX;
+				else if(idx > BaseIdx)
+					--idx;
 			}
 			return It;
 		}
 
 
-		iterator begin() { return Values_.data(); }
-		const_iterator begin() const { return Values_.data(); }
-		iterator end() { return Values_.data() + Values_.size(); }
-		const_iterator end() const { return Values_.data() + Values_.size(); }
+		iterator begin() { return values_.data(); }
+		const_iterator begin() const { return values_.data(); }
+		iterator end() { return values_.data() + values_.size(); }
+		const_iterator end() const { return values_.data() + values_.size(); }
 
-		const_iterator find(const KEY_TYPE& Key) const
+		const_iterator find(const KEY_TYPE& key) const
 		{
-			const u32 KeyHash = Hash(0, Key);
-			const index_type IndicesIdx = KeyHash & Mask_;
-			const index_type Idx = Indices_[IndicesIdx];
-			if(Idx != INVALID_INDEX)
+			const u32 keyHash = Hash(0, key);
+			const index_type indicesIdx = keyHash & mask_;
+			const index_type idx = indices_[IndicesIdx];
+			if(idx != INVALID_INDEX)
 			{
-				return Values_.data() + Idx;
+				return values_.data() + idx;
 			}
 			return end();
 		}
 
-		iterator find(const KEY_TYPE& Key)
+		iterator find(const KEY_TYPE& key)
 		{
-			const u32 KeyHash = Hash(0, Key);
-			const index_type IndicesIdx = KeyHash & Mask_;
-			const index_type Idx = Indices_[IndicesIdx];
-			if(Idx != INVALID_INDEX)
+			const u32 keyHash = Hash(0, key);
+			const index_type IndicesIdx = keyHash & mask_;
+			const index_type idx = indices_[IndicesIdx];
+			if(idx != INVALID_INDEX)
 			{
-				iterator RetVal = Values_.data() + Idx;
-				if(Hash(0, RetVal->first) == KeyHash)
+				iterator retVal = values_.data() + idx;
+				if(Hash(0, retVal->first) == keyHash)
 				{
-					return RetVal;
+					return retVal;
 				}
 			}
 			return end();
 		}
 
-		index_type size() const { return Values_.size(); }
-		bool empty() const { return Values_.size() == 0; }
+		index_type size() const { return values_.size(); }
+		bool empty() const { return values_.size() == 0; }
 
 	private:
-		void resizeIndices(index_type Size)
+		void resizeIndices(index_type size)
 		{
-			bool Collisions = true;
+			bool collisions = true;
 
 			// Enter loop and increase size of indices.
-			while(Collisions)
+			while(collisions)
 			{
-				Collisions = false;
+				collisions = false;
 
-				Indices_.resize(Size);
-				Indices_.fill(INVALID_INDEX);
-				MaxIndex_ = Size;
-				Mask_ = Size - 1;
+				indices_.resize(size);
+				indices_.fill(INVALID_INDEX);
+				maxIndex_ = size;
+				mask_ = size - 1;
 
 				// Reinsert all keys.
-				for(index_type Idx = 0; Idx < Values_.size(); ++Idx)
+				for(index_type idx = 0; idx < values_.size(); ++idx)
 				{
-					const u32 KeyHash = Hash(0, Values_[Idx].first);
-					const index_type IndicesIdx = KeyHash & Mask_;
-					if(Indices_[IndicesIdx] == INVALID_INDEX)
+					const u32 keyHash = Hash(0, values_[idx].first);
+					const index_type IndicesIdx = keyHash & mask_;
+					if(indices_[IndicesIdx] == INVALID_INDEX)
 					{
-						Indices_[IndicesIdx] = Idx;
+						indices_[IndicesIdx] = idx;
 					}
 					else
 					{
-						Collisions = true;
+						collisions = true;
 						break;
 					}
 				}
 
-				if(Collisions)
+				if(collisions)
 				{
-					Size *= 2;
+					size *= 2;
 					continue;
 				}
 			}
 		}
 
-		Vector<value_type> Values_;
-		Vector<index_type> Indices_;
+		Vector<value_type, ALLOCATOR> values_;
+		Vector<index_type, ALLOCATOR> indices_;
 
-		index_type MaxIndex_ = 0x8;
-		index_type Mask_ = 0x7;
+		index_type maxIndex_ = 0x8;
+		index_type mask_ = 0x7;
 	};
 } // namespace Core

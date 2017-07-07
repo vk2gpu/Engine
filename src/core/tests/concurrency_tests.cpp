@@ -3,6 +3,8 @@
 
 #include "catch.hpp"
 
+#include <unordered_map>
+
 using namespace Core;
 
 TEST_CASE("concurrency-tests-atomic-inc")
@@ -371,10 +373,10 @@ TEST_CASE("concurrency-tests-fiber")
 	};
 
 	SharedData sharedData;
-	sharedData.fibers_.emplace_back(Fiber(fiberFunc, &sharedData));
-	sharedData.fibers_.emplace_back(Fiber(fiberFunc, &sharedData));
-	sharedData.fibers_.emplace_back(Fiber(fiberFunc, &sharedData));
-	sharedData.fibers_.emplace_back(Fiber(fiberFunc, &sharedData));
+	sharedData.fibers_.emplace_back(fiberFunc, &sharedData);
+	sharedData.fibers_.emplace_back(fiberFunc, &sharedData);
+	sharedData.fibers_.emplace_back(fiberFunc, &sharedData);
+	sharedData.fibers_.emplace_back(fiberFunc, &sharedData);
 
 	sharedData.fibers_[0].SwitchTo();
 	REQUIRE(sharedData.currFiber_ == sharedData.fibers_.size());

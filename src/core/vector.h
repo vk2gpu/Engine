@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/types.h"
+#include "core/allocator.h"
 #include "core/debug.h"
 
 #include <utility>
@@ -10,138 +11,158 @@ namespace Core
 	/**
 	 * Vector of elements.
 	 */
-	template<typename TYPE>
+	template<typename TYPE, typename ALLOCATOR = Allocator>
 	class Vector
 	{
 	public:
-		typedef i32 index_type;
-		typedef TYPE value_type;
-		typedef value_type* iterator;
-		typedef const value_type* const_iterator;
+		using index_type = i32; // TODO: Template arg?
+		using value_type = TYPE;
+		using iterator = value_type*;
+		using const_iterator = const value_type*;
 
-		Vector() {}
+		Vector() = default;
 
-		Vector(const Vector& Other)
+		Vector(const Vector& other)
 		{
-			if(Other.size_ != size_)
-				internalResize(Other.size_);
-			size_ = Other.size_;
-			for(index_type Idx = 0; Idx < Other.size_; ++Idx)
-				Data_[Idx] = Other.Data_[Idx];
+			internalResize(other.size_);
+			size_ = other.size_;
+			for(index_type idx = 0; idx < other.size_; ++idx)
+				new(data_ + idx) TYPE(other.data_[idx]);
 		}
 
-		Vector(Vector&& Other) { swap(Other); }
+		Vector(Vector&& other) { swap(other); }
 
 		~Vector() { internalResize(0); }
 
-		Vector& operator=(const Vector& Other)
+		Vector& operator=(const Vector& other)
 		{
-			if(Other.size_ != size_)
-				internalResize(Other.size_);
-			size_ = Other.size_;
-			for(index_type Idx = 0; Idx < Other.size_; ++Idx)
-				Data_[Idx] = Other.Data_[Idx];
+			if(other.size_ != size_)
+				internalResize(other.size_);
+
+			// destruct
+			destruct(data_, data_ + size_);
+
+			// reconstruct
+			size_ = other.size_;
+			for(index_type idx = 0; idx < other.size_; ++idx)
+				new(data_ + idx) TYPE(other.data_[idx]);
 			return *this;
 		}
 
-		Vector& operator=(Vector&& Other)
+		Vector& operator=(Vector&& other)
 		{
-			swap(Other);
+			swap(other);
 			return *this;
 		}
 
-		void swap(Vector& Other)
+		void swap(Vector& other)
 		{
-			std::swap(Data_, Other.Data_);
-			std::swap(size_, Other.size_);
-			std::swap(capacity_, Other.capacity_);
+			std::swap(data_, other.data_);
+			std::swap(size_, other.size_);
+			std::swap(capacity_, other.capacity_);
 		}
 
-		TYPE& operator[](index_type Idx)
+		TYPE& operator[](index_type idx)
 		{
-			DBG_ASSERT_MSG(Idx >= 0 && Idx < size_, "Index out of bounds. (index %u, size %u)", Idx, size_);
-			return Data_[Idx];
+			DBG_ASSERT_MSG(idx >= 0 && idx < size_, "Index out of bounds. (index %u, size %u)", idx, size_);
+			return data_[idx];
 		}
 
-		const TYPE& operator[](index_type Idx) const
+		const TYPE& operator[](index_type idx) const
 		{
-			DBG_ASSERT_MSG(Idx >= 0 && Idx < size_, "Index out of bounds. (%u, size %u)", Idx, size_);
-			return Data_[Idx];
+			DBG_ASSERT_MSG(idx >= 0 && idx < size_, "Index out of bounds. (%u, size %u)", idx, size_);
+			return data_[idx];
 		}
 
-		void clear() { size_ = 0; }
-
-		void fill(const TYPE& Val)
+		void clear()
 		{
-			for(index_type Idx = 0; Idx < size_; ++Idx)
-				Data_[Idx] = Val;
+			destruct(data_, data_ + size_);
+			size_ = 0;
 		}
 
-		iterator erase(iterator It)
+		void fill(const TYPE& value)
 		{
-			DBG_ASSERT_MSG(It >= begin() && It < end(), "Invalid iterator.");
-			for(iterator DstIt = It, SrcIt = It + 1; SrcIt != end(); ++DstIt, ++SrcIt)
-				*DstIt = std::move(*SrcIt);
+			for(index_type idx = 0; idx < size_; ++idx)
+				new(data_ + idx) TYPE(value);
+		}
+
+		iterator erase(iterator it)
+		{
+			DBG_ASSERT_MSG(it >= begin() && it < end(), "Invalid iterator.");
+			for(iterator dstIt = it, srcIt = it + 1; srcIt != end(); ++dstIt, ++srcIt)
+				*dstIt = std::move(*srcIt);
 			--size_;
-			return It;
+			destruct(data_ + size_);
+			return it;
 		}
 
-		void push_back(const TYPE& Value)
+		iterator push_back(const TYPE& value)
 		{
 			if(capacity_ < (size_ + 1))
 				internalResize(getGrowCapacity(capacity_));
-			Data_[size_] = Value;
-			++size_;
+			new(data_ + size_) TYPE(value);
+			return (data_ + size_++);
+		}
+
+		iterator push_back(TYPE&& value)
+		{
+			if(capacity_ < (size_ + 1))
+				internalResize(getGrowCapacity(capacity_));
+			new(data_ + size_) TYPE(std::forward<TYPE>(value));
+			return (data_ + size_++);
 		}
 
 		template<class... VAL_TYPE>
-		void emplace_back(VAL_TYPE&&... value)
+		iterator emplace_back(VAL_TYPE&&... value)
 		{
 			if(capacity_ < (size_ + 1))
 				internalResize(getGrowCapacity(capacity_));
-			auto& ref = Data_[size_];
-			new(&ref) TYPE(std::forward<VAL_TYPE>(value)...);
-			++size_;
+			new(data_ + size_) TYPE(std::forward<VAL_TYPE>(value)...);
+			return (data_ + size_++);
 		}
 
-		void insert(const_iterator Begin, const_iterator End)
+		iterator insert(const_iterator begin, const_iterator end)
 		{
-			i32 NumValues = (i32)(End - Begin);
-			if(capacity_ < (size_ + NumValues))
-				internalResize(size_ + NumValues);
-			for(const_iterator It = Begin; It != End; ++It)
+			i32 numValues = (i32)(end - begin);
+			if(capacity_ < (size_ + numValues))
+				internalResize(size_ + numValues);
+			for(const_iterator it = begin; it != end; ++it)
 			{
-				Data_[size_++] = *It;
+				new(data_ + size_) TYPE(*it);
+				++size_;
 			}
+			return (data_ + size_ - 1);
 		}
 
 		void pop_back()
 		{
 			DBG_ASSERT_MSG(size_ > 0, "No elements in vector.");
 			--size_;
+			destruct(data_ + size_);
 		}
 
-		void reserve(index_type Capacity)
+		void reserve(index_type capacity)
 		{
-			if(capacity_ < Capacity)
-				internalResize(Capacity);
+			if(capacity_ < capacity)
+				internalResize(capacity);
 		}
 
-		void resize(index_type Size)
+		void resize(index_type size)
 		{
-			if(size_ != Size)
-				internalResize(Size);
-			size_ = Size;
+			if(size_ != size)
+				internalResize(size);
+			for(index_type idx = size_; idx < size; ++idx)
+				new(data_ + idx) TYPE();
+			size_ = size;
 		}
 
-		void resize(index_type Size, const TYPE& Default)
+		void resize(index_type size, const TYPE& default)
 		{
-			i32 OldSize = size_;
-			if(size_ != Size)
-				internalResize(Size);
-			size_ = Size;
-			for(index_type Idx = OldSize; Idx < size_; ++Idx)
-				Data_[Idx] = Default;
+			if(size_ != size)
+				internalResize(size);
+			for(index_type idx = size_; idx < size; ++idx)
+				new(data_ + idx) TYPE(default);
+			size_ = size;
 		}
 
 		void shrink_to_fit()
@@ -153,70 +174,88 @@ namespace Core
 		TYPE& front()
 		{
 			DBG_ASSERT_MSG(size_ > 0, "No elements in vector.");
-			return Data_[0];
+			return data_[0];
 		}
 
 		const TYPE& front() const
 		{
 			DBG_ASSERT_MSG(size_ > 0, "No elements in vector.");
-			return Data_[0];
+			return data_[0];
 		}
 
 		TYPE& back()
 		{
 			DBG_ASSERT_MSG(size_ > 0, "No elements in vector.");
-			return Data_[size_ - 1];
+			return data_[size_ - 1];
 		}
 
 		const TYPE& back() const
 		{
 			DBG_ASSERT_MSG(size_ > 0, "No elements in vector.");
-			return Data_[size_ - 1];
+			return data_[size_ - 1];
 		}
 
-		iterator begin() { return Data_; }
-		const_iterator begin() const { return Data_; }
-		iterator end() { return Data_ + size_; }
-		const_iterator end() const { return Data_ + size_; }
+		iterator begin() noexcept { return data_; }
+		const_iterator begin() const noexcept { return data_; }
+		iterator end() noexcept { return data_ + size_; }
+		const_iterator end() const noexcept { return data_ + size_; }
 
-		TYPE* data() { return &Data_[0]; }
-		const TYPE* data() const { return &Data_[0]; }
-		index_type size() const { return size_; }
-		index_type capacity() const { return capacity_; }
-		bool empty() const { return size_ == 0; }
+		TYPE* data() noexcept { return &data_[0]; }
+		const TYPE* data() const noexcept { return &data_[0]; }
+		index_type size() const noexcept { return size_; }
+		index_type capacity() const noexcept { return capacity_; }
+		bool empty() const noexcept { return size_ == 0; }
 
 	private:
-		static TYPE* alloc(index_type Size)
-		{
-			TYPE* RetVal = new TYPE[Size];
-			DBG_ASSERT_MSG(RetVal != nullptr, "Out of memory allocating %u elements.", Size);
-			return RetVal;
-		}
-		static void dealloc(TYPE* Data) { delete[] Data; }
 		static index_type getGrowCapacity(index_type CurrCapacity)
 		{
 			return CurrCapacity ? (CurrCapacity + CurrCapacity / 2) : 16;
 		}
-		void internalResize(index_type NewCapacity)
+
+		static iterator uninitialized_move(iterator first, iterator last, iterator dest)
 		{
-			index_type CopySize = NewCapacity < size_ ? NewCapacity : size_;
-			TYPE* NewData = nullptr;
-			if(NewCapacity > 0)
+			for(; first != last; ++dest, ++first)
+				new(dest) TYPE(std::move(*first));
+			return dest;
+		}
+
+		static void destruct(iterator first) { first->~TYPE(); }
+
+		static void destruct(iterator first, iterator last)
+		{
+			for(; first != last; ++first)
+				destruct(first);
+		}
+
+		void internalResize(index_type newCapacity)
+		{
+			index_type copySize = newCapacity < size_ ? newCapacity : size_;
+			TYPE* newData = nullptr;
+			if(newCapacity > 0)
 			{
-				NewData = alloc(NewCapacity);
-				for(index_type Idx = 0; Idx < CopySize; ++Idx)
-					NewData[Idx] = std::move(Data_[Idx]);
+				newData = static_cast<TYPE*>(allocator_.allocate(newCapacity, sizeof(TYPE)));
+				DBG_ASSERT_MSG(newData, "Unable to allocate for resize.");
+				uninitialized_move(data_, data_ + copySize, newData);
+				destruct(data_, data_ + copySize);
 			}
-			dealloc(Data_);
-			Data_ = NewData;
-			size_ = CopySize;
-			capacity_ = NewCapacity;
+
+			// destruct trailing elements.
+			if(copySize < size_)
+				destruct(data_ + copySize, data_ + size());
+
+			allocator_.deallocate(data_, size_, sizeof(TYPE));
+
+			data_ = newData;
+			size_ = copySize;
+			capacity_ = newCapacity;
 		}
 
 
 	private:
-		TYPE* Data_ = nullptr;
+		TYPE* data_ = nullptr;
 		index_type size_ = 0;
 		index_type capacity_ = 0;
+
+		ALLOCATOR allocator_;
 	};
 } // namespace Core

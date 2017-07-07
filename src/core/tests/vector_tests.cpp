@@ -7,6 +7,44 @@ using namespace Core;
 
 namespace
 {
+	struct AllocTest
+	{
+		static i32 numAllocs_;
+		AllocTest(i32 value = -1)
+		    : value_(value)
+		{
+			numAllocs_++;
+		}
+		AllocTest(const AllocTest& other)
+		    : value_(other.value_)
+		{
+			numAllocs_++;
+		}
+		AllocTest(AllocTest&& other)
+		{
+			using std::swap;
+			swap(other.value_, value_);
+			numAllocs_++;
+		}
+		~AllocTest()
+		{
+			--numAllocs_;
+			value_ = -2;
+		}
+		AllocTest& operator=(AllocTest&& other)
+		{
+			using std::swap;
+			swap(other.value_, value_);
+			return *this;
+		}
+
+		operator i32() const { return value_; }
+
+		i32 value_ = -1;
+	};
+
+	i32 AllocTest::numAllocs_ = 0;
+
 	typedef i32 index_type;
 
 	template<typename TYPE, index_type ARRAY_SIZE>
@@ -291,7 +329,7 @@ TEST_CASE("vector-tests-emplace-back")
 		REQUIRE(vec[2] == 2);
 	}
 
-	SECTION("non-trivial")
+	SECTION("trivial-params")
 	{
 		struct TestType
 		{
@@ -315,6 +353,17 @@ TEST_CASE("vector-tests-emplace-back")
 		REQUIRE(vec[0] == TestType(0, 1));
 		REQUIRE(vec[1] == TestType(1, 2));
 		REQUIRE(vec[2] == TestType(2, 4));
+	}
+
+	SECTION("non-trivial")
+	{
+		Core::Vector<std::string> vec;
+		vec.emplace_back("0");
+		vec.emplace_back("1");
+		vec.emplace_back("2");
+		REQUIRE(vec[0] == "0");
+		REQUIRE(vec[1] == "1");
+		REQUIRE(vec[2] == "2");
 	}
 }
 
@@ -448,5 +497,128 @@ TEST_CASE("vector-tests-erase")
 		VectorTestErase<std::string, 0x2>(IdxToVal_string);
 		VectorTestErase<std::string, 0xff>(IdxToVal_string);
 		VectorTestErase<std::string, 0x100>(IdxToVal_string);
+	}
+}
+
+TEST_CASE("vector-tests-alloc-test")
+{
+	SECTION("resize")
+	{
+		{
+			Core::Vector<AllocTest> vec;
+			vec.resize(1);
+			REQUIRE(AllocTest::numAllocs_ == 1);
+		}
+		REQUIRE(AllocTest::numAllocs_ == 0);
+
+		{
+			Core::Vector<AllocTest> vec;
+			vec.resize(100);
+			REQUIRE(AllocTest::numAllocs_ == 100);
+			vec.resize(200);
+			REQUIRE(AllocTest::numAllocs_ == 200);
+		}
+		REQUIRE(AllocTest::numAllocs_ == 0);
+
+		{
+			Core::Vector<AllocTest> vec;
+			vec.resize(200);
+			REQUIRE(AllocTest::numAllocs_ == 200);
+			vec.resize(100);
+			REQUIRE(AllocTest::numAllocs_ == 100);
+		}
+		REQUIRE(AllocTest::numAllocs_ == 0);
+	}
+
+	SECTION("push_back")
+	{
+		{
+			Core::Vector<AllocTest> vec;
+			for(i32 i = 0; i < 1; ++i)
+			{
+				vec.push_back(i);
+				REQUIRE(AllocTest::numAllocs_ == i + 1);
+			}
+		}
+		REQUIRE(AllocTest::numAllocs_ == 0);
+
+		{
+			Core::Vector<AllocTest> vec;
+			for(i32 i = 0; i < 100; ++i)
+			{
+				vec.push_back(i);
+				REQUIRE(AllocTest::numAllocs_ == i + 1);
+			}
+		}
+		REQUIRE(AllocTest::numAllocs_ == 0);
+
+		{
+			Core::Vector<AllocTest> vec;
+			for(i32 i = 0; i < 200; ++i)
+			{
+				vec.push_back(i);
+				REQUIRE(AllocTest::numAllocs_ == i + 1);
+			}
+		}
+		REQUIRE(AllocTest::numAllocs_ == 0);
+	}
+
+	SECTION("emplace_back")
+	{
+		{
+			Core::Vector<AllocTest> vec;
+			for(i32 i = 0; i < 1; ++i)
+			{
+				vec.emplace_back(i);
+				REQUIRE(AllocTest::numAllocs_ == i + 1);
+			}
+		}
+		REQUIRE(AllocTest::numAllocs_ == 0);
+
+		{
+			Core::Vector<AllocTest> vec;
+			for(i32 i = 0; i < 100; ++i)
+			{
+				vec.emplace_back(i);
+				REQUIRE(AllocTest::numAllocs_ == i + 1);
+			}
+		}
+		REQUIRE(AllocTest::numAllocs_ == 0);
+
+		{
+			Core::Vector<AllocTest> vec;
+			for(i32 i = 0; i < 200; ++i)
+			{
+				vec.emplace_back(i);
+				REQUIRE(AllocTest::numAllocs_ == i + 1);
+			}
+		}
+		REQUIRE(AllocTest::numAllocs_ == 0);
+	}
+
+	SECTION("erase")
+	{
+		{
+			Core::Vector<AllocTest> vec;
+			vec.emplace_back(0);
+			REQUIRE(AllocTest::numAllocs_ == 1);
+
+			vec.emplace_back(1);
+			REQUIRE(AllocTest::numAllocs_ == 2);
+
+			vec.emplace_back(2);
+			REQUIRE(AllocTest::numAllocs_ == 3);
+
+			REQUIRE(vec[0] == 0);
+			REQUIRE(vec[1] == 1);
+			REQUIRE(vec[2] == 2);
+
+			vec.erase(vec.begin() + 1);
+			REQUIRE(AllocTest::numAllocs_ == 2);
+
+			REQUIRE(vec[0] == 0);
+			REQUIRE(vec[1] == 2);
+		}
+		REQUIRE(AllocTest::numAllocs_ == 0);
 	}
 }

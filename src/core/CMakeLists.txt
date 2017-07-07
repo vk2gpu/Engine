@@ -1,4 +1,5 @@
 SET(SOURCES_PUBLIC 
+	"allocator.h"
 	"array.h"
 	"concurrency.h"
 	"debug.h"
