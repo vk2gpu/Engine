@@ -244,7 +244,7 @@ namespace Core
 			if(copySize < size_)
 				destruct(data_ + copySize, data_ + size());
 
-			allocator_.deallocate(data_, size_, sizeof(TYPE));
+			allocator_.deallocate(data_, capacity_, sizeof(TYPE));
 
 			data_ = newData;
 			size_ = copySize;

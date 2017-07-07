@@ -7,31 +7,31 @@ using namespace Core;
 
 namespace
 {
-	struct AllocTest
+	struct CtorDtorTest
 	{
 		static i32 numAllocs_;
-		AllocTest(i32 value = -1)
+		CtorDtorTest(i32 value = -1)
 		    : value_(value)
 		{
 			numAllocs_++;
 		}
-		AllocTest(const AllocTest& other)
+		CtorDtorTest(const CtorDtorTest& other)
 		    : value_(other.value_)
 		{
 			numAllocs_++;
 		}
-		AllocTest(AllocTest&& other)
+		CtorDtorTest(CtorDtorTest&& other)
 		{
 			using std::swap;
 			swap(other.value_, value_);
 			numAllocs_++;
 		}
-		~AllocTest()
+		~CtorDtorTest()
 		{
 			--numAllocs_;
 			value_ = -2;
 		}
-		AllocTest& operator=(AllocTest&& other)
+		CtorDtorTest& operator=(CtorDtorTest&& other)
 		{
 			using std::swap;
 			swap(other.value_, value_);
@@ -43,7 +43,27 @@ namespace
 		i32 value_ = -1;
 	};
 
-	i32 AllocTest::numAllocs_ = 0;
+	i32 CtorDtorTest::numAllocs_ = 0;
+
+	struct AllocatorTest : public Core::Allocator
+	{
+		static i32 numBytes_;
+
+		void* allocate(index_type count, index_type size)
+		{
+			numBytes_ += count * size;
+			return Core::Allocator::allocate(count, size);
+		}
+
+		void deallocate(void* mem, index_type count, index_type size)
+		{
+			numBytes_ -= count * size;
+			Core::Allocator::deallocate(mem, count, size);
+		}
+	};
+
+	i32 AllocatorTest::numBytes_ = 0;
+
 
 	typedef i32 index_type;
 
@@ -500,138 +520,307 @@ TEST_CASE("vector-tests-erase")
 	}
 }
 
-TEST_CASE("vector-tests-alloc-test")
+TEST_CASE("vector-tests-ctor-dtor-test")
 {
+	using TestVector = Core::Vector<CtorDtorTest>;
+
 	SECTION("resize")
 	{
 		{
-			Core::Vector<AllocTest> vec;
+			TestVector vec;
 			vec.resize(1);
-			REQUIRE(AllocTest::numAllocs_ == 1);
+			REQUIRE(CtorDtorTest::numAllocs_ == 1);
 		}
-		REQUIRE(AllocTest::numAllocs_ == 0);
+		REQUIRE(CtorDtorTest::numAllocs_ == 0);
 
 		{
-			Core::Vector<AllocTest> vec;
+			TestVector vec;
 			vec.resize(100);
-			REQUIRE(AllocTest::numAllocs_ == 100);
+			REQUIRE(CtorDtorTest::numAllocs_ == 100);
 			vec.resize(200);
-			REQUIRE(AllocTest::numAllocs_ == 200);
+			REQUIRE(CtorDtorTest::numAllocs_ == 200);
 		}
-		REQUIRE(AllocTest::numAllocs_ == 0);
+		REQUIRE(CtorDtorTest::numAllocs_ == 0);
 
 		{
-			Core::Vector<AllocTest> vec;
+			TestVector vec;
 			vec.resize(200);
-			REQUIRE(AllocTest::numAllocs_ == 200);
+			REQUIRE(CtorDtorTest::numAllocs_ == 200);
 			vec.resize(100);
-			REQUIRE(AllocTest::numAllocs_ == 100);
+			REQUIRE(CtorDtorTest::numAllocs_ == 100);
 		}
-		REQUIRE(AllocTest::numAllocs_ == 0);
+		REQUIRE(CtorDtorTest::numAllocs_ == 0);
+	}
+
+	SECTION("copy")
+	{
+		{
+			TestVector vec;
+			vec.resize(100);
+			REQUIRE(CtorDtorTest::numAllocs_ == 100);
+
+			TestVector vec2;
+			vec2 = vec;
+			REQUIRE(CtorDtorTest::numAllocs_ == 200);
+		}
+		REQUIRE(CtorDtorTest::numAllocs_ == 0);
 	}
 
 	SECTION("push_back")
 	{
 		{
-			Core::Vector<AllocTest> vec;
+			TestVector vec;
 			for(i32 i = 0; i < 1; ++i)
 			{
 				vec.push_back(i);
-				REQUIRE(AllocTest::numAllocs_ == i + 1);
+				REQUIRE(CtorDtorTest::numAllocs_ == i + 1);
 			}
 		}
-		REQUIRE(AllocTest::numAllocs_ == 0);
+		REQUIRE(CtorDtorTest::numAllocs_ == 0);
 
 		{
-			Core::Vector<AllocTest> vec;
+			TestVector vec;
 			for(i32 i = 0; i < 100; ++i)
 			{
 				vec.push_back(i);
-				REQUIRE(AllocTest::numAllocs_ == i + 1);
+				REQUIRE(CtorDtorTest::numAllocs_ == i + 1);
 			}
 		}
-		REQUIRE(AllocTest::numAllocs_ == 0);
+		REQUIRE(CtorDtorTest::numAllocs_ == 0);
 
 		{
-			Core::Vector<AllocTest> vec;
+			TestVector vec;
 			for(i32 i = 0; i < 200; ++i)
 			{
 				vec.push_back(i);
-				REQUIRE(AllocTest::numAllocs_ == i + 1);
+				REQUIRE(CtorDtorTest::numAllocs_ == i + 1);
 			}
 		}
-		REQUIRE(AllocTest::numAllocs_ == 0);
+		REQUIRE(CtorDtorTest::numAllocs_ == 0);
 	}
 
 	SECTION("emplace_back")
 	{
 		{
-			Core::Vector<AllocTest> vec;
+			TestVector vec;
 			for(i32 i = 0; i < 1; ++i)
 			{
 				vec.emplace_back(i);
-				REQUIRE(AllocTest::numAllocs_ == i + 1);
+				REQUIRE(CtorDtorTest::numAllocs_ == i + 1);
 			}
 		}
-		REQUIRE(AllocTest::numAllocs_ == 0);
+		REQUIRE(CtorDtorTest::numAllocs_ == 0);
 
 		{
-			Core::Vector<AllocTest> vec;
+			TestVector vec;
 			for(i32 i = 0; i < 100; ++i)
 			{
 				vec.emplace_back(i);
-				REQUIRE(AllocTest::numAllocs_ == i + 1);
+				REQUIRE(CtorDtorTest::numAllocs_ == i + 1);
 			}
 		}
-		REQUIRE(AllocTest::numAllocs_ == 0);
+		REQUIRE(CtorDtorTest::numAllocs_ == 0);
 
 		{
-			Core::Vector<AllocTest> vec;
+			TestVector vec;
 			for(i32 i = 0; i < 200; ++i)
 			{
 				vec.emplace_back(i);
-				REQUIRE(AllocTest::numAllocs_ == i + 1);
+				REQUIRE(CtorDtorTest::numAllocs_ == i + 1);
 			}
 		}
-		REQUIRE(AllocTest::numAllocs_ == 0);
+		REQUIRE(CtorDtorTest::numAllocs_ == 0);
 	}
 
 	SECTION("erase")
 	{
 		{
-			Core::Vector<AllocTest> vec;
+			TestVector vec;
 			vec.emplace_back(0);
-			REQUIRE(AllocTest::numAllocs_ == 1);
+			REQUIRE(CtorDtorTest::numAllocs_ == 1);
 
 			vec.emplace_back(1);
-			REQUIRE(AllocTest::numAllocs_ == 2);
+			REQUIRE(CtorDtorTest::numAllocs_ == 2);
 
 			vec.emplace_back(2);
-			REQUIRE(AllocTest::numAllocs_ == 3);
+			REQUIRE(CtorDtorTest::numAllocs_ == 3);
 
 			REQUIRE(vec[0] == 0);
 			REQUIRE(vec[1] == 1);
 			REQUIRE(vec[2] == 2);
 
 			vec.erase(vec.begin() + 1);
-			REQUIRE(AllocTest::numAllocs_ == 2);
+			REQUIRE(CtorDtorTest::numAllocs_ == 2);
 
 			REQUIRE(vec[0] == 0);
 			REQUIRE(vec[1] == 2);
 		}
-		REQUIRE(AllocTest::numAllocs_ == 0);
+		REQUIRE(CtorDtorTest::numAllocs_ == 0);
 	}
 
 	SECTION("fill")
 	{
 		{
-			Core::Vector<AllocTest> vec;
+			TestVector vec;
 			vec.resize(100);
-			REQUIRE(AllocTest::numAllocs_ == 100);
+			REQUIRE(CtorDtorTest::numAllocs_ == 100);
 
 			vec.fill(10);
-			REQUIRE(AllocTest::numAllocs_ == 100);
+			REQUIRE(CtorDtorTest::numAllocs_ == 100);
 		}
-		REQUIRE(AllocTest::numAllocs_ == 0);
+		REQUIRE(CtorDtorTest::numAllocs_ == 0);
+	}
+}
+
+TEST_CASE("vector-tests-allocator-test")
+{
+	using TestVector = Core::Vector<i32, AllocatorTest>;
+
+	SECTION("resize")
+	{
+		{
+			TestVector vec;
+			vec.resize(1);
+			REQUIRE(AllocatorTest::numBytes_ == sizeof(i32) * 1);
+		}
+		REQUIRE(AllocatorTest::numBytes_ == 0);
+
+		{
+			TestVector vec;
+			vec.resize(100);
+			REQUIRE(AllocatorTest::numBytes_ == sizeof(i32) * 100);
+			vec.resize(200);
+			REQUIRE(AllocatorTest::numBytes_ == sizeof(i32) * 200);
+		}
+		REQUIRE(AllocatorTest::numBytes_ == 0);
+
+		{
+			TestVector vec;
+			vec.resize(200);
+			REQUIRE(AllocatorTest::numBytes_ == sizeof(i32) * 200);
+			vec.resize(100);
+			REQUIRE(AllocatorTest::numBytes_ == sizeof(i32) * 100);
+		}
+		REQUIRE(AllocatorTest::numBytes_ == 0);
+	}
+
+	SECTION("copy")
+	{
+		{
+			TestVector vec;
+			vec.resize(100);
+			REQUIRE(AllocatorTest::numBytes_ == sizeof(i32) * 100);
+
+			TestVector vec2;
+			vec2 = vec;
+			REQUIRE(AllocatorTest::numBytes_ == sizeof(i32) * 200);
+		}
+		REQUIRE(AllocatorTest::numBytes_ == 0);
+	}
+
+	SECTION("push_back")
+	{
+		{
+			TestVector vec;
+			for(i32 i = 0; i < 1; ++i)
+			{
+				vec.push_back(i);
+				REQUIRE(AllocatorTest::numBytes_ >= sizeof(i32) * (i + 1));
+			}
+		}
+		REQUIRE(AllocatorTest::numBytes_ == 0);
+
+		{
+			TestVector vec;
+			for(i32 i = 0; i < 100; ++i)
+			{
+				vec.push_back(i);
+				REQUIRE(AllocatorTest::numBytes_ >= sizeof(i32) * (i + 1));
+			}
+		}
+		REQUIRE(AllocatorTest::numBytes_ == 0);
+
+		{
+			TestVector vec;
+			for(i32 i = 0; i < 200; ++i)
+			{
+				vec.push_back(i);
+				REQUIRE(AllocatorTest::numBytes_ >= sizeof(i32) * (i + 1));
+			}
+		}
+		REQUIRE(AllocatorTest::numBytes_ == 0);
+	}
+
+	SECTION("emplace_back")
+	{
+		{
+			TestVector vec;
+			for(i32 i = 0; i < 1; ++i)
+			{
+				vec.emplace_back(i);
+				REQUIRE(AllocatorTest::numBytes_ >= sizeof(i32) * (i + 1));
+			}
+		}
+		REQUIRE(AllocatorTest::numBytes_ == 0);
+
+		{
+			TestVector vec;
+			for(i32 i = 0; i < 100; ++i)
+			{
+				vec.emplace_back(i);
+				REQUIRE(AllocatorTest::numBytes_ >= sizeof(i32) * (i + 1));
+			}
+		}
+		REQUIRE(AllocatorTest::numBytes_ == 0);
+
+		{
+			TestVector vec;
+			for(i32 i = 0; i < 200; ++i)
+			{
+				vec.emplace_back(i);
+				REQUIRE(AllocatorTest::numBytes_ >= sizeof(i32) * (i + 1));
+			}
+		}
+		REQUIRE(AllocatorTest::numBytes_ == 0);
+	}
+
+	SECTION("erase")
+	{
+		{
+			TestVector vec;
+			vec.emplace_back(0);
+			REQUIRE(AllocatorTest::numBytes_ >= sizeof(i32) * 1);
+
+			vec.emplace_back(1);
+			REQUIRE(AllocatorTest::numBytes_ >= sizeof(i32) * 2);
+
+			vec.emplace_back(2);
+			REQUIRE(AllocatorTest::numBytes_ >= sizeof(i32) * 3);
+			auto totalBytes = AllocatorTest::numBytes_;
+
+			REQUIRE(vec[0] == 0);
+			REQUIRE(vec[1] == 1);
+			REQUIRE(vec[2] == 2);
+
+			vec.erase(vec.begin() + 1);
+			REQUIRE(AllocatorTest::numBytes_ == totalBytes);
+
+			REQUIRE(vec[0] == 0);
+			REQUIRE(vec[1] == 2);
+		}
+		REQUIRE(AllocatorTest::numBytes_ == 0);
+	}
+
+	SECTION("fill")
+	{
+		{
+			TestVector vec;
+			vec.resize(100);
+			REQUIRE(AllocatorTest::numBytes_ == sizeof(i32) * 100);
+
+			vec.fill(10);
+			REQUIRE(AllocatorTest::numBytes_ == sizeof(i32) * 100);
+		}
+		REQUIRE(AllocatorTest::numBytes_ == 0);
 	}
 }
