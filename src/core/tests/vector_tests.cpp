@@ -621,4 +621,17 @@ TEST_CASE("vector-tests-alloc-test")
 		}
 		REQUIRE(AllocTest::numAllocs_ == 0);
 	}
+
+	SECTION("fill")
+	{
+		{
+			Core::Vector<AllocTest> vec;
+			vec.resize(100);
+			REQUIRE(AllocTest::numAllocs_ == 100);
+
+			vec.fill(10);
+			REQUIRE(AllocTest::numAllocs_ == 100);
+		}
+		REQUIRE(AllocTest::numAllocs_ == 0);
+	}
 }

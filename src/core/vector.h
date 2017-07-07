@@ -82,6 +82,7 @@ namespace Core
 
 		void fill(const TYPE& value)
 		{
+			destruct(data_, data_ + size_);
 			for(index_type idx = 0; idx < size_; ++idx)
 				new(data_ + idx) TYPE(value);
 		}
