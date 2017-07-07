@@ -96,6 +96,44 @@ namespace
 		REQUIRE(Success);
 	}
 
+	template<typename KEY_TYPE, typename VALUE_TYPE, index_type SIZE>
+	void MapTestOperatorErase(KEY_TYPE(IdxToKey)(index_type), VALUE_TYPE(IdxToVal)(index_type))
+	{
+		Map<KEY_TYPE, VALUE_TYPE> TestMap;
+
+		for(index_type Idx = 0; Idx < SIZE; ++Idx)
+		{
+			TestMap[IdxToKey(Idx)] = IdxToVal(Idx);
+		}
+
+		bool Success = true;
+		for(index_type Idx = 0; Idx < SIZE; ++Idx)
+		{
+			auto Val = TestMap[IdxToKey(Idx)];
+			Success &= Val == IdxToVal(Idx);
+			REQUIRE(Success);
+
+			if(Idx == (SIZE / 2))
+			{
+				TestMap.erase(TestMap.find(IdxToVal(Idx)));
+			}
+		}
+
+		for(index_type Idx = 0; Idx < SIZE; ++Idx)
+		{
+			auto it = TestMap.find(IdxToKey(Idx));
+			if(Idx != (SIZE / 2))
+			{
+				Success &= it->second == IdxToVal(Idx);
+			}
+			else
+			{
+				Success &= it == TestMap.end();
+				REQUIRE(Success);
+			}
+		}
+	}
+
 	index_type IdxToVal_index_type(index_type Idx) { return Idx; }
 
 	Core::String IdxToVal_string(index_type Idx)
@@ -186,5 +224,25 @@ TEST_CASE("map-tests-operator-find")
 		MapTestOperatorFind<Core::String, Core::String, 0x2>(IdxToVal_string, IdxToVal_string);
 		MapTestOperatorFind<Core::String, Core::String, 0xff>(IdxToVal_string, IdxToVal_string);
 		MapTestOperatorFind<Core::String, Core::String, 0x100>(IdxToVal_string, IdxToVal_string);
+	}
+}
+
+
+TEST_CASE("map-tests-operator-erase")
+{
+	SECTION("trivial")
+	{
+		MapTestOperatorErase<index_type, index_type, 0x1>(IdxToVal_index_type, IdxToVal_index_type);
+		MapTestOperatorErase<index_type, index_type, 0x2>(IdxToVal_index_type, IdxToVal_index_type);
+		MapTestOperatorErase<index_type, index_type, 0xff>(IdxToVal_index_type, IdxToVal_index_type);
+		MapTestOperatorErase<index_type, index_type, 0x100>(IdxToVal_index_type, IdxToVal_index_type);
+	}
+
+	SECTION("non-trivial")
+	{
+		MapTestOperatorErase<Core::String, Core::String, 0x1>(IdxToVal_string, IdxToVal_string);
+		MapTestOperatorErase<Core::String, Core::String, 0x2>(IdxToVal_string, IdxToVal_string);
+		MapTestOperatorErase<Core::String, Core::String, 0xff>(IdxToVal_string, IdxToVal_string);
+		MapTestOperatorErase<Core::String, Core::String, 0x100>(IdxToVal_string, IdxToVal_string);
 	}
 }

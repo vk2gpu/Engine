@@ -10,7 +10,7 @@ namespace Core
 	 * Hash set.
 	 * TODO: Implement HashTable using robinhood hashing.
 	 */
-	template<typename KEY_TYPE, typename ALLOCATOR = Allocator>
+	template<typename KEY_TYPE, typename HASHER = Hasher<KEY_TYPE>, typename ALLOCATOR = Allocator>
 	class Set
 	{
 	public:
@@ -65,13 +65,13 @@ namespace Core
 
 		iterator insert(const KEY_TYPE& key)
 		{
-			const u32 keyHash = Hash(0, key);
+			const u32 keyHash = hasher_(0, key);
 			const index_type indicesidx = keyHash & mask_;
 			const index_type idx = indices_[indicesidx];
 			if(idx != INVALID_INDEX)
 			{
 				// Got hit, check if hashes are same and replace or insert.
-				if(Hash(0, values_[idx]) == keyHash)
+				if(hasher_(0, values_[idx]) == keyHash)
 				{
 					values_[idx] = key;
 					return values_.data() + idx;
@@ -116,7 +116,7 @@ namespace Core
 
 		const_iterator find(const KEY_TYPE& key) const
 		{
-			const u32 keyHash = Hash(0, key);
+			const u32 keyHash = hasher_(0, key);
 			const index_type indicesidx = keyHash & mask_;
 			const index_type idx = indices_[indicesidx];
 			if(idx != INVALID_INDEX)
@@ -128,13 +128,13 @@ namespace Core
 
 		iterator find(const KEY_TYPE& key)
 		{
-			const u32 keyHash = Hash(0, key);
+			const u32 keyHash = hasher_(0, key);
 			const index_type indicesidx = keyHash & mask_;
 			const index_type idx = indices_[indicesidx];
 			if(idx != INVALID_INDEX)
 			{
 				iterator retVal = values_.data() + idx;
-				if(Hash(0, *retVal) == keyHash)
+				if(hasher_(0, *retVal) == keyHash)
 				{
 					return retVal;
 				}
@@ -163,7 +163,7 @@ namespace Core
 				// Reinsert all keys.
 				for(index_type idx = 0; idx < values_.size(); ++idx)
 				{
-					const u32 keyHash = Hash(0, values_[idx]);
+					const u32 keyHash = hasher_(0, values_[idx]);
 					const index_type indicesidx = keyHash & mask_;
 					if(indices_[indicesidx] == INVALID_INDEX)
 					{
@@ -189,5 +189,7 @@ namespace Core
 
 		index_type maxIndex_ = 0x8;
 		index_type mask_ = 0x7;
+
+		HASHER hasher_;
 	};
 } // namespace Core

@@ -12,7 +12,7 @@ namespace Core
 	 * Hash map.
 	 * TODO: Implement HashTable using robinhood hashing.
 	 */
-	template<typename KEY_TYPE, typename VALUE_TYPE, typename ALLOCATOR = Allocator>
+	template<typename KEY_TYPE, typename VALUE_TYPE, typename HASHER = Hasher<KEY_TYPE>, typename ALLOCATOR = Allocator>
 	class Map
 	{
 	public:
@@ -86,13 +86,13 @@ namespace Core
 		iterator insert(const KEY_TYPE& key, const VALUE_TYPE& value)
 		{
 			const auto keyValuePair = Pair<typename KEY_TYPE, typename VALUE_TYPE>(key, value);
-			const u32 keyHash = Hash(0, key);
-			const index_type IndicesIdx = keyHash & mask_;
-			const index_type idx = indices_[IndicesIdx];
+			const u32 keyHash = hasher_(0, key);
+			const index_type indicesIdx = keyHash & mask_;
+			const index_type idx = indices_[indicesIdx];
 			if(idx != INVALID_INDEX)
 			{
 				// Got hit, check if hashes are same and replace or insert.
-				if(Hash(0, values_[idx].first) == keyHash)
+				if(hasher_(0, values_[idx].first) == keyHash)
 				{
 					values_[idx] = keyValuePair;
 					return values_.data() + idx;
@@ -108,25 +108,25 @@ namespace Core
 			{
 				// No hit, insert.
 				values_.push_back(keyValuePair);
-				indices_[IndicesIdx] = values_.size() - 1;
+				indices_[indicesIdx] = values_.size() - 1;
 				return values_.data() + values_.size() - 1;
 			}
 		}
 
 		// TODO: TEST.
-		iterator erase(iterator It)
+		iterator erase(iterator it)
 		{
-			DBG_ASSERT_MSG(It >= begin() && It < end(), "Invalid iterator.");
-			index_type BaseIdx = (index_type)(It - begin());
-			values_.erase(It);
+			DBG_ASSERT_MSG(it >= begin() && it < end(), "Invalid iterator.");
+			index_type baseIdx = (index_type)(it - begin());
+			values_.erase(it);
 			for(auto& idx : indices_)
 			{
-				if(idx == BaseIdx)
+				if(idx == baseIdx)
 					idx = INVALID_INDEX;
-				else if(idx > BaseIdx)
+				else if(idx > baseIdx)
 					--idx;
 			}
-			return It;
+			return it;
 		}
 
 
@@ -137,9 +137,9 @@ namespace Core
 
 		const_iterator find(const KEY_TYPE& key) const
 		{
-			const u32 keyHash = Hash(0, key);
+			const u32 keyHash = hasher_(0, key);
 			const index_type indicesIdx = keyHash & mask_;
-			const index_type idx = indices_[IndicesIdx];
+			const index_type idx = indices_[indicesIdx];
 			if(idx != INVALID_INDEX)
 			{
 				return values_.data() + idx;
@@ -149,13 +149,13 @@ namespace Core
 
 		iterator find(const KEY_TYPE& key)
 		{
-			const u32 keyHash = Hash(0, key);
-			const index_type IndicesIdx = keyHash & mask_;
-			const index_type idx = indices_[IndicesIdx];
+			const u32 keyHash = hasher_(0, key);
+			const index_type indicesIdx = keyHash & mask_;
+			const index_type idx = indices_[indicesIdx];
 			if(idx != INVALID_INDEX)
 			{
 				iterator retVal = values_.data() + idx;
-				if(Hash(0, retVal->first) == keyHash)
+				if(hasher_(0, retVal->first) == keyHash)
 				{
 					return retVal;
 				}
@@ -184,11 +184,11 @@ namespace Core
 				// Reinsert all keys.
 				for(index_type idx = 0; idx < values_.size(); ++idx)
 				{
-					const u32 keyHash = Hash(0, values_[idx].first);
-					const index_type IndicesIdx = keyHash & mask_;
-					if(indices_[IndicesIdx] == INVALID_INDEX)
+					const u32 keyHash = hasher_(0, values_[idx].first);
+					const index_type indicesIdx = keyHash & mask_;
+					if(indices_[indicesIdx] == INVALID_INDEX)
 					{
-						indices_[IndicesIdx] = idx;
+						indices_[indicesIdx] = idx;
 					}
 					else
 					{
@@ -210,5 +210,7 @@ namespace Core
 
 		index_type maxIndex_ = 0x8;
 		index_type mask_ = 0x7;
+
+		HASHER hasher_;
 	};
 } // namespace Core

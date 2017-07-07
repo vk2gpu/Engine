@@ -65,4 +65,14 @@ namespace Core
 	inline u32 Hash(u32 Input, i32 Data) { return Input ^ Data; }
 	inline u32 Hash(u32 Input, i64 Data) { return HashCRC32(Input, &Data, sizeof(Data)); }
 
+	/**
+	 * Default hasher.
+	 */
+	template<typename TYPE>
+	class Hasher
+	{
+	public:
+		u32 operator()(u32 input, const TYPE& data) const { return Hash(input, data); }
+	};
+
 } // namespace Core
