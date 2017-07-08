@@ -19,6 +19,7 @@ install:
   - cmd: ispc --version
 
 before_build:
+  - cmd: cd c:\projects\engine
   - cmd: if not exist "build" mkdir build
   - cmd: cd build
   - cmd: cmake.exe .. -G "Visual Studio 14 2015 Win64"
