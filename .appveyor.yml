@@ -6,10 +6,14 @@ configuration:
   - Debug
   - Release
 
-build:
-  project: build/Engine.sln
+init:
+    - cmd: cmake --version
+    - cmd: msbuild /version
 
 before_build:
-  - if not exist "build" mkdir build
-  - cd build
-  - "C:\\Program Files (x86)\\cmake\\bin\\cmake.exe" .. -G "Visual Studio 14 2015 Win64"
+  - cmd: if not exist "build" mkdir build
+  - cmd: cd build
+  - cmd: cmake.exe .. -G "Visual Studio 14 2015 Win64"
+
+build:
+  project: build/Engine.sln
