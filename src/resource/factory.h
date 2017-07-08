@@ -47,10 +47,11 @@ namespace Resource
 		 * @param context Factory context.
 		 * @param inResource Resource to load into.
 		 * @param type Type UUID.
+		 * @param name Name of resource. Mostly for debug purposes.
 		 * @param inFile File to load resource from.
 		 */
 		virtual bool LoadResource(
-		    IFactoryContext& context, void** inResource, const Core::UUID& type, Core::File& inFile) = 0;
+		    IFactoryContext& context, void** inResource, const Core::UUID& type, const char* name, Core::File& inFile) = 0;
 
 		/**
 		 * Destroy resource.	

@@ -59,7 +59,7 @@ namespace
 		}
 
 		bool LoadResource(
-		    Resource::IFactoryContext& context, void** inResource, const Core::UUID& type, Core::File& inFile) override
+		    Resource::IFactoryContext& context, void** inResource, const Core::UUID& type, const char* name, Core::File& inFile) override
 		{
 			// Check type.
 			if(type != TestResource::GetTypeUUID())

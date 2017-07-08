@@ -31,6 +31,7 @@ namespace Core
 		}
 
 		Vector(Vector&& other) { swap(other); }
+		Vector(index_type size) { resize(size); }
 
 		~Vector() { internalResize(0); }
 

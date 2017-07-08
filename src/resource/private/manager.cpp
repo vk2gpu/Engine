@@ -11,6 +11,7 @@
 #include "core/map.h"
 #include "core/misc.h"
 #include "core/mpmc_bounded_queue.h"
+#include "core/string.h"
 #include "core/uuid.h"
 
 #include "job/manager.h"
@@ -481,11 +482,12 @@ namespace Resource
 	/// Resource load job.
 	struct ResourceLoadJob
 	{
-		ResourceLoadJob(ManagerImpl* impl, IFactory* factory, ResourceEntry* entry, Core::UUID type, Core::File&& file)
+		ResourceLoadJob(ManagerImpl* impl, IFactory* factory, ResourceEntry* entry, Core::UUID type, const char* name, Core::File&& file)
 		    : impl_(impl)
 		    , factory_(factory)
 		    , entry_(entry)
 		    , type_(type)
+			, name_(name)
 		    , file_(std::move(file))
 		{
 		}
@@ -493,7 +495,7 @@ namespace Resource
 		void RunJob()
 		{
 			FactoryContext factoryContext;
-			success_ = factory_->LoadResource(factoryContext, &entry_->resource_, type_, file_);
+			success_ = factory_->LoadResource(factoryContext, &entry_->resource_, type_, name_.c_str(), file_);
 			if(success_)
 				Core::AtomicInc(&entry_->loaded_);
 			impl_->ReleaseResourceEntry(entry_);
@@ -504,6 +506,7 @@ namespace Resource
 		IFactory* factory_ = nullptr;
 		ResourceEntry* entry_ = nullptr;
 		Core::UUID type_;
+		Core::String name_;
 		Core::File file_;
 		bool success_ = false;
 	};
@@ -625,7 +628,7 @@ namespace Resource
 						impl_->AcquireResourceEntry(entry);
 
 						auto* jobData = new ResourceLoadJob(
-						    impl_, factory, entry, type, Core::File(convertedPath.data(), Core::FileFlags::READ));
+						    impl_, factory, entry, type, fileName.data(), Core::File(convertedPath.data(), Core::FileFlags::READ));
 						Job::JobDesc jobDesc;
 						jobDesc.func_ = [](i32 inParam, void* inData) {
 							auto* data = reinterpret_cast<ResourceLoadJob*>(inData);

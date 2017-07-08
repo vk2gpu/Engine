@@ -10,7 +10,6 @@
 
 #include "gpu/manager.h"
 
-#include <memory>
 #include <utility>
 
 namespace Graphics
@@ -27,11 +26,11 @@ namespace Graphics
 	}
 
 	bool Factory::LoadResource(
-	    Resource::IFactoryContext& context, void** inResource, const Core::UUID& type, Core::File& inFile)
+	    Resource::IFactoryContext& context, void** inResource, const Core::UUID& type, const char* name, Core::File& inFile)
 	{ //
 		if(type == Texture::GetTypeUUID())
 		{
-			return LoadTexture(context, *reinterpret_cast<Texture**>(inResource), type, inFile);
+			return LoadTexture(context, *reinterpret_cast<Texture**>(inResource), type, name, inFile);
 		}
 
 
@@ -52,7 +51,7 @@ namespace Graphics
 	}
 
 	bool Factory::LoadTexture(
-	    Resource::IFactoryContext& context, Texture* inResource, const Core::UUID& type, Core::File& inFile)
+	    Resource::IFactoryContext& context, Texture* inResource, const Core::UUID& type, const char* name, Core::File& inFile)
 	{
 		GPU::TextureDesc desc;
 
@@ -66,11 +65,11 @@ namespace Graphics
 
 		// Allocate bytes to read in.
 		// TODO: Implement a Map/Unmap interface on Core::File to allow reading in-place or memory mapping.
-		std::unique_ptr<u8> texData(new u8[bytes]);
-		memset(texData.get(), 0, bytes);
+		Core::Vector<u8> texData((i32)bytes);
+		memset(texData.data(), 0, texData.size());
 
 		// Read texture data in.
-		inFile.Read(texData.get(), bytes);
+		inFile.Read(texData.data(), texData.size());
 
 		// Setup subresources.
 		i32 numSubRsc = desc.levels_ * desc.elements_;
@@ -90,7 +89,7 @@ namespace Graphics
 				const auto subRscSize = GPU::GetTextureSize(desc.format_, desc.width_, desc.height_, desc.depth_, 1, 1);
 
 				GPU::TextureSubResourceData subRsc;
-				subRsc.data_ = texData.get() + texDataOffset;
+				subRsc.data_ = texData.data() + texDataOffset;
 				subRsc.rowPitch_ = texLayoutInfo.pitch_;
 				subRsc.slicePitch_ = texLayoutInfo.slicePitch_;
 
@@ -103,7 +102,7 @@ namespace Graphics
 		GPU::Handle handle;
 		if(GPU::Manager::IsInitialized())
 		{
-			handle = GPU::Manager::CreateTexture(desc, subRscs.data(), "TODO NAME");
+			handle = GPU::Manager::CreateTexture(desc, subRscs.data(), name);
 		}
 
 		// Finish creating texture.
