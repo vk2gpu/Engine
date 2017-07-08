@@ -17,6 +17,7 @@ namespace
 TEST_CASE("window-tests-create")
 {
 	auto* window = new Window("window-tests-create", 0, 0, 640, 480);
+	REQUIRE(*window);
 	i32 x, y, w, h;
 	window->GetPosition(x, y);
 	window->GetSize(w, h);
@@ -30,6 +31,7 @@ TEST_CASE("window-tests-create")
 TEST_CASE("window-tests-position")
 {
 	auto* window = new Window("window-tests-position", 0, 0, 640, 480);
+	REQUIRE(*window);
 	i32 x = 32, y = 32;
 	window->SetPosition(x, y);
 	x = 0;
@@ -43,6 +45,7 @@ TEST_CASE("window-tests-position")
 TEST_CASE("window-tests-size")
 {
 	auto* window = new Window("window-tests-size", 0, 0, 640, 480);
+	REQUIRE(*window);
 	i32 w = 32, h = 32;
 	window->SetPosition(w, h);
 	w = 0;
@@ -56,6 +59,7 @@ TEST_CASE("window-tests-size")
 TEST_CASE("window-tests-platformdata")
 {
 	auto* window = new Window("window-tests-size", 0, 0, 640, 480);
+	REQUIRE(*window);
 	auto platformData = window->GetPlatformData();
 #if PLATFORM_WINDOWS
 	HWND hwnd = (HWND)platformData.handle_;

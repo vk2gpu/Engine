@@ -217,9 +217,18 @@ namespace Client
 
 		impl_ = new WindowImpl();
 		impl_->sdlWindow_ = SDL_CreateWindow(title, x, y, w, h, flags);
-		SDL_SetWindowData(impl_->sdlWindow_, "owner", this);
-
-		RegisterWindow(impl_);
+		if(impl_->sdlWindow_)
+		{
+			SDL_SetWindowData(impl_->sdlWindow_, "owner", this);
+			RegisterWindow(impl_);
+		}
+		else
+		{
+			const char* sdlError = SDL_GetError();
+			DBG_LOG("Client::Window: Failed to create window. SDL error: \"%s\"", sdlError);
+			delete impl_;
+			impl_ = nullptr;
+		}
 	}
 
 	Window::~Window()
@@ -247,7 +256,7 @@ namespace Client
 	void Window::GetPosition(i32& x, i32& y)
 	{
 		DBG_ASSERT(impl_);
-		int ix, iy;
+		int ix = 0, iy = 0;
 		SDL_GetWindowPosition(impl_->sdlWindow_, &ix, &iy);
 		x = (i32)ix;
 		y = (i32)iy;
@@ -264,7 +273,7 @@ namespace Client
 	void Window::GetSize(i32& w, i32& h) const
 	{
 		DBG_ASSERT(impl_);
-		int iw, ih;
+		int iw = 0, ih = 0;
 		SDL_GetWindowSize(impl_->sdlWindow_, &iw, &ih);
 		w = (i32)iw;
 		h = (i32)ih;

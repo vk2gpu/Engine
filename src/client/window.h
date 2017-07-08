@@ -71,6 +71,11 @@ namespace Client
 		 */
 		const IInputProvider& GetInputProvider();
 
+		/**
+		 * Bool operator for validity checking.
+		 */
+		operator bool() const { return !!impl_; }
+
 	private:
 		Window(const Window&) = delete;
 		class WindowImpl* impl_ = nullptr;
