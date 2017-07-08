@@ -7,8 +7,16 @@ configuration:
   - Release
 
 init:
-    - cmd: cmake --version
-    - cmd: msbuild /version
+  - cmd: cmake --version
+  - cmd: msbuild /version
+
+install:
+  - cmd: mkdir c:\projects\deps
+  - cmd: cd c:\projects\deps 
+  - cmd: curl -L -o ispc-v1.9.1-windows-vs2015.zip https://downloads.sourceforge.net/project/ispcmirror/v1.9.1/ispc-v1.9.1-windows-vs2015.zip
+  - cmd: 7z x ispc-v1.9.1-windows-vs2015.zip
+  - cmd: set PATH=C:\projects\deps\ispc-v1.9.1-windows-vs2015;%PATH%
+  - cmd: ispc --version
 
 before_build:
   - cmd: if not exist "build" mkdir build
