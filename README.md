@@ -1,6 +1,8 @@
 Engine
 ======
 
+[![Build Status](https://ci.appveyor.com/api/projects/status/github/neilogd/Engine?svg=true)](https://ci.appveyor.com/project/neilogd/Engine)
+
 After working on my old engine Psybrus for several years, I got a little bored and frustrated with how large it was becoming, as well as some of my poor choices along the way that seemed to be a'ok at the time. As my engines are only for my own personal learning experience, plus having a framework I can experiment inside of, I decided to start again.
 
 Some of the goals I intend to keep in mind for this engine:
