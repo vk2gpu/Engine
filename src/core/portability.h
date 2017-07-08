@@ -61,12 +61,16 @@
 #define ARCH_X86_64 1
 #define ENDIAN_LITTLE 1
 #define ENDIAN_BIG 0
+#define CACHE_LINE_SIZE 64
+#define PLATFORM_ALIGNMENT 16
 
 // i386 (and higher)
 #elif defined(__i386__) || defined(__i486__) || defined(__i586__) || defined(__i686__) || defined(_M_IX86)
 #define ARCH_X86 1
 #define ENDIAN_LITTLE 1
 #define ENDIAN_BIG 0
+#define CACHE_LINE_SIZE 64
+#define PLATFORM_ALIGNMENT 16
 
 // ARM
 #elif defined(__arm__) || defined(__ARM_ARCH_7A__) || defined(__ARM_ARCH_7S__) || defined(TARGET_OS_IPHONE) ||         \
@@ -74,18 +78,24 @@
 #define ARCH_ARM 1
 #define ENDIAN_LITTLE 1
 #define ENDIAN_BIG 0
+#define CACHE_LINE_SIZE 64
+#define PLATFORM_ALIGNMENT 16
 
 // THUMB
 #elif defined(__thumb__)
 #define ARCH_THUMB 1
 #define ENDIAN_LITTLE 1
 #define ENDIAN_LITTLE 0
+#define CACHE_LINE_SIZE 64
+#define PLATFORM_ALIGNMENT 4
 
 // Emscripten (asm.js)
 #elif defined(EMSCRIPTEN)
 #define ARCH_ASMJS 1
 #define ENDIAN_LITTLE 1
 #define ENDIAN_BIG 0
+#define CACHE_LINE_SIZE 64
+#define PLATFORM_ALIGNMENT 4
 
 // END.
 #endif
@@ -132,6 +142,7 @@
 #else
 #define COMPILER_MSVC 0
 #endif
+
 
 //////////////////////////////////////////////////////////////////////////
 // Inlining.

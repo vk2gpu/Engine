@@ -125,7 +125,6 @@ namespace Core
 			TYPE data_ = TYPE();
 		};
 
-		static i32 const CACHE_LINE_SIZE = 64;
 		typedef char CacheLinePad[CACHE_LINE_SIZE];
 
 		CacheLinePad pad0_ = {0};
