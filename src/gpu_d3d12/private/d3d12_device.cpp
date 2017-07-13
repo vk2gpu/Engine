@@ -62,6 +62,8 @@ namespace GPU
 
 	D3D12Device::~D3D12Device()
 	{ //
+		NextFrame();
+
 		::CloseHandle(frameFenceEvent_);
 		::CloseHandle(uploadFenceEvent_);
 		delete uploadCommandList_;
