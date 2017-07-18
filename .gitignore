@@ -1,0 +1,5 @@
+*.zip
+*.pyc
+.svn/
+build/
+scripts/*.pyc
