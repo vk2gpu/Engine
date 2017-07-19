@@ -11,8 +11,6 @@
 #include <stb_c_lexer.h>
 #pragma warning(pop)
 
-#include <type_traits>
-
 namespace Graphics
 {
 	namespace AST

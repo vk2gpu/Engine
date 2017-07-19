@@ -1,3 +1,8 @@
+#pragma once
+
+#include "00-basic.esf"
+
+
 struct VS_IN
 {
 	float3 position_ : SV_POSITION; // comment test.

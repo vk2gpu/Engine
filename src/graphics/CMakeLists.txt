@@ -21,11 +21,13 @@ SET(SOURCES_TESTS
 	# Pull in shader parser for test usage.
 	"converters/shader_parser.h"
 	"converters/shader_parser.cpp"
+	"converters/shader_preprocessor.h"
+	"converters/shader_preprocessor.cpp"
 )
 
 ADD_ENGINE_LIBRARY(graphics ${SOURCES_PUBLIC} ${SOURCES_PRIVATE} ${SOURCES_TESTS})
 TARGET_LINK_LIBRARIES(graphics gpu job math resource)
-TARGET_LINK_LIBRARIES(graphics_test client)
+TARGET_LINK_LIBRARIES(graphics_test client fcpp)
 
 # Plugins
 SET(SOURCES_TEXTURE_CONVERTER
@@ -40,6 +42,8 @@ SET(SOURCES_SHADER_CONVERTER
 	"converters/converter_shader.cpp"
 	"converters/shader_parser.h"
 	"converters/shader_parser.cpp"
+	"converters/shader_preprocessor.h"
+	"converters/shader_preprocessor.cpp"
 )
 
 INCLUDE_DIRECTORIES(

@@ -124,7 +124,7 @@ namespace Core
 		bool operator>=(const String& str) const { return internalCompare(str.c_str()) >= 0; }
 
 	private:
-		String& internalRemoveNullTerminator();
+		String& internalRemoveNullTerminator(bool forceRemove = true);
 		String& internalSet(const char* begin, const char* end = nullptr);
 		String& internalAppend(const char* str, index_type subPos = 0, index_type subLen = npos);
 		int internalCompare(const char* str) const;

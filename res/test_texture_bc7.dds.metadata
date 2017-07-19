@@ -2,3 +2,5 @@
    "format" : "BC7_UNORM_SRGB",
    "generateMipLevels" : false
 }
+
+}

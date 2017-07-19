@@ -79,9 +79,9 @@ namespace Core
 		return *this;
 	}
 
-	String& String::internalRemoveNullTerminator()
+	String& String::internalRemoveNullTerminator(bool forceRemove)
 	{
-		if(data_.size() > 1)
+		if(data_.size() > (forceRemove ? 0 : 1))
 			data_.pop_back();
 		return *this;
 	}
@@ -119,7 +119,7 @@ namespace Core
 			if(subLen == npos)
 				subLen = strLen;
 			DBG_ASSERT((subPos + subLen) <= strLen);
-			internalRemoveNullTerminator();
+			internalRemoveNullTerminator(true);
 			data_.insert(str + subPos, str + subPos + subLen);
 			data_.emplace_back('\0');
 		}

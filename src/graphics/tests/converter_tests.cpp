@@ -45,12 +45,10 @@ TEST_CASE("graphics-tests-converter-shader")
 	Resource::Manager::Scoped resourceManager;
 	ScopedFactory factory;
 
-#if 0
 	Graphics::Shader* shader = nullptr;
 	REQUIRE(Resource::Manager::RequestResource(shader, "shader_tests/00-basic.esf"));
 	Resource::Manager::WaitForResource(shader);
 	REQUIRE(Resource::Manager::ReleaseResource(shader));
-#endif
 }
 
 TEST_CASE("graphics-tests-converter-texture")
