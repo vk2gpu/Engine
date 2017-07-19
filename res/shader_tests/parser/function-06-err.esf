@@ -1,0 +1,6 @@
+// TYPE_MISSING: MyStruct.
+void testFunc(MyStruct a)
+{
+	
+}
+

@@ -50,8 +50,8 @@ namespace Resource
 		 * @param name Name of resource. Mostly for debug purposes.
 		 * @param inFile File to load resource from.
 		 */
-		virtual bool LoadResource(
-		    IFactoryContext& context, void** inResource, const Core::UUID& type, const char* name, Core::File& inFile) = 0;
+		virtual bool LoadResource(IFactoryContext& context, void** inResource, const Core::UUID& type, const char* name,
+		    Core::File& inFile) = 0;
 
 		/**
 		 * Destroy resource.	

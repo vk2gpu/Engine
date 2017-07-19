@@ -19,6 +19,7 @@ namespace Core
 		using value_type = TYPE;
 		using iterator = value_type*;
 		using const_iterator = const value_type*;
+		static const index_type MIN_SIZE = 16;
 
 		Vector() = default;
 
@@ -209,9 +210,9 @@ namespace Core
 		bool empty() const noexcept { return size_ == 0; }
 
 	private:
-		static index_type getGrowCapacity(index_type CurrCapacity)
+		static index_type getGrowCapacity(index_type currCapacity)
 		{
-			return CurrCapacity ? (CurrCapacity + CurrCapacity / 2) : 16;
+			return currCapacity >= MIN_SIZE ? (currCapacity + (currCapacity / 2)) : MIN_SIZE;
 		}
 
 		static iterator uninitialized_move(iterator first, iterator last, iterator dest)

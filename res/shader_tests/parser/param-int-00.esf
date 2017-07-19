@@ -1,0 +1,3 @@
+int myParam0;
+static int myParam1;
+const int myParam2;

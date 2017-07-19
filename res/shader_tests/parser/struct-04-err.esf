@@ -1,0 +1,4 @@
+// UNEXPECTED_TOKEN 'float3' : expecting '{'
+struct VS_IN
+	float3 position_ : SV_POSITION
+};

@@ -1,0 +1,27 @@
+struct VS_IN
+{
+	float3 position_ : SV_POSITION; // comment test.
+}; /* comment test 2 */
+
+struct VS_OUT
+{
+	float3 position_ : SV_POSITION;
+};
+
+VS_OUT vs_main(VS_IN _in)
+{
+	VS_OUT _out = (VS_OUT)0;
+	_out.position_ = _in.position;
+	return out;
+}
+
+float4 ps_main(VS_OUT _in) : COLOR0
+{
+	return float4(1.0, 1.0, 1.0, 1.0);
+}
+
+technique main_technique
+{
+	VertexShader = vs_main();
+	PixelShader = ps_main();
+}

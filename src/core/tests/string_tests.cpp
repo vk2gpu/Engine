@@ -110,3 +110,16 @@ TEST_CASE("string-test-hash")
 	Core::String str1("Test hash");
 	REQUIRE(Core::Hash(0, str1) == Core::Hash(0, "Test hash"));
 }
+
+
+TEST_CASE("stringview-test-basic")
+{
+	const char* inStr = "Hello, world";
+	Core::String str(inStr);
+	Core::StringView view(inStr);
+
+	REQUIRE(str.size() == view.size());
+	REQUIRE(str == inStr);
+	REQUIRE(view == inStr);
+	REQUIRE(str == view);
+}

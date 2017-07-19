@@ -1,0 +1,5 @@
+// UNEXPECTED_TOKEN: 'SV_POSITION'
+struct VS_IN
+{
+	float3 position_ SV_POSITION;
+};

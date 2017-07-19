@@ -1,0 +1,16 @@
+RWBuffer<float4> myBuffer;
+RWByteAddressBuffer myBuffer1;
+
+struct MyStruct
+{
+    float4 color_;
+    float4 normal_;
+};
+
+RWStructuredBuffer<MyStruct> myBuffer2;
+
+RWTexture1D<float4> myTexture0;
+RWTexture1DArray<float4> myTexture1;
+RWTexture2D<float4> myTexture2;
+RWTexture2DArray<float4> myTexture3;
+RWTexture3D<float4> myTexture4;

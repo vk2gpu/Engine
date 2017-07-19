@@ -482,13 +482,12 @@ namespace Resource
 	/// Resource load job.
 	struct ResourceLoadJob
 	{
-		ResourceLoadJob(ManagerImpl* impl, IFactory* factory, ResourceEntry* entry, Core::UUID type, const char* name,
-		    Core::File&& file)
+		ResourceLoadJob(ManagerImpl* impl, IFactory* factory, ResourceEntry* entry, Core::UUID type, const char* name, Core::File&& file)
 		    : impl_(impl)
 		    , factory_(factory)
 		    , entry_(entry)
 		    , type_(type)
-		    , name_(name)
+			, name_(name)
 		    , file_(std::move(file))
 		{
 		}
@@ -628,8 +627,8 @@ namespace Resource
 						// Acquire entry for job.
 						impl_->AcquireResourceEntry(entry);
 
-						auto* jobData = new ResourceLoadJob(impl_, factory, entry, type, fileName.data(),
-						    Core::File(convertedPath.data(), Core::FileFlags::READ));
+						auto* jobData = new ResourceLoadJob(
+						    impl_, factory, entry, type, fileName.data(), Core::File(convertedPath.data(), Core::FileFlags::READ));
 						Job::JobDesc jobDesc;
 						jobDesc.func_ = [](i32 inParam, void* inData) {
 							auto* data = reinterpret_cast<ResourceLoadJob*>(inData);

@@ -1,5 +1,7 @@
 #include "graphics/factory.h"
+#include "graphics/shader.h"
 #include "graphics/texture.h"
+#include "graphics/private/shader_impl.h"
 #include "graphics/private/texture_impl.h"
 
 #include "core/file.h"
@@ -16,7 +18,12 @@ namespace Graphics
 {
 	bool Factory::CreateResource(Resource::IFactoryContext& context, void** outResource, const Core::UUID& type)
 	{
-		if(type == Texture::GetTypeUUID())
+		if(type == Shader::GetTypeUUID())
+		{
+			*outResource = new Shader();
+			return true;
+		}
+		else if(type == Texture::GetTypeUUID())
 		{
 			*outResource = new Texture();
 			return true;
@@ -25,10 +32,14 @@ namespace Graphics
 		return false;
 	}
 
-	bool Factory::LoadResource(
-	    Resource::IFactoryContext& context, void** inResource, const Core::UUID& type, const char* name, Core::File& inFile)
+	bool Factory::LoadResource(Resource::IFactoryContext& context, void** inResource, const Core::UUID& type,
+	    const char* name, Core::File& inFile)
 	{ //
-		if(type == Texture::GetTypeUUID())
+		if(type == Shader::GetTypeUUID())
+		{
+			return LoadShader(context, *reinterpret_cast<Shader**>(inResource), type, name, inFile);
+		}
+		else if(type == Texture::GetTypeUUID())
 		{
 			return LoadTexture(context, *reinterpret_cast<Texture**>(inResource), type, name, inFile);
 		}
@@ -50,8 +61,33 @@ namespace Graphics
 		return false;
 	}
 
-	bool Factory::LoadTexture(
-	    Resource::IFactoryContext& context, Texture* inResource, const Core::UUID& type, const char* name, Core::File& inFile)
+	bool Factory::LoadShader(Resource::IFactoryContext& context, Shader* inResource, const Core::UUID& type,
+	    const char* name, Core::File& inFile)
+	{
+		Graphics::ShaderHeader header;
+
+		// Read in desc.
+		if(inFile.Read(&header, sizeof(header)) != sizeof(header))
+		{
+			return false;
+		}
+
+		// Check version.
+		if(header.majorVersion_ != Graphics::ShaderHeader::MAJOR_VERSION)
+			return false;
+
+		if(header.minorVersion_ != Graphics::ShaderHeader::MINOR_VERSION)
+			DBG_LOG("Minor version differs from expected.");
+
+
+		// Finish creating shader.
+		inResource->impl_ = new ShaderImpl();
+
+		return true;
+	}
+
+	bool Factory::LoadTexture(Resource::IFactoryContext& context, Texture* inResource, const Core::UUID& type,
+	    const char* name, Core::File& inFile)
 	{
 		GPU::TextureDesc desc;
 

@@ -1,0 +1,2 @@
+// UNEXPECTED_EOF due to lack of ;
+float myParam

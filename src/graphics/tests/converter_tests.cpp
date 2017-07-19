@@ -11,6 +11,7 @@
 #include "resource/manager.h"
 
 #include "graphics/factory.h"
+#include "graphics/shader.h"
 #include "graphics/texture.h"
 
 
@@ -22,6 +23,7 @@ namespace
 		ScopedFactory()
 		{
 			factory_ = new Graphics::Factory();
+			Resource::Manager::RegisterFactory<Graphics::Shader>(factory_);
 			Resource::Manager::RegisterFactory<Graphics::Texture>(factory_);
 		}
 
@@ -34,6 +36,21 @@ namespace
 	private:
 		Resource::IFactory* factory_ = nullptr;
 	};
+}
+
+TEST_CASE("graphics-tests-converter-shader")
+{
+	Plugin::Manager::Scoped pluginManager;
+	Job::Manager::Scoped jobManager(2, 256, 32 * 1024);
+	Resource::Manager::Scoped resourceManager;
+	ScopedFactory factory;
+
+#if 0
+	Graphics::Shader* shader = nullptr;
+	REQUIRE(Resource::Manager::RequestResource(shader, "shader_tests/00-basic.esf"));
+	Resource::Manager::WaitForResource(shader);
+	REQUIRE(Resource::Manager::ReleaseResource(shader));
+#endif
 }
 
 TEST_CASE("graphics-tests-converter-texture")

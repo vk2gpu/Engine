@@ -175,7 +175,12 @@
 //////////////////////////////////////////////////////////////////////////
 // Disable warnings.
 #if COMPILER_MSVC
-#pragma warning(disable : 4201) // nonstandard extension used: nameless struct/union
+/// nonstandard extension used: nameless struct/union
+#pragma warning(disable : 4201)
+/// '<member_type>' needs to have dll-interface to be used by clients of class '<containing_type>'
+#pragma warning(disable : 4251)
+/// conditional expression is constant
+#pragma warning(disable : 4127)
 #endif
 
 //////////////////////////////////////////////////////////////////////////

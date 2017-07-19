@@ -1,0 +1,3 @@
+// UNEXPECTED_EOF due to lack of ;
+const static float myParam;
+

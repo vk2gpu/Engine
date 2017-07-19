@@ -1,0 +1,3 @@
+float myParam0;
+static float myParam1;
+const float myParam2;

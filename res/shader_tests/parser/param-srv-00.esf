@@ -1,0 +1,20 @@
+Buffer<float4> myBuffer;
+ByteAddressBuffer myBuffer1;
+
+struct MyStruct
+{
+    float4 color_;
+    float4 normal_;
+};
+
+StructuredBuffer<MyStruct> myBuffer2;
+
+Texture1D<float4> myTexture0;
+Texture1DArray<float4> myTexture1;
+Texture2D<float4> myTexture2;
+Texture2DArray<float4> myTexture3;
+Texture3D<float4> myTexture4;
+Texture2DMS<float4> myTexture5;
+Texture2DMSArray<float4> myTexture6;
+TextureCube<float4> myTexture7;
+TextureCubeArray<float4> myTexture8;

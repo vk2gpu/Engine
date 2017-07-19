@@ -1,0 +1,6 @@
+// TYPE_MISSING: None of these exist.
+RWTexture2DMS<float4> myTexture0;
+RWTexture2DMSArray<float4> myTexture1;
+RWTexture3DArray<float4> myTexture3;
+RWTextureCube<float4> myTexture4;
+RWTextureCubeArray<float4> myTexture5;

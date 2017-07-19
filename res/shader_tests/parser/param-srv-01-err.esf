@@ -1,0 +1,2 @@
+// TYPE_MISSING: Texture3DArray<float> 
+Texture3DArray<float4> myTexture0;

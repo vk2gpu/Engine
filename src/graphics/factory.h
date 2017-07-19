@@ -9,12 +9,15 @@ namespace Graphics
 	{
 	public:
 		bool CreateResource(Resource::IFactoryContext& context, void** outResource, const Core::UUID& type) override;
-		bool LoadResource(
-		    Resource::IFactoryContext& context, void** inResource, const Core::UUID& type, const char* name, Core::File& inFile) override;
+		bool LoadResource(Resource::IFactoryContext& context, void** inResource, const Core::UUID& type,
+		    const char* name, Core::File& inFile) override;
 		bool DestroyResource(Resource::IFactoryContext& context, void** inResource, const Core::UUID& type) override;
 
 	private:
-		bool LoadTexture(
-		    Resource::IFactoryContext& context, class Texture* inResource, const Core::UUID& type, const char* name, Core::File& inFile);
+		bool LoadShader(Resource::IFactoryContext& context, class Shader* inResource, const Core::UUID& type,
+		    const char* name, Core::File& inFile);
+
+		bool LoadTexture(Resource::IFactoryContext& context, class Texture* inResource, const Core::UUID& type,
+		    const char* name, Core::File& inFile);
 	};
 } // namespace Graphics

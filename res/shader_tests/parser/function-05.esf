@@ -1,0 +1,10 @@
+struct MyStruct
+{
+	int val;
+};
+
+void testFunc(MyStruct a)
+{
+	
+}
+

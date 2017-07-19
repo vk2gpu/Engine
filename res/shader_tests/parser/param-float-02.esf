@@ -1,0 +1,1 @@
+float myParam : SEMANTIC = 3.14159265359;

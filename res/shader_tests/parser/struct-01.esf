@@ -1,0 +1,3 @@
+struct VS_IN
+{
+};
