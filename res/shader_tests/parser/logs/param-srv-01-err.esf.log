@@ -1,0 +1,3 @@
+param-srv-01-err.esf(2-14): error: 105: 'Texture3DArray': type missing
+> Texture3DArray<float4> myTexture0;
+>              ^

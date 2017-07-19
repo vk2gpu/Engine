@@ -10,97 +10,88 @@
 namespace
 {
 	using namespace Graphics::AST;
-	i32 indent = 0;
 
-	struct ScopedIndent
+	// clang-format off
+	NodeStorageClass STORAGE_CLASSES[] = 
 	{
-		ScopedIndent() { ++indent; }
-		~ScopedIndent() { --indent; }
+		"extern",
+		"nointerpolation",
+		"precise",
+		"shared",
+		"groupshared",
+		"static",
+		"uniform",
+		"volatile",
 	};
 
-	void LogToken(Token token_)
+	NodeModifier MODIFIERS[] =
 	{
-		Core::String outStr;
-		const char* type = "INVALID:";
-		switch(token_.type_)
-		{
-		case TokenType::IDENTIFIER:
-			type = "IDENTIFIER";
-			break;
-		case TokenType::CHAR:
-			type = "CHAR";
-			break;
-		case TokenType::INT:
-			type = "INT";
-			break;
-		case TokenType::FLOAT:
-			type = "FLOAT";
-			break;
-		case TokenType::STRING:
-			type = "STRING";
-			break;
-		}
+		"const",
+		"row_major",
+		"column_major",
+	};
 
-		for(i32 idx = 0; idx < indent; ++idx)
-		{
-			outStr.Appendf(" -");
-		}
-		outStr.Appendf(" \"%s\" (%s)", token_.value_.c_str(), type);
-		Core::Log("%s\n", outStr.c_str());
-	}
+	NodeType BASE_TYPES[] =
+	{
+		{"void", 0},
+		{"float", 4},
+		{"float2", 8},
+		{"float3", 12},
+		{"float4", 16},
+		{"float3x3", 36},
+		{"float4x4", 64},
+		{"int", 4},
+		{"int2", 8},
+		{"int3", 12},
+		{"int4", 16},
+		{"uint", 4},
+		{"uint2", 8},
+		{"uint3", 12},
+		{"uint4", 16},
+	};
+
+	NodeType SRV_TYPES[] =
+	{
+		"Buffer", 
+		"ByteAddressBuffer", 
+		"StructuredBuffer", 
+		"Texture1D", 
+		"Texture1DArray", 
+		"Texture2D",
+		"Texture2DArray", 
+		"Texture3D", 
+		"Texture2DMS", 
+		"Texture2DMSArray", 
+		"TextureCube",
+		"TextureCubeArray",
+	};
+
+	NodeType UAV_TYPES[] =
+	{
+		"RWBuffer",
+		"RWByteAddressBuffer",
+		"RWStructuredBuffer",
+		"RWTexture1D",
+		"RWTexture1DArray",
+		"RWTexture2D",
+		"RWTexture2DArray",
+		"RWTexture3D",
+	};
+	// clang-format on
 }
 
 namespace Graphics
 {
-	namespace AST
-	{
-	} // namespace AST
-
 	ShaderParser::ShaderParser()
 	{
-		AddType("void", 0);
-		AddType("float", 4);
-		AddType("float2", 8);
-		AddType("float3", 12);
-		AddType("float4", 16);
-		AddType("float3x3", 36);
-		AddType("float4x4", 64);
-		AddType("int", 4);
-		AddType("int2", 8);
-		AddType("int3", 12);
-		AddType("int4", 16);
-		AddType("uint", 4);
-		AddType("uint2", 8);
-		AddType("uint3", 12);
-		AddType("uint4", 16);
+		AddNodes(STORAGE_CLASSES);
+		AddReserved(STORAGE_CLASSES);
 
-		const char* srvTypes[] = {
-		    "Buffer", "ByteAddressBuffer", "StructuredBuffer", "Texture1D", "Texture1DArray", "Texture2D",
-		    "Texture2DArray", "Texture3D", "Texture2DMS", "Texture2DMSArray", "TextureCube", "TextureCubeArray",
-		};
-
-		const char* uavTypes[] = {
-		    "RWBuffer", "RWByteAddressBuffer", "RWStructuredBuffer", "RWTexture1D", "RWTexture1DArray", "RWTexture2D",
-		    "RWTexture2DArray", "RWTexture3D",
-		};
-
-		for(auto type : srvTypes)
-			AddType(type, -1);
-		for(auto type : uavTypes)
-			AddType(type, -1);
-
-		AddStorageClass("extern");
-		AddStorageClass("nointerpolation");
-		AddStorageClass("precise");
-		AddStorageClass("shared");
-		AddStorageClass("groupshared");
-		AddStorageClass("static");
-		AddStorageClass("uniform");
-		AddStorageClass("volatile");
-
-		AddModifier("const");
-		AddModifier("row_major");
-		AddModifier("column_major");
+		AddNodes(MODIFIERS);
+		AddReserved(MODIFIERS);
+		AddNodes(BASE_TYPES);
+		AddNodes(SRV_TYPES);
+		AddNodes(UAV_TYPES);
 	}
 
 	ShaderParser::~ShaderParser() {}
@@ -145,14 +136,19 @@ namespace Graphics
 
 	AST::NodeShaderFile* ShaderParser::ParseShaderFile(stb_lexer& lexCtx)
 	{
-		ScopedIndent scopedIndent;
-		AST::NodeShaderFile* node = new AST::NodeShaderFile();
-		node->name_ = "<root>";
+		AST::NodeShaderFile* node = AddNode<AST::NodeShaderFile>();
 
 		while(NextToken(lexCtx))
 		{
 			switch(token_.type_)
 			{
+			case AST::TokenType::CHAR:
+			{
+				auto* attributeNode = ParseAttribute(lexCtx);
+				if(attributeNode)
+					attributeNodes_.push_back(attributeNode);
+			}
+			break;
 			case AST::TokenType::IDENTIFIER:
 			{
 				if(token_.value_ == "struct")
@@ -160,7 +156,7 @@ namespace Graphics
 					auto* structNode = ParseStruct(lexCtx);
 					if(structNode)
 					{
-						structNodes_[structNode->name_] = structNode;
+						structNodes_.Add(structNode);
 						node->structs_.push_back(structNode);
 					}
 				}
@@ -190,12 +186,54 @@ namespace Graphics
 		return node;
 	}
 
+	AST::NodeAttribute* ShaderParser::ParseAttribute(stb_lexer& lexCtx)
+	{
+		AST::NodeAttribute* node = nullptr;
+
+		if(token_.value_ == "[")
+		{
+			PARSE_TOKEN();
+			CHECK_TOKEN(AST::TokenType::IDENTIFIER, "");
+			node = AddNode<AST::NodeAttribute>(token_.value_.c_str());
+
+			PARSE_TOKEN();
+			if(token_.value_ == "(")
+			{
+				PARSE_TOKEN();
+				while(token_.value_ != ")")
+				{
+					if(token_.type_ == AST::TokenType::INT || token_.type_ == AST::TokenType::FLOAT ||
+					    token_.type_ == AST::TokenType::STRING)
+					{
+						node->parameters_.emplace_back(token_.value_);
+						PARSE_TOKEN();
+					}
+					else
+					{
+						Error(lexCtx, node, ErrorType::UNEXPECTED_TOKEN,
+						    Core::String().Printf(
+						        "\'%s\': Unexpected token. Should be uint, int, float or string value.",
+						        token_.value_.c_str()));
+						return node;
+					}
+
+					if(token_.value_ == ",")
+					{
+						PARSE_TOKEN();
+					}
+				}
+				PARSE_TOKEN();
+			}
+			CHECK_TOKEN(AST::TokenType::CHAR, "]");
+		}
+		return node;
+	}
+
 	AST::NodeStorageClass* ShaderParser::ParseStorageClass(stb_lexer& lexCtx)
 	{
-		ScopedIndent scopedIndent;
 		AST::NodeStorageClass* node = nullptr;
 
-		node = FindStorageClass(token_.value_.c_str());
+		node = storageClassNodes_.Find(token_.value_.c_str());
 		if(node != nullptr)
 		{
 			PARSE_TOKEN();
@@ -205,10 +243,9 @@ namespace Graphics
 
 	AST::NodeModifier* ShaderParser::ParseModifier(stb_lexer& lexCtx)
 	{
-		ScopedIndent scopedIndent;
 		AST::NodeModifier* node = nullptr;
 
-		node = FindModifier(token_.value_.c_str());
+		node = modifierNodes_.Find(token_.value_.c_str());
 		if(node != nullptr)
 		{
 			PARSE_TOKEN();
@@ -218,7 +255,6 @@ namespace Graphics
 
 	AST::NodeType* ShaderParser::ParseType(stb_lexer& lexCtx)
 	{
-		ScopedIndent scopedIndent;
 		AST::NodeType* node = nullptr;
 
 		CHECK_TOKEN(AST::TokenType::IDENTIFIER, "");
@@ -232,7 +268,7 @@ namespace Graphics
 		}
 
 		// Find type.
-		node = FindType(token_.value_.c_str());
+		node = typeNodes_.Find(token_.value_.c_str());
 		if(node == nullptr)
 		{
 			Error(lexCtx, node, ErrorType::TYPE_MISSING,
@@ -245,8 +281,7 @@ namespace Graphics
 
 	AST::NodeTypeIdent* ShaderParser::ParseTypeIdent(stb_lexer& lexCtx)
 	{
-		ScopedIndent scopedIndent;
-		AST::NodeTypeIdent* node = new AST::NodeTypeIdent();
+		AST::NodeTypeIdent* node = AddNode<AST::NodeTypeIdent>();
 
 		// Parse base modifiers.
 		while(auto* modifierNode = ParseModifier(lexCtx))
@@ -280,8 +315,7 @@ namespace Graphics
 
 	AST::NodeStruct* ShaderParser::ParseStruct(stb_lexer& lexCtx)
 	{
-		ScopedIndent scopedIndent;
-		AST::NodeStruct* node = new AST::NodeStruct();
+		AST::NodeStruct* node = nullptr;
 
 		// Check struct.
 		CHECK_TOKEN(AST::TokenType::IDENTIFIER, "struct");
@@ -289,15 +323,17 @@ namespace Graphics
 		// Parse name.
 		PARSE_TOKEN();
 		CHECK_TOKEN(AST::TokenType::IDENTIFIER, "");
-		node->name_ = token_.value_;
+		node = AddNode<AST::NodeStruct>(token_.value_.c_str());
 
-		auto* nodeType = FindType(token_.value_.c_str());
+		auto* nodeType = typeNodes_.Find(token_.value_.c_str());
 		if(nodeType != nullptr)
 		{
 			Error(lexCtx, node, ErrorType::TYPE_REDEFINITION,
 			    Core::String().Printf("\'%s\': 'struct' type redefinition.", token_.value_.c_str()));
 			return node;
 		}
+
+		node = AddNode<AST::NodeStruct>(token_.value_.c_str());
 
 		// Check if token is a reserved keyword.
 		if(reserved_.find(token_.value_) != reserved_.end())
@@ -307,7 +343,11 @@ namespace Graphics
 			return node;
 		}
 
-		node->type_ = AddType(token_.value_.c_str(), -1);
+		//
+		node->type_ = AddNode<AST::NodeType>(token_.value_.c_str(), -1);
+
+		// consume attributes.
+		node->attributes_ = std::move(attributeNodes_);
 
 		// Parse {
 		PARSE_TOKEN();
@@ -316,6 +356,12 @@ namespace Graphics
 			PARSE_TOKEN();
 			while(token_.value_ != "}")
 			{
+				while(auto* attributeNode = ParseAttribute(lexCtx))
+				{
+					PARSE_TOKEN();
+					attributeNodes_.push_back(attributeNode);
+				}
+
 				CHECK_TOKEN(AST::TokenType::IDENTIFIER, "");
 				auto* memberNode = ParseDeclaration(lexCtx);
 				if(memberNode)
@@ -343,17 +389,18 @@ namespace Graphics
 
 	AST::NodeDeclaration* ShaderParser::ParseDeclaration(stb_lexer& lexCtx)
 	{
-		ScopedIndent scopedIndent;
-		AST::NodeDeclaration* node = new AST::NodeDeclaration();
+		AST::NodeDeclaration* node = nullptr;
+
+		Core::Vector<NodeStorageClass*> storageClasses;
 
 		// Parse storage class.
 		while(auto* storageClassNode = ParseStorageClass(lexCtx))
 		{
-			node->storageClasses_.push_back(storageClassNode);
+			storageClasses.push_back(storageClassNode);
 		}
 
 		// Parse type identifier.
-		node->type_ = ParseTypeIdent(lexCtx);
+		auto* nodeTypeIdent = ParseTypeIdent(lexCtx);
 
 		// Check name.
 		CHECK_TOKEN(AST::TokenType::IDENTIFIER, "");
@@ -365,8 +412,12 @@ namespace Graphics
 			    Core::String().Printf("\'%s\': is a reserved keyword.", token_.value_.c_str()));
 			return node;
 		}
+		node = AddNode<AST::NodeDeclaration>(token_.value_.c_str());
+		node->storageClasses_ = std::move(storageClasses);
+		node->type_ = nodeTypeIdent;
 
-		node->name_ = token_.value_;
+		// consume attributes.
+		node->attributes_ = std::move(attributeNodes_);
 
 		// Check for params/semantic/assignment/end.
 		PARSE_TOKEN();
@@ -569,72 +620,27 @@ namespace Graphics
 		stb_lex_location loc;
 		stb_c_lexer_get_location(&lexCtx, lexCtx.parse_point, &loc);
 
+		const char* line_start = lexCtx.parse_point - loc.line_offset;
+		const char* line_end = strstr(line_start, "\n");
+		Core::String line(line_start, line_end);
 		if(callbacks_)
 		{
-			callbacks_->OnError(errorType, fileName_, loc.line_number, loc.line_offset, errorStr.ToString().c_str());
+			callbacks_->OnError(
+			    errorType, fileName_, loc.line_number, loc.line_offset, line.c_str(), errorStr.ToString().c_str());
 		}
 		else
 		{
-			Core::Log(
-			    "%s(%i): error: %u: %s\n", fileName_, loc.line_number, (u32)errorType, errorStr.ToString().c_str());
+			Core::Log("%s(%i-%i): error: %u: %s\n", fileName_, loc.line_number, loc.line_offset, (u32)errorType,
+			    errorStr.ToString().c_str());
+			Core::Log("%s\n", line.c_str());
+			Core::String indent("> ");
+			indent.reserve(loc.line_offset + 1);
+			for(i32 idx = 1; idx < loc.line_offset; ++idx)
+				indent += " ";
+			indent += "^";
+			Core::Log("> %s\n", indent.c_str());
 		}
 
-		delete node;
 		node = nullptr;
 	}
-
-	AST::NodeType* ShaderParser::AddType(const char* name, i32 size)
-	{
-		AST::NodeType* node = new AST::NodeType();
-		node->name_ = name;
-		node->size_ = size;
-
-		typeNodes_[name] = node;
-		return node;
-	}
-
-	AST::NodeType* ShaderParser::FindType(const char* name)
-	{
-		auto it = typeNodes_.find(name);
-		if(it != typeNodes_.end())
-			return it->second;
-		return nullptr;
-	}
-
-	AST::NodeModifier* ShaderParser::AddModifier(const char* name)
-	{
-		AST::NodeModifier* node = new AST::NodeModifier();
-		node->name_ = name;
-
-		modifierNodes_[name] = node;
-		reserved_.insert(name);
-		return node;
-	}
-
-	AST::NodeModifier* ShaderParser::FindModifier(const char* name)
-	{
-		auto it = modifierNodes_.find(name);
-		if(it != modifierNodes_.end())
-			return it->second;
-		return nullptr;
-	}
-
-	AST::NodeStorageClass* ShaderParser::AddStorageClass(const char* name)
-	{
-		AST::NodeStorageClass* node = new AST::NodeStorageClass();
-		node->name_ = name;
-
-		storageClassNodes_[name] = node;
-		reserved_.insert(name);
-		return node;
-	}
-
-	AST::NodeStorageClass* ShaderParser::FindStorageClass(const char* name)
-	{
-		auto it = storageClassNodes_.find(name);
-		if(it != storageClassNodes_.end())
-			return it->second;
-		return nullptr;
-	}
-
 } // namespace Graphics

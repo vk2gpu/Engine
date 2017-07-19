@@ -1,0 +1,6 @@
+param-float-04-err.esf(2-12): error: 109: 'static': is a reserved keyword. Type expected.
+> const static float myParam;
+>            ^
+param-float-04-err.esf(2-26): error: 103: 'myParam': Unexpected token. Did you mean ';'?
+> const static float myParam;
+>                          ^

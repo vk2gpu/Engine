@@ -1,0 +1,15 @@
+struct-04-err.esf(3-7): error: 103: 'float3': Unexpected token. Did you mean '{'?
+> 	float3 position_ : SV_POSITION
+>       ^
+struct-04-err.esf(3-17): error: 105: 'position_': type missing
+> 	float3 position_ : SV_POSITION
+>                 ^
+struct-04-err.esf(3-19): error: 103: ':': Unexpected token.
+> 	float3 position_ : SV_POSITION
+>                   ^
+struct-04-err.esf(3-31): error: 105: 'SV_POSITION': type missing
+> 	float3 position_ : SV_POSITION
+>                               ^
+struct-04-err.esf(4-1): error: 103: '}': Unexpected token.
+> };
+> ^

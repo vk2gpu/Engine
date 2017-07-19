@@ -11,6 +11,7 @@
 #include <stb_c_lexer.h>
 #pragma warning(pop)
 
+#include <type_traits>
 
 namespace Graphics
 {
@@ -41,6 +42,8 @@ namespace Graphics
 
 			// Whole shader file.
 			SHADER_FILE = 0,
+			// attribute: i.e. '[unroll]' '[maxiterations(8)]' '[numthreads(1,2,4)]'
+			ATTRIBUTE,
 			// storage class: i.e. 'static', 'groupshared'
 			STORAGE_CLASS,
 			// modifier: i.e. 'const', 'unorm'
@@ -57,6 +60,8 @@ namespace Graphics
 
 		struct Node;
 		struct NodeShaderFile;
+		struct NodeAttribute;
+		struct NodeStorageClass;
 		struct NodeModifier;
 		struct NodeType;
 		struct NodeTypeIdent;
@@ -65,8 +70,9 @@ namespace Graphics
 
 		struct Node
 		{
-			Node(Nodes nodeType)
+			Node(Nodes nodeType, const char* name = "")
 			    : nodeType_(nodeType)
+			    , name_(name)
 			{
 			}
 			virtual ~Node() = default;
@@ -89,10 +95,21 @@ namespace Graphics
 			Core::Vector<NodeStruct*> structs_;
 		};
 
+		struct NodeAttribute : Node
+		{
+			NodeAttribute(const char* name)
+			    : Node(Nodes::ATTRIBUTE, name)
+			{
+			}
+			virtual ~NodeAttribute() = default;
+
+			Core::Vector<Core::String> parameters_;
+		};
+
 		struct NodeStorageClass : Node
 		{
-			NodeStorageClass()
-			    : Node(Nodes::STORAGE_CLASS)
+			NodeStorageClass(const char* name)
+			    : Node(Nodes::STORAGE_CLASS, name)
 			{
 			}
 			virtual ~NodeStorageClass() = default;
@@ -100,8 +117,8 @@ namespace Graphics
 
 		struct NodeModifier : Node
 		{
-			NodeModifier()
-			    : Node(Nodes::MODIFIER)
+			NodeModifier(const char* name)
+			    : Node(Nodes::MODIFIER, name)
 			{
 			}
 			virtual ~NodeModifier() = default;
@@ -109,8 +126,9 @@ namespace Graphics
 
 		struct NodeType : Node
 		{
-			NodeType()
-			    : Node(Nodes::TYPE)
+			NodeType(const char* name, i32 size = -1)
+			    : Node(Nodes::TYPE, name)
+			    , size_(size)
 			{
 			}
 			virtual ~NodeType() = default;
@@ -136,23 +154,25 @@ namespace Graphics
 
 		struct NodeStruct : Node
 		{
-			NodeStruct()
-			    : Node(Nodes::STRUCT)
+			NodeStruct(const char* name)
+			    : Node(Nodes::STRUCT, name)
 			{
 			}
 			virtual ~NodeStruct() = default;
 
+			Core::Vector<AST::NodeAttribute*> attributes_;
 			NodeType* type_ = nullptr;
 		};
 
 		struct NodeDeclaration : Node
 		{
-			NodeDeclaration()
-			    : Node(Nodes::DECLARATION)
+			NodeDeclaration(const char* name)
+			    : Node(Nodes::DECLARATION, name)
 			{
 			}
 			virtual ~NodeDeclaration() = default;
 
+			Core::Vector<AST::NodeAttribute*> attributes_;
 			Core::Vector<NodeStorageClass*> storageClasses_;
 			NodeTypeIdent* type_ = nullptr;
 			Core::String value_;
@@ -185,8 +205,8 @@ namespace Graphics
 		/**
 		 * Called on error.
 		 */
-		virtual void OnError(
-		    ErrorType errorType, const char* fileName, i32 lineNumber, i32 lineOffset, const char* str) = 0;
+		virtual void OnError(ErrorType errorType, const char* fileName, i32 lineNumber, i32 lineOffset,
+		    const char* line, const char* str) = 0;
 	};
 
 	class ShaderParser
@@ -199,6 +219,7 @@ namespace Graphics
 
 	private:
 		AST::NodeShaderFile* ParseShaderFile(stb_lexer& lexCtx);
+		AST::NodeAttribute* ParseAttribute(stb_lexer& lexCtx);
 		AST::NodeStorageClass* ParseStorageClass(stb_lexer& lexCtx);
 		AST::NodeModifier* ParseModifier(stb_lexer& lexCtx);
 		AST::NodeType* ParseType(stb_lexer& lexCtx);
@@ -218,24 +239,71 @@ namespace Graphics
 		}
 
 	private:
-		AST::NodeType* AddType(const char* name, i32 size);
-		AST::NodeType* FindType(const char* name);
+		template<typename TYPE>
+		void AddReserved(TYPE& nodes)
+		{
+			for(auto& node : nodes)
+				reserved_.insert(node.name_);
+		}
 
-		AST::NodeModifier* AddModifier(const char* name);
-		AST::NodeModifier* FindModifier(const char* name);
+		template<typename TYPE>
+		TYPE* AddToMap(TYPE* node)
+		{
+			return node;
+		}
+		AST::NodeStorageClass* AddToMap(AST::NodeStorageClass* node) { return storageClassNodes_.Add(node); }
+		AST::NodeModifier* AddToMap(AST::NodeModifier* node) { return modifierNodes_.Add(node); }
+		AST::NodeType* AddToMap(AST::NodeType* node) { return typeNodes_.Add(node); }
+		AST::NodeStruct* AddToStorageMap(AST::NodeStruct* node) { return structNodes_.Add(node); }
 
-		AST::NodeStorageClass* AddStorageClass(const char* name);
-		AST::NodeStorageClass* FindStorageClass(const char* name);
+		template<typename TYPE>
+		void AddNodes(TYPE& nodeArray)
+		{
+			for(auto& node : nodeArray)
+				AddToMap(&node);
+		}
+
+		template<typename TYPE, typename... ARGS>
+		TYPE* AddNode(ARGS&&... args)
+		{
+			TYPE* node = new TYPE(std::forward<ARGS>(args)...);
+			allocatedNodes_.push_back(node);
+			return AddToMap(node);
+		}
 
 		const char* fileName_ = nullptr;
 		IShaderParserCallbacks* callbacks_ = nullptr;
 		AST::Token token_;
 
-		Core::Map<Core::String, AST::NodeStruct*> structNodes_;
-		Core::Map<Core::String, AST::NodeType*> typeNodes_;
-		Core::Map<Core::String, AST::NodeModifier*> modifierNodes_;
-		Core::Map<Core::String, AST::NodeStorageClass*> storageClassNodes_;
+		template<typename TYPE>
+		struct NodeMap
+		{
+			TYPE* Find(const char* name)
+			{
+				auto it = storage_.find(name);
+				if(it != storage_.end())
+					return it->second;
+				return nullptr;
+			}
+
+			TYPE* Add(TYPE* node)
+			{
+				storage_[node->name_] = node;
+				return node;
+			}
+
+			Core::Map<Core::String, TYPE*> storage_;
+		};
+
+		NodeMap<AST::NodeStorageClass> storageClassNodes_;
+		NodeMap<AST::NodeModifier> modifierNodes_;
+		NodeMap<AST::NodeType> typeNodes_;
+		NodeMap<AST::NodeStruct> structNodes_;
+
+		Core::Vector<AST::NodeAttribute*> attributeNodes_;
 
 		Core::Set<Core::String> reserved_;
+
+		Core::Vector<AST::Node*> allocatedNodes_;
 	};
 } // namespace Graphics

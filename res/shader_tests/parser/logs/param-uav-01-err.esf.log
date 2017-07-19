@@ -1,0 +1,15 @@
+param-uav-01-err.esf(2-13): error: 105: 'RWTexture2DMS': type missing
+> RWTexture2DMS<float4> myTexture0;
+>             ^
+param-uav-01-err.esf(3-18): error: 105: 'RWTexture2DMSArray': type missing
+> RWTexture2DMSArray<float4> myTexture1;
+>                  ^
+param-uav-01-err.esf(4-16): error: 105: 'RWTexture3DArray': type missing
+> RWTexture3DArray<float4> myTexture3;
+>                ^
+param-uav-01-err.esf(5-13): error: 105: 'RWTextureCube': type missing
+> RWTextureCube<float4> myTexture4;
+>             ^
+param-uav-01-err.esf(6-18): error: 105: 'RWTextureCubeArray': type missing
+> RWTextureCubeArray<float4> myTexture5;
+>                  ^

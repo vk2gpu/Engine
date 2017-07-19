@@ -1,0 +1,3 @@
+param-float-03-err.esf(2-13): error: 102: Unexpected EOF
+> float myParam
+>             ^

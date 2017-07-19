@@ -1,0 +1,9 @@
+struct MyStruct
+{
+	[range(0, 100)]
+	int myVal = 0;
+
+	[editable(1)]
+	[range(0.0, 1.0)]
+	float myVal;
+};

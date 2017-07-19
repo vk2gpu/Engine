@@ -1,0 +1,3 @@
+struct-05-err.esf(4-29): error: 103: 'SV_POSITION': Unexpected token. Did you mean ';'?
+> 	float3 position_ SV_POSITION;
+>                             ^

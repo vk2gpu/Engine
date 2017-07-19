@@ -18,6 +18,7 @@
 #include "graphics/converters/shader_parser.h"
 
 extern "C" {
+#undef INLINE
 #include <cppdef.h>
 #include <fpp.h>
 }

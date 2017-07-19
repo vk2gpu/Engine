@@ -1,0 +1,5 @@
+[some("attribute")]
+void testFunc(int a : SEMANTIC, float b)
+{
+	
+}

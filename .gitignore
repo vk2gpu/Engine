@@ -1,5 +1,7 @@
 *.zip
 *.pyc
+*.TMP
+*.tmp
 .svn/
 build/
 scripts/*.pyc
