@@ -19,6 +19,8 @@ SET(SOURCES_TESTS
 	"tests/test_entry.cpp"
 
 	# Pull in shader parser for test usage.
+	"converters/shader_ast.h"
+	"converters/shader_ast.cpp"
 	"converters/shader_parser.h"
 	"converters/shader_parser.cpp"
 	"converters/shader_preprocessor.h"
@@ -40,6 +42,8 @@ SET(SOURCES_TEXTURE_CONVERTER
 
 SET(SOURCES_SHADER_CONVERTER
 	"converters/converter_shader.cpp"
+	"converters/shader_ast.h"
+	"converters/shader_ast.cpp"
 	"converters/shader_parser.h"
 	"converters/shader_parser.cpp"
 	"converters/shader_preprocessor.h"
