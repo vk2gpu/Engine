@@ -63,7 +63,7 @@ namespace Graphics
 		AST::NodeTypeIdent* ParseTypeIdent();
 		AST::NodeStruct* ParseStruct();
 		AST::NodeDeclaration* ParseDeclaration();
-		AST::NodeValue* ParseValue(AST::NodeType* nodeType);
+		AST::NodeValue* ParseValue(AST::NodeType* nodeType, AST::NodeDeclaration* nodeDeclaration);
 		AST::NodeValues* ParseValues(AST::NodeType* nodeType);
 		AST::NodeMemberValue* ParseMemberValue(AST::NodeType* nodeType);
 

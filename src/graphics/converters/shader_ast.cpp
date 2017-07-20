@@ -12,6 +12,14 @@ namespace Graphics
 			return nullptr;
 		}
 
+		NodeDeclaration* NodeShaderFile::FindFunction(const char* name)
+		{
+			for(auto* function : functions_)
+				if(function->name_ == name)
+					return function;
+			return nullptr;
+		}
+
 		NodeDeclaration* NodeType::FindMember(const char* name) const
 		{
 			for(auto* member : members_)
@@ -30,5 +38,20 @@ namespace Graphics
 
 		const char* NodeType::FindEnumName(i32 val) const { return enumNameFn_(val); }
 
+		NodeAttribute* NodeStruct::FindAttribute(const char* name) const
+		{
+			for(auto* attribute : attributes_)
+				if(attribute->name_ == name)
+					return attribute;
+			return nullptr;
+		}
+
+		NodeAttribute* NodeDeclaration::FindAttribute(const char* name) const
+		{
+			for(auto* attribute : attributes_)
+				if(attribute->name_ == name)
+					return attribute;
+			return nullptr;
+		}
 	} // namespace AST
 } // namespace Graphics

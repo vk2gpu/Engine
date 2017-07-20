@@ -154,11 +154,17 @@ namespace
 		[internal]
 		struct Technique
 		{
+			[fn("VertexShader")]
 			void VertexShader;
+			[fn("GeometryShader")]
 			void GeometryShader;
+			[fn("HullShader")]
 			void HullShader;
+			[fn("DomainShader")]
 			void DomainShader;
+			[fn("PixelShader")]
 			void PixelShader;
+			[fn("ComputeShader")]
 			void ComputeShader;
 
 			RenderState RenderState;
@@ -433,6 +439,7 @@ namespace Graphics
 
 		//
 		node->type_ = AddNode<AST::NodeType>(token_.value_.c_str(), -1);
+		node->type_->struct_ = node;
 
 		// consume attributes.
 		node->attributes_ = std::move(attributeNodes_);
@@ -556,7 +563,7 @@ namespace Graphics
 		if(token_.value_ == "=")
 		{
 			PARSE_TOKEN();
-			node->value_ = ParseValue(node->type_->baseType_);
+			node->value_ = ParseValue(node->type_->baseType_, nullptr);
 		}
 
 		if(node->isFunction_)
@@ -622,7 +629,7 @@ namespace Graphics
 		return node;
 	}
 
-	AST::NodeValue* ShaderParser::ParseValue(AST::NodeType* nodeType)
+	AST::NodeValue* ShaderParser::ParseValue(AST::NodeType* nodeType, AST::NodeDeclaration* nodeDeclaration)
 	{
 		AST::NodeValue* node = nullptr;
 
@@ -683,28 +690,56 @@ namespace Graphics
 				}
 				else
 				{
-					// Check if the type is matched by a variable in the shader file.
-					if(auto nodeVariable = shaderFileNode_->FindVariable(token_.value_.c_str()))
+					if(nodeDeclaration != nullptr && nodeDeclaration->FindAttribute("fn"))
 					{
-						if(nodeVariable->type_->baseType_ != nodeType)
+						// Check if the type is matched by a function in the shader file.
+						if(auto nodeVariable = shaderFileNode_->FindFunction(token_.value_.c_str()))
+						{
+							if(!nodeVariable->isFunction_)
+							{
+								Core::String errorStr;
+								errorStr.Printf("\'%s\': has invalid type. Expecting type function.", token_.value_.c_str());
+								Error(node, ErrorType::INVALID_TYPE, errorStr);
+								return node;
+							}
+
+							PARSE_TOKEN();
+							// delete nodeValue?
+							return nodeVariable->value_;
+						}
+						else
 						{
 							Core::String errorStr;
-							errorStr.Printf("\'%s\': has invalid type. Expecting type \'%s\'", token_.value_.c_str(),
-							    nodeType->name_.c_str());
-							Error(node, ErrorType::INVALID_TYPE, errorStr);
+							errorStr.Printf("\'%s\': Identifier missing.", token_.value_.c_str());
+							Error(node, ErrorType::IDENTIFIER_MISSING, errorStr);
 							return node;
 						}
-
-						PARSE_TOKEN();
-						// delete nodeValue?
-						return nodeVariable->value_;
 					}
 					else
 					{
-						Core::String errorStr;
-						errorStr.Printf("\'%s\': Identifier missing.", token_.value_.c_str());
-						Error(node, ErrorType::IDENTIFIER_MISSING, errorStr);
-						return node;
+						// Check if the type is matched by a variable in the shader file.
+						if(auto nodeVariable = shaderFileNode_->FindVariable(token_.value_.c_str()))
+						{
+							if(nodeVariable->type_->baseType_ != nodeType)
+							{
+								Core::String errorStr;
+								errorStr.Printf("\'%s\': has invalid type. Expecting type \'%s\'", token_.value_.c_str(),
+									nodeType->name_.c_str());
+								Error(node, ErrorType::INVALID_TYPE, errorStr);
+								return node;
+							}
+
+							PARSE_TOKEN();
+							// delete nodeValue?
+							return nodeVariable->value_;
+						}
+						else
+						{
+							Core::String errorStr;
+							errorStr.Printf("\'%s\': Identifier missing.", token_.value_.c_str());
+							Error(node, ErrorType::IDENTIFIER_MISSING, errorStr);
+							return node;
+						}
 					}
 				}
 			}
@@ -782,7 +817,7 @@ namespace Graphics
 			CHECK_TOKEN(AST::TokenType::CHAR, "=");
 
 			PARSE_TOKEN();
-			node->value_ = ParseValue(memberType->type_->baseType_);
+			node->value_ = ParseValue(memberType->type_->baseType_, memberType);
 		}
 
 		return node;
@@ -854,5 +889,8 @@ namespace Graphics
 		}
 
 		node = nullptr;
+
+		// Force fast fail.
+		NextToken();
 	}
 } // namespace Graphics

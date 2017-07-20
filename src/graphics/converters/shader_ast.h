@@ -105,6 +105,7 @@ namespace Graphics
 			virtual ~NodeShaderFile() = default;
 
 			NodeDeclaration* FindVariable(const char* name);
+			NodeDeclaration* FindFunction(const char* name);
 
 			Core::String code_;
 			Core::Vector<NodeDeclaration*> variables_;
@@ -184,6 +185,7 @@ namespace Graphics
 			EnumNameFn enumNameFn_ = nullptr;
 			i32 maxEnumValue_ = 0;
 			Core::Vector<NodeDeclaration*> members_;
+			NodeStruct* struct_ = nullptr;
 		};
 
 		struct NodeTypeIdent : Node
@@ -209,6 +211,8 @@ namespace Graphics
 			}
 			virtual ~NodeStruct() = default;
 
+			NodeAttribute* FindAttribute(const char* name) const;
+
 			Core::Vector<AST::NodeAttribute*> attributes_;
 			NodeType* type_ = nullptr;
 		};
@@ -220,6 +224,8 @@ namespace Graphics
 			{
 			}
 			virtual ~NodeDeclaration() = default;
+
+			NodeAttribute* FindAttribute(const char* name) const;
 
 			Core::Vector<AST::NodeAttribute*> attributes_;
 			Core::Vector<NodeStorageClass*> storageClasses_;
