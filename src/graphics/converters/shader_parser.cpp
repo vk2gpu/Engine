@@ -91,7 +91,7 @@ namespace
 		{"StencilFunc", GPU::StencilFunc::MAX},
 	};
 
-	const char* STATE_BLOCK_TYPES = R"(
+	const char* BASE_LIBRARY = R"(
 		[internal]
 		struct SamplerState
 		{
@@ -170,6 +170,36 @@ namespace
 
 namespace Graphics
 {
+	namespace AST
+	{
+		NodeDeclaration* NodeShaderFile::FindVariable(const char* name)
+		{
+			for(auto* parameter : variables_)
+				if(parameter->name_ == name)
+					return parameter;
+			return nullptr;
+		}
+
+		NodeDeclaration* NodeType::FindMember(const char* name) const
+		{
+			for(auto* member : members_)
+				if(member->name_ == name)
+					return member;
+			return nullptr;
+		}
+
+		bool NodeType::HasEnumValue(const char* name) const
+		{
+			if(enumValueFn_ == nullptr)
+				return false;
+			i32 val = 0;
+			return enumValueFn_(val, name);
+		}
+
+		const char* NodeType::FindEnumName(i32 val) const { return enumNameFn_(val); }
+
+	} // namespace AST
+
 	ShaderParser::ShaderParser()
 	{
 		AddNodes(STORAGE_CLASSES);
@@ -181,7 +211,6 @@ namespace Graphics
 		AddNodes(SRV_TYPES);
 		AddNodes(UAV_TYPES);
 		AddNodes(ENUM_TYPES);
-
 	}
 
 	ShaderParser::~ShaderParser() {}
@@ -215,11 +244,12 @@ namespace Graphics
 		Core::Vector<char> stringStore;
 		stringStore.resize(1024 * 1024);
 
-		Core::String patchedShaderCode = STATE_BLOCK_TYPES;
+		Core::String patchedShaderCode = BASE_LIBRARY;
 		patchedShaderCode.Appendf("\n%s", shaderCode);
 
 		stb_lexer lexCtx;
-		stb_c_lexer_init(&lexCtx, patchedShaderCode.begin(), patchedShaderCode.end(), stringStore.data(), stringStore.size());
+		stb_c_lexer_init(
+		    &lexCtx, patchedShaderCode.begin(), patchedShaderCode.end(), stringStore.data(), stringStore.size());
 
 		fileName_ = shaderFileName;
 		AST::NodeShaderFile* shaderFile = ParseShaderFile(lexCtx);
@@ -230,6 +260,7 @@ namespace Graphics
 	AST::NodeShaderFile* ShaderParser::ParseShaderFile(stb_lexer& lexCtx)
 	{
 		AST::NodeShaderFile* node = AddNode<AST::NodeShaderFile>();
+		shaderFileNode_ = node;
 
 		while(NextToken(lexCtx))
 		{
@@ -267,7 +298,7 @@ namespace Graphics
 							// Trailing ;
 							CHECK_TOKEN(AST::TokenType::CHAR, ";");
 
-							node->parameters_.push_back(declNode);
+							node->variables_.push_back(declNode);
 						}
 					}
 				}
@@ -310,7 +341,7 @@ namespace Graphics
 						return node;
 					}
 
-					if(token_.value_ == ",")
+					if(token_.type_ == AST::TokenType::CHAR && token_.value_ == ",")
 					{
 						PARSE_TOKEN();
 					}
@@ -555,52 +586,8 @@ namespace Graphics
 
 		if(token_.value_ == "=")
 		{
-			// Parse expression until ;
-			const char* beginCode = lexCtx.parse_point;
-			const char* endCode = nullptr;
-			i32 parenLevel = 0;
-			i32 bracketLevel = 0;
-			while(token_.value_ != ";")
-			{
-				endCode = lexCtx.parse_point;
-				PARSE_TOKEN();
-				if(token_.value_ == "(")
-					++parenLevel;
-				if(token_.value_ == ")")
-					--parenLevel;
-				if(token_.value_ == "[")
-					++bracketLevel;
-				if(token_.value_ == "]")
-					--bracketLevel;
-
-				if(parenLevel < 0)
-				{
-					Error(lexCtx, node, ErrorType::UNMATCHED_PARENTHESIS,
-					    Core::String().Printf("\'%s\': Unmatched parenthesis.", token_.value_.c_str()));
-					return node;
-				}
-				if(bracketLevel < 0)
-				{
-					Error(lexCtx, node, ErrorType::UNMATCHED_BRACKET,
-					    Core::String().Printf("\'%s\': Unmatched parenthesis.", token_.value_.c_str()));
-					return node;
-				}
-			}
-
-			if(parenLevel > 0)
-			{
-				Error(lexCtx, node, ErrorType::UNMATCHED_PARENTHESIS,
-				    Core::String().Printf("\'%s\': Missing ')'", token_.value_.c_str()));
-				return node;
-			}
-			if(bracketLevel > 0)
-			{
-				Error(lexCtx, node, ErrorType::UNMATCHED_BRACKET,
-				    Core::String().Printf("\'%s\': Missing ']'.", token_.value_.c_str()));
-				return node;
-			}
-
-			node->value_ = Core::String(beginCode, endCode);
+			PARSE_TOKEN();
+			node->value_ = ParseValue(lexCtx, node->type_->baseType_);
 		}
 
 		if(node->isFunction_)
@@ -657,8 +644,176 @@ namespace Graphics
 					return node;
 				}
 
-				node->value_ = Core::String(beginCode, endCode);
+				node->value_ = AddNode<AST::NodeValue>();
+				node->value_->type_ = AST::ValueType::RAW_CODE;
+				node->value_->data_ = Core::String(beginCode, endCode);
 			}
+		}
+
+		return node;
+	}
+
+	AST::NodeValue* ShaderParser::ParseValue(stb_lexer& lexCtx, AST::NodeType* nodeType)
+	{
+		AST::NodeValue* node = nullptr;
+
+		// Attempt to parse values.
+		if(nodeType->members_.size() > 0)
+		{
+			node = ParseValues(lexCtx, nodeType);
+			if(node != nullptr)
+			{
+				return node;
+			}
+
+			// If ident is known var, then skip member value.
+			if(!shaderFileNode_->FindVariable(token_.value_.c_str()))
+			{
+				// Attempt to parse member value.
+				node = ParseMemberValue(lexCtx, nodeType);
+				if(node != nullptr)
+				{
+					return node;
+				}
+			}
+		}
+
+		if(token_.type_ == AST::TokenType::FLOAT || token_.type_ == AST::TokenType::INT ||
+		    token_.type_ == AST::TokenType::STRING || token_.type_ == AST::TokenType::IDENTIFIER)
+		{
+			auto* nodeValue = AddNode<AST::NodeValue>();
+			switch(token_.type_)
+			{
+			case AST::TokenType::FLOAT:
+				nodeValue->type_ = AST::ValueType::FLOAT;
+				break;
+			case AST::TokenType::INT:
+				nodeValue->type_ = AST::ValueType::INT;
+				break;
+			case AST::TokenType::STRING:
+				nodeValue->type_ = AST::ValueType::STRING;
+				break;
+			case AST::TokenType::IDENTIFIER:
+			{
+				if(nodeType->IsEnum())
+				{
+					nodeValue->type_ = AST::ValueType::ENUM;
+					if(nodeType->HasEnumValue(token_.value_.c_str()))
+					{
+						nodeValue->data_ = token_.value_;
+					}
+					else
+					{
+						Core::String errorStr;
+						errorStr.Printf("\'%s\': Invalid value. Expecting enum value for \'%s\'. Valid values are:\n",
+						    token_.value_.c_str(), nodeType->name_.c_str());
+						for(i32 idx = 0; idx < nodeType->maxEnumValue_; ++idx)
+						{
+							errorStr.Appendf(" - %s\n", nodeType->FindEnumName(idx));
+						}
+
+						Error(lexCtx, node, ErrorType::INVALID_VALUE, errorStr);
+						return node;
+					}
+				}
+				else
+				{
+					// Check if the type is matched by a variable in the shader file.
+					if(auto nodeVariable = shaderFileNode_->FindVariable(token_.value_.c_str()))
+					{
+						if(nodeVariable->type_->baseType_ != nodeType)
+						{
+							Core::String errorStr;
+							errorStr.Printf("\'%s\': has invalid type. Expecting type \'%s\'", token_.value_.c_str(),
+							    nodeType->name_.c_str());
+							Error(lexCtx, node, ErrorType::INVALID_TYPE, errorStr);
+							return node;
+						}
+
+						PARSE_TOKEN();
+						// delete nodeValue?
+						return nodeVariable->value_;
+					}
+					else
+					{
+						Core::String errorStr;
+						errorStr.Printf("\'%s\': Identifier missing.", token_.value_.c_str());
+						Error(lexCtx, node, ErrorType::IDENTIFIER_MISSING, errorStr);
+						return node;
+					}
+				}
+			}
+			break;
+			default:
+				break;
+			}
+			nodeValue->data_ = token_.value_;
+			node = nodeValue;
+			PARSE_TOKEN();
+
+			return node;
+		}
+		else
+		{
+			Error(lexCtx, node, ErrorType::UNEXPECTED_TOKEN,
+			    Core::String().Printf("\'%s\': Unexpected token.", token_.value_.c_str()));
+		}
+		return node;
+	}
+
+	AST::NodeValues* ShaderParser::ParseValues(stb_lexer& lexCtx, AST::NodeType* nodeType)
+	{
+		AST::NodeValues* node = nullptr;
+
+		if(token_.type_ == AST::TokenType::CHAR && token_.value_ == "{")
+		{
+			node = AddNode<AST::NodeValues>();
+
+			PARSE_TOKEN();
+			while(token_.value_ != "}")
+			{
+				auto nodeValue = ParseMemberValue(lexCtx, nodeType);
+				if(nodeValue)
+					node->values_.push_back(nodeValue);
+
+				if(token_.type_ == AST::TokenType::CHAR && token_.value_ == ",")
+				{
+					PARSE_TOKEN();
+				}
+			}
+			PARSE_TOKEN();
+		}
+
+		return node;
+	}
+
+	AST::NodeMemberValue* ShaderParser::ParseMemberValue(stb_lexer& lexCtx, AST::NodeType* nodeType)
+	{
+		AST::NodeMemberValue* node = nullptr;
+
+		if(token_.type_ == AST::TokenType::IDENTIFIER)
+		{
+			node = AddNode<AST::NodeMemberValue>();
+
+			node->member_ = token_.value_;
+
+			auto* memberType = nodeType->FindMember(node->member_.c_str());
+			if(memberType == nullptr)
+			{
+				Core::String errorStr;
+				errorStr.Printf("\'%s\': Invalid member. Valid values are:\n", token_.value_.c_str());
+				for(auto* member : nodeType->members_)
+				{
+					errorStr.Appendf(" - %s\n", member->name_.c_str());
+				}
+				Error(lexCtx, node, ErrorType::INVALID_MEMBER, errorStr);
+			}
+
+			PARSE_TOKEN();
+			CHECK_TOKEN(AST::TokenType::CHAR, "=");
+
+			PARSE_TOKEN();
+			node->value_ = ParseValue(lexCtx, memberType->type_->baseType_);
 		}
 
 		return node;

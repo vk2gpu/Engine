@@ -27,6 +27,19 @@ namespace Graphics
 			STRING,
 		};
 
+		enum class ValueType : i32
+		{
+			INVALID = -1,
+
+			INT,
+			FLOAT,
+			STRING,
+			ENUM,
+			ARRAY,
+			STRUCT,
+			RAW_CODE
+		};
+
 		struct Token
 		{
 			TokenType type_ = TokenType::INVALID;
@@ -55,10 +68,12 @@ namespace Graphics
 			STRUCT,
 			// parameter/function declaration: i.e. "float4 myThing : SEMANTIC = 0;" or "float4 func(int param) : SEMANTIC"
 			DECLARATION,
-			// assignment block: i.e. "{ ... }"
-			ASSIGNMENT_BLOCK,
-			// assignment: i.e. "<member> = <param>"
-			ASSIGNMENT,
+			// base value: i.e. "1", "2"
+			VALUE,
+			// values: i.e. "{ <value>, <value>, <value> }"
+			VALUES,
+			// member value: i.e. "<member> = <value>"
+			MEMBER_VALUE,
 		};
 
 		struct Node;
@@ -70,7 +85,9 @@ namespace Graphics
 		struct NodeTypeIdent;
 		struct NodeStruct;
 		struct NodeDeclaration;
-		struct NodeAssignmentBlock;
+		struct NodeValue;
+		struct NodeValues;
+		struct NodeMemberValue;
 
 		struct Node
 		{
@@ -93,8 +110,10 @@ namespace Graphics
 			}
 			virtual ~NodeShaderFile() = default;
 
+			NodeDeclaration* FindVariable(const char* name);
+
 			Core::String code_;
-			Core::Vector<NodeDeclaration*> parameters_;
+			Core::Vector<NodeDeclaration*> variables_;
 			Core::Vector<NodeDeclaration*> functions_;
 			Core::Vector<NodeStruct*> structs_;
 		};
@@ -130,7 +149,8 @@ namespace Graphics
 
 		struct NodeType : Node
 		{
-			using EnumValueFn = bool(*)(i32&, const char*); 
+			using EnumValueFn = bool (*)(i32&, const char*);
+			using EnumNameFn = const char* (*)(i32);
 
 			NodeType(const char* name, i32 size = -1)
 			    : Node(Nodes::TYPE, name)
@@ -143,8 +163,7 @@ namespace Graphics
 			    : Node(Nodes::TYPE, name)
 			    , size_(sizeof(i32))
 			{
-				enumValueFn_ = [](i32& val, const char* str) -> bool
-				{
+				enumValueFn_ = [](i32& val, const char* str) -> bool {
 					ENUM_TYPE enumVal;
 					if(Core::EnumFromString(enumVal, str))
 					{
@@ -153,6 +172,8 @@ namespace Graphics
 					}
 					return false;
 				};
+
+				enumNameFn_ = [](i32 val) -> const char* { return Core::EnumToString((ENUM_TYPE)val); };
 				maxEnumValue_ = (i32)maxEnumValue;
 			}
 			virtual ~NodeType() = default;
@@ -160,8 +181,13 @@ namespace Graphics
 			bool IsEnum() { return !!enumValueFn_; }
 			bool IsPOD() { return size_ >= 0; }
 
+			NodeDeclaration* FindMember(const char* name) const;
+			const char* FindEnumName(i32 val) const;
+			bool HasEnumValue(const char* name) const;
+
 			i32 size_ = 0;
 			EnumValueFn enumValueFn_ = nullptr;
+			EnumNameFn enumNameFn_ = nullptr;
 			i32 maxEnumValue_ = 0;
 			Core::Vector<NodeDeclaration*> members_;
 		};
@@ -204,10 +230,47 @@ namespace Graphics
 			Core::Vector<AST::NodeAttribute*> attributes_;
 			Core::Vector<NodeStorageClass*> storageClasses_;
 			NodeTypeIdent* type_ = nullptr;
-			Core::String value_;
+			NodeValue* value_ = nullptr;
 			Core::String semantic_;
 			bool isFunction_ = false;
 			Core::Vector<NodeDeclaration*> parameters_;
+		};
+
+		struct NodeValue : Node
+		{
+			NodeValue(Nodes nodeType = Nodes::VALUE)
+			    : Node(nodeType)
+			{
+			}
+			virtual ~NodeValue() = default;
+
+			ValueType type_ = ValueType::INVALID;
+			Core::String data_;
+		};
+
+		struct NodeValues : NodeValue
+		{
+			NodeValues()
+			    : NodeValue(Nodes::VALUES)
+			{
+				type_ = ValueType::ARRAY;
+			}
+			virtual ~NodeValues() = default;
+
+			Core::Vector<NodeValue*> values_;
+		};
+
+		struct NodeMemberValue : NodeValue
+		{
+			NodeMemberValue()
+			    : NodeValue(Nodes::VALUES)
+			{
+				type_ = ValueType::STRUCT;
+			}
+			virtual ~NodeMemberValue() = default;
+
+			Core::String member_;
+			NodeValue* value_;
 		};
 	}
 
@@ -220,10 +283,14 @@ namespace Graphics
 		UNEXPECTED_TOKEN,
 		TYPE_REDEFINITION,
 		TYPE_MISSING,
+		IDENTIFIER_MISSING,
 		FUNCTION_REDEFINITION,
 		UNMATCHED_PARENTHESIS,
 		UNMATCHED_BRACKET,
 		RESERVED_KEYWORD,
+		INVALID_MEMBER,
+		INVALID_TYPE,
+		INVALID_VALUE,
 	};
 
 	class IShaderParserCallbacks
@@ -255,6 +322,9 @@ namespace Graphics
 		AST::NodeTypeIdent* ParseTypeIdent(stb_lexer& lexCtx);
 		AST::NodeStruct* ParseStruct(stb_lexer& lexCtx);
 		AST::NodeDeclaration* ParseDeclaration(stb_lexer& lexCtx);
+		AST::NodeValue* ParseValue(stb_lexer& lexCtx, AST::NodeType* nodeType);
+		AST::NodeValues* ParseValues(stb_lexer& lexCtx, AST::NodeType* nodeType);
+		AST::NodeMemberValue* ParseMemberValue(stb_lexer& lexCtx, AST::NodeType* nodeType);
 
 		bool NextToken(stb_lexer& lexCtx);
 		AST::Token GetToken() const;
@@ -269,16 +339,25 @@ namespace Graphics
 
 		// Find node by name.
 		template<typename TYPE>
-		bool Find(TYPE*& node, const char* name) { return false; }
-		bool Find(AST::NodeStorageClass*& node, const char* name) { return (node = storageClassNodes_.Find(name)) != nullptr; }
+		bool Find(TYPE*& node, const char* name)
+		{
+			return false;
+		}
+		bool Find(AST::NodeStorageClass*& node, const char* name)
+		{
+			return (node = storageClassNodes_.Find(name)) != nullptr;
+		}
 		bool Find(AST::NodeModifier*& node, const char* name) { return (node = modifierNodes_.Find(name)) != nullptr; }
 		bool Find(AST::NodeType*& node, const char* name) { return (node = typeNodes_.Find(name)) != nullptr; }
 		bool Find(AST::NodeStruct*& node, const char* name) { return (node = structNodes_.Find(name)) != nullptr; }
 
 		template<typename TYPE>
-		bool Find(TYPE*& node, const Core::String& name) { return Find(node, name.c_str()); }
+		bool Find(TYPE*& node, const Core::String& name)
+		{
+			return Find(node, name.c_str());
+		}
 
-	public: 
+	public:
 		template<typename TYPE>
 		void AddReserved(TYPE& nodes)
 		{
@@ -339,6 +418,8 @@ namespace Graphics
 		NodeMap<AST::NodeModifier> modifierNodes_;
 		NodeMap<AST::NodeType> typeNodes_;
 		NodeMap<AST::NodeStruct> structNodes_;
+
+		AST::NodeShaderFile* shaderFileNode_ = nullptr;
 
 		Core::Vector<AST::NodeAttribute*> attributeNodes_;
 
