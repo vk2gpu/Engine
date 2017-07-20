@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/types.h"
+#include "core/enum.h"
 #include "core/map.h"
 #include "core/set.h"
 #include "core/string.h"
@@ -54,6 +55,10 @@ namespace Graphics
 			STRUCT,
 			// parameter/function declaration: i.e. "float4 myThing : SEMANTIC = 0;" or "float4 func(int param) : SEMANTIC"
 			DECLARATION,
+			// assignment block: i.e. "{ ... }"
+			ASSIGNMENT_BLOCK,
+			// assignment: i.e. "<member> = <param>"
+			ASSIGNMENT,
 		};
 
 		struct Node;
@@ -65,6 +70,7 @@ namespace Graphics
 		struct NodeTypeIdent;
 		struct NodeStruct;
 		struct NodeDeclaration;
+		struct NodeAssignmentBlock;
 
 		struct Node
 		{
@@ -124,14 +130,39 @@ namespace Graphics
 
 		struct NodeType : Node
 		{
+			using EnumValueFn = bool(*)(i32&, const char*); 
+
 			NodeType(const char* name, i32 size = -1)
 			    : Node(Nodes::TYPE, name)
 			    , size_(size)
 			{
 			}
+
+			template<typename ENUM_TYPE>
+			NodeType(const char* name, ENUM_TYPE maxEnumValue)
+			    : Node(Nodes::TYPE, name)
+			    , size_(sizeof(i32))
+			{
+				enumValueFn_ = [](i32& val, const char* str) -> bool
+				{
+					ENUM_TYPE enumVal;
+					if(Core::EnumFromString(enumVal, str))
+					{
+						val = (i32)enumVal;
+						return true;
+					}
+					return false;
+				};
+				maxEnumValue_ = (i32)maxEnumValue;
+			}
 			virtual ~NodeType() = default;
 
+			bool IsEnum() { return !!enumValueFn_; }
+			bool IsPOD() { return size_ >= 0; }
+
 			i32 size_ = 0;
+			EnumValueFn enumValueFn_ = nullptr;
+			i32 maxEnumValue_ = 0;
 			Core::Vector<NodeDeclaration*> members_;
 		};
 
@@ -236,7 +267,18 @@ namespace Graphics
 			Error(lexCtx, reinterpret_cast<AST::Node*&>(node), errorType, errorStr);
 		}
 
-	private:
+		// Find node by name.
+		template<typename TYPE>
+		bool Find(TYPE*& node, const char* name) { return false; }
+		bool Find(AST::NodeStorageClass*& node, const char* name) { return (node = storageClassNodes_.Find(name)) != nullptr; }
+		bool Find(AST::NodeModifier*& node, const char* name) { return (node = modifierNodes_.Find(name)) != nullptr; }
+		bool Find(AST::NodeType*& node, const char* name) { return (node = typeNodes_.Find(name)) != nullptr; }
+		bool Find(AST::NodeStruct*& node, const char* name) { return (node = structNodes_.Find(name)) != nullptr; }
+
+		template<typename TYPE>
+		bool Find(TYPE*& node, const Core::String& name) { return Find(node, name.c_str()); }
+
+	public: 
 		template<typename TYPE>
 		void AddReserved(TYPE& nodes)
 		{
@@ -252,7 +294,7 @@ namespace Graphics
 		AST::NodeStorageClass* AddToMap(AST::NodeStorageClass* node) { return storageClassNodes_.Add(node); }
 		AST::NodeModifier* AddToMap(AST::NodeModifier* node) { return modifierNodes_.Add(node); }
 		AST::NodeType* AddToMap(AST::NodeType* node) { return typeNodes_.Add(node); }
-		AST::NodeStruct* AddToStorageMap(AST::NodeStruct* node) { return structNodes_.Add(node); }
+		AST::NodeStruct* AddToMap(AST::NodeStruct* node) { return structNodes_.Add(node); }
 
 		template<typename TYPE>
 		void AddNodes(TYPE& nodeArray)

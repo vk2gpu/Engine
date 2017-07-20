@@ -1,4 +1,5 @@
 #include "shader_parser.h"
+#include "gpu/enum.h"
 
 #pragma warning(push)
 #pragma warning(disable : 4244)
@@ -77,6 +78,93 @@ namespace
 		"RWTexture2DArray",
 		"RWTexture3D",
 	};
+
+	NodeType ENUM_TYPES[] =
+	{
+		{"AddressingMode", GPU::AddressingMode::MAX},
+		{"FilteringMode", GPU::FilteringMode::MAX},
+		{"FillMode", GPU::FillMode::MAX},
+		{"CullMode", GPU::CullMode::MAX},
+		{"BlendType", GPU::BlendType::MAX},
+		{"BlendFunc", GPU::BlendFunc::MAX},
+		{"CompareMode", GPU::CompareMode::MAX},
+		{"StencilFunc", GPU::StencilFunc::MAX},
+	};
+
+	const char* STATE_BLOCK_TYPES = R"(
+		[internal]
+		struct SamplerState
+		{
+			AddressingMode AddressU;
+			AddressingMode AddressV;
+			AddressingMode AddressW;
+			FilteringMode MinFilter;
+			FilteringMode MagFilter;
+			float MipLODBias;
+			uint MaxAnisotropy;
+			float BorderColor;//[4];
+			float MinLOD;
+			float MaxLOD;
+		};
+
+		[internal]
+		struct BlendState
+		{
+			uint Enable;
+			BlendType SrcBlend;
+			BlendType DestBlend;
+			BlendFunc BlendOp;
+			BlendType SrcBlendAlpha;
+			BlendType DestBlendAlpha;
+			BlendFunc BlendOpAlpha;
+			uint WriteMask;
+		};
+
+		[internal]
+		struct StencilFaceState
+		{
+			StencilFunc Fail;
+			StencilFunc DepthFail;
+			StencilFunc Pass;
+			CompareMode Func;
+		};
+
+		[internal]
+		struct RenderState
+		{
+			BlendState BlendStates;//[8];
+
+			StencilFaceState StencilFront;
+			StencilFaceState StencilBack;
+			uint DepthEnable;
+			uint DepthWriteMask;
+			CompareMode DepthFunc;
+			uint StencilEnable;
+			uint StencilRef;
+			uint StencilRead;
+			uint StencilWrite;
+
+			FillMode FillMode;
+			CullMode CullMode;
+			float DepthBias;
+			float SlopeScaledDepthBias;
+			uint AntialiasedLineEnable;
+		};
+
+		[internal]
+		struct Technique
+		{
+			void VertexShader;
+			void GeometryShader;
+			void HullShader;
+			void DomainShader;
+			void PixelShader;
+			void ComputeShader;
+
+			RenderState RenderState;
+		};
+	)";
+
 	// clang-format on
 }
 
@@ -92,6 +180,8 @@ namespace Graphics
 		AddNodes(BASE_TYPES);
 		AddNodes(SRV_TYPES);
 		AddNodes(UAV_TYPES);
+		AddNodes(ENUM_TYPES);
+
 	}
 
 	ShaderParser::~ShaderParser() {}
@@ -125,8 +215,11 @@ namespace Graphics
 		Core::Vector<char> stringStore;
 		stringStore.resize(1024 * 1024);
 
+		Core::String patchedShaderCode = STATE_BLOCK_TYPES;
+		patchedShaderCode.Appendf("\n%s", shaderCode);
+
 		stb_lexer lexCtx;
-		stb_c_lexer_init(&lexCtx, shaderCode, shaderCode + strlen(shaderCode), stringStore.data(), stringStore.size());
+		stb_c_lexer_init(&lexCtx, patchedShaderCode.begin(), patchedShaderCode.end(), stringStore.data(), stringStore.size());
 
 		fileName_ = shaderFileName;
 		AST::NodeShaderFile* shaderFile = ParseShaderFile(lexCtx);
@@ -232,9 +325,7 @@ namespace Graphics
 	AST::NodeStorageClass* ShaderParser::ParseStorageClass(stb_lexer& lexCtx)
 	{
 		AST::NodeStorageClass* node = nullptr;
-
-		node = storageClassNodes_.Find(token_.value_.c_str());
-		if(node != nullptr)
+		if(Find(node, token_.value_))
 		{
 			PARSE_TOKEN();
 		}
@@ -244,9 +335,7 @@ namespace Graphics
 	AST::NodeModifier* ShaderParser::ParseModifier(stb_lexer& lexCtx)
 	{
 		AST::NodeModifier* node = nullptr;
-
-		node = modifierNodes_.Find(token_.value_.c_str());
-		if(node != nullptr)
+		if(Find(node, token_.value_))
 		{
 			PARSE_TOKEN();
 		}
@@ -268,8 +357,7 @@ namespace Graphics
 		}
 
 		// Find type.
-		node = typeNodes_.Find(token_.value_.c_str());
-		if(node == nullptr)
+		if(!Find(node, token_.value_))
 		{
 			Error(lexCtx, node, ErrorType::TYPE_MISSING,
 			    Core::String().Printf("\'%s\': type missing", token_.value_.c_str()));
@@ -325,8 +413,8 @@ namespace Graphics
 		CHECK_TOKEN(AST::TokenType::IDENTIFIER, "");
 		node = AddNode<AST::NodeStruct>(token_.value_.c_str());
 
-		auto* nodeType = typeNodes_.Find(token_.value_.c_str());
-		if(nodeType != nullptr)
+		NodeType* nodeType = nullptr;
+		if(Find(nodeType, token_.value_))
 		{
 			Error(lexCtx, node, ErrorType::TYPE_REDEFINITION,
 			    Core::String().Printf("\'%s\': 'struct' type redefinition.", token_.value_.c_str()));

@@ -103,10 +103,10 @@ TEST_CASE("graphics-tests-shader-parser")
 	fileInfos.resize(numFiles);
 	Core::FileFindInPath(pathResolver.resolvePath_, "esf", fileInfos.data(), fileInfos.size());
 
-#if 0
+#if 1
 	fileInfos.clear();
 	Core::FileInfo testFileInfo;
-	strcpy_s(testFileInfo.fileName_, sizeof(testFileInfo.fileName_), "attribute-03.esf");
+	strcpy_s(testFileInfo.fileName_, sizeof(testFileInfo.fileName_), "samplerstate-00.esf");
 	fileInfos.push_back(testFileInfo);
 #endif
 
