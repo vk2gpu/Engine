@@ -1,0 +1,3 @@
+param-value-00.esf(74-19): error: 103: '0.0': Unexpected token. Did you mean ';'?
+> float myParam = 0.0;
+>                   ^
