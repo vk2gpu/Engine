@@ -188,23 +188,23 @@ namespace Graphics
 #define CHECK_TOKEN(expectedType, expectedToken)                                                                       \
 	if(*expectedToken != '\0' && token_.value_ != expectedToken)                                                       \
 	{                                                                                                                  \
-		Error(lexCtx, node, ErrorType::UNEXPECTED_TOKEN,                                                               \
+		Error(node, ErrorType::UNEXPECTED_TOKEN,                                                               \
 		    Core::String().Printf(                                                                                     \
 		        "\'%s\': Unexpected token. Did you mean \'%s\'?", token_.value_.c_str(), expectedToken));              \
 		return node;                                                                                                   \
 	}                                                                                                                  \
 	if(token_.type_ != expectedType)                                                                                   \
 	{                                                                                                                  \
-		Error(lexCtx, node, ErrorType::UNEXPECTED_TOKEN,                                                               \
+		Error(node, ErrorType::UNEXPECTED_TOKEN,                                                               \
 		    Core::String().Printf("\'%s\': Unexpected token.", token_.value_.c_str()));                                \
 		return node;                                                                                                   \
 	}                                                                                                                  \
 	while(false)
 
 #define PARSE_TOKEN()                                                                                                  \
-	if(!NextToken(lexCtx))                                                                                             \
+	if(!NextToken())                                                                                             \
 	{                                                                                                                  \
-		Error(lexCtx, node, ErrorType::UNEXPECTED_EOF, Core::String().Printf("Unexpected EOF"));                       \
+		Error(node, ErrorType::UNEXPECTED_EOF, Core::String().Printf("Unexpected EOF"));                       \
 		return node;                                                                                                   \
 	}
 
@@ -217,28 +217,27 @@ namespace Graphics
 		Core::String patchedShaderCode = BASE_LIBRARY;
 		patchedShaderCode.Appendf("\n%s", shaderCode);
 
-		stb_lexer lexCtx;
 		stb_c_lexer_init(
-		    &lexCtx, patchedShaderCode.begin(), patchedShaderCode.end(), stringStore.data(), stringStore.size());
+		    &lexCtx_, patchedShaderCode.begin(), patchedShaderCode.end(), stringStore.data(), stringStore.size());
 
 		fileName_ = shaderFileName;
-		AST::NodeShaderFile* shaderFile = ParseShaderFile(lexCtx);
+		AST::NodeShaderFile* shaderFile = ParseShaderFile();
 
 		++shaderFile;
 	}
 
-	AST::NodeShaderFile* ShaderParser::ParseShaderFile(stb_lexer& lexCtx)
+	AST::NodeShaderFile* ShaderParser::ParseShaderFile()
 	{
 		AST::NodeShaderFile* node = AddNode<AST::NodeShaderFile>();
 		shaderFileNode_ = node;
 
-		while(NextToken(lexCtx))
+		while(NextToken())
 		{
 			switch(token_.type_)
 			{
 			case AST::TokenType::CHAR:
 			{
-				auto* attributeNode = ParseAttribute(lexCtx);
+				auto* attributeNode = ParseAttribute();
 				if(attributeNode)
 					attributeNodes_.push_back(attributeNode);
 			}
@@ -247,7 +246,7 @@ namespace Graphics
 			{
 				if(token_.value_ == "struct")
 				{
-					auto* structNode = ParseStruct(lexCtx);
+					auto* structNode = ParseStruct();
 					if(structNode)
 					{
 						structNodes_.Add(structNode);
@@ -256,7 +255,7 @@ namespace Graphics
 				}
 				else
 				{
-					auto* declNode = ParseDeclaration(lexCtx);
+					auto* declNode = ParseDeclaration();
 					if(declNode)
 					{
 						if(declNode->isFunction_)
@@ -280,7 +279,7 @@ namespace Graphics
 		return node;
 	}
 
-	AST::NodeAttribute* ShaderParser::ParseAttribute(stb_lexer& lexCtx)
+	AST::NodeAttribute* ShaderParser::ParseAttribute()
 	{
 		AST::NodeAttribute* node = nullptr;
 
@@ -304,7 +303,7 @@ namespace Graphics
 					}
 					else
 					{
-						Error(lexCtx, node, ErrorType::UNEXPECTED_TOKEN,
+						Error(node, ErrorType::UNEXPECTED_TOKEN,
 						    Core::String().Printf(
 						        "\'%s\': Unexpected token. Should be uint, int, float or string value.",
 						        token_.value_.c_str()));
@@ -323,7 +322,7 @@ namespace Graphics
 		return node;
 	}
 
-	AST::NodeStorageClass* ShaderParser::ParseStorageClass(stb_lexer& lexCtx)
+	AST::NodeStorageClass* ShaderParser::ParseStorageClass()
 	{
 		AST::NodeStorageClass* node = nullptr;
 		if(Find(node, token_.value_))
@@ -333,7 +332,7 @@ namespace Graphics
 		return node;
 	}
 
-	AST::NodeModifier* ShaderParser::ParseModifier(stb_lexer& lexCtx)
+	AST::NodeModifier* ShaderParser::ParseModifier()
 	{
 		AST::NodeModifier* node = nullptr;
 		if(Find(node, token_.value_))
@@ -343,7 +342,7 @@ namespace Graphics
 		return node;
 	}
 
-	AST::NodeType* ShaderParser::ParseType(stb_lexer& lexCtx)
+	AST::NodeType* ShaderParser::ParseType()
 	{
 		AST::NodeType* node = nullptr;
 
@@ -352,7 +351,7 @@ namespace Graphics
 		// Check it's not a reserved keyword.
 		if(reserved_.find(token_.value_) != reserved_.end())
 		{
-			Error(lexCtx, node, ErrorType::RESERVED_KEYWORD,
+			Error(node, ErrorType::RESERVED_KEYWORD,
 			    Core::String().Printf("\'%s\': is a reserved keyword. Type expected.", token_.value_.c_str()));
 			return node;
 		}
@@ -360,7 +359,7 @@ namespace Graphics
 		// Find type.
 		if(!Find(node, token_.value_))
 		{
-			Error(lexCtx, node, ErrorType::TYPE_MISSING,
+			Error(node, ErrorType::TYPE_MISSING,
 			    Core::String().Printf("\'%s\': type missing", token_.value_.c_str()));
 			return node;
 		}
@@ -368,18 +367,18 @@ namespace Graphics
 		return node;
 	}
 
-	AST::NodeTypeIdent* ShaderParser::ParseTypeIdent(stb_lexer& lexCtx)
+	AST::NodeTypeIdent* ShaderParser::ParseTypeIdent()
 	{
 		AST::NodeTypeIdent* node = AddNode<AST::NodeTypeIdent>();
 
 		// Parse base modifiers.
-		while(auto* modifierNode = ParseModifier(lexCtx))
+		while(auto* modifierNode = ParseModifier())
 		{
 			node->baseModifiers_.push_back(modifierNode);
 		}
 
 		// Parse type.
-		node->baseType_ = ParseType(lexCtx);
+		node->baseType_ = ParseType();
 
 		// check for template.
 		PARSE_TOKEN();
@@ -387,12 +386,12 @@ namespace Graphics
 		{
 			PARSE_TOKEN();
 
-			while(auto* modifierNode = ParseModifier(lexCtx))
+			while(auto* modifierNode = ParseModifier())
 			{
 				node->templateModifiers_.push_back(modifierNode);
 			}
 
-			node->templateType_ = ParseType(lexCtx);
+			node->templateType_ = ParseType();
 
 			PARSE_TOKEN();
 			CHECK_TOKEN(TokenType::CHAR, ">");
@@ -402,7 +401,7 @@ namespace Graphics
 		return node;
 	}
 
-	AST::NodeStruct* ShaderParser::ParseStruct(stb_lexer& lexCtx)
+	AST::NodeStruct* ShaderParser::ParseStruct()
 	{
 		AST::NodeStruct* node = nullptr;
 
@@ -417,7 +416,7 @@ namespace Graphics
 		NodeType* nodeType = nullptr;
 		if(Find(nodeType, token_.value_))
 		{
-			Error(lexCtx, node, ErrorType::TYPE_REDEFINITION,
+			Error(node, ErrorType::TYPE_REDEFINITION,
 			    Core::String().Printf("\'%s\': 'struct' type redefinition.", token_.value_.c_str()));
 			return node;
 		}
@@ -427,7 +426,7 @@ namespace Graphics
 		// Check if token is a reserved keyword.
 		if(reserved_.find(token_.value_) != reserved_.end())
 		{
-			Error(lexCtx, node, ErrorType::RESERVED_KEYWORD,
+			Error(node, ErrorType::RESERVED_KEYWORD,
 			    Core::String().Printf("\'%s\': is a reserved keyword. Type expected.", token_.value_.c_str()));
 			return node;
 		}
@@ -445,14 +444,14 @@ namespace Graphics
 			PARSE_TOKEN();
 			while(token_.value_ != "}")
 			{
-				while(auto* attributeNode = ParseAttribute(lexCtx))
+				while(auto* attributeNode = ParseAttribute())
 				{
 					PARSE_TOKEN();
 					attributeNodes_.push_back(attributeNode);
 				}
 
 				CHECK_TOKEN(AST::TokenType::IDENTIFIER, "");
-				auto* memberNode = ParseDeclaration(lexCtx);
+				auto* memberNode = ParseDeclaration();
 				if(memberNode)
 				{
 					// Trailing ;
@@ -476,20 +475,20 @@ namespace Graphics
 	}
 
 
-	AST::NodeDeclaration* ShaderParser::ParseDeclaration(stb_lexer& lexCtx)
+	AST::NodeDeclaration* ShaderParser::ParseDeclaration()
 	{
 		AST::NodeDeclaration* node = nullptr;
 
 		Core::Vector<NodeStorageClass*> storageClasses;
 
 		// Parse storage class.
-		while(auto* storageClassNode = ParseStorageClass(lexCtx))
+		while(auto* storageClassNode = ParseStorageClass())
 		{
 			storageClasses.push_back(storageClassNode);
 		}
 
 		// Parse type identifier.
-		auto* nodeTypeIdent = ParseTypeIdent(lexCtx);
+		auto* nodeTypeIdent = ParseTypeIdent();
 
 		// Check name.
 		CHECK_TOKEN(AST::TokenType::IDENTIFIER, "");
@@ -497,7 +496,7 @@ namespace Graphics
 		// Check if identifier is a reserved keyword.
 		if(reserved_.find(token_.value_) != reserved_.end())
 		{
-			Error(lexCtx, node, ErrorType::RESERVED_KEYWORD,
+			Error(node, ErrorType::RESERVED_KEYWORD,
 			    Core::String().Printf("\'%s\': is a reserved keyword.", token_.value_.c_str()));
 			return node;
 		}
@@ -518,7 +517,7 @@ namespace Graphics
 			while(token_.value_ != ")")
 			{
 				CHECK_TOKEN(AST::TokenType::IDENTIFIER, "");
-				auto* parameterNode = ParseDeclaration(lexCtx);
+				auto* parameterNode = ParseDeclaration();
 				if(parameterNode)
 				{
 					// Trailing ,
@@ -544,7 +543,7 @@ namespace Graphics
 			// Check if identifier is a reserved keyword.
 			if(reserved_.find(token_.value_) != reserved_.end())
 			{
-				Error(lexCtx, node, ErrorType::RESERVED_KEYWORD,
+				Error(node, ErrorType::RESERVED_KEYWORD,
 				    Core::String().Printf("\'%s\': is a reserved keyword. Semantic expected.", token_.value_.c_str()));
 				return node;
 			}
@@ -557,7 +556,7 @@ namespace Graphics
 		if(token_.value_ == "=")
 		{
 			PARSE_TOKEN();
-			node->value_ = ParseValue(lexCtx, node->type_->baseType_);
+			node->value_ = ParseValue(node->type_->baseType_);
 		}
 
 		if(node->isFunction_)
@@ -565,14 +564,14 @@ namespace Graphics
 			// Capture function body.
 			if(token_.value_ == "{")
 			{
-				const char* beginCode = lexCtx.parse_point;
+				const char* beginCode = lexCtx_.parse_point;
 				const char* endCode = nullptr;
 				i32 scopeLevel = 1;
 				i32 parenLevel = 0;
 				i32 bracketLevel = 0;
 				while(scopeLevel > 0)
 				{
-					endCode = lexCtx.parse_point;
+					endCode = lexCtx_.parse_point;
 					PARSE_TOKEN();
 					if(token_.value_ == "{")
 						++scopeLevel;
@@ -589,13 +588,13 @@ namespace Graphics
 
 					if(parenLevel < 0)
 					{
-						Error(lexCtx, node, ErrorType::UNMATCHED_PARENTHESIS,
+						Error(node, ErrorType::UNMATCHED_PARENTHESIS,
 						    Core::String().Printf("\'%s\': Unmatched parenthesis.", token_.value_.c_str()));
 						return node;
 					}
 					if(bracketLevel < 0)
 					{
-						Error(lexCtx, node, ErrorType::UNMATCHED_BRACKET,
+						Error(node, ErrorType::UNMATCHED_BRACKET,
 						    Core::String().Printf("\'%s\': Unmatched parenthesis.", token_.value_.c_str()));
 						return node;
 					}
@@ -603,13 +602,13 @@ namespace Graphics
 
 				if(parenLevel > 0)
 				{
-					Error(lexCtx, node, ErrorType::UNMATCHED_PARENTHESIS,
+					Error(node, ErrorType::UNMATCHED_PARENTHESIS,
 					    Core::String().Printf("\'%s\': Missing ')'", token_.value_.c_str()));
 					return node;
 				}
 				if(bracketLevel > 0)
 				{
-					Error(lexCtx, node, ErrorType::UNMATCHED_BRACKET,
+					Error(node, ErrorType::UNMATCHED_BRACKET,
 					    Core::String().Printf("\'%s\': Missing ']'.", token_.value_.c_str()));
 					return node;
 				}
@@ -623,21 +622,21 @@ namespace Graphics
 		return node;
 	}
 
-	AST::NodeValue* ShaderParser::ParseValue(stb_lexer& lexCtx, AST::NodeType* nodeType)
+	AST::NodeValue* ShaderParser::ParseValue(AST::NodeType* nodeType)
 	{
 		AST::NodeValue* node = nullptr;
 
 		// Attempt to parse values.
 		if(nodeType->members_.size() > 0)
 		{
-			node = ParseValues(lexCtx, nodeType);
+			node = ParseValues(nodeType);
 			if(node != nullptr)
 			{
 				return node;
 			}
 
 			// Attempt to parse member value.
-			node = ParseMemberValue(lexCtx, nodeType);
+			node = ParseMemberValue(nodeType);
 			if(node != nullptr)
 			{
 				return node;
@@ -678,7 +677,7 @@ namespace Graphics
 							errorStr.Appendf(" - %s\n", nodeType->FindEnumName(idx));
 						}
 
-						Error(lexCtx, node, ErrorType::INVALID_VALUE, errorStr);
+						Error(node, ErrorType::INVALID_VALUE, errorStr);
 						return node;
 					}
 				}
@@ -692,7 +691,7 @@ namespace Graphics
 							Core::String errorStr;
 							errorStr.Printf("\'%s\': has invalid type. Expecting type \'%s\'", token_.value_.c_str(),
 							    nodeType->name_.c_str());
-							Error(lexCtx, node, ErrorType::INVALID_TYPE, errorStr);
+							Error(node, ErrorType::INVALID_TYPE, errorStr);
 							return node;
 						}
 
@@ -704,7 +703,7 @@ namespace Graphics
 					{
 						Core::String errorStr;
 						errorStr.Printf("\'%s\': Identifier missing.", token_.value_.c_str());
-						Error(lexCtx, node, ErrorType::IDENTIFIER_MISSING, errorStr);
+						Error(node, ErrorType::IDENTIFIER_MISSING, errorStr);
 						return node;
 					}
 				}
@@ -721,13 +720,13 @@ namespace Graphics
 		}
 		else
 		{
-			Error(lexCtx, node, ErrorType::UNEXPECTED_TOKEN,
+			Error(node, ErrorType::UNEXPECTED_TOKEN,
 			    Core::String().Printf("\'%s\': Unexpected token.", token_.value_.c_str()));
 		}
 		return node;
 	}
 
-	AST::NodeValues* ShaderParser::ParseValues(stb_lexer& lexCtx, AST::NodeType* nodeType)
+	AST::NodeValues* ShaderParser::ParseValues(AST::NodeType* nodeType)
 	{
 		AST::NodeValues* node = nullptr;
 
@@ -738,7 +737,7 @@ namespace Graphics
 			PARSE_TOKEN();
 			while(token_.value_ != "}")
 			{
-				auto nodeValue = ParseMemberValue(lexCtx, nodeType);
+				auto nodeValue = ParseMemberValue(nodeType);
 				if(nodeValue)
 					node->values_.push_back(nodeValue);
 
@@ -756,7 +755,7 @@ namespace Graphics
 		return node;
 	}
 
-	AST::NodeMemberValue* ShaderParser::ParseMemberValue(stb_lexer& lexCtx, AST::NodeType* nodeType)
+	AST::NodeMemberValue* ShaderParser::ParseMemberValue(AST::NodeType* nodeType)
 	{
 		AST::NodeMemberValue* node = nullptr;
 
@@ -776,48 +775,48 @@ namespace Graphics
 				{
 					errorStr.Appendf(" - %s\n", member->name_.c_str());
 				}
-				Error(lexCtx, node, ErrorType::INVALID_MEMBER, errorStr);
+				Error(node, ErrorType::INVALID_MEMBER, errorStr);
 			}
 
 			PARSE_TOKEN();
 			CHECK_TOKEN(AST::TokenType::CHAR, "=");
 
 			PARSE_TOKEN();
-			node->value_ = ParseValue(lexCtx, memberType->type_->baseType_);
+			node->value_ = ParseValue(memberType->type_->baseType_);
 		}
 
 		return node;
 	}
 
-	bool ShaderParser::NextToken(stb_lexer& lexCtx)
+	bool ShaderParser::NextToken()
 	{
-		while(stb_c_lexer_get_token(&lexCtx) > 0)
+		while(stb_c_lexer_get_token(&lexCtx_) > 0)
 		{
-			if(lexCtx.token < CLEX_eof)
+			if(lexCtx_.token < CLEX_eof)
 			{
-				char tokenStr[] = {(char)lexCtx.token, '\0'};
+				char tokenStr[] = {(char)lexCtx_.token, '\0'};
 				token_.type_ = AST::TokenType::CHAR;
 				token_.value_ = tokenStr;
 			}
-			else if(lexCtx.token == CLEX_id)
+			else if(lexCtx_.token == CLEX_id)
 			{
 				token_.type_ = AST::TokenType::IDENTIFIER;
-				token_.value_ = lexCtx.string;
+				token_.value_ = lexCtx_.string;
 			}
-			else if(lexCtx.token == CLEX_floatlit)
+			else if(lexCtx_.token == CLEX_floatlit)
 			{
 				token_.type_ = AST::TokenType::FLOAT;
-				token_.value_ = Core::String(lexCtx.where_firstchar, lexCtx.where_lastchar + 1);
+				token_.value_ = Core::String(lexCtx_.where_firstchar, lexCtx_.where_lastchar + 1);
 			}
-			else if(lexCtx.token == CLEX_intlit)
+			else if(lexCtx_.token == CLEX_intlit)
 			{
 				token_.type_ = AST::TokenType::INT;
-				token_.value_ = Core::String(lexCtx.where_firstchar, lexCtx.where_lastchar + 1);
+				token_.value_ = Core::String(lexCtx_.where_firstchar, lexCtx_.where_lastchar + 1);
 			}
-			else if(lexCtx.token == CLEX_dqstring)
+			else if(lexCtx_.token == CLEX_dqstring)
 			{
 				token_.type_ = AST::TokenType::STRING;
-				token_.value_ = lexCtx.string;
+				token_.value_ = lexCtx_.string;
 			}
 			token_ = token_;
 			return true;
@@ -828,12 +827,12 @@ namespace Graphics
 
 	AST::Token ShaderParser::GetToken() const { return token_; }
 
-	void ShaderParser::Error(stb_lexer& lexCtx, AST::Node*& node, ErrorType errorType, Core::StringView errorStr)
+	void ShaderParser::Error(AST::Node*& node, ErrorType errorType, Core::StringView errorStr)
 	{
 		stb_lex_location loc;
-		stb_c_lexer_get_location(&lexCtx, lexCtx.parse_point, &loc);
+		stb_c_lexer_get_location(&lexCtx_, lexCtx_.parse_point, &loc);
 
-		const char* line_start = lexCtx.parse_point - loc.line_offset;
+		const char* line_start = lexCtx_.parse_point - loc.line_offset;
 		const char* line_end = strstr(line_start, "\n");
 		Core::String line(line_start, line_end);
 		if(callbacks_)

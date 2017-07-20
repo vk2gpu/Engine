@@ -1,7 +1,5 @@
 #pragma once
 
-#include "00-basic.esf"
-
 
 struct VS_IN
 {
@@ -25,8 +23,8 @@ float4 ps_main(VS_OUT _in) : COLOR0
 	return float4(1.0, 1.0, 1.0, 1.0);
 }
 
-technique main_technique
+Technique TECH_MAIN
 {
-	VertexShader = vs_main();
-	PixelShader = ps_main();
+	.VertexShader = vs_main(),
+	.PixelShader = ps_main(),
 }

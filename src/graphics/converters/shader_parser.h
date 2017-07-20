@@ -55,27 +55,27 @@ namespace Graphics
 		void Parse(const char* shaderFileName, const char* shaderCode, IShaderParserCallbacks* callbacks = nullptr);
 
 	private:
-		AST::NodeShaderFile* ParseShaderFile(stb_lexer& lexCtx);
-		AST::NodeAttribute* ParseAttribute(stb_lexer& lexCtx);
-		AST::NodeStorageClass* ParseStorageClass(stb_lexer& lexCtx);
-		AST::NodeModifier* ParseModifier(stb_lexer& lexCtx);
-		AST::NodeType* ParseType(stb_lexer& lexCtx);
-		AST::NodeTypeIdent* ParseTypeIdent(stb_lexer& lexCtx);
-		AST::NodeStruct* ParseStruct(stb_lexer& lexCtx);
-		AST::NodeDeclaration* ParseDeclaration(stb_lexer& lexCtx);
-		AST::NodeValue* ParseValue(stb_lexer& lexCtx, AST::NodeType* nodeType);
-		AST::NodeValues* ParseValues(stb_lexer& lexCtx, AST::NodeType* nodeType);
-		AST::NodeMemberValue* ParseMemberValue(stb_lexer& lexCtx, AST::NodeType* nodeType);
+		AST::NodeShaderFile* ParseShaderFile();
+		AST::NodeAttribute* ParseAttribute();
+		AST::NodeStorageClass* ParseStorageClass();
+		AST::NodeModifier* ParseModifier();
+		AST::NodeType* ParseType();
+		AST::NodeTypeIdent* ParseTypeIdent();
+		AST::NodeStruct* ParseStruct();
+		AST::NodeDeclaration* ParseDeclaration();
+		AST::NodeValue* ParseValue(AST::NodeType* nodeType);
+		AST::NodeValues* ParseValues(AST::NodeType* nodeType);
+		AST::NodeMemberValue* ParseMemberValue(AST::NodeType* nodeType);
 
-		bool NextToken(stb_lexer& lexCtx);
+		bool NextToken();
 		AST::Token GetToken() const;
 
-		void Error(stb_lexer& lexCtx, AST::Node*& node, ErrorType errorType, Core::StringView errorStr);
+		void Error(AST::Node*& node, ErrorType errorType, Core::StringView errorStr);
 
 		template<typename NODE_TYPE>
-		void Error(stb_lexer& lexCtx, NODE_TYPE*& node, ErrorType errorType, Core::StringView errorStr)
+		void Error(NODE_TYPE*& node, ErrorType errorType, Core::StringView errorStr)
 		{
-			Error(lexCtx, reinterpret_cast<AST::Node*&>(node), errorType, errorStr);
+			Error(reinterpret_cast<AST::Node*&>(node), errorType, errorStr);
 		}
 
 		// Find node by name.
@@ -167,5 +167,7 @@ namespace Graphics
 		Core::Set<Core::String> reserved_;
 
 		Core::Vector<AST::Node*> allocatedNodes_;
+
+		stb_lexer lexCtx_;
 	};
 } // namespace Graphics
