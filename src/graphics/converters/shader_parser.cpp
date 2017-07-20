@@ -92,7 +92,7 @@ namespace
 	};
 
 	const char* BASE_LIBRARY = R"(
-		[internal]
+		[internal("SamplerState")]
 		struct SamplerState
 		{
 			AddressingMode AddressU;
@@ -107,7 +107,7 @@ namespace
 			float MaxLOD;
 		};
 
-		[internal]
+		[internal("BlendState")]
 		struct BlendState
 		{
 			uint Enable;
@@ -120,7 +120,7 @@ namespace
 			uint WriteMask;
 		};
 
-		[internal]
+		[internal("StencilFaceState")]
 		struct StencilFaceState
 		{
 			StencilFunc Fail;
@@ -129,7 +129,7 @@ namespace
 			CompareMode Func;
 		};
 
-		[internal]
+		[internal("RenderState")]
 		struct RenderState
 		{
 			BlendState BlendStates;//[8];
@@ -151,19 +151,24 @@ namespace
 			uint AntialiasedLineEnable;
 		};
 
-		[internal]
+		[internal("Technique")]
 		struct Technique
 		{
 			[fn("VertexShader")]
 			void VertexShader;
+
 			[fn("GeometryShader")]
 			void GeometryShader;
+
 			[fn("HullShader")]
 			void HullShader;
+
 			[fn("DomainShader")]
 			void DomainShader;
+
 			[fn("PixelShader")]
 			void PixelShader;
+
 			[fn("ComputeShader")]
 			void ComputeShader;
 
