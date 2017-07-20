@@ -1,0 +1,6 @@
+RenderState RS_DEFAULT;
+
+Technique TECH_MAIN =
+{
+	.RenderState = RS_DEFAULT;
+};

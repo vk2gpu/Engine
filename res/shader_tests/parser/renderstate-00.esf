@@ -1,4 +1,19 @@
 RenderState RS_DEFAULT =
 {
-	
+	.BlendStates = {
+		.Enable = 1,
+		.SrcBlend = SRC_COLOR,
+	},
+
+	.StencilFront = {
+
+	},
+
+	.StencilBack = {
+
+	},
+
+	.DepthEnable = 1,
+	.StencilRef = 0x0,
+	.FillMode = WIREFRAME,
 };

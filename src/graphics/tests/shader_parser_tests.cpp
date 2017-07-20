@@ -106,7 +106,7 @@ TEST_CASE("graphics-tests-shader-parser")
 #if 1
 	fileInfos.clear();
 	Core::FileInfo testFileInfo;
-	strcpy_s(testFileInfo.fileName_, sizeof(testFileInfo.fileName_), "renderstate-00.esf");
+	strcpy_s(testFileInfo.fileName_, sizeof(testFileInfo.fileName_), "technique-01.esf");
 	fileInfos.push_back(testFileInfo);
 #endif
 

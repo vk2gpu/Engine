@@ -666,15 +666,11 @@ namespace Graphics
 				return node;
 			}
 
-			// If ident is known var, then skip member value.
-			if(!shaderFileNode_->FindVariable(token_.value_.c_str()))
+			// Attempt to parse member value.
+			node = ParseMemberValue(lexCtx, nodeType);
+			if(node != nullptr)
 			{
-				// Attempt to parse member value.
-				node = ParseMemberValue(lexCtx, nodeType);
-				if(node != nullptr)
-				{
-					return node;
-				}
+				return node;
 			}
 		}
 
@@ -776,6 +772,9 @@ namespace Graphics
 				if(nodeValue)
 					node->values_.push_back(nodeValue);
 
+				if(token_.value_ == ";")
+					return node;
+
 				if(token_.type_ == AST::TokenType::CHAR && token_.value_ == ",")
 				{
 					PARSE_TOKEN();
@@ -791,8 +790,9 @@ namespace Graphics
 	{
 		AST::NodeMemberValue* node = nullptr;
 
-		if(token_.type_ == AST::TokenType::IDENTIFIER)
+		if(token_.type_ == AST::TokenType::CHAR && token_.value_ == ".")
 		{
+			PARSE_TOKEN();
 			node = AddNode<AST::NodeMemberValue>();
 
 			node->member_ = token_.value_;
