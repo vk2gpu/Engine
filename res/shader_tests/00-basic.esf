@@ -23,8 +23,10 @@ float4 ps_main(VS_OUT _in) : COLOR0
 	return float4(1.0, 1.0, 1.0, 1.0);
 }
 
+/*
 Technique TECH_MAIN
 {
 	.VertexShader = vs_main(),
 	.PixelShader = ps_main(),
-}
+};
+*/
