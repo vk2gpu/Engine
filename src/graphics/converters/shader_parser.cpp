@@ -234,7 +234,8 @@ namespace Graphics
 
 		fileName_ = shaderFileName;
 		AST::NodeShaderFile* shaderFile = ParseShaderFile();
-		shaderFile->name_ = shaderFileName;
+		if(shaderFile)
+			shaderFile->name_ = shaderFileName;
 		return shaderFile;
 	}
 
@@ -565,12 +566,6 @@ namespace Graphics
 			PARSE_TOKEN();
 		}
 
-		if(token_.value_ == "=")
-		{
-			PARSE_TOKEN();
-			node->value_ = ParseValue(node->type_->baseType_, nullptr);
-		}
-
 		if(node->isFunction_)
 		{
 			// Capture function body.
@@ -630,6 +625,12 @@ namespace Graphics
 				node->value_->data_ = Core::String(beginCode, endCode);
 			}
 		}
+		else if(token_.value_ == "=")
+		{
+			PARSE_TOKEN();
+			node->value_ = ParseValue(node->type_->baseType_, nullptr);
+		}
+
 
 		return node;
 	}
@@ -772,6 +773,7 @@ namespace Graphics
 			node = AddNode<AST::NodeValues>();
 
 			PARSE_TOKEN();
+			const char* lastParsePoint = lexCtx_.parse_point;
 			while(token_.value_ != "}")
 			{
 				auto nodeValue = ParseMemberValue(nodeType);
@@ -785,6 +787,14 @@ namespace Graphics
 				{
 					PARSE_TOKEN();
 				}
+
+				if(lastParsePoint == lexCtx_.parse_point)
+				{
+					Error(node, ErrorType::UNEXPECTED_TOKEN,
+					    Core::String().Printf("\'%s\': Unexpected token.", token_.value_.c_str()));
+					return node;
+				}
+				lastParsePoint = lexCtx_.parse_point;
 			}
 			PARSE_TOKEN();
 		}

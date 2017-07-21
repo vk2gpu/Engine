@@ -15,6 +15,8 @@
 #include "gpu/utils.h"
 
 #include "serialization/serializer.h"
+#include "graphics/converters/shader_backend_hlsl.h"
+#include "graphics/converters/shader_backend_metadata.h"
 #include "graphics/converters/shader_parser.h"
 #include "graphics/converters/shader_preprocessor.h"
 
@@ -53,9 +55,15 @@ namespace
 		{
 			MetaData metaData = context.GetMetaData<MetaData>();
 
+			char fullPath[Core::MAX_PATH_LENGTH];
+			memset(fullPath, 0, sizeof(fullPath));
+			context.GetPathResolver()->ResolvePath(sourceFile, fullPath, sizeof(fullPath));
+
 			char file[Core::MAX_PATH_LENGTH];
 			memset(file, 0, sizeof(file));
-			if(!Core::FileSplitPath(sourceFile, nullptr, 0, file, sizeof(file), nullptr, 0))
+			char path[Core::MAX_PATH_LENGTH];
+			memset(path, 0, sizeof(path));
+			if(!Core::FileSplitPath(fullPath, path, sizeof(path), file, sizeof(file), nullptr, 0))
 			{
 				context.AddError(__FILE__, __LINE__, "INTERNAL ERROR: Core::FileSplitPath failed.");
 				return false;
@@ -75,36 +83,29 @@ namespace
 				shaderSource.resize((i32)shaderFile.Size() + 1, '\0');
 				shaderFile.Read(shaderSource.data(), shaderFile.Size());
 
-				Graphics::ShaderPreprocessor preprocessor(sourceFile, shaderSource.data());
+				Graphics::ShaderPreprocessor preprocessor;
 
-				// Add defines.
-				//for( auto Define : Params.Permutation_.Defines_ )
-				//{
-				//	Preprocessor.addDefine( Define.first.c_str(), Define.second.c_str() );
-				//}
-				//auto ShaderDefine = ShaderDefines[ (int)Entry.Type_ ];
-				//Preprocessor.addDefine( ShaderDefine, "1" );
+				// Setup include path to root of shader.
+				preprocessor.AddInclude(path);
 
-				// Add entry point macro.
-				//if( Entrypoint != "main" )
-				//{
-				//	Preprocessor.addDefine( Entrypoint.c_str(), "main" );
-				//}
+				if(!preprocessor.Preprocess(sourceFile, shaderSource.data()))
+					return false;
 
-				// Setup include paths.
-				//preprocessor.addInclude( "." );
-				//preprocessor.addInclude( "./Content/Engine" );
-				//preprocessor.addInclude( "../Psybrus/Dist/Content/Engine" );
-				//preprocessor.addInclude( "./Intermediate/GeneratedShaderData" );
 
-				if(preprocessor.Preprocess())
+				for(const char* dep : preprocessor.GetDependencies())
 				{
-					Graphics::ShaderParser shaderParser;
-					shaderParser.Parse(sourceFile, preprocessor.GetOutput().c_str());
-
-					// TODO: Parse.
+					context.AddDependency(dep);
 				}
-				Core::String processedSourceData = preprocessor.GetOutput();
+
+				Graphics::ShaderParser shaderParser;
+				auto node = shaderParser.Parse(sourceFile, preprocessor.GetOutput().c_str());
+				if(node == nullptr)
+					return false;
+
+				Graphics::ShaderBackendMetadata backendMetadata;
+				node->Visit(&backendMetadata);
+
+				//
 			}
 			context.AddDependency(sourceFile);
 

@@ -1,4 +1,16 @@
+#include "lib.esh"
+
 #pragma once
+
+struct Test
+{
+	float a;
+	float b;
+};
+
+const Test Vals = { .a = 0.0, .b = 1.0 };
+
+const float myConstFloat = 1.0;
 
 [something(1.0)]
 struct VS_IN
@@ -19,14 +31,35 @@ VS_OUT vs_main(VS_IN _in)
 	return out;
 }
 
-[earlydepthtest]
+[earlydepthstencil]
 float4 ps_main(VS_OUT _in) : COLOR0
 {
 	return float4(1.0, 1.0, 1.0, 1.0);
 }
 
+RenderState RS_DEFAULT =
+{
+	.BlendStates = {
+		.Enable = 1,
+		.SrcBlend = SRC_COLOR,
+	},
+
+	.StencilFront = {
+
+	},
+
+	.StencilBack = {
+
+	},
+
+	.DepthEnable = 1,
+	.StencilRef = 0x0,
+	.FillMode = WIREFRAME,
+};
+
 Technique TECH_MAIN =
 {
 	.VertexShader = vs_main,
 	.PixelShader = ps_main,
+	.RenderState = RS_DEFAULT,
 };

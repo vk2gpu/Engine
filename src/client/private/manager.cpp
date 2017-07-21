@@ -16,7 +16,7 @@ namespace Client
 
 	void Manager::Initialize()
 	{
-		SDL_Init(SDL_INIT_EVERYTHING);
+		SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS);
 
 		SDL_EventState(SDL_DROPFILE, SDL_ENABLE);
 

@@ -13,13 +13,14 @@ namespace Graphics
 	class ShaderPreprocessor
 	{
 	public:
-		ShaderPreprocessor(const char* inputFile, const char* inputData);
+		ShaderPreprocessor();
 		~ShaderPreprocessor();
 
 		void AddInclude(const char* includePath);
 		void AddDefine(const char* define, const char* value);
-		bool Preprocess();
-		const Core::String& GetOutput() { return output_; }
+		bool Preprocess(const char* inputFile, const char* inputData);
+		const Core::String& GetOutput() const { return output_; }
+		const Core::Vector<const char*> GetDependencies() const { return dependencies_; }
 
 	private:
 		static void ShaderPreprocessor::cbError(void* userData, char* format, va_list varArgs);
@@ -33,6 +34,7 @@ namespace Graphics
 		i32 inputSize_;
 		Core::LinearAllocator allocator_;
 		Core::String output_;
+		Core::Vector<const char*> dependencies_;
 	};
 
 } // namespace Graphics

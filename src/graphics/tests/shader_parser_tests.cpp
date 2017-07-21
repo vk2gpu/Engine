@@ -11,6 +11,7 @@
 #include "resource/manager.h"
 
 #include "graphics/converters/shader_parser.h"
+#include "graphics/converters/shader_preprocessor.h"
 
 namespace
 {
@@ -97,6 +98,25 @@ namespace
 
 TEST_CASE("graphics-tests-shader-preprocessor")
 {
+	const char* testPath = "../../../../res/shader_tests";
+	PathResolver pathResolver(testPath);
+	const char* testShader = "00-basic.esf";
+
+	Core::File shaderFile(testShader, Core::FileFlags::READ, &pathResolver);
+	if(shaderFile)
+	{
+		Core::Log("Pereprocessing %s...\n", testShader);
+
+		Core::String shaderCode;
+		shaderCode.resize((i32)shaderFile.Size());
+		shaderFile.Read(shaderCode.data(), shaderCode.size());
+
+		{
+			Graphics::ShaderPreprocessor shaderPreprocessor;
+			shaderPreprocessor.AddInclude(testPath);
+			CHECK(shaderPreprocessor.Preprocess(testShader, shaderCode.c_str()));
+		}
+	}
 }
 
 TEST_CASE("graphics-tests-shader-parser")
@@ -245,14 +265,10 @@ TEST_CASE("graphics-tests-shader-basic")
 				bool VisitEnter(AST::NodeTypeIdent* node) override
 				{
 					Log("TypeIdent (%s<>) {", node->baseType_->name_.c_str());
-					//++indent_;
+					Log("}");
 					return false;
 				}
-				void VisitExit(AST::NodeTypeIdent* node) override
-				{
-					--indent_;
-					Log("}");
-				}
+				void VisitExit(AST::NodeTypeIdent* node) override {}
 				bool VisitEnter(AST::NodeStruct* node) override
 				{
 					Log("Struct (%s) {", node->name_.c_str());
@@ -315,175 +331,6 @@ TEST_CASE("graphics-tests-shader-basic")
 			};
 			ASTLogger astLogger;
 			nodeShaderFile->Visit(&astLogger);
-
-
-			class HLSLLogger : public AST::IVisitor
-			{
-			public:
-				void LogIndent()
-				{
-					for(i32 ind = 0; ind < indent_; ++ind)
-						Core::Log("    ");
-
-				}
-				bool VisitEnter(AST::NodeShaderFile* node) override
-				{
-					Core::Log("// generated shader for %s\n", node->name_.c_str());
-					return true;
-				}
-				void VisitExit(AST::NodeShaderFile* node) override
-				{
-				}
-				bool VisitEnter(AST::NodeAttribute* node) override
-				{
-					LogIndent();
-
-					// TODO: Only write if an HLSL compatible attribute.
-
-					if(node->parameters_.size() == 0)
-					{
-						Core::Log("[%s]\n", node->name_.c_str());
-					}
-					else
-					{
-						Core::Log("[%s(", node->name_.c_str());
-						for(const auto& param : node->parameters_)
-						{
-							Core::Log("%s,", param.c_str());
-						}
-						Core::Log(")]\n");
-					}
-					return true;
-				}
-				void VisitExit(AST::NodeAttribute* node) override
-				{
-				}
-				bool VisitEnter(AST::NodeStorageClass* node) override
-				{
-					Core::Log("%s", node->name_.c_str());
-					return true;
-				}
-				void VisitExit(AST::NodeStorageClass* node) override
-				{
-				}
-				bool VisitEnter(AST::NodeModifier* node) override
-				{
-					Core::Log("%s", node->name_.c_str());
-					return true;
-				}
-				void VisitExit(AST::NodeModifier* node) override
-				{
-				}
-				bool VisitEnter(AST::NodeType* node) override
-				{
-					//Log("Type (%s) {", node->name_.c_str());
-					//++indent_;
-					return true;
-				}
-				void VisitExit(AST::NodeType* node) override
-				{
-					//--indent_;
-					//Log("}");
-				}
-				bool VisitEnter(AST::NodeTypeIdent* node) override
-				{
-					Core::Log("%s<>", node->baseType_->name_.c_str());
-					return false;
-				}
-				void VisitExit(AST::NodeTypeIdent* node) override
-				{
-					//--indent_;
-					//Log("}");
-				}
-				bool VisitEnter(AST::NodeStruct* node) override
-				{
-					if(node->FindAttribute("internal"))
-						return false;
-
-					for(auto* attrib : node->attributes_)
-						attrib->Visit(this);
-
-					LogIndent();
-					Core::Log("struct %s\n{\n", node->name_.c_str());
-					//Log("Struct (%s) {", node->name_.c_str());
-					++indent_;
-
-					for(auto* member : node->type_->members_)
-					{
-						member->Visit(this);
-					}
-
-					--indent_;
-
-					Core::Log("};\n");
-					return false;
-				}
-				void VisitExit(AST::NodeStruct* node) override
-				{
-					--indent_;
-					LogIndent();
-					Core::Log("};\n");
-				}
-				bool VisitEnter(AST::NodeDeclaration* node) override
-				{
-					if(node->FindAttribute("internal"))
-						return false;
-
-					node->type_->Visit(this);
-
-					Core::Log("%s;\n", node->name_.c_str());
-
-					++indent_;
-					return false;
-				}
-				void VisitExit(AST::NodeDeclaration* node) override
-				{
-					--indent_;
-					//Log("}");
-				}
-				bool VisitEnter(AST::NodeValue* node) override
-				{
-					//Log("Value (%s) { %s", node->name_.c_str(), node->data_.c_str());
-					//++indent_;
-					return true;
-				}
-				void VisitExit(AST::NodeValue* node) override
-				{
-					//--indent_;
-					//Log("}");
-				}
-				bool VisitEnter(AST::NodeValues* node) override
-				{
-					//Log("Values (%s) {", node->name_.c_str());
-					//++indent_;
-					return true;
-				}
-				void VisitExit(AST::NodeValues* node) override
-				{
-					//--indent_;
-					//Log("}");
-				}
-				bool VisitEnter(AST::NodeMemberValue* node) override
-				{
-					//Log("MemberValue (%s) { %s = ", node->name_.c_str(), node->member_.c_str());
-					//++indent_;
-					return true;
-				}
-				void VisitExit(AST::NodeMemberValue* node) override
-				{
-					//--indent_;
-					//Log("}");
-				}
-
-
-			private:
-				i32 indent_ = 0;
-			};
-
-			HLSLLogger hlslLogger;
-			nodeShaderFile->Visit(&hlslLogger);
-
 		}
-
 	}
 }

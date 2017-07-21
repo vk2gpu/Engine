@@ -8,8 +8,50 @@ extern "C" {
 
 namespace Graphics
 {
-	ShaderPreprocessor::ShaderPreprocessor(const char* inputFile, const char* inputData)
+	ShaderPreprocessor::ShaderPreprocessor()
 	    : allocator_(256 * 1024)
+	{
+	}
+
+	ShaderPreprocessor::~ShaderPreprocessor() {}
+
+	void ShaderPreprocessor::AddInclude(const char* includePath)
+	{
+		i32 size = (i32)strlen(includePath) + 1;
+		char* data = allocator_.Allocate<char>(size);
+		strcpy_s(data, size, includePath);
+
+		fppTag tag;
+		tag.tag = FPPTAG_INCLUDE_DIR;
+		tag.data = data;
+		tags_.push_back(tag);
+	}
+
+	void ShaderPreprocessor::AddDefine(const char* define, const char* value)
+	{
+		i32 size = (i32)strlen(define) + 1;
+		if(value)
+		{
+			size += (i32)strlen(value) + 1;
+		}
+		char* data = allocator_.Allocate<char>(size);
+		memset(data, 0, size);
+		if(value)
+		{
+			sprintf_s(data, size, "%s=%s", define, value);
+		}
+		else
+		{
+			strcpy_s(data, size, define);
+		}
+
+		fppTag tag;
+		tag.tag = FPPTAG_DEFINE;
+		tag.data = data;
+		tags_.push_back(tag);
+	}
+
+	bool ShaderPreprocessor::Preprocess(const char* inputFile, const char* inputData)
 	{
 		fppTag tag;
 		tag.tag = FPPTAG_USERDATA;
@@ -52,6 +94,10 @@ namespace Graphics
 		tag.data = (void*)inputFile;
 		tags_.push_back(tag);
 
+		tag.tag = FPPTAG_END;
+		tag.data = (void*)0;
+		tags_.push_back(tag);
+
 		// Unix line endings.
 		Core::String fixedInputData = Core::String(inputData).replace("\r\n", "\n");
 		inputOffset_ = 0;
@@ -59,57 +105,10 @@ namespace Graphics
 		inputData_ = allocator_.Allocate<char>(inputSize_);
 		memset(inputData_, 0, inputSize_);
 		strcpy_s(inputData_, inputSize_, fixedInputData.c_str());
-	}
-
-	ShaderPreprocessor::~ShaderPreprocessor() {}
-
-	void ShaderPreprocessor::AddInclude(const char* includePath)
-	{
-		i32 size = (i32)strlen(includePath) + 1;
-		char* data = allocator_.Allocate<char>(size);
-		strcpy_s(data, size, includePath);
-
-		fppTag tag;
-		tag.tag = FPPTAG_INCLUDE_DIR;
-		tag.data = data;
-		tags_.push_back(tag);
-	}
-
-	void ShaderPreprocessor::AddDefine(const char* define, const char* value)
-	{
-		i32 size = (i32)strlen(define) + 1;
-		if(value)
-		{
-			size += (i32)strlen(value) + 1;
-		}
-		char* data = allocator_.Allocate<char>(size);
-		memset(data, 0, size);
-		if(value)
-		{
-			sprintf_s(data, size, "%s=%s", define, value);
-		}
-		else
-		{
-			strcpy_s(data, size, define);
-		}
-
-		fppTag tag;
-		tag.tag = FPPTAG_DEFINE;
-		tag.data = data;
-		tags_.push_back(tag);
-	}
-
-	bool ShaderPreprocessor::Preprocess()
-	{
-		fppTag tag;
-
-		tag.tag = FPPTAG_END;
-		tag.data = (void*)0;
-		tags_.push_back(tag);
 
 		int result = fppPreProcess(tags_.data());
 
-		tags_.pop_back();
+		allocator_.Reset();
 
 		return result == 0;
 	}
@@ -118,7 +117,7 @@ namespace Graphics
 	{
 		Core::String errorStr;
 		errorStr.Printfv(format, varArgs);
-		DBG_LOG("ERROR: %s", errorStr.c_str());
+		DBG_LOG("%s", errorStr.c_str());
 	}
 
 	char* ShaderPreprocessor::cbInput(char* buffer, int size, void* userData)
@@ -150,7 +149,10 @@ namespace Graphics
 
 	void ShaderPreprocessor::cbDependency(char* dependency, void* userData)
 	{
-		//auto* _this = static_cast<Graphics::ShaderPreprocessor*>(userData);
-		//_this->Importer_.addDependency(dependency);
+		auto* _this = static_cast<Graphics::ShaderPreprocessor*>(userData);
+		i32 len = (i32)strlen((char*)dependency) + 1;
+		char* str = _this->allocator_.Allocate<char>(len);
+		strcpy_s(str, len, (char*)dependency);
+		_this->dependencies_.push_back(str);
 	}
 } // namespace Graphics

@@ -87,27 +87,27 @@ namespace Graphics
 		class IVisitor
 		{
 		public:
-			virtual bool VisitEnter(AST::NodeShaderFile* node) { return false; }
+			virtual bool VisitEnter(AST::NodeShaderFile* node) { return true; }
 			virtual void VisitExit(AST::NodeShaderFile* node) {}
-			virtual bool VisitEnter(AST::NodeAttribute* node) { return false; }
+			virtual bool VisitEnter(AST::NodeAttribute* node) { return true; }
 			virtual void VisitExit(AST::NodeAttribute* node) {}
-			virtual bool VisitEnter(AST::NodeStorageClass* node) { return false; }
+			virtual bool VisitEnter(AST::NodeStorageClass* node) { return true; }
 			virtual void VisitExit(AST::NodeStorageClass* node) {}
-			virtual bool VisitEnter(AST::NodeModifier* node) { return false; }
+			virtual bool VisitEnter(AST::NodeModifier* node) { return true; }
 			virtual void VisitExit(AST::NodeModifier* node) {}
-			virtual bool VisitEnter(AST::NodeType* node) { return false; }
+			virtual bool VisitEnter(AST::NodeType* node) { return true; }
 			virtual void VisitExit(AST::NodeType* node) {}
-			virtual bool VisitEnter(AST::NodeTypeIdent* node) { return false; }
+			virtual bool VisitEnter(AST::NodeTypeIdent* node) { return true; }
 			virtual void VisitExit(AST::NodeTypeIdent* node) {}
-			virtual bool VisitEnter(AST::NodeStruct* node) { return false; }
+			virtual bool VisitEnter(AST::NodeStruct* node) { return true; }
 			virtual void VisitExit(AST::NodeStruct* node) {}
-			virtual bool VisitEnter(AST::NodeDeclaration* node) { return false; }
+			virtual bool VisitEnter(AST::NodeDeclaration* node) { return true; }
 			virtual void VisitExit(AST::NodeDeclaration* node) {}
-			virtual bool VisitEnter(AST::NodeValue* node) { return false; }
+			virtual bool VisitEnter(AST::NodeValue* node) { return true; }
 			virtual void VisitExit(AST::NodeValue* node) {}
-			virtual bool VisitEnter(AST::NodeValues* node) { return false; }
+			virtual bool VisitEnter(AST::NodeValues* node) { return true; }
 			virtual void VisitExit(AST::NodeValues* node) {}
-			virtual bool VisitEnter(AST::NodeMemberValue* node) { return false; }
+			virtual bool VisitEnter(AST::NodeMemberValue* node) { return true; }
 			virtual void VisitExit(AST::NodeMemberValue* node) {}
 		};
 
@@ -117,19 +117,18 @@ namespace Graphics
 		public:
 			ScopedVisit(IVisitor* visitor, NODE_TYPE* node)
 			    : visitor_(visitor)
-			    , node_(nullptr)
+			    , node_(node)
 			{
-				if(node)
-					if(visitor_->VisitEnter(node))
-						node_ = node;
+				recurse_ = visitor_->VisitEnter(node);
 			}
 
-			~ScopedVisit() { if(node_) visitor_->VisitExit(node_); }
-			operator bool() const { return !! node_;}
+			~ScopedVisit() { visitor_->VisitExit(node_); }
+			operator bool() const { return recurse_; }
 
 		private:
 			IVisitor* visitor_;
 			NODE_TYPE* node_;
+			bool recurse_ = false;
 		};
 
 		struct Node
@@ -173,6 +172,8 @@ namespace Graphics
 			}
 			virtual ~NodeAttribute() = default;
 			void Visit(IVisitor*) override;
+			bool HasParameter(i32 idx) const { return idx < parameters_.size(); }
+			const Core::String& GetParameter(i32 idx) const { return parameters_[idx]; }
 
 			Core::Vector<Core::String> parameters_;
 		};
