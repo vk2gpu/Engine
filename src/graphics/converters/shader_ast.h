@@ -31,6 +31,7 @@ namespace Graphics
 			ENUM,
 			ARRAY,
 			STRUCT,
+			IDENTIFIER,
 			RAW_CODE
 		};
 
@@ -83,6 +84,54 @@ namespace Graphics
 		struct NodeValues;
 		struct NodeMemberValue;
 
+		class IVisitor
+		{
+		public:
+			virtual bool VisitEnter(AST::NodeShaderFile* node) { return false; }
+			virtual void VisitExit(AST::NodeShaderFile* node) {}
+			virtual bool VisitEnter(AST::NodeAttribute* node) { return false; }
+			virtual void VisitExit(AST::NodeAttribute* node) {}
+			virtual bool VisitEnter(AST::NodeStorageClass* node) { return false; }
+			virtual void VisitExit(AST::NodeStorageClass* node) {}
+			virtual bool VisitEnter(AST::NodeModifier* node) { return false; }
+			virtual void VisitExit(AST::NodeModifier* node) {}
+			virtual bool VisitEnter(AST::NodeType* node) { return false; }
+			virtual void VisitExit(AST::NodeType* node) {}
+			virtual bool VisitEnter(AST::NodeTypeIdent* node) { return false; }
+			virtual void VisitExit(AST::NodeTypeIdent* node) {}
+			virtual bool VisitEnter(AST::NodeStruct* node) { return false; }
+			virtual void VisitExit(AST::NodeStruct* node) {}
+			virtual bool VisitEnter(AST::NodeDeclaration* node) { return false; }
+			virtual void VisitExit(AST::NodeDeclaration* node) {}
+			virtual bool VisitEnter(AST::NodeValue* node) { return false; }
+			virtual void VisitExit(AST::NodeValue* node) {}
+			virtual bool VisitEnter(AST::NodeValues* node) { return false; }
+			virtual void VisitExit(AST::NodeValues* node) {}
+			virtual bool VisitEnter(AST::NodeMemberValue* node) { return false; }
+			virtual void VisitExit(AST::NodeMemberValue* node) {}
+		};
+
+		template<typename NODE_TYPE>
+		class ScopedVisit
+		{
+		public:
+			ScopedVisit(IVisitor* visitor, NODE_TYPE* node)
+			    : visitor_(visitor)
+			    , node_(nullptr)
+			{
+				if(node)
+					if(visitor_->VisitEnter(node))
+						node_ = node;
+			}
+
+			~ScopedVisit() { if(node_) visitor_->VisitExit(node_); }
+			operator bool() const { return !! node_;}
+
+		private:
+			IVisitor* visitor_;
+			NODE_TYPE* node_;
+		};
+
 		struct Node
 		{
 			Node(Nodes nodeType, const char* name = "")
@@ -91,6 +140,8 @@ namespace Graphics
 			{
 			}
 			virtual ~Node() = default;
+
+			virtual void Visit(IVisitor*) = 0;
 
 			Nodes nodeType_;
 			Core::String name_;
@@ -103,14 +154,15 @@ namespace Graphics
 			{
 			}
 			virtual ~NodeShaderFile() = default;
+			void Visit(IVisitor*) override;
 
 			NodeDeclaration* FindVariable(const char* name);
 			NodeDeclaration* FindFunction(const char* name);
 
 			Core::String code_;
+			Core::Vector<NodeStruct*> structs_;
 			Core::Vector<NodeDeclaration*> variables_;
 			Core::Vector<NodeDeclaration*> functions_;
-			Core::Vector<NodeStruct*> structs_;
 		};
 
 		struct NodeAttribute : Node
@@ -120,6 +172,7 @@ namespace Graphics
 			{
 			}
 			virtual ~NodeAttribute() = default;
+			void Visit(IVisitor*) override;
 
 			Core::Vector<Core::String> parameters_;
 		};
@@ -131,6 +184,7 @@ namespace Graphics
 			{
 			}
 			virtual ~NodeStorageClass() = default;
+			void Visit(IVisitor*) override;
 		};
 
 		struct NodeModifier : Node
@@ -140,6 +194,7 @@ namespace Graphics
 			{
 			}
 			virtual ~NodeModifier() = default;
+			void Visit(IVisitor*) override;
 		};
 
 		struct NodeType : Node
@@ -172,6 +227,7 @@ namespace Graphics
 				maxEnumValue_ = (i32)maxEnumValue;
 			}
 			virtual ~NodeType() = default;
+			void Visit(IVisitor*) override;
 
 			bool IsEnum() { return !!enumValueFn_; }
 			bool IsPOD() { return size_ >= 0; }
@@ -195,6 +251,7 @@ namespace Graphics
 			{
 			}
 			virtual ~NodeTypeIdent() = default;
+			void Visit(IVisitor*) override;
 
 			NodeType* baseType_ = nullptr;
 			NodeType* templateType_ = nullptr;
@@ -210,6 +267,7 @@ namespace Graphics
 			{
 			}
 			virtual ~NodeStruct() = default;
+			void Visit(IVisitor*) override;
 
 			NodeAttribute* FindAttribute(const char* name) const;
 
@@ -224,16 +282,17 @@ namespace Graphics
 			{
 			}
 			virtual ~NodeDeclaration() = default;
+			void Visit(IVisitor*) override;
 
 			NodeAttribute* FindAttribute(const char* name) const;
 
 			Core::Vector<AST::NodeAttribute*> attributes_;
 			Core::Vector<NodeStorageClass*> storageClasses_;
 			NodeTypeIdent* type_ = nullptr;
-			NodeValue* value_ = nullptr;
 			Core::String semantic_;
 			bool isFunction_ = false;
 			Core::Vector<NodeDeclaration*> parameters_;
+			NodeValue* value_ = nullptr;
 		};
 
 		struct NodeValue : Node
@@ -243,6 +302,7 @@ namespace Graphics
 			{
 			}
 			virtual ~NodeValue() = default;
+			void Visit(IVisitor*) override;
 
 			ValueType type_ = ValueType::INVALID;
 			Core::String data_;
@@ -256,6 +316,7 @@ namespace Graphics
 				type_ = ValueType::ARRAY;
 			}
 			virtual ~NodeValues() = default;
+			void Visit(IVisitor*) override;
 
 			Core::Vector<NodeValue*> values_;
 		};
@@ -268,6 +329,7 @@ namespace Graphics
 				type_ = ValueType::STRUCT;
 			}
 			virtual ~NodeMemberValue() = default;
+			void Visit(IVisitor*) override;
 
 			Core::String member_;
 			NodeValue* value_;

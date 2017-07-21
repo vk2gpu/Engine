@@ -199,27 +199,28 @@ namespace Graphics
 #define CHECK_TOKEN(expectedType, expectedToken)                                                                       \
 	if(*expectedToken != '\0' && token_.value_ != expectedToken)                                                       \
 	{                                                                                                                  \
-		Error(node, ErrorType::UNEXPECTED_TOKEN,                                                               \
+		Error(node, ErrorType::UNEXPECTED_TOKEN,                                                                       \
 		    Core::String().Printf(                                                                                     \
 		        "\'%s\': Unexpected token. Did you mean \'%s\'?", token_.value_.c_str(), expectedToken));              \
 		return node;                                                                                                   \
 	}                                                                                                                  \
 	if(token_.type_ != expectedType)                                                                                   \
 	{                                                                                                                  \
-		Error(node, ErrorType::UNEXPECTED_TOKEN,                                                               \
+		Error(node, ErrorType::UNEXPECTED_TOKEN,                                                                       \
 		    Core::String().Printf("\'%s\': Unexpected token.", token_.value_.c_str()));                                \
 		return node;                                                                                                   \
 	}                                                                                                                  \
 	while(false)
 
 #define PARSE_TOKEN()                                                                                                  \
-	if(!NextToken())                                                                                             \
+	if(!NextToken())                                                                                                   \
 	{                                                                                                                  \
-		Error(node, ErrorType::UNEXPECTED_EOF, Core::String().Printf("Unexpected EOF"));                       \
+		Error(node, ErrorType::UNEXPECTED_EOF, Core::String().Printf("Unexpected EOF"));                               \
 		return node;                                                                                                   \
 	}
 
-	void ShaderParser::Parse(const char* shaderFileName, const char* shaderCode, IShaderParserCallbacks* callbacks)
+	AST::NodeShaderFile* ShaderParser::Parse(
+	    const char* shaderFileName, const char* shaderCode, IShaderParserCallbacks* callbacks)
 	{
 		callbacks_ = callbacks;
 		Core::Vector<char> stringStore;
@@ -233,8 +234,8 @@ namespace Graphics
 
 		fileName_ = shaderFileName;
 		AST::NodeShaderFile* shaderFile = ParseShaderFile();
-
-		++shaderFile;
+		shaderFile->name_ = shaderFileName;
+		return shaderFile;
 	}
 
 	AST::NodeShaderFile* ShaderParser::ParseShaderFile()
@@ -370,8 +371,7 @@ namespace Graphics
 		// Find type.
 		if(!Find(node, token_.value_))
 		{
-			Error(node, ErrorType::TYPE_MISSING,
-			    Core::String().Printf("\'%s\': type missing", token_.value_.c_str()));
+			Error(node, ErrorType::TYPE_MISSING, Core::String().Printf("\'%s\': type missing", token_.value_.c_str()));
 			return node;
 		}
 
@@ -703,14 +703,13 @@ namespace Graphics
 							if(!nodeVariable->isFunction_)
 							{
 								Core::String errorStr;
-								errorStr.Printf("\'%s\': has invalid type. Expecting type function.", token_.value_.c_str());
+								errorStr.Printf(
+								    "\'%s\': has invalid type. Expecting type function.", token_.value_.c_str());
 								Error(node, ErrorType::INVALID_TYPE, errorStr);
 								return node;
 							}
 
-							PARSE_TOKEN();
-							// delete nodeValue?
-							return nodeVariable->value_;
+							nodeValue->type_ = AST::ValueType::IDENTIFIER;
 						}
 						else
 						{
@@ -728,15 +727,13 @@ namespace Graphics
 							if(nodeVariable->type_->baseType_ != nodeType)
 							{
 								Core::String errorStr;
-								errorStr.Printf("\'%s\': has invalid type. Expecting type \'%s\'", token_.value_.c_str(),
-									nodeType->name_.c_str());
+								errorStr.Printf("\'%s\': has invalid type. Expecting type \'%s\'",
+								    token_.value_.c_str(), nodeType->name_.c_str());
 								Error(node, ErrorType::INVALID_TYPE, errorStr);
 								return node;
 							}
 
-							PARSE_TOKEN();
-							// delete nodeValue?
-							return nodeVariable->value_;
+							nodeValue->type_ = AST::ValueType::IDENTIFIER;
 						}
 						else
 						{

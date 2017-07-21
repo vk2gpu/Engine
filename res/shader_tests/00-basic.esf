@@ -1,10 +1,12 @@
 #pragma once
 
+[something(1.0)]
 struct VS_IN
 {
 	float3 position_ : SV_POSITION; // comment test.
 }; /* comment test 2 */
 
+[else(2.0)]
 struct VS_OUT
 {
 	float3 position_ : SV_POSITION;
@@ -17,6 +19,7 @@ VS_OUT vs_main(VS_IN _in)
 	return out;
 }
 
+[earlydepthtest]
 float4 ps_main(VS_OUT _in) : COLOR0
 {
 	return float4(1.0, 1.0, 1.0, 1.0);

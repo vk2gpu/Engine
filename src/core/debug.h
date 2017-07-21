@@ -8,6 +8,11 @@ namespace Core
 	/**
 	 * Log to debug channel of the platform.
 	 */
+	CORE_DLL void Log(const char* Text, va_list ArgList);
+
+	/**
+	 * Log to debug channel of the platform.
+	 */
 	CORE_DLL void Log(const char* Text, ...);
 
 	/**

@@ -52,7 +52,8 @@ namespace Graphics
 		ShaderParser();
 		~ShaderParser();
 
-		void Parse(const char* shaderFileName, const char* shaderCode, IShaderParserCallbacks* callbacks = nullptr);
+		AST::NodeShaderFile* Parse(
+		    const char* shaderFileName, const char* shaderCode, IShaderParserCallbacks* callbacks = nullptr);
 
 	private:
 		AST::NodeShaderFile* ParseShaderFile();

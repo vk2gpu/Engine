@@ -24,13 +24,11 @@ namespace Core
 		}
 	}
 
-	void Log(const char* Text, ...)
+	void Log(const char* Text, va_list ArgList)
 	{
 		i32 MessageBufferSize = 0;
 		char* MessageBuffer = GetMessageBuffer(MessageBufferSize);
 
-		va_list ArgList;
-		va_start(ArgList, Text);
 #if COMPILER_MSVC
 		vsprintf_s(MessageBuffer, 4096, Text, ArgList);
 #else
@@ -45,6 +43,14 @@ namespace Core
 		__android_log_print(ANDROID_LOG_INFO, "Engine", MessageBuffer);
 #endif
 		printf("%s", MessageBuffer);
+	}
+
+	void Log(const char* Text, ...)
+	{
+		va_list ArgList;
+		va_start(ArgList, Text);
+		Log(Text, ArgList);
+		va_end(ArgList);
 	}
 
 	bool AssertInternal(const char* Message, const char* File, int Line, ...)
