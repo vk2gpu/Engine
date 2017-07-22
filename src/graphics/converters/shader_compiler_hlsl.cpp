@@ -9,6 +9,8 @@
 
 using Microsoft::WRL::ComPtr;
 
+const GUID IID_ID3D11ShaderReflection = {0x8d536ca1, 0x0cca, 0x4956, {0xa8, 0x37, 0x78, 0x69, 0x63, 0x75, 0x55, 0x84}};
+
 namespace Graphics
 {
 	struct ShaderCompilerHLSLImpl
@@ -17,7 +19,7 @@ namespace Graphics
 
 		decltype(D3DCompile)* d3dCompile_;
 		decltype(D3DStripShader)* d3dStripShader_;
-
+		decltype(D3DReflect)* d3dReflect_;
 
 		Core::Vector<ComPtr<ID3DBlob>> byteCodes_;
 		Core::Vector<ComPtr<ID3DBlob>> strippedByteCodes_;
@@ -33,11 +35,17 @@ namespace Graphics
 				DBG_ASSERT(d3dCompile_);
 				d3dStripShader_ = (decltype(d3dStripShader_))Core::LibrarySymbol(d3dCompilerLib_, "D3DStripShader");
 				DBG_ASSERT(d3dStripShader_);
+				d3dReflect_ = (decltype(d3dReflect_))Core::LibrarySymbol(d3dCompilerLib_, "D3DReflect");
+				DBG_ASSERT(d3dReflect_);
 			}
 		}
 
 		~ShaderCompilerHLSLImpl()
 		{
+			byteCodes_.clear();
+			strippedByteCodes_.clear();
+			errors_.clear();
+
 			if(d3dCompilerLib_)
 			{
 				Core::LibraryClose(d3dCompilerLib_);
@@ -95,6 +103,45 @@ namespace Graphics
 				output.strippedByteCodeEnd_ = output.strippedByteCodeBegin_ + strippedByteCode->GetBufferSize();
 				output.strippedByteCodeHash_ =
 				    Core::HashSHA1(output.strippedByteCodeBegin_, strippedByteCode->GetBufferSize());
+			}
+
+			// Shader reflection info.
+			ComPtr<ID3D11ShaderReflection> reflection;
+			retVal = impl_->d3dReflect_(output.byteCodeBegin_, output.byteCodeEnd_ - output.byteCodeBegin_,
+			    IID_ID3D11ShaderReflection, (void**)&reflection);
+			if(SUCCEEDED(retVal))
+			{
+				D3D11_SHADER_DESC desc;
+				reflection->GetDesc(&desc);
+
+				for(i32 i = 0; i < (i32)desc.BoundResources; ++i)
+				{
+					D3D11_SHADER_INPUT_BIND_DESC bindDesc;
+					reflection->GetResourceBindingDesc(i, &bindDesc);
+					switch(bindDesc.Type)
+					{
+					case D3D_SIT_CBUFFER:
+						output.cbuffers_.emplace_back(bindDesc.BindPoint, bindDesc.Name);
+						break;
+					case D3D_SIT_SAMPLER:
+						output.samplers_.emplace_back(bindDesc.BindPoint, bindDesc.Name);
+						break;
+					case D3D_SIT_TBUFFER:
+					case D3D_SIT_TEXTURE:
+					case D3D_SIT_STRUCTURED:
+					case D3D_SIT_BYTEADDRESS:
+						output.srvs_.emplace_back(bindDesc.BindPoint, bindDesc.Name);
+						break;
+					case D3D_SIT_UAV_RWTYPED:
+					case D3D_SIT_UAV_RWSTRUCTURED:
+					case D3D_SIT_UAV_RWBYTEADDRESS:
+					case D3D_SIT_UAV_APPEND_STRUCTURED:
+					case D3D_SIT_UAV_CONSUME_STRUCTURED:
+					case D3D_SIT_UAV_RWSTRUCTURED_WITH_COUNTER:
+						output.uavs_.emplace_back(bindDesc.BindPoint, bindDesc.Name);
+						break;
+					}
+				}
 			}
 		}
 

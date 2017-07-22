@@ -15,6 +15,7 @@
 #include "gpu/utils.h"
 
 #include "serialization/serializer.h"
+#include "graphics/private/shader_impl.h"
 #include "graphics/converters/shader_backend_hlsl.h"
 #include "graphics/converters/shader_backend_metadata.h"
 #include "graphics/converters/shader_compiler_hlsl.h"
@@ -108,38 +109,36 @@ namespace
 				Graphics::ShaderBackendMetadata backendMetadata;
 				node->Visit(&backendMetadata);
 
-				const auto& samplerStates = backendMetadata.GetSamplerStates();
+				// Gather all unique shaders referenced by techniques.
 				const auto& techniques = backendMetadata.GetTechniques();
-				Core::Set<Core::String> vs;
-				Core::Set<Core::String> gs;
-				Core::Set<Core::String> hs;
-				Core::Set<Core::String> ds;
-				Core::Set<Core::String> ps;
-				Core::Set<Core::String> cs;
+				Core::Map<Core::String, Core::Set<Core::String>> shaders;
 
 				for(const auto& technique : techniques)
 				{
 					if(technique.vs_.size() > 0)
-						vs.insert(technique.vs_);
+						shaders["vs_5_0"].insert(technique.vs_);
 					if(technique.gs_.size() > 0)
-						gs.insert(technique.gs_);
+						shaders["gs_5_0"].insert(technique.gs_);
 					if(technique.hs_.size() > 0)
-						hs.insert(technique.hs_);
+						shaders["hs_5_0"].insert(technique.hs_);
 					if(technique.ds_.size() > 0)
-						ds.insert(technique.ds_);
+						shaders["ds_5_0"].insert(technique.ds_);
 					if(technique.ps_.size() > 0)
-						ps.insert(technique.ps_);
+						shaders["ps_5_0"].insert(technique.ps_);
 					if(technique.cs_.size() > 0)
-						cs.insert(technique.cs_);
+						shaders["cs_5_0"].insert(technique.cs_);
 				}
 
+				// Grab sampler states.
+				const auto& samplerStates = backendMetadata.GetSamplerStates();
+
 				Core::Log("To build:\n");
-				Core::Log(" - VS: %u\n", vs.size());
-				Core::Log(" - GS: %u\n", gs.size());
-				Core::Log(" - HS: %u\n", hs.size());
-				Core::Log(" - DS: %u\n", ds.size());
-				Core::Log(" - PS: %u\n", ps.size());
-				Core::Log(" - CS: %u\n", cs.size());
+				Core::Log(" - VS: %u\n", shaders["vs_5_0"].size());
+				Core::Log(" - GS: %u\n", shaders["gs_5_0"].size());
+				Core::Log(" - HS: %u\n", shaders["hs_5_0"].size());
+				Core::Log(" - DS: %u\n", shaders["ds_5_0"].size());
+				Core::Log(" - PS: %u\n", shaders["ps_5_0"].size());
+				Core::Log(" - CS: %u\n", shaders["cs_5_0"].size());
 				Core::Log(" - Sampler states: %u\n", samplerStates.size());
 				Core::Log(" - Techniques:\n");
 				for(const auto& technique : techniques)
@@ -171,19 +170,10 @@ namespace
 				};
 
 				Core::Vector<CompileInfo> compiles;
-				for(const auto& entry : vs)
-					compiles.emplace_back(sourceFile, backendHLSL.GetOutputCode().c_str(), entry.c_str(), "vs_5_0");
-				for(const auto& entry : gs)
-					compiles.emplace_back(sourceFile, backendHLSL.GetOutputCode().c_str(), entry.c_str(), "gs_5_0");
-				for(const auto& entry : hs)
-					compiles.emplace_back(sourceFile, backendHLSL.GetOutputCode().c_str(), entry.c_str(), "hs_5_0");
-				for(const auto& entry : ds)
-					compiles.emplace_back(sourceFile, backendHLSL.GetOutputCode().c_str(), entry.c_str(), "ds_5_0");
-				for(const auto& entry : ps)
-					compiles.emplace_back(sourceFile, backendHLSL.GetOutputCode().c_str(), entry.c_str(), "ps_5_0");
-				for(const auto& entry : cs)
-					compiles.emplace_back(sourceFile, backendHLSL.GetOutputCode().c_str(), entry.c_str(), "cs_5_0");
-
+				for(const auto& entry : shaders)
+					for(const auto& shader : entry.second)
+						compiles.emplace_back(
+						    sourceFile, backendHLSL.GetOutputCode().c_str(), shader.c_str(), entry.first.c_str());
 
 				Core::Vector<Graphics::ShaderCompileOutput> outputCompiles;
 				for(const auto& compile : compiles)
@@ -192,8 +182,55 @@ namespace
 					    compilerHLSL.Compile(compile.name_, compile.code_, compile.entryPoint_, compile.target_));
 				}
 
-				int a = 0;
-				++a;
+				// Build set of all bindings used.
+				Core::Set<Core::String> cbuffers;
+				Core::Set<Core::String> samplers;
+				Core::Set<Core::String> srvs;
+				Core::Set<Core::String> uavs;
+
+				for(const auto& compile : outputCompiles)
+				{
+					for(const auto& binding : compile.cbuffers_)
+						cbuffers.insert(binding.name_);
+					for(const auto& binding : compile.samplers_)
+						samplers.insert(binding.name_);
+					for(const auto& binding : compile.srvs_)
+						srvs.insert(binding.name_);
+					for(const auto& binding : compile.uavs_)
+						uavs.insert(binding.name_);
+				}
+
+				// Setup shader header.
+				Graphics::ShaderHeader outHeader;
+				outHeader.numCBuffers_ = cbuffers.size();
+				outHeader.numSamplers_ = samplers.size();
+				outHeader.numSRVs_ = srvs.size();
+				outHeader.numUAVs_ = uavs.size();
+				outHeader.numShaders_ = outputCompiles.size();
+				outHeader.numTechniques_ = techniques.size();
+
+				// Calculate required memory for shader metadata.
+				i32 outSize = 0;
+				outSize += sizeof(Graphics::ShaderHeader);
+				outSize += sizeof(Graphics::ShaderBindingHeader) * cbuffers.size();
+				outSize += sizeof(Graphics::ShaderBindingHeader) * samplers.size();
+				outSize += sizeof(Graphics::ShaderBindingHeader) * srvs.size();
+				outSize += sizeof(Graphics::ShaderBindingHeader) * uavs.size();
+				outSize += sizeof(Graphics::ShaderBytecodeHeader) * outputCompiles.size();
+				outSize += sizeof(Graphics::ShaderTechniqueHeader) * techniques.size();
+
+				for(const auto& compile : outputCompiles)
+				{
+					outSize += sizeof(Graphics::ShaderBindingMapping) * compile.cbuffers_.size();
+					outSize += sizeof(Graphics::ShaderBindingMapping) * compile.samplers_.size();
+					outSize += sizeof(Graphics::ShaderBindingMapping) * compile.srvs_.size();
+					outSize += sizeof(Graphics::ShaderBindingMapping) * compile.uavs_.size();
+
+					//outSize += (i32)(compile.strippedByteCodeEnd_ - compile.strippedByteCodeBegin_);
+					outSize += (i32)(compile.byteCodeEnd_ - compile.byteCodeBegin_);
+				}
+
+				DBG_BREAK;
 			}
 			context.AddDependency(sourceFile);
 

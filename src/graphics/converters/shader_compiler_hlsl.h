@@ -5,6 +5,18 @@
 
 namespace Graphics
 {
+	struct ShaderBinding
+	{
+		ShaderBinding(i32 slot, const char* name)
+		    : slot_(slot)
+		    , name_(name)
+		{
+		}
+
+		i32 slot_;
+		Core::String name_;
+	};
+
 	struct ShaderCompileOutput
 	{
 		const u8* byteCodeBegin_ = nullptr;
@@ -17,6 +29,11 @@ namespace Graphics
 		Core::HashSHA1Digest byteCodeHash_;
 		Core::HashSHA1Digest strippedByteCodeHash_;
 		Core::HashSHA1Digest errorsHash_;
+
+		Core::Vector<ShaderBinding> cbuffers_;
+		Core::Vector<ShaderBinding> samplers_;
+		Core::Vector<ShaderBinding> srvs_;
+		Core::Vector<ShaderBinding> uavs_;
 
 		operator bool() const { return !!byteCodeBegin_; }
 	};
