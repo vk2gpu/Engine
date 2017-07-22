@@ -157,10 +157,10 @@ namespace
 				struct CompileInfo
 				{
 					CompileInfo(const char* name, const char* code, const char* entryPoint, const char* target)
-						: name_(name)
-						, code_(code)
-						, entryPoint_(entryPoint)
-						, target_(target)
+					    : name_(name)
+					    , code_(code)
+					    , entryPoint_(entryPoint)
+					    , target_(target)
 					{
 					}
 
@@ -188,10 +188,12 @@ namespace
 				Core::Vector<Graphics::ShaderCompileOutput> outputCompiles;
 				for(const auto& compile : compiles)
 				{
-					outputCompiles.emplace_back(compilerHLSL.Compile(compile.name_, compile.code_, compile.entryPoint_, compile.target_));
+					outputCompiles.emplace_back(
+					    compilerHLSL.Compile(compile.name_, compile.code_, compile.entryPoint_, compile.target_));
 				}
 
-				int a = 0; ++a;
+				int a = 0;
+				++a;
 			}
 			context.AddDependency(sourceFile);
 

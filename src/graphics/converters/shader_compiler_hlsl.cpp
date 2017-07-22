@@ -40,10 +40,7 @@ namespace Graphics
 		}
 	};
 
-	ShaderCompilerHLSL::ShaderCompilerHLSL()
-	{
-		impl_ = new ShaderCompilerHLSLImpl();
-	}
+	ShaderCompilerHLSL::ShaderCompilerHLSL() { impl_ = new ShaderCompilerHLSLImpl(); }
 
 	ShaderCompilerHLSL::~ShaderCompilerHLSL()
 	{
@@ -51,13 +48,16 @@ namespace Graphics
 		impl_ = nullptr;
 	}
 
-	ShaderCompileOutput ShaderCompilerHLSL::Compile(const char* shaderName, const char* shaderSource, const char* entryPoint, const char* target)
+	ShaderCompileOutput ShaderCompilerHLSL::Compile(
+	    const char* shaderName, const char* shaderSource, const char* entryPoint, const char* target)
 	{
 		DBG_ASSERT(impl_);
 
 		ComPtr<ID3DBlob> byteCode;
 		ComPtr<ID3DBlob> errors;
-		HRESULT retVal = impl_->d3dCompile_(shaderSource, strlen(shaderSource), shaderName, nullptr, nullptr, entryPoint, target, D3DCOMPILE_DEBUG, 0, byteCode.ReleaseAndGetAddressOf(), errors.ReleaseAndGetAddressOf());
+		HRESULT retVal =
+		    impl_->d3dCompile_(shaderSource, strlen(shaderSource), shaderName, nullptr, nullptr, entryPoint, target,
+		        D3DCOMPILE_DEBUG, 0, byteCode.ReleaseAndGetAddressOf(), errors.ReleaseAndGetAddressOf());
 
 		ShaderCompileOutput output;
 
@@ -76,7 +76,7 @@ namespace Graphics
 			output.byteCodeBegin_ = (const u8*)byteCode->GetBufferPointer();
 			output.byteCodeEnd_ = output.byteCodeBegin_ + byteCode->GetBufferSize();
 		}
-		
+
 		return output;
 	}
 
