@@ -23,6 +23,9 @@ namespace
 		"static",
 		"uniform",
 		"volatile",
+		"in",
+		"out",
+		"inout"
 	};
 
 	NodeModifier MODIFIERS[] =

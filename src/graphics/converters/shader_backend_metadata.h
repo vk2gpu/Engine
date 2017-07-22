@@ -53,6 +53,9 @@ namespace Graphics
 		bool VisitEnter(AST::NodeStruct* node) override { return false; }
 		bool VisitEnter(AST::NodeDeclaration* node) override;
 
+		const auto& GetSamplerStates() const { return samplerStates_; }
+		const auto& GetTechniques() const { return techniques_; }
+
 	private:
 		bool IsDeclSamplerState(AST::NodeDeclaration* node) const;
 		bool IsDeclBlendState(AST::NodeDeclaration* node) const;
@@ -96,7 +99,6 @@ namespace Graphics
 				}
 				return true;
 			}
-
 
 			using ParseFn = void (*)(PARSE_TYPE& data, AST::NodeValue* node);
 			using DescendFn = void (*)(

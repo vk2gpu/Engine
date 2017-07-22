@@ -10,20 +10,20 @@ namespace Graphics
 
 	bool ShaderBackendHLSL::VisitEnter(AST::NodeShaderFile* node)
 	{
-		Core::Log(
+		Write(
 		    "////////////////////////////////////////////////////////////////////////////////////////////////////");
 		NextLine();
-		Core::Log("// generated shader for %s", node->name_.c_str());
+		Write("// generated shader for %s", node->name_.c_str());
 		NextLine();
-		Core::Log(
+		Write(
 		    "////////////////////////////////////////////////////////////////////////////////////////////////////");
 		NextLine();
 		NextLine();
 
-		Core::Log(
+		Write(
 		    "////////////////////////////////////////////////////////////////////////////////////////////////////");
 		NextLine();
-		Core::Log("// structs");
+		Write("// structs");
 		NextLine();
 
 		for(auto* intNode : node->structs_)
@@ -36,10 +36,22 @@ namespace Graphics
 		}
 
 
-		Core::Log(
+		Write(
 		    "////////////////////////////////////////////////////////////////////////////////////////////////////");
 		NextLine();
-		Core::Log("// vars");
+		Write("// sampler states");
+		NextLine();
+
+		writeInternalDeclaration_ = "SamplerState";
+		for(auto* intNode : node->variables_)
+			intNode->Visit(this);
+		writeInternalDeclaration_ = nullptr;
+		NextLine();
+
+		Write(
+		    "////////////////////////////////////////////////////////////////////////////////////////////////////");
+		NextLine();
+		Write("// vars");
 		NextLine();
 
 		for(auto* intNode : node->variables_)
@@ -47,10 +59,10 @@ namespace Graphics
 
 		NextLine();
 
-		Core::Log(
+		Write(
 		    "////////////////////////////////////////////////////////////////////////////////////////////////////");
 		NextLine();
-		Core::Log("// functions");
+		Write("// functions");
 		NextLine();
 
 		for(auto* intNode : node->functions_)
@@ -107,18 +119,9 @@ namespace Graphics
 
 	void ShaderBackendHLSL::VisitExit(AST::NodeModifier* node) {}
 
-	bool ShaderBackendHLSL::VisitEnter(AST::NodeType* node)
-	{
-		//Log("Type (%s) {", node->name_.c_str());
-		//++indent_;
-		return true;
-	}
+	bool ShaderBackendHLSL::VisitEnter(AST::NodeType* node) { return true; }
 
-	void ShaderBackendHLSL::VisitExit(AST::NodeType* node)
-	{
-		//--indent_;
-		//Log("}");
-	}
+	void ShaderBackendHLSL::VisitExit(AST::NodeType* node) {}
 
 	bool ShaderBackendHLSL::VisitEnter(AST::NodeTypeIdent* node)
 	{
@@ -142,11 +145,7 @@ namespace Graphics
 		return false;
 	}
 
-	void ShaderBackendHLSL::VisitExit(AST::NodeTypeIdent* node)
-	{
-		//--indent_;
-		//Log("}");
-	}
+	void ShaderBackendHLSL::VisitExit(AST::NodeTypeIdent* node) {}
 
 	bool ShaderBackendHLSL::VisitEnter(AST::NodeStruct* node)
 	{
@@ -176,8 +175,25 @@ namespace Graphics
 
 	bool ShaderBackendHLSL::VisitEnter(AST::NodeDeclaration* node)
 	{
-		if(IsInternal(node))
+		if(writeInternalDeclaration_)
+		{
+			int a = 0;
+			++a;
+		}
+
+		if(writeInternalDeclaration_ != nullptr && !IsInternal(node, writeInternalDeclaration_))
 			return false;
+		else if(writeInternalDeclaration_ == nullptr && IsInternal(node))
+			return false;
+
+		if(!writeInternalDeclaration_)
+		{
+			for(auto* attrib : node->attributes_)
+				attrib->Visit(this);
+		}
+
+		for(auto* storageClass : node->storageClasses_)
+			Write("%s ", storageClass->name_.c_str());
 
 		for(auto* attrib : node->attributes_)
 			attrib->Visit(this);
@@ -188,26 +204,26 @@ namespace Graphics
 		if(node->isFunction_)
 		{
 			++inParams_;
-			Core::Log("(");
+			Write("(");
 			const i32 num = node->parameters_.size();
 			for(i32 idx = 0; idx < num; ++idx)
 			{
 				auto* param = node->parameters_[idx];
 				param->Visit(this);
 				if(idx < (num - 1))
-					Core::Log(", ");
+					Write(", ");
 			}
-			Core::Log(")");
+			Write(")");
 			--inParams_;
 
 			if(node->semantic_.size() > 0)
-				Core::Log(" : %s", node->semantic_.c_str());
+				Write(" : %s", node->semantic_.c_str());
 
 			NextLine();
 			Write("{");
 			node->value_->Visit(this);
 			NextLine();
-			Core::Log("}");
+			Write("}");
 			NextLine();
 		}
 		else
@@ -283,25 +299,37 @@ namespace Graphics
 		isNewLine_ = true;
 	}
 
-	bool ShaderBackendHLSL::IsInternal(AST::Node* node)
+	bool ShaderBackendHLSL::IsInternal(AST::Node* node, const char* internalType) const
 	{
 		switch(node->nodeType_)
 		{
 		case AST::Nodes::DECLARATION:
 		{
 			auto* typedNode = static_cast<AST::NodeDeclaration*>(node);
-			if(typedNode->FindAttribute("internal"))
+			if(auto attribNode = typedNode->FindAttribute("internal"))
+			{
+				if(internalType)
+				{
+					return (attribNode->HasParameter(0) && attribNode->GetParameter(0) == internalType);
+				}
 				return true;
+			}
 
 			if(typedNode->type_->baseType_->struct_)
-				return IsInternal(typedNode->type_->baseType_->struct_);
+				return IsInternal(typedNode->type_->baseType_->struct_, internalType);
 		}
 		break;
 		case AST::Nodes::STRUCT:
 		{
 			auto* typedNode = static_cast<AST::NodeStruct*>(node);
-			if(typedNode->FindAttribute("internal"))
+			if(auto attribNode = typedNode->FindAttribute("internal"))
+			{
+				if(internalType)
+				{
+					return (attribNode->HasParameter(0) && attribNode->GetParameter(0) == internalType);
+				}
 				return true;
+			}
 		}
 		break;
 		default:

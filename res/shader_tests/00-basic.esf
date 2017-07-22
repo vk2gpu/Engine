@@ -1,45 +1,39 @@
 #include "lib.esh"
 
-#pragma once
-
-struct Test
-{
-	float a;
-	float b;
-};
-
-SamplerState SS_TEST =
+SamplerState SS_DEFAULT =
 {
 	.AddressU = WRAP,
 	.AddressV = CLAMP,
 	.AddressW = MIRROR,	
 };
+Texture2D tex_diffuse;
 
-const Test Vals = { .a = 0.0, .b = 1.0 };
-
-const float myConstFloat = 1.0;
-
-[something(1.0)]
 struct VS_IN
 {
-	float3 position_ : SV_POSITION; // comment test.
+	float4 position : SV_POSITION; // comment test.
+	float2 uv: TEXCOORD0;
 }; /* comment test 2 */
 
-[else(2.0)]
 struct VS_OUT
 {
-	float3 position_ : SV_POSITION;
+	float4 position : SV_POSITION;
+	float2 uv : TEXCOORD0;
 };
 
-VS_OUT vs_main(VS_IN _in)
+VS_OUT vs_main(in VS_IN _in)
 {
 	VS_OUT _out = (VS_OUT)0;
-	_out.position_ = _in.position;
-	return out;
+	_out.position = _in.position;
+	_out.uv = _in.uv;
+	return _out;
 }
 
-[earlydepthstencil]
-float4 ps_main(VS_OUT _in) : COLOR0
+float4 ps_main(in VS_OUT _in) : SV_TARGET0
+{
+	return tex_diffuse.Sample(SS_DEFAULT, _in.uv.xy);
+}
+
+float4 ps_shadow(in VS_OUT _in) : SV_TARGET0
 {
 	return float4(1.0, 1.0, 1.0, 1.0);
 }
@@ -68,5 +62,12 @@ Technique TECH_MAIN =
 {
 	.VertexShader = vs_main,
 	.PixelShader = ps_main,
+	.RenderState = RS_DEFAULT,
+};
+
+Technique TECH_SHADOW =
+{
+	.VertexShader = vs_main,
+	.PixelShader = ps_shadow,
 	.RenderState = RS_DEFAULT,
 };

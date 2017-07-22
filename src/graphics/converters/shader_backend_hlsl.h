@@ -32,14 +32,18 @@ namespace Graphics
 		bool VisitEnter(AST::NodeMemberValue* node) override;
 		void VisitExit(AST::NodeMemberValue* node) override;
 
+		const Core::String& GetOutputCode() const { return outCode_; }
+
 	private:
 		void Write(const char* msg, ...);
 		void NextLine();
-		bool IsInternal(AST::Node* node);
+		bool IsInternal(AST::Node* node, const char* internalType = nullptr) const;
 
 		bool isNewLine_ = false;
 		i32 indent_ = 0;
 		i32 inParams_ = 0;
+
+		const char* writeInternalDeclaration_ = nullptr;
 
 		Core::String outCode_;
 	};
