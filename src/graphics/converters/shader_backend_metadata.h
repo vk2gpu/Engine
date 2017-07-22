@@ -12,6 +12,18 @@ namespace Graphics
 		GPU::SamplerState state_;
 	};
 
+	struct ShaderBlendState
+	{
+		Core::String name_;
+		GPU::BlendState state_;
+	};
+
+	struct ShaderStencilFaceState
+	{
+		Core::String name_;
+		GPU::StencilFaceState state_;
+	};
+
 	struct ShaderRenderState
 	{
 		Core::String name_;
@@ -38,10 +50,13 @@ namespace Graphics
 
 		bool VisitEnter(AST::NodeShaderFile* node) override;
 		void VisitExit(AST::NodeShaderFile* node) override;
+		bool VisitEnter(AST::NodeStruct* node) override { return false; }
 		bool VisitEnter(AST::NodeDeclaration* node) override;
 
 	private:
 		bool IsDeclSamplerState(AST::NodeDeclaration* node) const;
+		bool IsDeclBlendState(AST::NodeDeclaration* node) const;
+		bool IsDeclStencilFaceState(AST::NodeDeclaration* node) const;
 		bool IsDeclRenderState(AST::NodeDeclaration* node) const;
 		bool IsDeclTechnique(AST::NodeDeclaration* node) const;
 
@@ -49,9 +64,10 @@ namespace Graphics
 		class BaseEval : public AST::IVisitor
 		{
 		public:
-			BaseEval(PARSE_TYPE& data, AST::NodeShaderFile* file)
+			BaseEval(PARSE_TYPE& data, AST::NodeShaderFile* file, ShaderBackendMetadata& backend)
 			    : data_(data)
 			    , file_(file)
+			    , backend_(backend)
 			{
 			}
 
@@ -59,90 +75,74 @@ namespace Graphics
 			bool VisitEnter(AST::NodeValues* node) override { return true; }
 			bool VisitEnter(AST::NodeMemberValue* node) override
 			{
-				if(node->value_->type_ == AST::ValueType::IDENTIFIER)
+				//if(node->value_->type_ != AST::ValueType::ARRAY || node->value_->type_ == AST::ValueType::ENUM)
 				{
-					auto it = parseFns_.find(node->member_);
-					if(it != parseFns_.end())
 					{
-						it->second(data_, node->value_->data_);
-						return false;
+						auto it = parseFns_.find(node->member_);
+						if(it != parseFns_.end())
+						{
+							it->second(data_, node->value_);
+							return false;
+						}
+					}
+					{
+						auto it = descendFns_.find(node->member_);
+						if(it != descendFns_.end())
+						{
+							it->second(data_, file_, backend_, node->value_);
+							return false;
+						}
 					}
 				}
 				return true;
 			}
 
 
-			using ParseFn = void (*)(PARSE_TYPE& data, const Core::String& value);
+			using ParseFn = void (*)(PARSE_TYPE& data, AST::NodeValue* node);
+			using DescendFn = void (*)(
+			    PARSE_TYPE& data, AST::NodeShaderFile* file, ShaderBackendMetadata& backend, AST::NodeValue* node);
 
 			PARSE_TYPE& data_;
 			AST::NodeShaderFile* file_;
+			ShaderBackendMetadata& backend_;
 			Core::Map<Core::String, ParseFn> parseFns_;
+			Core::Map<Core::String, DescendFn> descendFns_;
 		};
 
 		class SamplerStateEval : public BaseEval<ShaderSamplerState>
 		{
 		public:
-			SamplerStateEval(ShaderSamplerState& samp, AST::NodeShaderFile* file)
-			    : BaseEval(samp, file)
-			{
-				parseFns_["AddressU"] = [](ShaderSamplerState& data, const Core::String& val) {
-					Core::EnumFromString(data.state_.addressU_, val.c_str());
-				};
-				parseFns_["AddressV"] = [](ShaderSamplerState& data, const Core::String& val) {
-					Core::EnumFromString(data.state_.addressV_, val.c_str());
-				};
-				parseFns_["AddressW"] = [](ShaderSamplerState& data, const Core::String& val) {
-					Core::EnumFromString(data.state_.addressW_, val.c_str());
-				};
-				parseFns_["MinFilter"] = [](ShaderSamplerState& data, const Core::String& val) {
-					Core::EnumFromString(data.state_.minFilter_, val.c_str());
-				};
-				parseFns_["MagFilter"] = [](ShaderSamplerState& data, const Core::String& val) {
-					Core::EnumFromString(data.state_.magFilter_, val.c_str());
-				};
-				parseFns_["MipLODBias"] = [](ShaderSamplerState& data, const Core::String& val) {
-					data.state_.mipLODBias_ = (f32)atof(val.c_str());
-				};
-				parseFns_["MaxAnisotropy"] = [](ShaderSamplerState& data, const Core::String& val) {
-					data.state_.maxAnisotropy_ = atoi(val.c_str());
-				};
-				parseFns_["BorderColor"] = [](ShaderSamplerState& data, const Core::String& val) { DBG_BREAK; };
-				parseFns_["MinLOD"] = [](ShaderSamplerState& data, const Core::String& val) {
-					data.state_.minLOD_ = (f32)atof(val.c_str());
-				};
-				parseFns_["MaxLOD"] = [](ShaderSamplerState& data, const Core::String& val) {
-					data.state_.maxLOD_ = (f32)atof(val.c_str());
-				};
-			}
+			SamplerStateEval(ShaderSamplerState& samp, AST::NodeShaderFile* file, ShaderBackendMetadata& backend);
 		};
 
+		class BlendStateEval : public BaseEval<ShaderBlendState>
+		{
+		public:
+			BlendStateEval(ShaderBlendState& blend, AST::NodeShaderFile* file, ShaderBackendMetadata& backend);
+		};
+
+		class StencilFaceStateEval : public BaseEval<ShaderStencilFaceState>
+		{
+		public:
+			StencilFaceStateEval(
+			    ShaderStencilFaceState& sten, AST::NodeShaderFile* file, ShaderBackendMetadata& backend);
+		};
 		class RenderStateEval : public BaseEval<ShaderRenderState>
 		{
 		public:
-			RenderStateEval(ShaderRenderState& rend, AST::NodeShaderFile* file)
-			    : BaseEval(rend, file)
-			{
-			}
+			RenderStateEval(ShaderRenderState& rend, AST::NodeShaderFile* file, ShaderBackendMetadata& backend);
 		};
-
 
 		class TechniqueEval : public BaseEval<ShaderTechnique>
 		{
 		public:
-			TechniqueEval(ShaderTechnique& tech, AST::NodeShaderFile* file)
-			    : BaseEval(tech, file)
-			{
-				parseFns_["VertexShader"] = [](ShaderTechnique& data, const Core::String& val) { data.vs_ = val; };
-				parseFns_["GeometryShader"] = [](ShaderTechnique& data, const Core::String& val) { data.gs_ = val; };
-				parseFns_["HullShader"] = [](ShaderTechnique& data, const Core::String& val) { data.hs_ = val; };
-				parseFns_["DomainShader"] = [](ShaderTechnique& data, const Core::String& val) { data.ds_ = val; };
-				parseFns_["PixelShader"] = [](ShaderTechnique& data, const Core::String& val) { data.ps_ = val; };
-				parseFns_["ComputeShader"] = [](ShaderTechnique& data, const Core::String& val) { data.cs_ = val; };
-			}
+			TechniqueEval(ShaderTechnique& tech, AST::NodeShaderFile* file, ShaderBackendMetadata& backend);
 		};
 
 		AST::NodeShaderFile* file_ = nullptr;
 		Core::Vector<ShaderSamplerState> samplerStates_;
+		Core::Vector<ShaderBlendState> blendStates_;
+		Core::Vector<ShaderStencilFaceState> stencilFaceStates_;
 		Core::Vector<ShaderRenderState> renderStates_;
 		Core::Vector<ShaderTechnique> techniques_;
 

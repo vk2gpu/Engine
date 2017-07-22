@@ -664,9 +664,11 @@ namespace Graphics
 			{
 			case AST::TokenType::FLOAT:
 				nodeValue->type_ = AST::ValueType::FLOAT;
+				nodeValue->dataFloat_ = token_.valueFloat_;
 				break;
 			case AST::TokenType::INT:
 				nodeValue->type_ = AST::ValueType::INT;
+				nodeValue->dataInt_ = token_.valueInt_;
 				break;
 			case AST::TokenType::STRING:
 				nodeValue->type_ = AST::ValueType::STRING;
@@ -854,11 +856,13 @@ namespace Graphics
 			{
 				token_.type_ = AST::TokenType::FLOAT;
 				token_.value_ = Core::String(lexCtx_.where_firstchar, lexCtx_.where_lastchar + 1);
+				token_.valueFloat_ = (f32)lexCtx_.real_number;
 			}
 			else if(lexCtx_.token == CLEX_intlit)
 			{
 				token_.type_ = AST::TokenType::INT;
 				token_.value_ = Core::String(lexCtx_.where_firstchar, lexCtx_.where_lastchar + 1);
+				token_.valueInt_ = lexCtx_.int_number;
 			}
 			else if(lexCtx_.token == CLEX_dqstring)
 			{

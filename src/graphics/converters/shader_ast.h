@@ -39,6 +39,8 @@ namespace Graphics
 		{
 			TokenType type_ = TokenType::INVALID;
 			Core::String value_;
+			f32 valueFloat_;
+			i32 valueInt_;
 
 			operator bool() const { return type_ != TokenType::INVALID; }
 		};
@@ -307,6 +309,8 @@ namespace Graphics
 
 			ValueType type_ = ValueType::INVALID;
 			Core::String data_;
+			f32 dataFloat_ = 0.0f;
+			i64 dataInt_ = 0;
 		};
 
 		struct NodeValues : NodeValue

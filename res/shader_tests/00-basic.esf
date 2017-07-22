@@ -8,6 +8,13 @@ struct Test
 	float b;
 };
 
+SamplerState SS_TEST =
+{
+	.AddressU = WRAP,
+	.AddressV = CLAMP,
+	.AddressW = MIRROR,	
+};
+
 const Test Vals = { .a = 0.0, .b = 1.0 };
 
 const float myConstFloat = 1.0;
@@ -53,7 +60,7 @@ RenderState RS_DEFAULT =
 	},
 
 	.DepthEnable = 1,
-	.StencilRef = 0x0,
+	.StencilRef = 0x1f,
 	.FillMode = WIREFRAME,
 };
 
