@@ -62,9 +62,32 @@ namespace Graphics
 	}
 
 	ShaderCompileOutput ShaderCompilerHLSL::Compile(
-	    const char* shaderName, const char* shaderSource, const char* entryPoint, const char* target)
+	    const char* shaderName, const char* shaderSource, const char* entryPoint, GPU::ShaderType type)
 	{
 		DBG_ASSERT(impl_);
+
+		const char* target = nullptr;
+		switch(type)
+		{
+		case GPU::ShaderType::VERTEX:
+			target = "vs_5_0";
+			break;
+		case GPU::ShaderType::GEOMETRY:
+			target = "gs_5_0";
+			break;
+		case GPU::ShaderType::HULL:
+			target = "hs_5_0";
+			break;
+		case GPU::ShaderType::DOMAIN:
+			target = "ds_5_0";
+			break;
+		case GPU::ShaderType::PIXEL:
+			target = "ps_5_0";
+			break;
+		case GPU::ShaderType::COMPUTE:
+			target = "cs_5_0";
+			break;
+		}
 
 		ComPtr<ID3DBlob> byteCode;
 		ComPtr<ID3DBlob> errors;
@@ -90,6 +113,8 @@ namespace Graphics
 			output.byteCodeBegin_ = (const u8*)byteCode->GetBufferPointer();
 			output.byteCodeEnd_ = output.byteCodeBegin_ + byteCode->GetBufferSize();
 			output.byteCodeHash_ = Core::HashSHA1(output.byteCodeBegin_, byteCode->GetBufferSize());
+
+			output.type_ = type;
 
 			ComPtr<ID3DBlob> strippedByteCode;
 			retVal = impl_->d3dStripShader_(output.byteCodeBegin_, byteCode->GetBufferSize(),

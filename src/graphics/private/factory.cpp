@@ -34,7 +34,7 @@ namespace Graphics
 
 	bool Factory::LoadResource(Resource::IFactoryContext& context, void** inResource, const Core::UUID& type,
 	    const char* name, Core::File& inFile)
-	{ //
+	{
 		if(type == Shader::GetTypeUUID())
 		{
 			return LoadShader(context, *reinterpret_cast<Shader**>(inResource), type, name, inFile);
@@ -58,6 +58,14 @@ namespace Graphics
 			return true;
 		}
 
+		else if(type == Shader::GetTypeUUID())
+		{
+			auto* texture = reinterpret_cast<Shader*>(*inResource);
+			delete texture;
+			*inResource = nullptr;
+			return true;
+		}
+
 		return false;
 	}
 
@@ -65,23 +73,102 @@ namespace Graphics
 	    const char* name, Core::File& inFile)
 	{
 		Graphics::ShaderHeader header;
+		i32 readBytes = 0;
 
 		// Read in desc.
-		if(inFile.Read(&header, sizeof(header)) != sizeof(header))
+		readBytes = sizeof(header);
+		if(inFile.Read(&header, readBytes) != readBytes)
 		{
 			return false;
 		}
+
+		// Check magic.
+		if(header.magic_ != Graphics::ShaderHeader::MAGIC)
+			return false;
 
 		// Check version.
 		if(header.majorVersion_ != Graphics::ShaderHeader::MAJOR_VERSION)
 			return false;
 
 		if(header.minorVersion_ != Graphics::ShaderHeader::MINOR_VERSION)
-			DBG_LOG("Minor version differs from expected.");
+			DBG_LOG("Minor version differs from expected. Can still load successfully.");
 
+		// Creating shader impl.
+		auto* impl = new ShaderImpl();
+		impl->name_ = name;
+		impl->header_ = header;
 
-		// Finish creating shader.
-		inResource->impl_ = new ShaderImpl();
+		impl->bindingHeaders_.resize(header.numCBuffers_ + header.numSamplers_ + header.numSRVs_ + header.numUAVs_);
+		readBytes = impl->bindingHeaders_.size() * sizeof(ShaderBindingHeader);
+		if(inFile.Read(impl->bindingHeaders_.data(), readBytes) != readBytes)
+		{
+			return false;
+		}
+
+		impl->bytecodeHeaders_.resize(header.numShaders_);
+		readBytes = impl->bytecodeHeaders_.size() * sizeof(ShaderBytecodeHeader);
+		if(inFile.Read(impl->bytecodeHeaders_.data(), readBytes) != readBytes)
+		{
+			return false;
+		}
+
+		i32 numBindingMappings = 0;
+		i32 bytecodeSize = 0;
+		for(const auto& bytecodeHeader : impl->bytecodeHeaders_)
+		{
+			numBindingMappings += bytecodeHeader.numCBuffers_ + bytecodeHeader.numSamplers_ + bytecodeHeader.numSRVs_ +
+			                      bytecodeHeader.numUAVs_;
+			bytecodeSize = Core::Max(bytecodeSize, bytecodeHeader.offset_ + bytecodeHeader.numBytes_);
+		}
+
+		impl->bindingMappings_.resize(numBindingMappings);
+		readBytes = impl->bindingMappings_.size() * sizeof(ShaderBindingMapping);
+		if(inFile.Read(impl->bindingMappings_.data(), readBytes) != readBytes)
+		{
+			return false;
+		}
+
+		impl->techniqueHeaders_.resize(header.numTechniques_);
+		readBytes = impl->techniqueHeaders_.size() * sizeof(ShaderTechniqueHeader);
+		if(inFile.Read(impl->techniqueHeaders_.data(), readBytes) != readBytes)
+		{
+			return false;
+		}
+
+		impl->bytecode_.resize(bytecodeSize);
+		readBytes = impl->bytecode_.size();
+		if(inFile.Read(impl->bytecode_.data(), readBytes) != readBytes)
+		{
+			return false;
+		}
+
+		// Create all the shaders.
+		GPU::Handle handle;
+		if(GPU::Manager::IsInitialized())
+		{
+			impl->shaders_.reserve(impl->shaders_.size());
+			for(const auto& bytecode : impl->bytecodeHeaders_)
+			{
+				GPU::ShaderDesc desc;
+				desc.data_ = &impl->bytecode_[bytecode.offset_];
+				desc.dataSize_ = bytecode.numBytes_;
+				desc.type_ = bytecode.type_;
+				handle = GPU::Manager::CreateShader(desc, name);
+				if(!handle)
+				{
+					for(auto s : impl->shaders_)
+						GPU::Manager::DestroyResource(s);
+					delete impl;
+					return false;
+				}
+				impl->shaders_.push_back(handle);
+			}
+
+			// Bytecode no longer needed once created.
+			impl->bytecode_.clear();
+		}
+
+		inResource->impl_ = impl;
 
 		return true;
 	}

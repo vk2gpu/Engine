@@ -10,7 +10,7 @@ Texture2D tex_diffuse;
 
 struct VS_IN
 {
-	float4 position : SV_POSITION; // comment test.
+	float4 position : POSITION; // comment test.
 	float2 uv: TEXCOORD0;
 }; /* comment test 2 */
 
@@ -54,8 +54,7 @@ RenderState RS_DEFAULT =
 	},
 
 	.DepthEnable = 1,
-	.StencilRef = 0x1f,
-	.FillMode = WIREFRAME,
+	.FillMode = SOLID,
 };
 
 Technique TECH_MAIN =

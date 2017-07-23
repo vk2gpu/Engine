@@ -16,7 +16,9 @@ SET(SOURCES_PRIVATE
 SET(SOURCES_TESTS
 	"tests/converter_tests.cpp"
 	"tests/shader_parser_tests.cpp"
+	"tests/shader_tests.cpp"
 	"tests/test_entry.cpp"
+	"tests/test_shared.h"
 
 	# Pull in shader parser for test usage.
 	"converters/shader_ast.h"

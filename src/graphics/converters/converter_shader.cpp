@@ -71,11 +71,22 @@ namespace
 				return false;
 			}
 
+			char destDir[Core::MAX_PATH_LENGTH];
+			memset(destDir, 0, sizeof(destDir));
+			if(!Core::FileSplitPath(destPath, destDir, sizeof(destDir), nullptr, 0, nullptr, 0))
+			{
+				context.AddError(__FILE__, __LINE__, "INTERNAL ERROR: Core::FileSplitPath failed.");
+				return false;
+			}
+
+			Core::FileCreateDir(destDir);
+
 			char outFilename[Core::MAX_PATH_LENGTH];
 			memset(outFilename, 0, sizeof(outFilename));
 			strcat_s(outFilename, sizeof(outFilename), destPath);
 			Core::FileNormalizePath(outFilename, sizeof(outFilename), true);
 
+			bool retVal = false;
 
 			//
 			Core::File shaderFile(sourceFile, Core::FileFlags::READ, context.GetPathResolver());
@@ -111,40 +122,26 @@ namespace
 
 				// Gather all unique shaders referenced by techniques.
 				const auto& techniques = backendMetadata.GetTechniques();
-				Core::Map<Core::String, Core::Set<Core::String>> shaders;
+				Core::Array<Core::Set<Core::String>, (i32)GPU::ShaderType::MAX> shaders;
 
 				for(const auto& technique : techniques)
 				{
 					if(technique.vs_.size() > 0)
-						shaders["vs_5_0"].insert(technique.vs_);
+						shaders[(i32)GPU::ShaderType::VERTEX].insert(technique.vs_);
 					if(technique.gs_.size() > 0)
-						shaders["gs_5_0"].insert(technique.gs_);
+						shaders[(i32)GPU::ShaderType::GEOMETRY].insert(technique.gs_);
 					if(technique.hs_.size() > 0)
-						shaders["hs_5_0"].insert(technique.hs_);
+						shaders[(i32)GPU::ShaderType::HULL].insert(technique.hs_);
 					if(technique.ds_.size() > 0)
-						shaders["ds_5_0"].insert(technique.ds_);
+						shaders[(i32)GPU::ShaderType::DOMAIN].insert(technique.ds_);
 					if(technique.ps_.size() > 0)
-						shaders["ps_5_0"].insert(technique.ps_);
+						shaders[(i32)GPU::ShaderType::PIXEL].insert(technique.ps_);
 					if(technique.cs_.size() > 0)
-						shaders["cs_5_0"].insert(technique.cs_);
+						shaders[(i32)GPU::ShaderType::COMPUTE].insert(technique.cs_);
 				}
 
 				// Grab sampler states.
-				const auto& samplerStates = backendMetadata.GetSamplerStates();
-
-				Core::Log("To build:\n");
-				Core::Log(" - VS: %u\n", shaders["vs_5_0"].size());
-				Core::Log(" - GS: %u\n", shaders["gs_5_0"].size());
-				Core::Log(" - HS: %u\n", shaders["hs_5_0"].size());
-				Core::Log(" - DS: %u\n", shaders["ds_5_0"].size());
-				Core::Log(" - PS: %u\n", shaders["ps_5_0"].size());
-				Core::Log(" - CS: %u\n", shaders["cs_5_0"].size());
-				Core::Log(" - Sampler states: %u\n", samplerStates.size());
-				Core::Log(" - Techniques:\n");
-				for(const auto& technique : techniques)
-				{
-					Core::Log(" - - %s\n", technique.name_.c_str());
-				}
+				//const auto& samplerStates = backendMetadata.GetSamplerStates();
 
 				// Generate HLSL for the whole ESF.
 				Graphics::ShaderBackendHLSL backendHLSL;
@@ -155,52 +152,72 @@ namespace
 
 				struct CompileInfo
 				{
-					CompileInfo(const char* name, const char* code, const char* entryPoint, const char* target)
+					CompileInfo(const char* name, const char* code, const char* entryPoint, GPU::ShaderType type)
 					    : name_(name)
 					    , code_(code)
 					    , entryPoint_(entryPoint)
-					    , target_(target)
+					    , type_(type)
 					{
 					}
 
 					const char* name_;
 					const char* code_;
 					const char* entryPoint_;
-					const char* target_;
+					GPU::ShaderType type_;
 				};
 
 				Core::Vector<CompileInfo> compiles;
-				for(const auto& entry : shaders)
-					for(const auto& shader : entry.second)
+				for(i32 idx = 0; idx < shaders.size(); ++idx)
+					for(const auto& shader : shaders[idx])
 						compiles.emplace_back(
-						    sourceFile, backendHLSL.GetOutputCode().c_str(), shader.c_str(), entry.first.c_str());
+						    sourceFile, backendHLSL.GetOutputCode().c_str(), shader.c_str(), (GPU::ShaderType)idx);
 
 				Core::Vector<Graphics::ShaderCompileOutput> outputCompiles;
 				for(const auto& compile : compiles)
 				{
-					outputCompiles.emplace_back(
-					    compilerHLSL.Compile(compile.name_, compile.code_, compile.entryPoint_, compile.target_));
+					auto outCompile =
+					    compilerHLSL.Compile(compile.name_, compile.code_, compile.entryPoint_, compile.type_);
+					if(outCompile)
+					{
+						outputCompiles.emplace_back(outCompile);
+					}
+					else
+					{
+						Core::String errStr(outCompile.errorsBegin_, outCompile.errorsEnd_);
+						Core::Log("%s", errStr.c_str());
+						DBG_BREAK;
+						return false;
+					}
 				}
 
 				// Build set of all bindings used.
-				Core::Set<Core::String> cbuffers;
-				Core::Set<Core::String> samplers;
-				Core::Set<Core::String> srvs;
-				Core::Set<Core::String> uavs;
+				using BindingMap = Core::Map<Core::String, i32>;
+				BindingMap cbuffers;
+				BindingMap samplers;
+				BindingMap srvs;
+				BindingMap uavs;
+				i32 bindingIdx = 0;
 
 				for(const auto& compile : outputCompiles)
 				{
-					for(const auto& binding : compile.cbuffers_)
-						cbuffers.insert(binding.name_);
-					for(const auto& binding : compile.samplers_)
-						samplers.insert(binding.name_);
-					for(const auto& binding : compile.srvs_)
-						srvs.insert(binding.name_);
-					for(const auto& binding : compile.uavs_)
-						uavs.insert(binding.name_);
+					const auto AddBindings = [&](
+					    const Core::Vector<Graphics::ShaderBinding>& inBindings, BindingMap& outBindings) {
+						for(const auto& binding : inBindings)
+						{
+							if(outBindings.find(binding.name_) == outBindings.end())
+							{
+								outBindings.insert(binding.name_, bindingIdx++);
+							}
+						}
+					};
+
+					AddBindings(compile.cbuffers_, cbuffers);
+					AddBindings(compile.samplers_, samplers);
+					AddBindings(compile.srvs_, srvs);
+					AddBindings(compile.uavs_, uavs);
 				}
 
-				// Setup shader header.
+				// Setup data ready to serialize.
 				Graphics::ShaderHeader outHeader;
 				outHeader.numCBuffers_ = cbuffers.size();
 				outHeader.numSamplers_ = samplers.size();
@@ -208,33 +225,122 @@ namespace
 				outHeader.numUAVs_ = uavs.size();
 				outHeader.numShaders_ = outputCompiles.size();
 				outHeader.numTechniques_ = techniques.size();
+				Core::Vector<Graphics::ShaderBindingHeader> outBindingHeaders;
+				outBindingHeaders.reserve(cbuffers.size() + samplers.size() + srvs.size() + uavs.size());
 
-				// Calculate required memory for shader metadata.
-				i32 outSize = 0;
-				outSize += sizeof(Graphics::ShaderHeader);
-				outSize += sizeof(Graphics::ShaderBindingHeader) * cbuffers.size();
-				outSize += sizeof(Graphics::ShaderBindingHeader) * samplers.size();
-				outSize += sizeof(Graphics::ShaderBindingHeader) * srvs.size();
-				outSize += sizeof(Graphics::ShaderBindingHeader) * uavs.size();
-				outSize += sizeof(Graphics::ShaderBytecodeHeader) * outputCompiles.size();
-				outSize += sizeof(Graphics::ShaderTechniqueHeader) * techniques.size();
+				const auto PopulateoutBindingHeaders = [&outBindingHeaders](const BindingMap& bindings) {
+					for(const auto& binding : bindings)
+					{
+						Graphics::ShaderBindingHeader bindingHeader;
+						memset(&bindingHeader, 0, sizeof(bindingHeader));
+						strcpy_s(bindingHeader.name_, sizeof(bindingHeader.name_), binding.first.c_str());
+						outBindingHeaders.push_back(bindingHeader);
+					}
+				};
 
+				PopulateoutBindingHeaders(cbuffers);
+				PopulateoutBindingHeaders(samplers);
+				PopulateoutBindingHeaders(srvs);
+				PopulateoutBindingHeaders(uavs);
+				Core::Vector<Graphics::ShaderBytecodeHeader> outBytecodeHeaders;
+				Core::Vector<Graphics::ShaderBindingMapping> outBindingMappings;
+				i32 bytecodeOffset = 0;
 				for(const auto& compile : outputCompiles)
 				{
-					outSize += sizeof(Graphics::ShaderBindingMapping) * compile.cbuffers_.size();
-					outSize += sizeof(Graphics::ShaderBindingMapping) * compile.samplers_.size();
-					outSize += sizeof(Graphics::ShaderBindingMapping) * compile.srvs_.size();
-					outSize += sizeof(Graphics::ShaderBindingMapping) * compile.uavs_.size();
+					Graphics::ShaderBytecodeHeader bytecodeHeader;
+					bytecodeHeader.numCBuffers_ = compile.cbuffers_.size();
+					bytecodeHeader.numSamplers_ = compile.samplers_.size();
+					bytecodeHeader.numSRVs_ = compile.srvs_.size();
+					bytecodeHeader.numUAVs_ = compile.uavs_.size();
+					bytecodeHeader.type_ = compile.type_;
+					bytecodeHeader.offset_ = bytecodeOffset;
+					bytecodeHeader.numBytes_ = (i32)(compile.byteCodeEnd_ - compile.byteCodeBegin_);
 
-					//outSize += (i32)(compile.strippedByteCodeEnd_ - compile.strippedByteCodeBegin_);
-					outSize += (i32)(compile.byteCodeEnd_ - compile.byteCodeBegin_);
+					bytecodeOffset += bytecodeHeader.numBytes_;
+					outBytecodeHeaders.push_back(bytecodeHeader);
+
+					const auto AddBindingMapping = [&](
+					    const BindingMap& bindingMap, const Core::Vector<Graphics::ShaderBinding>& bindings) {
+						for(const auto& binding : bindings)
+						{
+							auto it = bindingMap.find(binding.name_);
+							DBG_ASSERT(it != bindingMap.end());
+							Graphics::ShaderBindingMapping mapping;
+							mapping.binding_ = it->second;
+							mapping.dstSlot_ = binding.slot_;
+							outBindingMappings.push_back(mapping);
+						}
+					};
+
+					AddBindingMapping(cbuffers, compile.cbuffers_);
+					AddBindingMapping(samplers, compile.samplers_);
+					AddBindingMapping(srvs, compile.srvs_);
+					AddBindingMapping(uavs, compile.uavs_);
+				};
+
+				Core::Vector<Graphics::ShaderTechniqueHeader> outTechniqueHeaders;
+				for(const auto& technique : backendMetadata.GetTechniques())
+				{
+					Graphics::ShaderTechniqueHeader techniqueHeader;
+					memset(&techniqueHeader, 0, sizeof(techniqueHeader));
+					strcpy_s(techniqueHeader.name_, sizeof(techniqueHeader.name_), technique.name_.c_str());
+
+					auto FindShaderIdx = [&](const char* name) -> i32 {
+						if(!name)
+							return -1;
+						i32 idx = 0;
+						for(const auto& compile : compiles)
+						{
+							if(strcmp(compile.entryPoint_, name) == 0)
+								return idx;
+							++idx;
+						}
+						return -1;
+					};
+					techniqueHeader.vs_ = FindShaderIdx(technique.vs_.c_str());
+					techniqueHeader.gs_ = FindShaderIdx(technique.gs_.c_str());
+					techniqueHeader.hs_ = FindShaderIdx(technique.hs_.c_str());
+					techniqueHeader.ds_ = FindShaderIdx(technique.ds_.c_str());
+					techniqueHeader.ps_ = FindShaderIdx(technique.ps_.c_str());
+					techniqueHeader.cs_ = FindShaderIdx(technique.cs_.c_str());
+					techniqueHeader.rs_ = technique.rs_.state_;
+					outTechniqueHeaders.push_back(techniqueHeader);
 				}
 
-				DBG_BREAK;
+				auto WriteShader = [&](const char* outFilename) {
+					// Write out shader data.
+					Core::File outFile(outFilename, Core::FileFlags::CREATE | Core::FileFlags::WRITE);
+					if(outFile)
+					{
+						outFile.Write(&outHeader, sizeof(outHeader));
+						if(outBindingHeaders.size() > 0)
+							outFile.Write(outBindingHeaders.data(),
+							    outBindingHeaders.size() * sizeof(Graphics::ShaderBindingHeader));
+						if(outBytecodeHeaders.size() > 0)
+							outFile.Write(outBytecodeHeaders.data(),
+							    outBytecodeHeaders.size() * sizeof(Graphics::ShaderBytecodeHeader));
+						if(outBindingMappings.size() > 0)
+							outFile.Write(outBindingMappings.data(),
+							    outBindingMappings.size() * sizeof(Graphics::ShaderBindingMapping));
+						if(outTechniqueHeaders.size() > 0)
+							outFile.Write(outTechniqueHeaders.data(),
+							    outTechniqueHeaders.size() * sizeof(Graphics::ShaderTechniqueHeader));
+
+						i64 outBytes = 0;
+						for(const auto& compile : outputCompiles)
+						{
+							outBytes +=
+							    outFile.Write(compile.byteCodeBegin_, compile.byteCodeEnd_ - compile.byteCodeBegin_);
+						}
+
+						return true;
+					}
+					return false;
+				};
+
+				retVal = WriteShader(outFilename);
 			}
 			context.AddDependency(sourceFile);
-
-			bool retVal = false;
 
 			if(retVal)
 			{

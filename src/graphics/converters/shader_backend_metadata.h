@@ -6,31 +6,31 @@
 
 namespace Graphics
 {
-	struct ShaderSamplerState
+	struct ShaderSamplerStateInfo
 	{
 		Core::String name_;
 		GPU::SamplerState state_;
 	};
 
-	struct ShaderBlendState
+	struct ShaderBlendStateInfo
 	{
 		Core::String name_;
 		GPU::BlendState state_;
 	};
 
-	struct ShaderStencilFaceState
+	struct ShaderStencilFaceStateInfo
 	{
 		Core::String name_;
 		GPU::StencilFaceState state_;
 	};
 
-	struct ShaderRenderState
+	struct ShaderRenderStateInfo
 	{
 		Core::String name_;
 		GPU::RenderState state_;
 	};
 
-	struct ShaderTechnique
+	struct ShaderTechniqueInfo
 	{
 		Core::String name_;
 		Core::String vs_;
@@ -39,7 +39,7 @@ namespace Graphics
 		Core::String ds_;
 		Core::String ps_;
 		Core::String cs_;
-		ShaderRenderState rs_;
+		ShaderRenderStateInfo rs_;
 	};
 
 	class ShaderBackendMetadata : public AST::IVisitor
@@ -111,42 +111,42 @@ namespace Graphics
 			Core::Map<Core::String, DescendFn> descendFns_;
 		};
 
-		class SamplerStateEval : public BaseEval<ShaderSamplerState>
+		class SamplerStateEval : public BaseEval<ShaderSamplerStateInfo>
 		{
 		public:
-			SamplerStateEval(ShaderSamplerState& samp, AST::NodeShaderFile* file, ShaderBackendMetadata& backend);
+			SamplerStateEval(ShaderSamplerStateInfo& samp, AST::NodeShaderFile* file, ShaderBackendMetadata& backend);
 		};
 
-		class BlendStateEval : public BaseEval<ShaderBlendState>
+		class BlendStateEval : public BaseEval<ShaderBlendStateInfo>
 		{
 		public:
-			BlendStateEval(ShaderBlendState& blend, AST::NodeShaderFile* file, ShaderBackendMetadata& backend);
+			BlendStateEval(ShaderBlendStateInfo& blend, AST::NodeShaderFile* file, ShaderBackendMetadata& backend);
 		};
 
-		class StencilFaceStateEval : public BaseEval<ShaderStencilFaceState>
+		class StencilFaceStateEval : public BaseEval<ShaderStencilFaceStateInfo>
 		{
 		public:
 			StencilFaceStateEval(
-			    ShaderStencilFaceState& sten, AST::NodeShaderFile* file, ShaderBackendMetadata& backend);
+			    ShaderStencilFaceStateInfo& sten, AST::NodeShaderFile* file, ShaderBackendMetadata& backend);
 		};
-		class RenderStateEval : public BaseEval<ShaderRenderState>
+		class RenderStateEval : public BaseEval<ShaderRenderStateInfo>
 		{
 		public:
-			RenderStateEval(ShaderRenderState& rend, AST::NodeShaderFile* file, ShaderBackendMetadata& backend);
+			RenderStateEval(ShaderRenderStateInfo& rend, AST::NodeShaderFile* file, ShaderBackendMetadata& backend);
 		};
 
-		class TechniqueEval : public BaseEval<ShaderTechnique>
+		class TechniqueEval : public BaseEval<ShaderTechniqueInfo>
 		{
 		public:
-			TechniqueEval(ShaderTechnique& tech, AST::NodeShaderFile* file, ShaderBackendMetadata& backend);
+			TechniqueEval(ShaderTechniqueInfo& tech, AST::NodeShaderFile* file, ShaderBackendMetadata& backend);
 		};
 
 		AST::NodeShaderFile* file_ = nullptr;
-		Core::Vector<ShaderSamplerState> samplerStates_;
-		Core::Vector<ShaderBlendState> blendStates_;
-		Core::Vector<ShaderStencilFaceState> stencilFaceStates_;
-		Core::Vector<ShaderRenderState> renderStates_;
-		Core::Vector<ShaderTechnique> techniques_;
+		Core::Vector<ShaderSamplerStateInfo> samplerStates_;
+		Core::Vector<ShaderBlendStateInfo> blendStates_;
+		Core::Vector<ShaderStencilFaceStateInfo> stencilFaceStates_;
+		Core::Vector<ShaderRenderStateInfo> renderStates_;
+		Core::Vector<ShaderTechniqueInfo> techniques_;
 
 		Core::String outCode_;
 	};

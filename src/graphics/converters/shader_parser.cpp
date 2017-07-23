@@ -56,30 +56,30 @@ namespace
 
 	NodeType SRV_TYPES[] =
 	{
-		"Buffer", 
-		"ByteAddressBuffer", 
-		"StructuredBuffer", 
-		"Texture1D", 
-		"Texture1DArray", 
-		"Texture2D",
-		"Texture2DArray", 
-		"Texture3D", 
-		"Texture2DMS", 
-		"Texture2DMSArray", 
-		"TextureCube",
-		"TextureCubeArray",
+		{"Buffer", -1, "SRV"}, 
+		{"ByteAddressBuffer", -1, "SRV"}, 
+		{"StructuredBuffer", -1, "SRV"}, 
+		{"Texture1D", -1, "SRV"}, 
+		{"Texture1DArray", -1, "SRV"}, 
+		{"Texture2D", -1, "SRV"}, 
+		{"Texture2DArray", -1, "SRV"}, 
+		{"Texture3D", -1, "SRV"}, 
+		{"Texture2DMS", -1, "SRV"}, 
+		{"Texture2DMSArray", -1, "SRV"}, 
+		{"TextureCube", -1, "SRV"}, 
+		{"TextureCubeArray", -1, "SRV"}, 
 	};
 
 	NodeType UAV_TYPES[] =
 	{
-		"RWBuffer",
-		"RWByteAddressBuffer",
-		"RWStructuredBuffer",
-		"RWTexture1D",
-		"RWTexture1DArray",
-		"RWTexture2D",
-		"RWTexture2DArray",
-		"RWTexture3D",
+		{"RWBuffer", -1, "UAV"}, 
+		{"RWByteAddressBuffer", -1, "UAV"}, 
+		{"RWStructuredBuffer", -1, "UAV"}, 
+		{"RWTexture1D", -1, "UAV"}, 
+		{"RWTexture1DArray", -1, "UAV"}, 
+		{"RWTexture2D", -1, "UAV"}, 
+		{"RWTexture2DArray", -1, "UAV"}, 
+		{"RWTexture3D", -1, "UAV"}, 
 	};
 
 	NodeType ENUM_TYPES[] =

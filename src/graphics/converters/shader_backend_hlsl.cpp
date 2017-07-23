@@ -222,8 +222,23 @@ namespace Graphics
 		}
 		else
 		{
+			Core::String reg;
+			if(node->type_->baseType_->metaData_ == "CBUFFER")
+				reg.Printf("register(b%i)", cbufferReg_++);
+			if(node->type_->baseType_->metaData_ == "SRV")
+				reg.Printf("register(t%i)", srvReg_++);
+			if(node->type_->baseType_->metaData_ == "UAV")
+				reg.Printf("register(u%i)", uavReg_++);
+			if(node->type_->baseType_->struct_)
+				if(auto attr = node->type_->baseType_->struct_->FindAttribute("internal"))
+					if(attr->HasParameter(0) && attr->GetParameter(0) == "SamplerState")
+						reg.Printf("register(s%i)", samplerReg_++);
+
 			if(node->semantic_.size() > 0)
 				Write(" : %s", node->semantic_.c_str());
+
+			if(reg.size() > 0)
+				Write(" : %s", reg.c_str());
 
 			if(node->value_)
 			{

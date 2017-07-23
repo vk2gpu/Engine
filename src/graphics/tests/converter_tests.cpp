@@ -1,46 +1,10 @@
 #include "catch.hpp"
-
-#include "core/debug.h"
-#include "core/file.h"
-#include "core/random.h"
-#include "core/timer.h"
-#include "core/vector.h"
-#include "core/os.h"
-#include "job/manager.h"
-#include "plugin/manager.h"
-#include "resource/manager.h"
-
-#include "graphics/factory.h"
-#include "graphics/shader.h"
-#include "graphics/texture.h"
-
-
-namespace
-{
-	class ScopedFactory
-	{
-	public:
-		ScopedFactory()
-		{
-			factory_ = new Graphics::Factory();
-			Resource::Manager::RegisterFactory<Graphics::Shader>(factory_);
-			Resource::Manager::RegisterFactory<Graphics::Texture>(factory_);
-		}
-
-		~ScopedFactory()
-		{
-			Resource::Manager::UnregisterFactory(factory_);
-			delete factory_;
-		}
-
-	private:
-		Resource::IFactory* factory_ = nullptr;
-	};
-}
+#include "test_shared.h"
 
 TEST_CASE("graphics-tests-converter-shader")
 {
 	Plugin::Manager::Scoped pluginManager;
+	GPU::Manager::Scoped gpuManager(GetDefaultSetupParams());
 	Job::Manager::Scoped jobManager(2, 256, 32 * 1024);
 	Resource::Manager::Scoped resourceManager;
 	ScopedFactory factory;
@@ -54,6 +18,7 @@ TEST_CASE("graphics-tests-converter-shader")
 TEST_CASE("graphics-tests-converter-texture")
 {
 	Plugin::Manager::Scoped pluginManager;
+	GPU::Manager::Scoped gpuManager(GetDefaultSetupParams());
 	Job::Manager::Scoped jobManager(2, 256, 32 * 1024);
 	Resource::Manager::Scoped resourceManager;
 	ScopedFactory factory;

@@ -205,9 +205,10 @@ namespace Graphics
 			using EnumValueFn = bool (*)(i32&, const char*);
 			using EnumNameFn = const char* (*)(i32);
 
-			NodeType(const char* name, i32 size = -1)
+			NodeType(const char* name, i32 size = -1, const char* metaData = "")
 			    : Node(Nodes::TYPE, name)
 			    , size_(size)
+			    , metaData_(metaData)
 			{
 			}
 
@@ -245,6 +246,7 @@ namespace Graphics
 			i32 maxEnumValue_ = 0;
 			Core::Vector<NodeDeclaration*> members_;
 			NodeStruct* struct_ = nullptr;
+			Core::String metaData_;
 		};
 
 		struct NodeTypeIdent : Node

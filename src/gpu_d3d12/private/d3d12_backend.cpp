@@ -541,7 +541,7 @@ namespace GPU
 		for(i32 i = 0; i < MAX_BOUND_RTVS; ++i)
 		{
 			gpsDesc.BlendState.RenderTarget[i] = GetBlendState(desc.renderState_.blendStates_[i]);
-			gpsDesc.RTVFormats[i] = GetFormat(desc.rtvFormats_[i]);
+			gpsDesc.RTVFormats[i] = i < desc.numRTs_ ? GetFormat(desc.rtvFormats_[i]) : DXGI_FORMAT_UNKNOWN;
 		}
 		gpsDesc.DSVFormat = GetFormat(desc.dsvFormat_);
 

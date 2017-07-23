@@ -480,12 +480,13 @@ namespace GPU
 	{
 		VertexElement() = default;
 		VertexElement(i32 streamIdx, i32 offset, Format format, VertexUsage usage, i32 usageIdx)
-			: streamIdx_(streamIdx)
-			, offset_(offset)
-			, format_(format)
-			, usage_(usage)
-			, usageIdx_(usageIdx)
-		{}
+		    : streamIdx_(streamIdx)
+		    , offset_(offset)
+		    , format_(format)
+		    , usage_(usage)
+		    , usageIdx_(usageIdx)
+		{
+		}
 
 		i32 streamIdx_ = -1;
 		i32 offset_ = -1;
