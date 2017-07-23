@@ -258,7 +258,7 @@ namespace Serialization
 		virtual bool Serialize(const char* key, f32& value) = 0;
 		virtual bool SerializeString(const char* key, char* str, i32 maxLength) = 0;
 		virtual bool SerializeBinary(const char* key, char* data, i32 size) = 0;
-		virtual bool BeginObject(const char* key) = 0;
+		virtual i32 BeginObject(const char* key, bool isArray) = 0;
 		virtual void EndObject() = 0;
 		virtual bool IsReading() const = 0;
 		virtual bool IsWriting() const = 0;
@@ -269,7 +269,7 @@ namespace Serialization
 		Core::File& outFile_;
 		Json::Value rootValue_;
 		Core::Vector<Json::Value*> objectStack_;
-
+		
 		SerializerImplWriteJson(Core::File& outFile)
 		    : outFile_(outFile)
 		{
@@ -284,33 +284,51 @@ namespace Serialization
 			outFile_.Write(outStr.data(), outStr.size());
 		}
 
-		Json::Value& GetObject() { return *objectStack_.back(); }
+		Json::Value& GetObject(i32 idx = -1)
+		{
+			if(idx < 0)
+				return *objectStack_.back();
+			else
+				return objectStack_.back()[idx];
+		}
 
 		bool Serialize(const char* key, bool& value) override
 		{
 			auto& object = GetObject();
-			object[key] = value;
+			if(key)
+				object[key] = value;
+			else
+				object.append(value);
 			return true;
 		}
 
 		bool Serialize(const char* key, i32& value) override
 		{
 			auto& object = GetObject();
-			object[key] = value;
+			if(key)
+				object[key] = value;
+			else
+				object.append(value);
 			return true;
 		}
 
 		bool Serialize(const char* key, f32& value) override
 		{
 			auto& object = GetObject();
-			object[key] = value;
+			if(key)
+				object[key] = value;
+			else
+				object.append(value);
 			return true;
 		}
 
 		bool SerializeString(const char* key, char* str, i32 maxLength) override
 		{
 			auto& object = GetObject();
-			object[key] = str;
+			if(key)
+				object[key] = str;
+			else
+				object.append(str);
 			return true;
 		}
 
@@ -326,22 +344,33 @@ namespace Serialization
 			base64_encode_blockend(&outString[outBytes], 0, &encodeState);
 
 			auto& object = GetObject();
-			object[key] = outString.data();
+			if(key)
+				object[key] = outString.data();
+			else
+				object.append(outString.data());
 			return true;
 		}
 
-		bool BeginObject(const char* key) override
+		i32 BeginObject(const char* key, bool isArray) override
 		{
 			auto& object = GetObject();
-			auto& newObject = object[key] = Json::Value(Json::objectValue);
-			objectStack_.push_back(&newObject);
-			return true;
+			if(isArray)
+			{
+				auto& newObject = object[key] = Json::Value(Json::arrayValue);
+				objectStack_.push_back(&newObject);
+			}
+			else
+			{
+				auto& newObject = object[key] = Json::Value(Json::objectValue);
+				objectStack_.push_back(&newObject);
+			}
+			return -1;
 		}
 
 		void EndObject() override { objectStack_.pop_back(); }
 
-		virtual bool IsReading() const { return false; }
-		virtual bool IsWriting() const { return true; }
+		bool IsReading() const override { return false; }
+		bool IsWriting() const override { return true; }
 	};
 
 	struct SerializerImplReadJson : SerializerImpl
@@ -349,6 +378,7 @@ namespace Serialization
 		Core::File& inFile_;
 		Json::Value rootValue_;
 		Core::Vector<Json::Value*> objectStack_;
+		Core::Vector<i32> vectorStack_;
 
 		SerializerImplReadJson(Core::File& inFile)
 		    : inFile_(inFile)
@@ -366,7 +396,16 @@ namespace Serialization
 
 		Json::Value& GetObject() { return *objectStack_.back(); }
 
-		Json::Value& GetObjectWithKey(const char* key) { return GetObject()[key]; }
+		Json::Value& GetObjectWithKey(const char* key)
+		{
+			if(key)
+				return GetObject()[key];
+			else
+			{
+				i32 idx = vectorStack_.back()++;
+				return GetObject()[idx];
+			}
+		}
 
 		bool Serialize(const char* key, bool& value) override
 		{
@@ -427,21 +466,32 @@ namespace Serialization
 			return false;
 		}
 
-		bool BeginObject(const char* key) override
+		i32 BeginObject(const char* key, bool isArray) override
 		{
 			auto& object = GetObjectWithKey(key);
 			if(object.isObject())
 			{
 				objectStack_.push_back(&object);
-				return true;
+				return -1;
 			}
-			return false;
+			else if(object.isArray())
+			{
+				objectStack_.push_back(&object);
+				vectorStack_.push_back(0);
+				return object.size();
+			}
+			return 0;
 		}
 
-		void EndObject() override { objectStack_.pop_back(); }
+		void EndObject() override
+		{
+			if(objectStack_.back()->isArray())
+				vectorStack_.pop_back();
+			objectStack_.pop_back();
+		}
 
-		virtual bool IsReading() const { return true; }
-		virtual bool IsWriting() const { return false; }
+		bool IsReading() const override { return true; }
+		bool IsWriting() const override { return false; }
 	};
 
 	Serializer::Serializer(Core::File& file, Flags flags)
@@ -510,7 +560,7 @@ namespace Serialization
 
 	Serializer::ScopedObject Serializer::Object(const char* key) { return Serializer::ScopedObject(*this, key); }
 
-	bool Serializer::BeginObject(const char* key) { return impl_->BeginObject(key); }
+	i32 Serializer::BeginObject(const char* key, bool isArray) { return impl_->BeginObject(key, isArray); }
 
 	void Serializer::EndObject() { impl_->EndObject(); }
 

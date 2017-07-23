@@ -61,3 +61,37 @@ TEST_CASE("serializer-tests-basic-write-read")
 			REQUIRE(testBinary[i] == (char)i);
 	}
 }
+
+TEST_CASE("serializer-tests-vec-write-read")
+{
+	Core::Vector<u8*> buffer;
+	buffer.resize(1024 * 1024);
+
+	Core::File outFile(buffer.data(), buffer.size(), Core::FileFlags::WRITE);
+	{
+		Serialization::Serializer serializer(outFile, Serialization::Flags::TEXT);
+
+		Core::Vector<i32> testVec;
+		for(i32 idx = 0; idx < 32; ++idx)
+			testVec.push_back(idx);
+
+		if(auto object = serializer.Object("root_object"))
+		{
+			REQUIRE(serializer.Serialize("vec", testVec));
+		}
+	}
+
+	Core::File inFile(buffer.data(), outFile.Tell(), Core::FileFlags::READ);
+	{
+		Core::Vector<i32> testVec;
+
+		Serialization::Serializer serializer(inFile, Serialization::Flags::TEXT);
+		if(auto object = serializer.Object("root_object"))
+		{
+			REQUIRE(serializer.Serialize("vec", testVec));
+			REQUIRE(testVec.size() == 32);
+			for(i32 idx = 0; idx < 32; ++idx)
+				REQUIRE(testVec[idx] == idx);
+		}
+	}
+}

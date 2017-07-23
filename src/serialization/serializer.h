@@ -2,6 +2,9 @@
 
 #include "serialization/dll.h"
 #include "core/types.h"
+#include "core/vector.h"
+
+#include <type_traits>
 
 namespace Core
 {
@@ -41,7 +44,8 @@ namespace Serialization
 		bool SerializeString(const char* key, char* str, i32 maxLength);
 		bool SerializeBinary(const char* key, char* data, i32 size);
 
-		template<typename ENUM>
+		/// Enum serialization.
+		template<typename ENUM, typename = typename std::enable_if<std::is_enum<ENUM>::value>::type>
 		bool Serialize(const char* key, ENUM& value)
 		{
 			if(IsReading())
@@ -61,13 +65,14 @@ namespace Serialization
 			return true;
 		}
 
+		/// Object serialization.	
 		struct ScopedObject
 		{
 			ScopedObject(Serializer& serializer, const char* key)
 			    : serializer_(serializer)
 			    , key_(key)
 			{
-				valid_ = serializer_.BeginObject(key);
+				valid_ = serializer_.BeginObject(key) == -1;
 			}
 
 			~ScopedObject()
@@ -85,11 +90,41 @@ namespace Serialization
 
 		ScopedObject Object(const char* key);
 
-		template<typename TYPE>
-		bool SerializeObject(const char* key, TYPE& type)
+		template<typename TYPE, typename = typename std::enable_if<std::is_object<TYPE>::value>::type, typename std::enable_if<!std::is_enum<TYPE>::value>::type>
+		bool Serialize(const char* key, TYPE& type)
 		{
 			if(auto object = Object(key))
 				return type.Serialize(*this);
+			return false;
+		}
+
+		/// Vector serialization.
+		template<typename TYPE, typename ALLOCATOR>
+		bool Serialize(const char* key, Core::Vector<TYPE, ALLOCATOR>& type)
+		{
+			if(IsReading())
+			{
+				i32 num = BeginObject(key, true);
+				type.resize(num);
+				for(i32 idx = 0; idx < num; ++idx)
+				{
+					Serialize(nullptr, type[idx]);
+				}
+				EndObject();
+				return true;
+			}
+			else if(IsWriting())
+			{
+				if(-1 == BeginObject(key, true))
+				{
+					for(auto& val : type)
+					{
+						Serialize(nullptr, val);
+					}
+					EndObject();
+				}
+				return true;
+			}
 			return false;
 		}
 
@@ -97,8 +132,9 @@ namespace Serialization
 		bool IsWriting() const;
 
 	private:
-		bool BeginObject(const char* key);
+		i32 BeginObject(const char* key, bool isArray = false);
 		void EndObject();
+
 
 		Serializer(const Serializer&) = delete;
 		Serializer& operator=(const Serializer&) = delete;
