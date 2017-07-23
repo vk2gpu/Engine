@@ -2,6 +2,7 @@
 
 #include "serialization/dll.h"
 #include "core/types.h"
+#include "core/string.h"
 #include "core/vector.h"
 
 #include <type_traits>
@@ -40,6 +41,7 @@ namespace Serialization
 		bool Serialize(const char* key, i32& value);
 		bool Serialize(const char* key, f32& value);
 		bool Serialize(const char* key, Core::UUID& value);
+		bool Serialize(const char* key, Core::String& value);
 
 		bool SerializeString(const char* key, char* str, i32 maxLength);
 		bool SerializeBinary(const char* key, char* data, i32 size);

@@ -347,11 +347,7 @@ namespace Core
 
 	char FilePathSeparator()
 	{
-#if PLATFORM_WINDOWS
-		return '\\';
-#else
 		return '/';
-#endif
 	}
 
 	void FileGetCurrDir(char* buffer, i32 bufferLength)

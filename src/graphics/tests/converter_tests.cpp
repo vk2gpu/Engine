@@ -9,6 +9,12 @@ TEST_CASE("graphics-tests-converter-shader")
 	Resource::Manager::Scoped resourceManager;
 	ScopedFactory factory;
 
+	// Init device.
+	i32 numAdapters = GPU::Manager::EnumerateAdapters(nullptr, 0);
+	REQUIRE(numAdapters > 0);
+
+	REQUIRE(GPU::Manager::CreateAdapter(0) == GPU::ErrorCode::OK);
+
 	Graphics::Shader* shader = nullptr;
 	REQUIRE(Resource::Manager::RequestResource(shader, "shader_tests/00-basic.esf"));
 	Resource::Manager::WaitForResource(shader);
@@ -22,6 +28,12 @@ TEST_CASE("graphics-tests-converter-texture")
 	Job::Manager::Scoped jobManager(2, 256, 32 * 1024);
 	Resource::Manager::Scoped resourceManager;
 	ScopedFactory factory;
+
+	// Init device.
+	i32 numAdapters = GPU::Manager::EnumerateAdapters(nullptr, 0);
+	REQUIRE(numAdapters > 0);
+
+	REQUIRE(GPU::Manager::CreateAdapter(0) == GPU::ErrorCode::OK);
 
 	Graphics::Texture* texture = nullptr;
 

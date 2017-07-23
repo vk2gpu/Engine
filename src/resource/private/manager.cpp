@@ -50,6 +50,36 @@ namespace Core
 
 namespace Resource
 {
+	class PathResolver : public Core::IFilePathResolver
+	{
+	public:
+		PathResolver() {}
+
+		virtual ~PathResolver() {}
+
+		bool ResolvePath(const char* inPath, char* outPath, i32 maxOutPath)
+		{
+			const char* paths[] = {"", "../../../../res"};
+
+			char intPath[Core::MAX_PATH_LENGTH];
+			for(i32 i = 0; i < sizeof(paths) / sizeof(paths[0]); ++i)
+			{
+				memset(intPath, 0, sizeof(intPath));
+				Core::FileAppendPath(intPath, sizeof(intPath), paths[i]);
+				Core::FileAppendPath(intPath, sizeof(intPath), inPath);
+				if(Core::FileExists(intPath))
+				{
+					strcpy_s(outPath, maxOutPath, intPath);
+					return true;
+				}
+			}
+
+			return false;
+		}
+	};
+
+	PathResolver pathResolver_;
+
 	/// Converter context to use during resource conversion.
 	class ConverterContext : public Resource::IConverterContext
 	{
@@ -59,13 +89,14 @@ namespace Resource
 		virtual ~ConverterContext() {}
 
 		void AddDependency(const char* fileName) override
-		{ //
-			Core::Log("AddDependency: %s\n", fileName);
+		{
+			if(std::find_if(dependencies_.begin(), dependencies_.end(), [fileName](const Core::String& str){ return str == fileName; }) == dependencies_.end())
+				dependencies_.push_back(fileName);
 		}
 
 		void AddOutput(const char* fileName) override
-		{ //
-			Core::Log("AddOutput: %s\n", fileName);
+		{
+			outputs_.push_back(fileName);
 		}
 
 		void AddError(const char* errorFile, int errorLine, const char* errorMsg) override
@@ -82,36 +113,7 @@ namespace Resource
 
 		Core::IFilePathResolver* GetPathResolver() override
 		{
-			class PathResolver : public Core::IFilePathResolver
-			{
-			public:
-				PathResolver() {}
-
-				virtual ~PathResolver() {}
-
-				bool ResolvePath(const char* inPath, char* outPath, i32 maxOutPath)
-				{
-					const char* paths[] = {"", "../../../../res"};
-
-					char intPath[Core::MAX_PATH_LENGTH];
-					for(i32 i = 0; i < sizeof(paths) / sizeof(paths[0]); ++i)
-					{
-						memset(intPath, 0, sizeof(intPath));
-						Core::FileAppendPath(intPath, sizeof(intPath), paths[i]);
-						Core::FileAppendPath(intPath, sizeof(intPath), inPath);
-						if(Core::FileExists(intPath))
-						{
-							strcpy_s(outPath, maxOutPath, intPath);
-							return true;
-						}
-					}
-
-					return false;
-				}
-			};
-
-			static PathResolver pathResolver;
-			return &pathResolver;
+			return &pathResolver_;
 		}
 
 		bool Convert(IConverter* converter, const char* sourceFile, const char* destPath)
@@ -122,12 +124,24 @@ namespace Resource
 				strcat_s(metaDataFileName_, sizeof(metaDataFileName_), ".metadata");
 			}
 
+			dependencies_.clear();
+			outputs_.clear();
+
 			// Do conversion.
 			return converter->Convert(*this, sourceFile, destPath);
 		}
 
 		void SetMetaData(MetaDataCb callback, void* metaData) override
 		{
+			metaDataSer_ = Serialization::Serializer();
+			metaDataFile_ = Core::File();
+
+			if(Core::FileExists(metaDataFileName_))
+			{
+				auto removed = Core::FileRemove(metaDataFileName_);
+				DBG_ASSERT(removed);
+			}
+
 			metaDataFile_ = Core::File(metaDataFileName_, Core::FileFlags::CREATE | Core::FileFlags::WRITE);
 			metaDataSer_ = Serialization::Serializer(metaDataFile_, Serialization::Flags::TEXT);
 
@@ -136,7 +150,11 @@ namespace Resource
 				callback(metaDataSer_, metaData);
 			}
 
-			AddDependency(metaDataFileName_);
+			if(auto object = metaDataSer_.Object("internal"))
+			{
+				metaDataSer_.Serialize("dependencies", dependencies_);
+				metaDataSer_.Serialize("outputs", outputs_);
+			}
 
 			metaDataSer_ = Serialization::Serializer();
 			metaDataFile_ = Core::File();
@@ -162,6 +180,8 @@ namespace Resource
 		char metaDataFileName_[Core::MAX_PATH_LENGTH] = {0};
 		Core::File metaDataFile_;
 		Serialization::Serializer metaDataSer_;
+		Core::Vector<Core::String> dependencies_;
+		Core::Vector<Core::String> outputs_;
 	};
 
 	/// Factory context to use during creation of resources.
@@ -597,9 +617,42 @@ namespace Resource
 
 				// Setup job to create.
 				{
+					// Check if converted file exists.
+					bool shouldConvert = !Core::FileExists(convertedPath.data());
+
+					// If it does, check against metadata timestamp to see if we need to reimport.
+					if(!shouldConvert)
+					{
+						// Setup metadata path.
+						char srcPath[Core::MAX_PATH_LENGTH] = {0};
+						char metaPath[Core::MAX_PATH_LENGTH] = {0};
+						if(pathResolver_.ResolvePath(name, srcPath, sizeof(srcPath)))
+						{
+							strcpy_s(metaPath, sizeof(metaPath), srcPath);
+							strcat_s(metaPath, sizeof(metaPath), ".metadata");
+
+							Core::FileTimestamp srcTimestamp;
+							Core::FileTimestamp metaTimestamp;
+							if(Core::FileStats(srcPath, nullptr, &srcTimestamp, nullptr))
+							{
+								if(Core::FileStats(metaPath, nullptr, &metaTimestamp, nullptr))
+								{	
+									if(metaTimestamp < srcTimestamp)
+									{
+										shouldConvert = true;
+									}
+								}
+								else
+								{
+									shouldConvert = true;
+								}
+							}
+						}
+					}
+
 					// If converted file doesn't exist, convert now.
 					// TODO: This should be done async.
-					if(!Core::FileExists(convertedPath.data()))
+					if(shouldConvert)
 					{
 						auto* jobData = new ResourceConvertJob(entry, type, name, convertedPath.data());
 

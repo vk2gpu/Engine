@@ -78,6 +78,8 @@ namespace Core
 			data_.back() = '\0';
 		}
 
+		void shrink_to_fit() { data_.shrink_to_fit(); }
+
 		index_type find(const char* str, index_type subPos = 0) const;
 		index_type find(const String& str, index_type subPos = 0) const { return find(str.c_str(), subPos); }
 

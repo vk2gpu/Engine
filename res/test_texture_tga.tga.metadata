@@ -1,6 +1,8 @@
 {
    "format" : "BC3_UNORM",
-   "generateMipLevels" : true
-}
-
+   "generateMipLevels" : true,
+   "internal" : {
+      "dependencies" : [ "test_texture_tga.tga" ],
+      "outputs" : [ "converter_output/test_texture_tga.tga.converted" ]
+   }
 }

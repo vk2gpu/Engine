@@ -548,6 +548,17 @@ namespace Serialization
 		return false;
 	}
 
+	bool Serializer::Serialize(const char* key, Core::String& value)
+	{
+		if(IsReading())
+		{
+			value.resize(4096);
+		}
+		auto retVal = impl_->SerializeString(key, value.data(), value.size());
+		value.shrink_to_fit();
+		return retVal;
+	}
+
 	bool Serializer::SerializeString(const char* key, char* str, i32 maxLength)
 	{
 		return impl_->SerializeString(key, str, maxLength);

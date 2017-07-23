@@ -129,7 +129,7 @@ namespace
 			dbsDesc.ib_.resource_ = ibHandle_;
 			dbsHandle_ = GPU::Manager::CreateDrawBindingSet(dbsDesc, "Trangle Drawer DBS");
 
-			REQUIRE(Resource::Manager::RequestResource(texture_, "test_texture_png.png"));
+			REQUIRE(Resource::Manager::RequestResource(texture_, "test_texture_bc7.dds"));
 			Resource::Manager::WaitForResource(texture_);
 
 			GPU::SamplerState smpDesc;

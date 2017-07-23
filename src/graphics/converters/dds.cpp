@@ -480,7 +480,7 @@ namespace Graphics
 
 			// Calculate size.
 			auto formatSize = GPU::GetTextureSize(
-			    format, ddsHeader.dwWidth, ddsHeader.dwHeight, ddsHeader.dwDepth, ddsHeader.dwMipMapCount, 1);
+			    format, ddsHeader.dwWidth, ddsHeader.dwHeight, ddsHeader.dwDepth, ddsHeader.dwMipMapCount, ddsHeaderDXT10.arraySize > 0 ? ddsHeaderDXT10.arraySize : 1);
 			u8* data = new u8[formatSize];
 			imageFile.Read(data, formatSize);
 
