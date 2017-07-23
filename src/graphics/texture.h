@@ -19,6 +19,9 @@ namespace Graphics
 		/// @return Texture desc.
 		const GPU::TextureDesc& GetDesc() const;
 
+		/// @return Texture handle.
+		GPU::Handle GetHandle() const;
+
 	private:
 		Texture(const Texture&) = delete;
 		Texture& operator=(const Texture&) = delete;

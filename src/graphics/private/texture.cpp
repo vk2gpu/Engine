@@ -27,4 +27,10 @@ namespace Graphics
 		return impl_->desc_;
 	}
 
+	GPU::Handle Texture::GetHandle() const
+	{
+		DBG_ASSERT(impl_);
+		return impl_->handle_;
+	}
+
 } // namespace Graphics

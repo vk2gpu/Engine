@@ -15,7 +15,7 @@ namespace Graphics
 		/// Major version signifies a breaking change to the binary format.
 		static const i16 MAJOR_VERSION = 0x0000;
 		/// Mimor version signifies non-breaking change to binary format.
-		static const i16 MINOR_VERSION = 0x0002;
+		static const i16 MINOR_VERSION = 0x0003;
 
 		u32 magic_ = MAGIC;
 		i16 majorVersion_ = MAJOR_VERSION;
@@ -74,6 +74,7 @@ namespace Graphics
 		Core::Vector<u8> bytecode_;
 
 		Core::Vector<GPU::Handle> shaders_;
+		Core::Vector<const ShaderBindingMapping*> shaderBindingMappings_;
 
 		// Technique data.
 		Core::Vector<u32> techniqueDescHashes_;
@@ -90,6 +91,16 @@ namespace Graphics
 		bool bsDirty_ = true;
 		GPU::PipelineBindingSetDesc bs_;
 		GPU::Handle bsHandle_;
+
+		i32 samplerOffset_ = 0;
+		i32 srvOffset_ = 0;
+		i32 uavOffset_ = 0;
+		i32 maxBindings = 0;
+
+		Core::Vector<GPU::BindingBuffer> cbvs_;
+		Core::Vector<GPU::BindingSampler> samplers_;
+		Core::Vector<GPU::BindingSRV> srvs_;
+		Core::Vector<GPU::BindingUAV> uavs_;
 	};
 
 } // namespace Graphics

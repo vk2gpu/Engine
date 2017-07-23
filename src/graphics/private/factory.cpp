@@ -146,7 +146,9 @@ namespace Graphics
 		GPU::Handle handle;
 		if(GPU::Manager::IsInitialized())
 		{
+			const ShaderBindingMapping* mapping = impl->bindingMappings_.data();
 			impl->shaders_.reserve(impl->shaders_.size());
+			impl->shaderBindingMappings_.reserve(impl->shaders_.size());
 			for(const auto& bytecode : impl->bytecodeHeaders_)
 			{
 				GPU::ShaderDesc desc;
@@ -161,7 +163,12 @@ namespace Graphics
 					delete impl;
 					return false;
 				}
+
 				impl->shaders_.push_back(handle);
+
+				impl->shaderBindingMappings_.push_back(mapping);
+
+				mapping += (bytecode.numCBuffers_ + bytecode.numSamplers_ + bytecode.numSRVs_ + bytecode.numUAVs_);
 			}
 
 			// Bytecode no longer needed once created.

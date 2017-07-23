@@ -128,7 +128,16 @@ namespace
 			dbsDesc.ib_.stride_ = sizeof(u16);
 			dbsDesc.ib_.resource_ = ibHandle_;
 			dbsHandle_ = GPU::Manager::CreateDrawBindingSet(dbsDesc, "Trangle Drawer DBS");
+
+			REQUIRE(Resource::Manager::RequestResource(texture_, "test_texture_png.png"));
+			Resource::Manager::WaitForResource(texture_);
+
+			GPU::SamplerState smpDesc;
+			smpHandle_ = GPU::Manager::CreateSamplerState(smpDesc, "sampler");
+			DBG_ASSERT(smpHandle_);
 		}
+
+		~TriangleDrawer() { REQUIRE(Resource::Manager::ReleaseResource(texture_)); }
 
 		void Draw(GPU::Handle fbs, GPU::DrawState drawState, Graphics::ShaderTechnique& tech, GPU::CommandList& cmdList)
 		{
@@ -143,6 +152,8 @@ namespace
 		GPU::Handle vbHandle_;
 		GPU::Handle ibHandle_;
 		GPU::Handle dbsHandle_;
+		Graphics::Texture* texture_ = nullptr;
+		GPU::Handle smpHandle_;
 	};
 }
 
@@ -181,7 +192,6 @@ TEST_CASE("graphics-tests-shader-create-technique")
 
 	REQUIRE(GPU::Manager::CreateAdapter(0) == GPU::ErrorCode::OK);
 
-
 	Window window("test");
 	TriangleDrawer drawer;
 
@@ -192,12 +202,20 @@ TEST_CASE("graphics-tests-shader-create-technique")
 	auto techMain = shader->CreateTechnique("TECH_MAIN", drawer.techDesc_);
 	auto techShadow = shader->CreateTechnique("TECH_SHADOW", drawer.techDesc_);
 
+	auto texIdx = shader->GetBindingIndex("tex_diffuse");
+	auto samplerIdx = shader->GetBindingIndex("SS_DEFAULT");
+
+	DBG_ASSERT(texIdx >= 0);
+	DBG_ASSERT(samplerIdx >= 0);
+	techMain.SetTexture2D(texIdx, drawer.texture_->GetHandle(), 0, drawer.texture_->GetDesc().levels_);
+	techMain.SetSampler(samplerIdx, drawer.smpHandle_);
+
 	i32 testRunCounter = GPU::MAX_GPU_FRAMES * 10;
 	while(Client::Manager::Update() && (Core::IsDebuggerAttached() || testRunCounter-- > 0))
 	{
 		auto& cmdList = window.Begin();
 
-		drawer.Draw(window.fbsHandle_, window.drawState_, techShadow, cmdList);
+		drawer.Draw(window.fbsHandle_, window.drawState_, techMain, cmdList);
 
 		window.End();
 	}
