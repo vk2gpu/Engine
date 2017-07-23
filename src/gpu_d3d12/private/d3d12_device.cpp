@@ -481,16 +481,18 @@ namespace GPU
 			d3dDevice_->GetCopyableFootprints(&resourceDesc, 0, numSubRsc, 0, layouts.data(), (u32*)numRows.data(),
 			    (u64*)rowSizeInBytes.data(), (u64*)&totalBytes);
 
-
 			auto& uploadAllocator = GetUploadAllocator();
 			auto resAlloc = uploadAllocator.Alloc(totalBytes, D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT);
+
 			u8* dstData = (u8*)resAlloc.address_;
+			memset(dstData, 0xcd, totalBytes);
 			for(i32 i = 0; i < numSubRsc; ++i)
 			{
 				auto& srcLayout = initialData[i];
 				auto& dstLayout = layouts[i];
 				u8* srcData = (u8*)srcLayout.data_;
 
+				DBG_ASSERT(dstData < ((u8*)resAlloc.address_ + resAlloc.size_));
 				DBG_ASSERT(srcLayout.rowPitch_ <= rowSizeInBytes[i]);
 				dstData = (u8*)resAlloc.address_ + dstLayout.Offset;
 				for(i32 slice = 0; slice < desc.depth_; ++slice)
@@ -499,11 +501,12 @@ namespace GPU
 					for(i32 row = 0; row < numRows[i]; ++row)
 					{
 						memcpy(dstData, srcData, srcLayout.rowPitch_);
-						dstData += rowSizeInBytes[i];
+						dstData += Core::PotRoundUp(rowSizeInBytes[i], D3D12_TEXTURE_DATA_PITCH_ALIGNMENT);
 						srcData += srcLayout.rowPitch_;
 					}
 					rowSrcData += srcLayout.slicePitch_;
 				}
+				dstLayout.Offset += resAlloc.offsetInBaseResource_;
 			}
 
 			// Do upload.
