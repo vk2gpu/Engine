@@ -78,6 +78,7 @@ namespace Core
 			DBG_ASSERT(typeData.allocated_[handle.index_] == 0);
 			typeData.allocated_[handle.index_] = 1;
 			handle.magic_ = GetMagicID(magicIDs_, handle.index_, handle.type_);
+			DBG_ASSERT(handle.magic_ != 0);
 		}
 		return handle;
 	}
@@ -90,9 +91,9 @@ namespace Core
 
 		// Increment magic, wrap if hit zero.
 		u16& magic = GetMagicID(magicIDs_, handle.index_, handle.type_);
-		if(++magic == 0)
+		if((++magic) >= Handle::MAX_MAGIC)
 		{
-			++magic;
+			magic = 1;
 		}
 
 		// Mark unallocated.

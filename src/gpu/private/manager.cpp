@@ -93,7 +93,8 @@ namespace GPU
 
 		Core::Mutex mutex_;
 		Core::HandleAllocator handles_ = Core::HandleAllocator(ResourceType::MAX);
-		Core::Vector<Handle> deferredDeletions_;
+		Core::Array<Core::Vector<Handle>, MAX_GPU_FRAMES> deferredDeletions_;
+		i64 frameIdx_ = 0;
 
 		ManagerImpl(const SetupParams& setupParams)
 		    : deviceWindow_(setupParams.deviceWindow_)
@@ -147,11 +148,13 @@ namespace GPU
 		void ProcessDeletions()
 		{
 			Core::ScopedMutex lock(mutex_);
-			for(auto handle : deferredDeletions_)
+			auto& deletions = deferredDeletions_[frameIdx_ % deferredDeletions_.size()];
+			for(auto handle : deletions)
 			{
 				backend_->DestroyResource(handle);
 				handles_.Free(handle);
 			}
+			deletions.clear();
 		}
 
 		bool HandleErrorCode(Handle& handle, ErrorCode errorCode)
@@ -322,7 +325,8 @@ namespace GPU
 	{
 		DBG_ASSERT(IsInitialized());
 		Core::ScopedMutex lock(impl_->mutex_);
-		impl_->deferredDeletions_.push_back(handle);
+		auto& deletions = impl_->deferredDeletions_[impl_->frameIdx_ % impl_->deferredDeletions_.size()];
+		deletions.push_back(handle);
 	}
 
 	bool Manager::CompileCommandList(Handle handle, const CommandList& commandList)
@@ -353,7 +357,12 @@ namespace GPU
 		return impl_->HandleErrorCode(handle, impl_->backend_->ResizeSwapChain(handle, width, height));
 	}
 
-	void Manager::NextFrame() { impl_->backend_->NextFrame(); }
+	void Manager::NextFrame()
+	{
+		impl_->frameIdx_++;
+		impl_->backend_->NextFrame();
+		impl_->ProcessDeletions();
+	}
 
 	bool Manager::IsValidHandle(Handle handle)
 	{
