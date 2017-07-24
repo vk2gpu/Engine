@@ -61,7 +61,6 @@ namespace Resource
 		 * @param type Type UUID.
 		 */
 		virtual bool DestroyResource(IFactoryContext& context, void** inResource, const Core::UUID& type) = 0;
-
-	private:
 	};
+
 } // namespace Resource

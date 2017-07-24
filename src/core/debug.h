@@ -8,7 +8,7 @@ namespace Core
 	/**
 	 * Log to debug channel of the platform.
 	 */
-	CORE_DLL void Log(const char* Text, va_list ArgList);
+	CORE_DLL void LogV(const char* Text, va_list ArgList);
 
 	/**
 	 * Log to debug channel of the platform.
@@ -38,7 +38,7 @@ namespace Core
 #define DBG_ASSERT_MSG(Condition, Message, ...)                                                                        \
 	if(!(Condition))                                                                                                   \
 	{                                                                                                                  \
-		if(Core::AssertInternal(Message, __FILE__, __LINE__, ##__VA_ARGS__))                                           \
+		if(Core::AssertInternal(Message, __FILE__, __LINE__, __VA_ARGS__))                                             \
 			DBG_BREAK;                                                                                                 \
 	}
 #define DBG_ASSERT(Condition)                                                                                          \
@@ -48,7 +48,7 @@ namespace Core
 			DBG_BREAK;                                                                                                 \
 	}
 
-#define DBG_LOG(...) Core::Log(##__VA_ARGS__)
+#define DBG_LOG(...) Core::Log(__VA_ARGS__)
 
 #else
 #define DBG_BREAK

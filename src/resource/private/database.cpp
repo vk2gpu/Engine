@@ -74,7 +74,7 @@ namespace Resource
 			{
 				char uuidStr[38];
 				resourceUuid.AsString(uuidStr);
-				DBG_LOG("Resource UUID %s is invalid.\n", uuidStr);
+				Core::Log("Resource UUID %s is invalid.\n", uuidStr);
 				return nullptr;
 			}
 			return &it->second;

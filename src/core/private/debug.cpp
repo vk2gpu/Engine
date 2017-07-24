@@ -24,7 +24,7 @@ namespace Core
 		}
 	}
 
-	void Log(const char* Text, va_list ArgList)
+	void LogV(const char* Text, va_list ArgList)
 	{
 		i32 MessageBufferSize = 0;
 		char* MessageBuffer = GetMessageBuffer(MessageBufferSize);
@@ -49,7 +49,7 @@ namespace Core
 	{
 		va_list ArgList;
 		va_start(ArgList, Text);
-		Log(Text, ArgList);
+		LogV(Text, ArgList);
 		va_end(ArgList);
 	}
 

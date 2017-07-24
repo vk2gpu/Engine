@@ -18,6 +18,7 @@
 #include "core/string.h"
 #include "core/uuid.h"
 
+#include "job/basic_job.h"
 #include "job/manager.h"
 #include "plugin/manager.h"
 #include "serialization/serializer.h"
@@ -30,6 +31,8 @@ namespace Resource
 	struct ResourceEntry
 	{
 		void* resource_ = nullptr;
+		Core::String sourceFile_;
+		Core::String convertedFile_;
 		Core::UUID name_;
 		Core::UUID type_;
 		volatile i32 loaded_ = 0;
@@ -85,6 +88,7 @@ namespace Resource
 		ResourceList releasedResourceList_;
 		Core::Mutex resourceMutex_;
 
+
 		void AcquireResourceEntry(ResourceEntry* entry)
 		{ //
 			Core::AtomicInc(&entry->refCount_);
@@ -105,10 +109,11 @@ namespace Resource
 			return false;
 		}
 
-		ResourceEntry* AcquireResourceEntry(const Core::UUID& name, const Core::UUID& type)
+		ResourceEntry* AcquireResourceEntry(const char* sourceFile, const char* convertedFile, const Core::UUID& type)
 		{
 			Core::ScopedMutex lock(resourceMutex_);
 			ResourceEntry* entry = nullptr;
+			Core::UUID name = sourceFile;
 			auto it =
 			    std::find_if(resourceList_.begin(), resourceList_.end(), [&name, &type](ResourceEntry* listEntry) {
 				    return listEntry->name_ == name && listEntry->type_ == type;
@@ -116,6 +121,8 @@ namespace Resource
 			if(it == resourceList_.end())
 			{
 				entry = new ResourceEntry();
+				entry->sourceFile_ = sourceFile;
+				entry->convertedFile_ = convertedFile;
 				entry->name_ = name;
 				entry->type_ = type;
 				resourceList_.push_back(entry);
@@ -282,27 +289,36 @@ namespace Resource
 	};
 
 	/// Resource load job.
-	struct ResourceLoadJob
+	struct ResourceLoadJob : public Job::BasicJob
 	{
 		ResourceLoadJob(ManagerImpl* impl, IFactory* factory, ResourceEntry* entry, Core::UUID type, const char* name,
 		    Core::File&& file)
-		    : impl_(impl)
+		    : Job::BasicJob("ResourceLoadJob")
+		    , impl_(impl)
 		    , factory_(factory)
 		    , entry_(entry)
 		    , type_(type)
 		    , name_(name)
 		    , file_(std::move(file))
 		{
+			impl_->AcquireResourceEntry(entry);
+			Core::AtomicInc(&impl_->pendingResourceJobs_);
 		}
 
-		void RunJob()
+		virtual ~ResourceLoadJob() { Core::AtomicDec(&impl_->pendingResourceJobs_); }
+
+		void OnWork(i32 param) override
 		{
 			FactoryContext factoryContext;
 			success_ = factory_->LoadResource(factoryContext, &entry_->resource_, type_, name_.c_str(), file_);
 			if(success_)
 				Core::AtomicInc(&entry_->loaded_);
+		}
+
+		void OnCompleted() override
+		{
 			impl_->ReleaseResourceEntry(entry_);
-			Core::AtomicDec(&impl_->pendingResourceJobs_);
+			delete this;
 		}
 
 		ManagerImpl* impl_ = nullptr;
@@ -317,20 +333,35 @@ namespace Resource
 	ManagerImpl* impl_ = nullptr;
 
 	/// Resource convert job.
-	struct ResourceConvertJob
+	struct ResourceConvertJob : public Job::BasicJob
 	{
 		ResourceConvertJob(ResourceEntry* entry, Core::UUID type, const char* name, const char* convertedPath)
-		    : entry_(entry)
+		    : Job::BasicJob("ResourceConvertJob")
+		    , entry_(entry)
 		    , type_(type)
 		{
 			strcpy_s(name_.data(), name_.size(), name);
 			strcpy_s(convertedPath_.data(), convertedPath_.size(), convertedPath);
+			Core::AtomicInc(&impl_->pendingResourceJobs_);
 		}
 
-		void RunJob()
+		virtual ~ResourceConvertJob() { Core::AtomicDec(&impl_->pendingResourceJobs_); }
+
+		void OnWork(i32 param) override
 		{
 			success_ = Manager::ConvertResource(name_.data(), convertedPath_.data(), type_);
-			Core::AtomicDec(&impl_->pendingResourceJobs_);
+		}
+
+		void OnCompleted() override
+		{
+			// If conversion was successful and there is a load job to chain, run it.
+			if(success_ && loadJob_)
+			{
+				loadJob_->file_ = Core::File(convertedPath_.data(), Core::FileFlags::READ);
+				DBG_ASSERT_MSG(loadJob_->file_, "Can't load converted file \"%s\"", convertedPath_.data());
+				loadJob_->RunSingle(0);
+			}
+			delete this;
 		}
 
 		ResourceEntry* entry_ = nullptr;
@@ -338,8 +369,9 @@ namespace Resource
 		Core::Array<char, Core::MAX_PATH_LENGTH> name_;
 		Core::Array<char, Core::MAX_PATH_LENGTH> convertedPath_;
 		bool success_ = false;
-	};
 
+		ResourceLoadJob* loadJob_ = nullptr;
+	};
 
 	void Manager::Initialize()
 	{
@@ -388,7 +420,7 @@ namespace Resource
 		if(auto factory = impl_->GetFactory(type))
 		{
 			// Acquire resource, create if required.
-			ResourceEntry* entry = impl_->AcquireResourceEntry(name, type);
+			ResourceEntry* entry = impl_->AcquireResourceEntry(name, convertedPath.data(), type);
 			if(entry->resource_ == nullptr)
 			{
 				FactoryContext factoryContext;
@@ -433,50 +465,26 @@ namespace Resource
 					}
 
 					// If converted file doesn't exist, convert now.
-					// TODO: This should be done async.
 					if(shouldConvert)
 					{
-						auto* jobData = new ResourceConvertJob(entry, type, name, convertedPath.data());
+						// Setup convert job.
+						auto* convertJob = new ResourceConvertJob(entry, type, name, convertedPath.data());
 
-						Job::JobDesc jobDesc;
-						jobDesc.func_ = [](i32 inParam, void* inData) {
-							auto* data = reinterpret_cast<ResourceConvertJob*>(inData);
-							data->RunJob();
-						};
-						jobDesc.param_ = 0;
-						jobDesc.data_ = jobData;
-						jobDesc.name_ = "ResourceConvertJob";
+						// Setup load job to chain.
+						convertJob->loadJob_ =
+						    new ResourceLoadJob(impl_, factory, entry, type, fileName.data(), Core::File());
 
-						Core::AtomicInc(&impl_->pendingResourceJobs_);
-
-						// TODO: Run async.
-						Job::Counter* counter = nullptr;
-						Job::Manager::RunJobs(&jobDesc, 1, &counter);
-						Job::Manager::WaitForCounter(counter, 0);
-						DBG_ASSERT(jobData->success_);
-						delete jobData;
+						convertJob->RunSingle(0);
 					}
-
-					// Do load.
+					else
 					{
-
 						// Acquire entry for job.
 						impl_->AcquireResourceEntry(entry);
 
 						auto* jobData = new ResourceLoadJob(impl_, factory, entry, type, fileName.data(),
 						    Core::File(convertedPath.data(), Core::FileFlags::READ));
-						Job::JobDesc jobDesc;
-						jobDesc.func_ = [](i32 inParam, void* inData) {
-							auto* data = reinterpret_cast<ResourceLoadJob*>(inData);
-							data->RunJob();
-							delete data;
-						};
-						jobDesc.param_ = 0;
-						jobDesc.data_ = jobData;
-						jobDesc.name_ = "ResourceLoadJob";
 
-						Core::AtomicInc(&impl_->pendingResourceJobs_);
-						Job::Manager::RunJobs(&jobDesc, 1, nullptr);
+						jobData->RunSingle(0);
 					}
 				}
 			}
