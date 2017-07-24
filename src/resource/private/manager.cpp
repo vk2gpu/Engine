@@ -3,6 +3,10 @@
 #include "resource/manager.h"
 #include "resource/converter.h"
 #include "resource/factory.h"
+#include "resource/private/converter_context.h"
+#include "resource/private/factory_context.h"
+#include "resource/private/path_resolver.h"
+#include "resource/private/jobs_fileio.h"
 
 #include "core/array.h"
 #include "core/concurrency.h"
@@ -50,243 +54,6 @@ namespace Core
 
 namespace Resource
 {
-	class PathResolver : public Core::IFilePathResolver
-	{
-	public:
-		PathResolver() {}
-
-		virtual ~PathResolver() {}
-
-		bool ResolvePath(const char* inPath, char* outPath, i32 maxOutPath)
-		{
-			const char* paths[] = {"", "../../../../res"};
-
-			char intPath[Core::MAX_PATH_LENGTH];
-			for(i32 i = 0; i < sizeof(paths) / sizeof(paths[0]); ++i)
-			{
-				memset(intPath, 0, sizeof(intPath));
-				Core::FileAppendPath(intPath, sizeof(intPath), paths[i]);
-				Core::FileAppendPath(intPath, sizeof(intPath), inPath);
-				if(Core::FileExists(intPath))
-				{
-					strcpy_s(outPath, maxOutPath, intPath);
-					return true;
-				}
-			}
-
-			return false;
-		}
-	};
-
-	PathResolver pathResolver_;
-
-	/// Converter context to use during resource conversion.
-	class ConverterContext : public Resource::IConverterContext
-	{
-	public:
-		ConverterContext() {}
-
-		virtual ~ConverterContext() {}
-
-		void AddDependency(const char* fileName) override
-		{
-			if(std::find_if(dependencies_.begin(), dependencies_.end(), [fileName](const Core::String& str){ return str == fileName; }) == dependencies_.end())
-				dependencies_.push_back(fileName);
-		}
-
-		void AddOutput(const char* fileName) override
-		{
-			outputs_.push_back(fileName);
-		}
-
-		void AddError(const char* errorFile, int errorLine, const char* errorMsg) override
-		{
-			if(errorFile)
-			{
-				Core::Log("%s(%d): %s\n", errorFile, errorLine, errorMsg);
-			}
-			else
-			{
-				Core::Log("%s\n", errorMsg);
-			}
-		}
-
-		Core::IFilePathResolver* GetPathResolver() override
-		{
-			return &pathResolver_;
-		}
-
-		bool Convert(IConverter* converter, const char* sourceFile, const char* destPath)
-		{
-			// Setup metadata path.
-			if(GetPathResolver()->ResolvePath(sourceFile, metaDataFileName_, sizeof(metaDataFileName_)))
-			{
-				strcat_s(metaDataFileName_, sizeof(metaDataFileName_), ".metadata");
-			}
-
-			dependencies_.clear();
-			outputs_.clear();
-
-			// Do conversion.
-			return converter->Convert(*this, sourceFile, destPath);
-		}
-
-		void SetMetaData(MetaDataCb callback, void* metaData) override
-		{
-			metaDataSer_ = Serialization::Serializer();
-			metaDataFile_ = Core::File();
-
-			if(Core::FileExists(metaDataFileName_))
-			{
-				auto removed = Core::FileRemove(metaDataFileName_);
-				DBG_ASSERT(removed);
-			}
-
-			metaDataFile_ = Core::File(metaDataFileName_, Core::FileFlags::CREATE | Core::FileFlags::WRITE);
-			metaDataSer_ = Serialization::Serializer(metaDataFile_, Serialization::Flags::TEXT);
-
-			if(callback)
-			{
-				callback(metaDataSer_, metaData);
-			}
-
-			if(auto object = metaDataSer_.Object("internal"))
-			{
-				metaDataSer_.Serialize("dependencies", dependencies_);
-				metaDataSer_.Serialize("outputs", outputs_);
-			}
-
-			metaDataSer_ = Serialization::Serializer();
-			metaDataFile_ = Core::File();
-		}
-
-		void GetMetaData(MetaDataCb callback, void* metaData) override
-		{
-			// If we don't have a metadata file for red, attempt to open for read.
-			if(!Core::ContainsAnyFlags(metaDataFile_.GetFlags(), Core::FileFlags::READ) &&
-			    Core::FileExists(metaDataFileName_))
-			{
-				metaDataFile_ = Core::File(metaDataFileName_, Core::FileFlags::READ);
-				metaDataSer_ = Serialization::Serializer(metaDataFile_, Serialization::Flags::TEXT);
-
-				if(callback)
-				{
-					callback(metaDataSer_, metaData);
-				}
-			}
-		}
-
-	private:
-		char metaDataFileName_[Core::MAX_PATH_LENGTH] = {0};
-		Core::File metaDataFile_;
-		Serialization::Serializer metaDataSer_;
-		Core::Vector<Core::String> dependencies_;
-		Core::Vector<Core::String> outputs_;
-	};
-
-	/// Factory context to use during creation of resources.
-	class FactoryContext : public Resource::IFactoryContext
-	{
-	public:
-		FactoryContext() {}
-		virtual ~FactoryContext() {}
-	};
-
-	/// File IO Job. Can be read or write.
-	struct FileIOJob
-	{
-		static const i64 READ_CHUNK_SIZE = 8 * 1024 * 1024;  // TODO: Possibly have this configurable?
-		static const i64 WRITE_CHUNK_SIZE = 8 * 1024 * 1024; // TODO: Possibly have this configurable?
-
-		Core::File* file_ = nullptr;
-		i64 offset_ = 0;
-		i64 size_ = 0;
-		void* addr_ = nullptr;
-		AsyncResult* result_ = nullptr;
-
-		Result DoRead()
-		{
-			DBG_ASSERT(file_);
-			DBG_ASSERT((offset_ + size_) <= file_->Size());
-
-			if(result_)
-			{
-				auto oldResult = (Result)Core::AtomicExchg((volatile i32*)&result_->result_, (i32)Result::RUNNING);
-				DBG_ASSERT(oldResult == Result::PENDING);
-			}
-
-			file_->Seek(offset_);
-
-			// Read file in chunks.
-			char* dest = (char*)addr_;
-			i64 sizeRemaining = size_;
-			while(sizeRemaining > 0)
-			{
-				i64 readSize = Core::Min(READ_CHUNK_SIZE, sizeRemaining);
-				i64 bytesRead = file_->Read(dest, readSize);
-				sizeRemaining -= readSize;
-				dest += readSize;
-				if(result_)
-				{
-					Core::AtomicAddRel(&result_->workRemaining_, -bytesRead);
-				}
-
-				// Check that we successfully read.
-				if(bytesRead < readSize)
-					break;
-			}
-
-			Result result = Result::FAILURE;
-			if(sizeRemaining == 0)
-				result = Result::SUCCESS;
-			if(result_)
-			{
-				Core::AtomicExchg((volatile i32*)&result_->result_, (i32)result);
-			}
-			return result;
-		}
-
-		Result DoWrite()
-		{
-			DBG_ASSERT(file_);
-			DBG_ASSERT(offset_ == 0);
-
-			if(result_)
-			{
-				auto oldResult = (Result)Core::AtomicExchg((volatile i32*)&result_->result_, (i32)Result::RUNNING);
-				DBG_ASSERT(oldResult == Result::PENDING);
-			}
-
-			// Write file in chunks.
-			char* src = (char*)addr_;
-			i64 sizeRemaining = size_;
-			while(sizeRemaining > 0)
-			{
-				i64 writeSize = Core::Min(WRITE_CHUNK_SIZE, sizeRemaining);
-				i64 bytesWrote = file_->Write(src, writeSize);
-				sizeRemaining -= writeSize;
-				src += writeSize;
-				if(result_)
-				{
-					Core::AtomicAddRel(&result_->workRemaining_, -bytesWrote);
-				}
-
-				// Check that we successfully read.
-				if(bytesWrote < writeSize)
-					break;
-			}
-
-			Result result = Result::FAILURE;
-			if(sizeRemaining == 0)
-				result = Result::SUCCESS;
-			if(result_)
-			{
-				Core::AtomicExchg((volatile i32*)&result_->result_, (i32)result);
-			}
-			return result;
-		}
-	};
-
 	struct ManagerImpl
 	{
 		static const i32 MAX_READ_JOBS = 128;
@@ -308,6 +75,9 @@ namespace Resource
 		Core::Event writeJobEvent_;
 		/// Thread to use for blocking reads.
 		Core::Thread writeThread_;
+
+		/// Path resolver.
+		PathResolver pathResolver_;
 
 		/// Resources.
 		volatile i32 pendingResourceJobs_ = 0;
@@ -438,6 +208,18 @@ namespace Resource
 			i32 found = Plugin::Manager::GetPlugins<ConverterPlugin>(nullptr, 0);
 			converterPlugins_.resize(found);
 			Plugin::Manager::GetPlugins<ConverterPlugin>(converterPlugins_.data(), converterPlugins_.size());
+
+			// From current working directory find the "res" directory to add to the path resolver.
+			Core::String currRelativePath = "res";
+			while(Core::FileExists(currRelativePath.c_str()) == false)
+			{
+				currRelativePath.Printf("../%s", currRelativePath.c_str());
+
+				DBG_ASSERT_MSG(currRelativePath.size() < Core::MAX_PATH_LENGTH, "Unable to find \'res\' directory!");
+			}
+
+			pathResolver_.AddPath(".");
+			pathResolver_.AddPath(currRelativePath.c_str());
 		}
 
 		~ManagerImpl()
@@ -626,7 +408,7 @@ namespace Resource
 						// Setup metadata path.
 						char srcPath[Core::MAX_PATH_LENGTH] = {0};
 						char metaPath[Core::MAX_PATH_LENGTH] = {0};
-						if(pathResolver_.ResolvePath(name, srcPath, sizeof(srcPath)))
+						if(impl_->pathResolver_.ResolvePath(name, srcPath, sizeof(srcPath)))
 						{
 							strcpy_s(metaPath, sizeof(metaPath), srcPath);
 							strcat_s(metaPath, sizeof(metaPath), ".metadata");
@@ -636,7 +418,7 @@ namespace Resource
 							if(Core::FileStats(srcPath, nullptr, &srcTimestamp, nullptr))
 							{
 								if(Core::FileStats(metaPath, nullptr, &metaTimestamp, nullptr))
-								{	
+								{
 									if(metaTimestamp < srcTimestamp)
 									{
 										shouldConvert = true;
@@ -742,7 +524,7 @@ namespace Resource
 			auto* converter = converterPlugin.CreateConverter();
 			if(converter->SupportsFileType(nullptr, type))
 			{
-				ConverterContext converterContext;
+				ConverterContext converterContext(&impl_->pathResolver_);
 				retVal = converterContext.Convert(converter, name, convertedName);
 			}
 			converterPlugin.DestroyConverter(converter);

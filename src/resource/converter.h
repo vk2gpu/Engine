@@ -47,7 +47,7 @@ namespace Resource
 		 * @param errorLine Line on which error occurs, if appropriate.
 		 * @param errorMsg Error message.
 		 */
-		virtual void AddError(const char* errorFile, int errorLine, const char* errorMsg) = 0;
+		virtual void AddError(const char* errorFile, int errorLine, const char* errorMsg, ...) = 0;
 
 		/**
 		 * Get path resolver.

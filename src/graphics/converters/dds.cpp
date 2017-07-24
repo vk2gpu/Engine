@@ -471,16 +471,13 @@ namespace Graphics
 			// No format determined, log error and fail.
 			if(format == GPU::Format::INVALID)
 			{
-				char error[4096] = {0};
-				sprintf_s(error, sizeof(error), "Unable to load texture \"%s\", unsupported format.", sourceFile);
-				context.AddError(__FILE__, __LINE__, error);
-
+				context.AddError(__FILE__, __LINE__, "Unable to load texture \"%s\", unsupported format.", sourceFile);
 				return Graphics::Image();
 			}
 
 			// Calculate size.
-			auto formatSize = GPU::GetTextureSize(
-			    format, ddsHeader.dwWidth, ddsHeader.dwHeight, ddsHeader.dwDepth, ddsHeader.dwMipMapCount, ddsHeaderDXT10.arraySize > 0 ? ddsHeaderDXT10.arraySize : 1);
+			auto formatSize = GPU::GetTextureSize(format, ddsHeader.dwWidth, ddsHeader.dwHeight, ddsHeader.dwDepth,
+			    ddsHeader.dwMipMapCount, ddsHeaderDXT10.arraySize > 0 ? ddsHeaderDXT10.arraySize : 1);
 			u8* data = new u8[formatSize];
 			imageFile.Read(data, formatSize);
 

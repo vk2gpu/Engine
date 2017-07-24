@@ -215,7 +215,7 @@ namespace Graphics
 				const auto height = Core::Max(1, desc.height_ >> level);
 				const auto depth = Core::Max(1, desc.depth_ >> level);
 
-				const auto texLayoutInfo = GPU::GetTextureLayoutInfo(desc.format_, width,  height);
+				const auto texLayoutInfo = GPU::GetTextureLayoutInfo(desc.format_, width, height);
 				const auto subRscSize = GPU::GetTextureSize(desc.format_, width, height, depth, 1, 1);
 
 				GPU::TextureSubResourceData subRsc;

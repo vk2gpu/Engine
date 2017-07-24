@@ -345,10 +345,7 @@ namespace Core
 #endif
 	}
 
-	char FilePathSeparator()
-	{
-		return '/';
-	}
+	char FilePathSeparator() { return '/'; }
 
 	void FileGetCurrDir(char* buffer, i32 bufferLength)
 	{

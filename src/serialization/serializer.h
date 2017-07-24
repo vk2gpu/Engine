@@ -67,7 +67,7 @@ namespace Serialization
 			return true;
 		}
 
-		/// Object serialization.	
+		/// Object serialization.
 		struct ScopedObject
 		{
 			ScopedObject(Serializer& serializer, const char* key)
@@ -92,7 +92,8 @@ namespace Serialization
 
 		ScopedObject Object(const char* key);
 
-		template<typename TYPE, typename = typename std::enable_if<std::is_object<TYPE>::value>::type, typename std::enable_if<!std::is_enum<TYPE>::value>::type>
+		template<typename TYPE, typename = typename std::enable_if<std::is_object<TYPE>::value>::type,
+		    typename std::enable_if<!std::is_enum<TYPE>::value>::type>
 		bool Serialize(const char* key, TYPE& type)
 		{
 			if(auto object = Object(key))

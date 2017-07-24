@@ -42,23 +42,36 @@ namespace Core
 
 		bool operator<(const FileTimestamp& other) const
 		{
-			if(year_ < other.year_) return true;
-			if(year_ > other.year_) return false;
-			if(month_ < other.month_) return true;
-			if(month_ > other.month_) return false;
-			if(day_ < other.day_) return true;
-			if(day_ > other.day_) return false;
-			if(hours_ < other.hours_) return true;
-			if(hours_ > other.hours_) return false;
-			if(minutes_ < other.minutes_) return true;
-			if(minutes_ > other.minutes_) return false;
-			if(seconds_ < other.seconds_) return true;
-			if(seconds_ > other.seconds_) return false;
-			if(milliseconds_ < other.milliseconds_) return true;
-			if(milliseconds_ > other.milliseconds_) return false;
+			if(year_ < other.year_)
+				return true;
+			if(year_ > other.year_)
+				return false;
+			if(month_ < other.month_)
+				return true;
+			if(month_ > other.month_)
+				return false;
+			if(day_ < other.day_)
+				return true;
+			if(day_ > other.day_)
+				return false;
+			if(hours_ < other.hours_)
+				return true;
+			if(hours_ > other.hours_)
+				return false;
+			if(minutes_ < other.minutes_)
+				return true;
+			if(minutes_ > other.minutes_)
+				return false;
+			if(seconds_ < other.seconds_)
+				return true;
+			if(seconds_ > other.seconds_)
+				return false;
+			if(milliseconds_ < other.milliseconds_)
+				return true;
+			if(milliseconds_ > other.milliseconds_)
+				return false;
 			return false;
 		}
-
 	};
 
 	/**

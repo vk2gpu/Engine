@@ -24,16 +24,19 @@ namespace
 
 		void AddOutput(const char* fileName) override { Core::Log("AddOutput: %s\n", fileName); }
 
-		void AddError(const char* errorFile, int errorLine, const char* errorMsg) override
+		void AddError(const char* errorFile, int errorLine, const char* errorMsg, ...) override
 		{
 			if(errorFile)
 			{
-				Core::Log("%s(%d): %s\n", errorFile, errorLine, errorMsg);
+				Core::Log("%s(%d): ", errorFile, errorLine);
 			}
-			else
-			{
-				Core::Log("%s\n", errorMsg);
-			}
+
+			va_list args;
+			va_start(args, errorMsg);
+			Core::Log(errorMsg, args);
+			va_end(args);
+
+			Core::Log("\n");
 		}
 
 		Core::IFilePathResolver* GetPathResolver() override { return nullptr; }

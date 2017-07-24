@@ -269,7 +269,7 @@ namespace Serialization
 		Core::File& outFile_;
 		Json::Value rootValue_;
 		Core::Vector<Json::Value*> objectStack_;
-		
+
 		SerializerImplWriteJson(Core::File& outFile)
 		    : outFile_(outFile)
 		{
