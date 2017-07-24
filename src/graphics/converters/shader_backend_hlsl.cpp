@@ -287,12 +287,14 @@ namespace Graphics
 				Write("    ");
 		}
 
+#if 0
 		{
 			va_list args;
 			va_start(args, msg);
-			Core::Log(msg, args);
+			Core::LogV(msg, args);
 			va_end(args);
 		}
+#endif
 
 		{
 			va_list args;

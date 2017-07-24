@@ -1,9 +1,15 @@
 #include "graphics/converters/shader_preprocessor.h"
+#include "core/concurrency.h"
 
 extern "C" {
 #undef INLINE
 #include <cppdef.h>
 #include <fpp.h>
+}
+
+namespace
+{
+	Core::Mutex fppMutex_;
 }
 
 namespace Graphics
@@ -106,6 +112,7 @@ namespace Graphics
 		memset(inputData_, 0, inputSize_);
 		strcpy_s(inputData_, inputSize_, fixedInputData.c_str());
 
+		Core::ScopedMutex lock(fppMutex_);
 		int result = fppPreProcess(tags_.data());
 
 		allocator_.Reset();

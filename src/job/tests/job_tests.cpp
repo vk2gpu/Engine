@@ -5,6 +5,7 @@
 #include "core/concurrency.h"
 #include "core/timer.h"
 #include "core/vector.h"
+#include "job/concurrency.h"
 #include "job/manager.h"
 
 using namespace Core;
@@ -253,4 +254,24 @@ TEST_CASE("job-tests-run-job-recursive-3-mt-8")
 {
 	Job::Manager::Scoped manager(8, MAX_FIBERS, FIBER_STACK_SIZE);
 	RunJobTest2(100, "job-tests-run-job-recursive-100-mt-8");
+}
+
+TEST_CASE("job-tests-spinlock")
+{
+	Job::SpinLock spinLock;
+
+	{
+		auto try0 = spinLock.TryLock();
+		CHECK(try0);
+		auto try1 = spinLock.TryLock();
+		CHECK(!try1);
+	}
+	spinLock.Unlock();
+	{
+		auto try0 = spinLock.TryLock();
+		CHECK(try0);
+		auto try1 = spinLock.TryLock();
+		CHECK(!try1);
+	}
+	spinLock.Unlock();
 }

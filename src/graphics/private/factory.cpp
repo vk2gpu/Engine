@@ -72,6 +72,14 @@ namespace Graphics
 	bool Factory::LoadShader(Resource::IFactoryContext& context, Shader* inResource, const Core::UUID& type,
 	    const char* name, Core::File& inFile)
 	{
+		const bool isReload = inResource->IsReady();
+
+		if(isReload)
+		{
+			DBG_ASSERT(inResource->impl_);
+			inResource->impl_->reloadLock_.Lock();
+		}
+
 		Graphics::ShaderHeader header;
 		i32 readBytes = 0;
 
@@ -175,7 +183,30 @@ namespace Graphics
 			impl->bytecode_.clear();
 		}
 
-		inResource->impl_ = impl;
+		if(isReload)
+		{
+			// Recreate all techniques.
+			for(i32 idx = 0; idx < inResource->impl_->techniques_.size(); ++idx)
+			{
+				auto* techImpl = inResource->impl_->techniques_[idx];
+				const auto& techDesc = inResource->impl_->techniqueDescs_[techImpl->descIdx_];
+				if(!impl->CreateTechnique(techImpl->header_->name_, techDesc, techImpl))
+				{
+					DBG_ASSERT(false);
+				}
+			}
+
+			// Clear original array of techniques.
+			inResource->impl_->techniques_.clear();
+
+			inResource->impl_->reloadLock_.Unlock();
+			delete inResource->impl_;
+			inResource->impl_ = impl;
+		}
+		else
+		{
+			inResource->impl_ = impl;
+		}
 
 		return true;
 	}
@@ -183,6 +214,9 @@ namespace Graphics
 	bool Factory::LoadTexture(Resource::IFactoryContext& context, Texture* inResource, const Core::UUID& type,
 	    const char* name, Core::File& inFile)
 	{
+		const bool isReload = inResource->IsReady();
+		DBG_ASSERT(!isReload);
+
 		GPU::TextureDesc desc;
 
 		// Read in desc.

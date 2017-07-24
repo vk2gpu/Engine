@@ -1,8 +1,11 @@
 #pragma once
+#include "core/hash.h"
+#include "core/set.h"
 #include "core/string.h"
 #include "core/vector.h"
 #include "gpu/resources.h"
 #include "graphics/shader.h"
+#include "job/concurrency.h"
 
 namespace Graphics
 {
@@ -80,13 +83,23 @@ namespace Graphics
 		Core::Vector<u32> techniqueDescHashes_;
 		Core::Vector<ShaderTechniqueDesc> techniqueDescs_; //
 		Core::Vector<GPU::Handle> pipelineStates_;
-		i32 liveTechniques_ = 0;
+
+		Core::Vector<ShaderTechniqueImpl*> techniques_;
+
+		Job::SpinLock reloadLock_;
+
+
+		ShaderImpl();
+		~ShaderImpl();
+		ShaderTechniqueImpl* CreateTechnique(
+		    const char* name, const ShaderTechniqueDesc& desc, ShaderTechniqueImpl* impl);
 	};
 
 	struct ShaderTechniqueImpl
 	{
 		ShaderImpl* shader_ = nullptr;
 		const ShaderTechniqueHeader* header_ = nullptr;
+		i32 descIdx_ = 0;
 
 		bool bsDirty_ = true;
 		GPU::PipelineBindingSetDesc bs_;
@@ -101,6 +114,8 @@ namespace Graphics
 		Core::Vector<GPU::BindingSampler> samplers_;
 		Core::Vector<GPU::BindingSRV> srvs_;
 		Core::Vector<GPU::BindingUAV> uavs_;
+
+		void Invalidate() { header_ = nullptr; }
 	};
 
 } // namespace Graphics

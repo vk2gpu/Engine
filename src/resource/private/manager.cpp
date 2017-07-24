@@ -28,6 +28,7 @@
 
 namespace Resource
 {
+	// TODO: Remove this and rely upon Resource::Database perhaps?
 	struct ResourceEntry
 	{
 		void* resource_ = nullptr;
@@ -35,8 +36,31 @@ namespace Resource
 		Core::String convertedFile_;
 		Core::UUID name_;
 		Core::UUID type_;
+		volatile i32 converting_ = 0;
 		volatile i32 loaded_ = 0;
 		volatile i32 refCount_ = 0;
+
+		/// @return If resource is out of date and needs reimporting.
+		bool ResourceOutOfDate(Core::IFilePathResolver* pathResolver) const
+		{
+			Core::FileTimestamp sourceTimestamp;
+			Core::FileTimestamp convertedTimestamp;
+			bool sourceExists = false;
+			if(pathResolver)
+			{
+				Core::Array<char, Core::MAX_PATH_LENGTH> resolvedSourcePath;
+				pathResolver->ResolvePath(sourceFile_.c_str(), resolvedSourcePath.data(), resolvedSourcePath.size());
+				sourceExists = Core::FileStats(resolvedSourcePath.data(), nullptr, &sourceTimestamp, nullptr);
+			}
+			else
+			{
+				sourceExists &= Core::FileStats(sourceFile_.c_str(), nullptr, &sourceTimestamp, nullptr);
+			}
+			bool convertedExists = Core::FileStats(convertedFile_.c_str(), nullptr, &convertedTimestamp, nullptr);
+			if(sourceExists && convertedExists)
+				return convertedTimestamp < sourceTimestamp;
+			return !convertedExists;
+		}
 	};
 
 	using ResourceList = Core::Vector<ResourceEntry*>;
@@ -57,6 +81,10 @@ namespace Core
 
 namespace Resource
 {
+	struct ResourceLoadJob;
+	struct ResourceConvertJob;
+	struct ResourceTimestampJob;
+
 	struct ManagerImpl
 	{
 		static const i32 MAX_READ_JOBS = 128;
@@ -82,21 +110,29 @@ namespace Resource
 		/// Path resolver.
 		PathResolver pathResolver_;
 
+		/// Is resource manager active? true from initialize, false at finalize.
+		bool isActive_ = false;
+
+		/// Number of conversions running.
+		volatile i32 numConversionJobs_ = 0;
+		volatile i32 numReloadJobs_ = 0;
+		volatile i32 canReload_ = 0;
+
 		/// Resources.
 		volatile i32 pendingResourceJobs_ = 0;
 		ResourceList resourceList_;
 		ResourceList releasedResourceList_;
-		Core::Mutex resourceMutex_;
-
+		Core::RWLock resourceRWLock_;
 
 		void AcquireResourceEntry(ResourceEntry* entry)
-		{ //
+		{
+			DBG_ASSERT(entry);
 			Core::AtomicInc(&entry->refCount_);
 		}
 
 		bool ReleaseResourceEntry(ResourceEntry* entry)
 		{
-			Core::ScopedMutex lock(resourceMutex_);
+			Core::ScopedWriteLock lock(resourceRWLock_);
 			if(Core::AtomicDec(&entry->refCount_) == 0)
 			{
 				releasedResourceList_.push_back(entry);
@@ -111,7 +147,7 @@ namespace Resource
 
 		ResourceEntry* AcquireResourceEntry(const char* sourceFile, const char* convertedFile, const Core::UUID& type)
 		{
-			Core::ScopedMutex lock(resourceMutex_);
+			Core::ScopedWriteLock lock(resourceRWLock_);
 			ResourceEntry* entry = nullptr;
 			Core::UUID name = sourceFile;
 			auto it =
@@ -120,6 +156,7 @@ namespace Resource
 				});
 			if(it == resourceList_.end())
 			{
+				// Add resource to db.
 				entry = new ResourceEntry();
 				entry->sourceFile_ = sourceFile;
 				entry->convertedFile_ = convertedFile;
@@ -139,7 +176,7 @@ namespace Resource
 		/// @return true if this was the last reference.
 		bool ReleaseResourceEntry(void* resource, const Core::UUID& type)
 		{
-			Core::ScopedMutex lock(resourceMutex_);
+			Core::ScopedWriteLock lock(resourceRWLock_);
 			auto it =
 			    std::find_if(resourceList_.begin(), resourceList_.end(), [resource, &type](ResourceEntry* listEntry) {
 				    return listEntry->resource_ == resource && listEntry->type_ == type;
@@ -151,7 +188,7 @@ namespace Resource
 		/// @return if resource is ready.
 		bool IsResourceReady(void* resource, const Core::UUID& type)
 		{
-			Core::ScopedMutex lock(resourceMutex_);
+			Core::ScopedWriteLock lock(resourceRWLock_);
 			auto it =
 			    std::find_if(resourceList_.begin(), resourceList_.end(), [resource, &type](ResourceEntry* listEntry) {
 				    return listEntry->resource_ == resource && listEntry->type_ == type;
@@ -184,7 +221,7 @@ namespace Resource
 		{
 			ResourceList releasedResourceList;
 			{
-				Core::ScopedMutex lock(resourceMutex_);
+				Core::ScopedWriteLock lock(resourceRWLock_);
 				releasedResourceList = releasedResourceList_;
 				releasedResourceList_.clear();
 			}
@@ -210,6 +247,7 @@ namespace Resource
 		    , writeJobs_(MAX_WRITE_JOBS)
 		    , writeJobEvent_(false, false, "Resource Manager Write Event")
 		    , writeThread_(WriteIOThread, this, 65536, "Resource Manager Write Thread")
+		    , isActive_(true)
 		{
 			// Get converter plugins.
 			i32 found = Plugin::Manager::GetPlugins<ConverterPlugin>(nullptr, 0);
@@ -231,6 +269,9 @@ namespace Resource
 
 		~ManagerImpl()
 		{
+			// No longer active. Any pending jobs will complete.
+			isActive_ = false;
+
 			// Wait for pending resource jobs to complete.
 			while(pendingResourceJobs_ > 0)
 			{
@@ -288,13 +329,14 @@ namespace Resource
 		}
 	};
 
+	ManagerImpl* impl_ = nullptr;
+
+
 	/// Resource load job.
 	struct ResourceLoadJob : public Job::BasicJob
 	{
-		ResourceLoadJob(ManagerImpl* impl, IFactory* factory, ResourceEntry* entry, Core::UUID type, const char* name,
-		    Core::File&& file)
+		ResourceLoadJob(IFactory* factory, ResourceEntry* entry, Core::UUID type, const char* name, Core::File&& file)
 		    : Job::BasicJob("ResourceLoadJob")
-		    , impl_(impl)
 		    , factory_(factory)
 		    , entry_(entry)
 		    , type_(type)
@@ -309,10 +351,24 @@ namespace Resource
 
 		void OnWork(i32 param) override
 		{
+			const bool isReload = entry_->loaded_ != 0;
+			if(isReload)
+			{
+				Core::AtomicInc(&impl_->numReloadJobs_);
+				while(impl_->canReload_ == 0)
+					Job::Manager::YieldCPU();
+			}
 			FactoryContext factoryContext;
 			success_ = factory_->LoadResource(factoryContext, &entry_->resource_, type_, name_.c_str(), file_);
-			if(success_)
+			if(success_ && !isReload)
+			{
 				Core::AtomicInc(&entry_->loaded_);
+			}
+
+			if(isReload)
+			{
+				Core::AtomicDec(&impl_->numReloadJobs_);
+			}
 		}
 
 		void OnCompleted() override
@@ -321,7 +377,6 @@ namespace Resource
 			delete this;
 		}
 
-		ManagerImpl* impl_ = nullptr;
 		IFactory* factory_ = nullptr;
 		ResourceEntry* entry_ = nullptr;
 		Core::UUID type_;
@@ -330,26 +385,29 @@ namespace Resource
 		bool success_ = false;
 	};
 
-	ManagerImpl* impl_ = nullptr;
-
-	/// Resource convert job.
+	/// Job to convert resource, and chain load if required.
 	struct ResourceConvertJob : public Job::BasicJob
 	{
 		ResourceConvertJob(ResourceEntry* entry, Core::UUID type, const char* name, const char* convertedPath)
 		    : Job::BasicJob("ResourceConvertJob")
 		    , entry_(entry)
 		    , type_(type)
+		    , name_(name)
+		    , convertedPath_(convertedPath)
 		{
-			strcpy_s(name_.data(), name_.size(), name);
-			strcpy_s(convertedPath_.data(), convertedPath_.size(), convertedPath);
 			Core::AtomicInc(&impl_->pendingResourceJobs_);
+			Core::AtomicInc(&entry->converting_);
 		}
 
-		virtual ~ResourceConvertJob() { Core::AtomicDec(&impl_->pendingResourceJobs_); }
+		virtual ~ResourceConvertJob()
+		{
+			Core::AtomicDec(&entry_->converting_);
+			Core::AtomicDec(&impl_->pendingResourceJobs_);
+		}
 
 		void OnWork(i32 param) override
 		{
-			success_ = Manager::ConvertResource(name_.data(), convertedPath_.data(), type_);
+			success_ = Manager::ConvertResource(name_.c_str(), convertedPath_.c_str(), type_);
 		}
 
 		void OnCompleted() override
@@ -366,11 +424,64 @@ namespace Resource
 
 		ResourceEntry* entry_ = nullptr;
 		Core::UUID type_;
-		Core::Array<char, Core::MAX_PATH_LENGTH> name_;
-		Core::Array<char, Core::MAX_PATH_LENGTH> convertedPath_;
+		Core::String name_;
+		Core::String convertedPath_;
 		bool success_ = false;
 
 		ResourceLoadJob* loadJob_ = nullptr;
+	};
+
+	///
+	struct ResourceTimestampJob : public Job::BasicJob
+	{
+		ResourceTimestampJob()
+		    : Job::BasicJob("ResourceTimestampJob")
+		{
+			Core::AtomicInc(&impl_->pendingResourceJobs_);
+		}
+
+		virtual ~ResourceTimestampJob() { Core::AtomicDec(&impl_->pendingResourceJobs_); }
+
+		void OnWork(i32 param) override
+		{
+			Core::ScopedReadLock lock(impl_->resourceRWLock_);
+			if(idx_ < impl_->resourceList_.size())
+			{
+				auto* entry = impl_->resourceList_[idx_];
+				if(entry->converting_ == 0)
+				{
+					if(entry->ResourceOutOfDate(&impl_->pathResolver_))
+					{
+						DBG_LOG("Resource \"%s\" is out of date. Reimporting...\n", entry->sourceFile_.c_str());
+
+						// Setup convert job.
+						auto* convertJob = new ResourceConvertJob(
+						    entry, entry->type_, entry->sourceFile_.c_str(), entry->convertedFile_.c_str());
+
+						// Setup load job to chain.
+						if(auto factory = impl_->GetFactory(entry->type_))
+						{
+							convertJob->loadJob_ = new ResourceLoadJob(
+							    factory, entry, entry->type_, entry->sourceFile_.c_str(), Core::File());
+							convertJob->RunSingle(0);
+						}
+					}
+				}
+
+				idx_ = (idx_ + 1) % impl_->resourceList_.size();
+			}
+		}
+
+		void OnCompleted() override
+		{
+			// If active, reschedule job to check timestamps of the next file.
+			if(impl_->isActive_)
+				RunSingle(0);
+			else
+				delete this;
+		}
+
+		i32 idx_ = 0;
 	};
 
 	void Manager::Initialize()
@@ -379,6 +490,10 @@ namespace Resource
 		DBG_ASSERT(Job::Manager::IsInitialized());
 		DBG_ASSERT(Plugin::Manager::IsInitialized());
 		impl_ = new ManagerImpl();
+
+		// Create timestamp job to monitor resources.
+		auto* timeStampJob = new ResourceTimestampJob();
+		timeStampJob->RunSingle(0);
 	}
 
 	void Manager::Finalize()
@@ -389,6 +504,19 @@ namespace Resource
 	}
 
 	bool Manager::IsInitialized() { return !!impl_; }
+
+	void Manager::WaitOnReload()
+	{
+		if(impl_->numReloadJobs_ > 0)
+		{
+			Core::AtomicInc(&impl_->canReload_);
+			while(impl_->numReloadJobs_ > 0)
+			{
+				Job::Manager::YieldCPU();
+			}
+			Core::AtomicDec(&impl_->canReload_);
+		}
+	}
 
 	bool Manager::RequestResource(void*& outResource, const char* name, const Core::UUID& type)
 	{
@@ -471,17 +599,14 @@ namespace Resource
 						auto* convertJob = new ResourceConvertJob(entry, type, name, convertedPath.data());
 
 						// Setup load job to chain.
-						convertJob->loadJob_ =
-						    new ResourceLoadJob(impl_, factory, entry, type, fileName.data(), Core::File());
+						convertJob->loadJob_ = new ResourceLoadJob(factory, entry, type, fileName.data(), Core::File());
 
 						convertJob->RunSingle(0);
 					}
 					else
 					{
-						// Acquire entry for job.
-						impl_->AcquireResourceEntry(entry);
 
-						auto* jobData = new ResourceLoadJob(impl_, factory, entry, type, fileName.data(),
+						auto* jobData = new ResourceLoadJob(factory, entry, type, fileName.data(),
 						    Core::File(convertedPath.data(), Core::FileFlags::READ));
 
 						jobData->RunSingle(0);
@@ -527,6 +652,7 @@ namespace Resource
 	{
 		DBG_ASSERT(IsInitialized());
 		bool retVal = false;
+		Core::AtomicInc(&impl_->numConversionJobs_);
 		for(auto converterPlugin : impl_->converterPlugins_)
 		{
 			auto* converter = converterPlugin.CreateConverter();
@@ -539,6 +665,7 @@ namespace Resource
 			if(retVal)
 				break;
 		}
+		Core::AtomicDec(&impl_->numConversionJobs_);
 		return retVal;
 	}
 

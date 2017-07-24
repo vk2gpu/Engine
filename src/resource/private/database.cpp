@@ -4,6 +4,7 @@
 #include "core/map.h"
 #include "core/misc.h"
 #include "core/set.h"
+#include "core/string.h"
 #include "core/uuid.h"
 
 #include <utility>
@@ -21,7 +22,7 @@ namespace Resource
 		struct Entry
 		{
 			/// Resource name.
-			Core::Vector<char> name_;
+			Core::String name_;
 			/// Resource data.
 			void* data_ = nullptr;
 
@@ -103,17 +104,16 @@ namespace Resource
 		if(it == impl_->entries_.end())
 		{
 			it = impl_->entries_.insert(resourceUuid, DatabaseImpl::Entry());
-			it->second.name_.resize((i32)strlen(name) + 1);
-			strcpy_s(it->second.name_.data(), it->second.name_.size(), name);
+			it->second.name_ = name;
 		}
 
 		// Check that name matches.
-		if(strcmp(name, it->second.name_.data()) != 0)
+		if(it->second.name_ != name)
 		{
 			char uuidStr[38];
 			resourceUuid.AsString(uuidStr);
 			DBG_LOG("Resource UUID %s collision. \"%s\" expected, \"%s\" is stored.\n", uuidStr, name,
-			    it->second.name_.data());
+			    it->second.name_.c_str());
 			return false;
 		}
 
@@ -187,8 +187,8 @@ namespace Resource
 				char uuidStr2[38];
 				resourceUuid.AsString(uuidStr1);
 				depUuid.AsString(uuidStr2);
-				DBG_LOG("Resource UUID %s (%s) is a dependency of UUID %s (%s)\n", uuidStr1, entry->name_.data(),
-				    uuidStr2, depEntry->name_.data());
+				DBG_LOG("Resource UUID %s (%s) is a dependency of UUID %s (%s)\n", uuidStr1, entry->name_.c_str(),
+				    uuidStr2, depEntry->name_.c_str());
 			}
 			else
 			{

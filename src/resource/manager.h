@@ -43,6 +43,11 @@ namespace Resource
 		static bool IsInitialized();
 
 		/**
+		 * Wait for reloading to complete.
+		 */
+		static void WaitOnReload();
+
+		/**
 		 * Request resource by name & type.
 		 * If a resource is loaded, it
 		 * @param outResource Output resource.

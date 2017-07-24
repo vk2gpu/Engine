@@ -9,8 +9,6 @@
 
 namespace Graphics
 {
-
-
 	class GRAPHICS_DLL Shader
 	{
 	public:

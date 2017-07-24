@@ -218,6 +218,9 @@ TEST_CASE("graphics-tests-shader-create-technique")
 		drawer.Draw(window.fbsHandle_, window.drawState_, techMain, cmdList);
 
 		window.End();
+
+		// Wait for reloading to complete.
+		Resource::Manager::WaitOnReload();
 	}
 
 

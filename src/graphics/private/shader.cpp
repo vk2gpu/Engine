@@ -6,6 +6,10 @@
 #include "core/misc.h"
 #include "gpu/manager.h"
 
+#define _CRT_DECLARE_NONSTDC_NAMES (0)
+
+#include <algorithm>
+
 namespace Graphics
 {
 	ShaderTechniqueDesc& ShaderTechniqueDesc::SetVertexElement(i32 idx, const GPU::VertexElement& element)
@@ -62,6 +66,128 @@ namespace Graphics
 		return true;
 	}
 
+	ShaderImpl::ShaderImpl() {}
+
+	ShaderImpl::~ShaderImpl()
+	{
+		DBG_ASSERT_MSG(techniques_.size() == 0, "Techniques still reference this shader.");
+
+		if(GPU::Manager::IsInitialized())
+		{
+			for(auto ps : pipelineStates_)
+				GPU::Manager::DestroyResource(ps);
+			for(auto s : shaders_)
+				GPU::Manager::DestroyResource(s);
+		}
+	}
+
+	ShaderTechniqueImpl* ShaderImpl::CreateTechnique(
+	    const char* name, const ShaderTechniqueDesc& desc, ShaderTechniqueImpl* impl)
+	{
+		// Find valid technique header.
+		const ShaderTechniqueHeader* techHeader = nullptr;
+		for(const auto& it : techniqueHeaders_)
+		{
+			if(strcmp(it.name_, name) == 0)
+			{
+				techHeader = &it;
+				break;
+			}
+		}
+
+		// No name match, exit.
+		if(techHeader == nullptr)
+			return nullptr;
+
+		// Try to find matching pipeline state for technique.
+		i32 foundIdx = -1;
+		u32 hash = Core::HashCRC32(0, &desc, sizeof(desc));
+		hash = Core::Hash(hash, name);
+		for(i32 idx = 0; idx < techniqueDescHashes_.size(); ++idx)
+		{
+			if(techniqueDescHashes_[idx] == hash)
+			{
+				DBG_ASSERT_MSG(techniqueDescs_[idx] == desc, "Technique hash collision!");
+				foundIdx = idx;
+			}
+		}
+
+		if(foundIdx == -1)
+		{
+			Core::Array<char, 128> debugName;
+			sprintf_s(debugName.data(), debugName.size(), "%s/%s", name_.c_str(), name);
+
+			// Create pipeline state for technique.
+			GPU::Handle psHandle;
+			if(GPU::Manager::IsInitialized())
+			{
+				if(techHeader->cs_ != -1)
+				{
+					GPU::ComputePipelineStateDesc psDesc;
+					psDesc.shader_ = shaders_[techHeader->cs_];
+					psHandle = GPU::Manager::CreateComputePipelineState(psDesc, debugName.data());
+				}
+				else
+				{
+					GPU::GraphicsPipelineStateDesc psDesc;
+					psDesc.shaders_[(i32)GPU::ShaderType::VERTEX] =
+					    techHeader->vs_ != -1 ? shaders_[techHeader->vs_] : GPU::Handle();
+					psDesc.shaders_[(i32)GPU::ShaderType::GEOMETRY] =
+					    techHeader->gs_ != -1 ? shaders_[techHeader->gs_] : GPU::Handle();
+					psDesc.shaders_[(i32)GPU::ShaderType::HULL] =
+					    techHeader->hs_ != -1 ? shaders_[techHeader->hs_] : GPU::Handle();
+					psDesc.shaders_[(i32)GPU::ShaderType::DOMAIN] =
+					    techHeader->ds_ != -1 ? shaders_[techHeader->ds_] : GPU::Handle();
+					psDesc.shaders_[(i32)GPU::ShaderType::PIXEL] =
+					    techHeader->ps_ != -1 ? shaders_[techHeader->ps_] : GPU::Handle();
+					psDesc.renderState_ = techHeader->rs_;
+					psDesc.numVertexElements_ = desc.numVertexElements_;
+					memcpy(&psDesc.vertexElements_[0], desc.vertexElements_.data(), sizeof(psDesc.vertexElements_));
+					psDesc.topology_ = desc.topology_;
+					psDesc.numRTs_ = desc.numRTs_;
+					memcpy(&psDesc.rtvFormats_[0], desc.rtvFormats_.data(), sizeof(psDesc.rtvFormats_));
+					psDesc.dsvFormat_ = desc.dsvFormat_;
+					psHandle = GPU::Manager::CreateGraphicsPipelineState(psDesc, debugName.data());
+				}
+
+				// Check the pipeline state is valid.
+				if(!psHandle)
+				{
+					return nullptr;
+				}
+			}
+
+			techniqueDescHashes_.push_back(hash);
+			techniqueDescs_.push_back(desc);
+			pipelineStates_.push_back(psHandle);
+			foundIdx = pipelineStates_.size() - 1;
+		}
+
+		// Setup impl.
+		ShaderTechnique tech;
+		ShaderTechniqueImpl* techImpl = impl ? impl : new ShaderTechniqueImpl;
+
+		techImpl->shader_ = this;
+		techImpl->header_ = techHeader;
+		techImpl->descIdx_ = foundIdx;
+		techImpl->cbvs_.resize(header_.numCBuffers_);
+		techImpl->samplers_.resize(header_.numSamplers_);
+		techImpl->srvs_.resize(header_.numSRVs_);
+		techImpl->uavs_.resize(header_.numUAVs_);
+		techImpl->bs_.pipelineState_ = pipelineStates_[foundIdx];
+		techImpl->bsDirty_ = true;
+
+		// Calculate offset into vectors for setting.
+		techImpl->samplerOffset_ = techImpl->cbvs_.size();
+		techImpl->srvOffset_ = techImpl->samplers_.size() + techImpl->samplerOffset_;
+		techImpl->uavOffset_ = techImpl->srvs_.size() + techImpl->srvOffset_;
+
+		techniques_.push_back(techImpl);
+
+		return techImpl;
+	}
+
+
 	Shader::Shader()
 	{ //
 	}
@@ -69,15 +195,6 @@ namespace Graphics
 	Shader::~Shader()
 	{ //
 		DBG_ASSERT(impl_);
-		DBG_ASSERT_MSG(impl_->liveTechniques_ == 0, "Techniques still reference this shader.");
-
-		if(GPU::Manager::IsInitialized())
-		{
-			for(auto ps : impl_->pipelineStates_)
-				GPU::Manager::DestroyResource(ps);
-			for(auto s : impl_->shaders_)
-				GPU::Manager::DestroyResource(s);
-		}
 		delete impl_;
 	}
 
@@ -94,105 +211,8 @@ namespace Graphics
 
 	ShaderTechnique Shader::CreateTechnique(const char* name, const ShaderTechniqueDesc& desc)
 	{
-		// Find valid technique header.
-		const ShaderTechniqueHeader* techHeader = nullptr;
-		for(const auto& it : impl_->techniqueHeaders_)
-		{
-			if(strcmp(it.name_, name) == 0)
-			{
-				techHeader = &it;
-				break;
-			}
-		}
-
-		// No name match, exit.
-		if(techHeader == nullptr)
-			return ShaderTechnique();
-
-		// Try to find matching pipeline state for technique.
-		i32 foundIdx = -1;
-		u32 hash = Core::HashCRC32(0, &desc, sizeof(desc));
-		hash = Core::Hash(hash, name);
-		for(i32 idx = 0; idx < impl_->techniqueDescHashes_.size(); ++idx)
-		{
-			if(impl_->techniqueDescHashes_[idx] == hash)
-			{
-				DBG_ASSERT_MSG(impl_->techniqueDescs_[idx] == desc, "Technique hash collision!");
-				foundIdx = idx;
-			}
-		}
-
-		if(foundIdx == -1)
-		{
-			Core::Array<char, 128> debugName;
-			sprintf_s(debugName.data(), debugName.size(), "%s/%s", impl_->name_.c_str(), name);
-
-			// Create pipeline state for technique.
-			GPU::Handle psHandle;
-			if(GPU::Manager::IsInitialized())
-			{
-				if(techHeader->cs_ != -1)
-				{
-					GPU::ComputePipelineStateDesc psDesc;
-					psDesc.shader_ = impl_->shaders_[techHeader->cs_];
-					psHandle = GPU::Manager::CreateComputePipelineState(psDesc, debugName.data());
-				}
-				else
-				{
-					GPU::GraphicsPipelineStateDesc psDesc;
-					psDesc.shaders_[(i32)GPU::ShaderType::VERTEX] =
-					    techHeader->vs_ != -1 ? impl_->shaders_[techHeader->vs_] : GPU::Handle();
-					psDesc.shaders_[(i32)GPU::ShaderType::GEOMETRY] =
-					    techHeader->gs_ != -1 ? impl_->shaders_[techHeader->gs_] : GPU::Handle();
-					psDesc.shaders_[(i32)GPU::ShaderType::HULL] =
-					    techHeader->hs_ != -1 ? impl_->shaders_[techHeader->hs_] : GPU::Handle();
-					psDesc.shaders_[(i32)GPU::ShaderType::DOMAIN] =
-					    techHeader->ds_ != -1 ? impl_->shaders_[techHeader->ds_] : GPU::Handle();
-					psDesc.shaders_[(i32)GPU::ShaderType::PIXEL] =
-					    techHeader->ps_ != -1 ? impl_->shaders_[techHeader->ps_] : GPU::Handle();
-					psDesc.renderState_ = techHeader->rs_;
-					psDesc.numVertexElements_ = desc.numVertexElements_;
-					memcpy(&psDesc.vertexElements_[0], desc.vertexElements_.data(), sizeof(psDesc.vertexElements_));
-					psDesc.topology_ = desc.topology_;
-					psDesc.numRTs_ = desc.numRTs_;
-					memcpy(&psDesc.rtvFormats_[0], desc.rtvFormats_.data(), sizeof(psDesc.rtvFormats_));
-					psDesc.dsvFormat_ = desc.dsvFormat_;
-					psHandle = GPU::Manager::CreateGraphicsPipelineState(psDesc, debugName.data());
-				}
-
-				// Check the pipeline state is valid.
-				if(!psHandle)
-				{
-					return ShaderTechnique();
-				}
-			}
-
-			impl_->techniqueDescHashes_.push_back(hash);
-			impl_->techniqueDescs_.push_back(desc);
-			impl_->pipelineStates_.push_back(psHandle);
-			foundIdx = impl_->pipelineStates_.size() - 1;
-		}
-
-		// Setup impl.
 		ShaderTechnique tech;
-		ShaderTechniqueImpl* techImpl = new ShaderTechniqueImpl;
-
-		techImpl->shader_ = impl_;
-		techImpl->header_ = techHeader;
-		techImpl->cbvs_.resize(impl_->header_.numCBuffers_);
-		techImpl->samplers_.resize(impl_->header_.numSamplers_);
-		techImpl->srvs_.resize(impl_->header_.numSRVs_);
-		techImpl->uavs_.resize(impl_->header_.numUAVs_);
-		techImpl->bs_.pipelineState_ = impl_->pipelineStates_[foundIdx];
-
-		// Calculate offset into vectors for setting.
-		techImpl->samplerOffset_ = techImpl->cbvs_.size();
-		techImpl->srvOffset_ = techImpl->samplers_.size() + techImpl->samplerOffset_;
-		techImpl->uavOffset_ = techImpl->srvs_.size() + techImpl->srvOffset_;
-
-		tech.impl_ = techImpl;
-		impl_->liveTechniques_++;
-
+		tech.impl_ = impl_->CreateTechnique(name, desc, nullptr);
 		return tech;
 	}
 
@@ -206,7 +226,11 @@ namespace Graphics
 			if(GPU::Manager::IsInitialized())
 				if(impl_->bsHandle_)
 					GPU::Manager::DestroyResource(impl_->bsHandle_);
-			impl_->shader_->liveTechniques_--;
+
+			auto it = std::find(impl_->shader_->techniques_.begin(), impl_->shader_->techniques_.end(), impl_);
+			DBG_ASSERT(it != impl_->shader_->techniques_.end());
+			impl_->shader_->techniques_.erase(it);
+
 			delete impl_;
 			impl_ = nullptr;
 		}
