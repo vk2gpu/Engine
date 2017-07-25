@@ -7,8 +7,10 @@
 #include "gpu/manager.h"
 
 #define _CRT_DECLARE_NONSTDC_NAMES (0)
-
 #include <algorithm>
+#ifdef DOMAIN
+#undef DOMAIN
+#endif
 
 namespace Graphics
 {
