@@ -420,12 +420,15 @@ namespace Resource
 
 		void OnCompleted() override
 		{
-			// If conversion was successful and there is a load job to chain, run it.
+			// If conversion was successful and there is a load job to chain, run it but block untll completion.
 			if(success_ && loadJob_)
 			{
 				loadJob_->file_ = Core::File(convertedPath_.data(), Core::FileFlags::READ);
 				DBG_ASSERT_MSG(loadJob_->file_, "Can't load converted file \"%s\"", convertedPath_.data());
-				loadJob_->RunSingle(0);
+
+				Job::Counter* counter = nullptr;
+				loadJob_->RunSingle(0, &counter);
+				Job::Manager::WaitForCounter(counter, 0);
 			}
 			delete this;
 		}

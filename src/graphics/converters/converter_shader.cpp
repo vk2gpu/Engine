@@ -185,7 +185,6 @@ namespace
 					{
 						Core::String errStr(outCompile.errorsBegin_, outCompile.errorsEnd_);
 						Core::Log("%s", errStr.c_str());
-						DBG_BREAK;
 						return false;
 					}
 				}

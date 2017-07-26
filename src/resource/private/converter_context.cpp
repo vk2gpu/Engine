@@ -1,5 +1,6 @@
 #include "resource/private/converter_context.h"
 #include "core/misc.h"
+#include "job/manager.h"
 
 #include <algorithm>
 #include <cstdarg>
@@ -59,10 +60,10 @@ namespace Resource
 		metaDataSer_ = Serialization::Serializer();
 		metaDataFile_ = Core::File();
 
-		if(Core::FileExists(metaDataFileName_))
+		while(Core::FileExists(metaDataFileName_))
 		{
-			auto removed = Core::FileRemove(metaDataFileName_);
-			DBG_ASSERT(removed);
+			Core::FileRemove(metaDataFileName_);
+			Job::Manager::YieldCPU();
 		}
 
 		metaDataFile_ = Core::File(metaDataFileName_, Core::FileFlags::CREATE | Core::FileFlags::WRITE);
