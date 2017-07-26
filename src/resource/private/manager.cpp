@@ -19,6 +19,7 @@
 #include "core/uuid.h"
 
 #include "job/basic_job.h"
+#include "job/concurrency.h"
 #include "job/manager.h"
 #include "plugin/manager.h"
 #include "serialization/serializer.h"
@@ -122,7 +123,7 @@ namespace Resource
 		volatile i32 pendingResourceJobs_ = 0;
 		ResourceList resourceList_;
 		ResourceList releasedResourceList_;
-		Core::RWLock resourceRWLock_;
+		Job::RWLock resourceRWLock_;
 
 		void AcquireResourceEntry(ResourceEntry* entry)
 		{
@@ -132,7 +133,7 @@ namespace Resource
 
 		bool ReleaseResourceEntry(ResourceEntry* entry)
 		{
-			Core::ScopedWriteLock lock(resourceRWLock_);
+			Job::ScopedWriteLock lock(resourceRWLock_);
 			if(Core::AtomicDec(&entry->refCount_) == 0)
 			{
 				releasedResourceList_.push_back(entry);
@@ -147,7 +148,7 @@ namespace Resource
 
 		ResourceEntry* AcquireResourceEntry(const char* sourceFile, const char* convertedFile, const Core::UUID& type)
 		{
-			Core::ScopedWriteLock lock(resourceRWLock_);
+			Job::ScopedWriteLock lock(resourceRWLock_);
 			ResourceEntry* entry = nullptr;
 			Core::UUID name = sourceFile;
 			auto it =
@@ -176,7 +177,7 @@ namespace Resource
 		/// @return true if this was the last reference.
 		bool ReleaseResourceEntry(void* resource, const Core::UUID& type)
 		{
-			Core::ScopedWriteLock lock(resourceRWLock_);
+			Job::ScopedWriteLock lock(resourceRWLock_);
 			auto it =
 			    std::find_if(resourceList_.begin(), resourceList_.end(), [resource, &type](ResourceEntry* listEntry) {
 				    return listEntry->resource_ == resource && listEntry->type_ == type;
@@ -188,7 +189,7 @@ namespace Resource
 		/// @return if resource is ready.
 		bool IsResourceReady(void* resource, const Core::UUID& type)
 		{
-			Core::ScopedWriteLock lock(resourceRWLock_);
+			Job::ScopedWriteLock lock(resourceRWLock_);
 			auto it =
 			    std::find_if(resourceList_.begin(), resourceList_.end(), [resource, &type](ResourceEntry* listEntry) {
 				    return listEntry->resource_ == resource && listEntry->type_ == type;
@@ -221,7 +222,7 @@ namespace Resource
 		{
 			ResourceList releasedResourceList;
 			{
-				Core::ScopedWriteLock lock(resourceRWLock_);
+				Job::ScopedWriteLock lock(resourceRWLock_);
 				releasedResourceList = releasedResourceList_;
 				releasedResourceList_.clear();
 			}
@@ -444,7 +445,7 @@ namespace Resource
 
 		void OnWork(i32 param) override
 		{
-			Core::ScopedReadLock lock(impl_->resourceRWLock_);
+			Job::ScopedReadLock lock(impl_->resourceRWLock_);
 			if(idx_ < impl_->resourceList_.size())
 			{
 				auto* entry = impl_->resourceList_[idx_];

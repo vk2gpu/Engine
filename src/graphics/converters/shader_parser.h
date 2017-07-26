@@ -168,7 +168,7 @@ namespace Graphics
 		Core::Set<Core::String> reserved_;
 
 		Core::Vector<AST::Node*> allocatedNodes_;
-
+		i32 numErrors_ = 0;
 		stb_lexer lexCtx_;
 	};
 } // namespace Graphics

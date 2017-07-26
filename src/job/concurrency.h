@@ -42,4 +42,84 @@ namespace Job
 
 		SpinLock& spinLock_;
 	};
+
+	/**
+	 * Read/write lock.
+	 */
+	class JOB_DLL RWLock final
+	{
+	public:
+		RWLock();
+		~RWLock();
+
+		/**
+		 * Begin read.
+		 */
+		void BeginRead();
+
+		/**
+		 * End read.
+		 */
+		void EndRead();
+
+		/**
+		 * Begin write.
+		 */
+		void BeginWrite();
+
+		/**
+		 * End write.
+		 */
+		void EndWrite();
+
+	private:
+		RWLock(const RWLock&) = delete;
+
+		SpinLock rMutex_;
+		SpinLock gMutex_;
+		volatile i32 readCount_ = 0;
+	};
+
+	/**
+	 * Scoped read lock.
+	 */
+	class JOB_DLL ScopedReadLock final
+	{
+	public:
+		ScopedReadLock(RWLock& lock)
+		    : lock_(lock)
+		{
+			lock_.BeginRead();
+		}
+
+		~ScopedReadLock() { lock_.EndRead(); }
+
+	private:
+		ScopedReadLock(const ScopedReadLock&) = delete;
+		ScopedReadLock(ScopedReadLock&&) = delete;
+
+		RWLock& lock_;
+	};
+
+	/**
+	 * Scoped write lock.
+	 */
+	class JOB_DLL ScopedWriteLock final
+	{
+	public:
+		ScopedWriteLock(RWLock& lock)
+		    : lock_(lock)
+		{
+			lock_.BeginWrite();
+		}
+
+		~ScopedWriteLock() { lock_.EndWrite(); }
+
+	private:
+		ScopedWriteLock(const ScopedReadLock&) = delete;
+		ScopedWriteLock(ScopedReadLock&&) = delete;
+
+		RWLock& lock_;
+	};
+
 } // namespace Job

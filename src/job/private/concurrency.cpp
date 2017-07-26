@@ -25,4 +25,40 @@ namespace Job
 		i32 count = Core::AtomicExchg(&count_, 0);
 		DBG_ASSERT(count == 1);
 	}
+
+
+	RWLock::RWLock() {}
+
+	RWLock::~RWLock()
+	{
+		DBG_ASSERT(readCount_ == 0);
+#ifdef DEBUG
+		if(gMutex_.TryLock() == false)
+			DBG_BREAK;
+		gMutex_.Unlock();
+#endif
+	}
+
+	void RWLock::BeginRead()
+	{
+		ScopedSpinLock lock(rMutex_);
+		if(Core::AtomicInc(&readCount_) == 1)
+		{
+			gMutex_.Lock();
+		}
+	}
+
+	void RWLock::EndRead()
+	{
+		ScopedSpinLock lock(rMutex_);
+		if(Core::AtomicDec(&readCount_) == 0)
+		{
+			gMutex_.Unlock();
+		}
+	}
+
+	void RWLock::BeginWrite() { gMutex_.Lock(); }
+
+	void RWLock::EndWrite() { gMutex_.Unlock(); }
+
 } // namespace Job

@@ -197,7 +197,14 @@ namespace Graphics
 		AddNodes(ENUM_TYPES);
 	}
 
-	ShaderParser::~ShaderParser() {}
+	ShaderParser::~ShaderParser()
+	{
+		// Free all allocated nodes.
+		for(auto* node : allocatedNodes_)
+		{
+			delete node;
+		}
+	}
 
 #define CHECK_TOKEN(expectedType, expectedToken)                                                                       \
 	if(*expectedToken != '\0' && token_.value_ != expectedToken)                                                       \
@@ -239,6 +246,13 @@ namespace Graphics
 		AST::NodeShaderFile* shaderFile = ParseShaderFile();
 		if(shaderFile)
 			shaderFile->name_ = shaderFileName;
+
+		// If there are any errors, don't return the shader file.
+		if(numErrors_ > 0)
+		{
+			shaderFile = nullptr;
+		}
+
 		return shaderFile;
 	}
 
@@ -907,6 +921,7 @@ namespace Graphics
 			Core::Log("> %s\n", indent.c_str());
 		}
 
+		numErrors_++;
 		node = nullptr;
 
 		// Force fast fail.
