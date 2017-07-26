@@ -17,6 +17,7 @@
 #include "core/mpmc_bounded_queue.h"
 #include "core/string.h"
 #include "core/uuid.h"
+#include "core/timer.h"
 
 #include "job/basic_job.h"
 #include "job/concurrency.h"
@@ -131,16 +132,21 @@ namespace Resource
 			Core::AtomicInc(&entry->refCount_);
 		}
 
+		void UnsafeDoReleaseResourceEntry(ResourceEntry* entry)
+		{
+			releasedResourceList_.push_back(entry);
+			auto it = std::find_if(resourceList_.begin(), resourceList_.end(),
+				[entry](ResourceEntry* listEntry) { return entry == listEntry; });
+			DBG_ASSERT(it != resourceList_.end());
+			resourceList_.erase(it);
+		}
+
 		bool ReleaseResourceEntry(ResourceEntry* entry)
 		{
-			Job::ScopedWriteLock lock(resourceRWLock_);
 			if(Core::AtomicDec(&entry->refCount_) == 0)
 			{
-				releasedResourceList_.push_back(entry);
-				auto it = std::find_if(resourceList_.begin(), resourceList_.end(),
-				    [entry](ResourceEntry* listEntry) { return entry == listEntry; });
-				DBG_ASSERT(it != resourceList_.end());
-				resourceList_.erase(it);
+				Job::ScopedWriteLock lock(resourceRWLock_);
+				UnsafeDoReleaseResourceEntry(entry);
 				return true;
 			}
 			return false;
@@ -183,7 +189,8 @@ namespace Resource
 				    return listEntry->resource_ == resource && listEntry->type_ == type;
 				});
 			DBG_ASSERT(it != resourceList_.end());
-			return ReleaseResourceEntry(*it);
+			UnsafeDoReleaseResourceEntry(*it);
+			return true;
 		}
 
 		/// @return if resource is ready.
@@ -428,7 +435,6 @@ namespace Resource
 		Core::String name_;
 		Core::String convertedPath_;
 		bool success_ = false;
-
 		ResourceLoadJob* loadJob_ = nullptr;
 	};
 
@@ -441,35 +447,63 @@ namespace Resource
 			Core::AtomicInc(&impl_->pendingResourceJobs_);
 		}
 
-		virtual ~ResourceTimestampJob() { Core::AtomicDec(&impl_->pendingResourceJobs_); }
+		virtual ~ResourceTimestampJob() 
+		{ 
+			for(auto* entry : convertList_)
+			{
+				impl_->ReleaseResourceEntry(entry);
+			}
+			convertList_.clear();
+			Core::AtomicDec(&impl_->pendingResourceJobs_); 
+		}
 
 		void OnWork(i32 param) override
 		{
-			Job::ScopedReadLock lock(impl_->resourceRWLock_);
-			if(idx_ < impl_->resourceList_.size())
+			// Check time stamp of a single resource.
 			{
-				auto* entry = impl_->resourceList_[idx_];
-				if(entry->converting_ == 0)
+				Job::ScopedReadLock lock(impl_->resourceRWLock_);
+				if(idx_ < impl_->resourceList_.size())
 				{
-					if(entry->ResourceOutOfDate(&impl_->pathResolver_))
+					auto* entry = impl_->resourceList_[idx_];
+					if(entry->converting_ == 0)
 					{
-						DBG_LOG("Resource \"%s\" is out of date. Reimporting...\n", entry->sourceFile_.c_str());
-
-						// Setup convert job.
-						auto* convertJob = new ResourceConvertJob(
-						    entry, entry->type_, entry->sourceFile_.c_str(), entry->convertedFile_.c_str());
-
-						// Setup load job to chain.
-						if(auto factory = impl_->GetFactory(entry->type_))
+						if(entry->ResourceOutOfDate(&impl_->pathResolver_))
 						{
-							convertJob->loadJob_ = new ResourceLoadJob(
-							    factory, entry, entry->type_, entry->sourceFile_.c_str(), Core::File());
-							convertJob->RunSingle(0);
+							if(std::find(convertList_.begin(), convertList_.end(), entry) == convertList_.end())
+							{
+								impl_->AcquireResourceEntry(entry);
+								convertList_.push_back(entry);
+								convertTimer_.Mark();
+							}
 						}
 					}
-				}
 
-				idx_ = (idx_ + 1) % impl_->resourceList_.size();
+					idx_ = (idx_ + 1) % impl_->resourceList_.size();
+				}
+			}
+
+			// Check if the appropriate amount of time has passed.
+			if(convertTimer_.GetTime() > CONVERT_WAIT_TIME && convertList_.size() > 0)
+			{
+				for(auto* entry : convertList_)
+				{
+					DBG_LOG("Resource \"%s\" is out of date.\n", entry->sourceFile_.c_str());
+
+					// Setup convert job.
+					auto* convertJob = new ResourceConvertJob(
+						entry, entry->type_, entry->sourceFile_.c_str(), entry->convertedFile_.c_str());
+
+					// Setup load job to chain.
+					if(auto factory = impl_->GetFactory(entry->type_))
+					{
+						convertJob->loadJob_ = new ResourceLoadJob(
+							factory, entry, entry->type_, entry->sourceFile_.c_str(), Core::File());
+						convertJob->RunSingle(0);
+					}
+
+					impl_->ReleaseResourceEntry(entry);
+				}
+				convertList_.clear();
 			}
 		}
 
@@ -483,6 +517,9 @@ namespace Resource
 		}
 
 		i32 idx_ = 0;
+		Core::Vector<ResourceEntry*> convertList_;
+		Core::Timer convertTimer_;
+		const f64 CONVERT_WAIT_TIME = 0.f;
 	};
 
 	void Manager::Initialize()
