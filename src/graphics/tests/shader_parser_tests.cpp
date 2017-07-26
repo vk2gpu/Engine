@@ -203,7 +203,7 @@ TEST_CASE("graphics-tests-shader-basic")
 						Core::Log("    ");
 					va_list args;
 					va_start(args, msg);
-					Core::Log(msg, args);
+					Core::LogV(msg, args);
 					va_end(args);
 					Core::Log("\n");
 				}

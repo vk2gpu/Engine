@@ -30,7 +30,7 @@ VS_OUT vs_main(in VS_IN _in)
 
 float4 ps_main(in VS_OUT _in) : SV_TARGET0
 {
-	return tex_diffuse.Sample(SS_DEFAULT, _in.uv.xy);
+	return tex_diffuse.Sample(SS_DEFAULT, _in.uv.xy) * float4(1.0, 0.0, 1.0, 1.0);
 }
 
 float4 ps_shadow(in VS_OUT _in) : SV_TARGET0
@@ -57,13 +57,14 @@ RenderState RS_DEFAULT =
 	.FillMode = SOLID,
 };
 
+#if 1
 Technique TECH_MAIN =
 {
 	.VertexShader = vs_main,
 	.PixelShader = ps_main,
 	.RenderState = RS_DEFAULT,
 };
-
+#endif
 Technique TECH_SHADOW =
 {
 	.VertexShader = vs_main,

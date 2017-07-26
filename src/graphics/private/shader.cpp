@@ -7,8 +7,10 @@
 #include "gpu/manager.h"
 
 #define _CRT_DECLARE_NONSTDC_NAMES (0)
-
 #include <algorithm>
+#ifdef DOMAIN
+#undef DOMAIN
+#endif
 
 namespace Graphics
 {
@@ -81,25 +83,9 @@ namespace Graphics
 		}
 	}
 
-	ShaderTechniqueImpl* ShaderImpl::CreateTechnique(
-	    const char* name, const ShaderTechniqueDesc& desc, ShaderTechniqueImpl* impl)
+	ShaderTechniqueImpl* ShaderImpl::CreateTechnique(const char* name, const ShaderTechniqueDesc& desc)
 	{
-		// Find valid technique header.
-		const ShaderTechniqueHeader* techHeader = nullptr;
-		for(const auto& it : techniqueHeaders_)
-		{
-			if(strcmp(it.name_, name) == 0)
-			{
-				techHeader = &it;
-				break;
-			}
-		}
-
-		// No name match, exit.
-		if(techHeader == nullptr)
-			return nullptr;
-
-		// Try to find matching pipeline state for technique.
+		// See if there is a matching name + descriptor, if not, add it.
 		i32 foundIdx = -1;
 		u32 hash = Core::HashCRC32(0, &desc, sizeof(desc));
 		hash = Core::Hash(hash, name);
@@ -112,81 +98,115 @@ namespace Graphics
 			}
 		}
 
+		// None found, push to end of list.
 		if(foundIdx == -1)
 		{
-			Core::Array<char, 128> debugName;
-			sprintf_s(debugName.data(), debugName.size(), "%s/%s", name_.c_str(), name);
-
-			// Create pipeline state for technique.
-			GPU::Handle psHandle;
-			if(GPU::Manager::IsInitialized())
-			{
-				if(techHeader->cs_ != -1)
-				{
-					GPU::ComputePipelineStateDesc psDesc;
-					psDesc.shader_ = shaders_[techHeader->cs_];
-					psHandle = GPU::Manager::CreateComputePipelineState(psDesc, debugName.data());
-				}
-				else
-				{
-					GPU::GraphicsPipelineStateDesc psDesc;
-					psDesc.shaders_[(i32)GPU::ShaderType::VERTEX] =
-					    techHeader->vs_ != -1 ? shaders_[techHeader->vs_] : GPU::Handle();
-					psDesc.shaders_[(i32)GPU::ShaderType::GEOMETRY] =
-					    techHeader->gs_ != -1 ? shaders_[techHeader->gs_] : GPU::Handle();
-					psDesc.shaders_[(i32)GPU::ShaderType::HULL] =
-					    techHeader->hs_ != -1 ? shaders_[techHeader->hs_] : GPU::Handle();
-					psDesc.shaders_[(i32)GPU::ShaderType::DOMAIN] =
-					    techHeader->ds_ != -1 ? shaders_[techHeader->ds_] : GPU::Handle();
-					psDesc.shaders_[(i32)GPU::ShaderType::PIXEL] =
-					    techHeader->ps_ != -1 ? shaders_[techHeader->ps_] : GPU::Handle();
-					psDesc.renderState_ = techHeader->rs_;
-					psDesc.numVertexElements_ = desc.numVertexElements_;
-					memcpy(&psDesc.vertexElements_[0], desc.vertexElements_.data(), sizeof(psDesc.vertexElements_));
-					psDesc.topology_ = desc.topology_;
-					psDesc.numRTs_ = desc.numRTs_;
-					memcpy(&psDesc.rtvFormats_[0], desc.rtvFormats_.data(), sizeof(psDesc.rtvFormats_));
-					psDesc.dsvFormat_ = desc.dsvFormat_;
-					psHandle = GPU::Manager::CreateGraphicsPipelineState(psDesc, debugName.data());
-				}
-
-				// Check the pipeline state is valid.
-				if(!psHandle)
-				{
-					return nullptr;
-				}
-			}
-
 			techniqueDescHashes_.push_back(hash);
 			techniqueDescs_.push_back(desc);
-			pipelineStates_.push_back(psHandle);
-			foundIdx = pipelineStates_.size() - 1;
+			pipelineStates_.resize(techniqueDescs_.size());
+			foundIdx = techniqueDescs_.size() - 1;
 		}
 
-		// Setup impl.
-		ShaderTechnique tech;
-		ShaderTechniqueImpl* techImpl = impl ? impl : new ShaderTechniqueImpl;
+		auto* impl = new ShaderTechniqueImpl();
+		impl->shader_ = this;
+		strcpy_s(impl->header_.name_, sizeof(impl->header_.name_), name);
+		impl->descIdx_ = foundIdx;
 
-		techImpl->shader_ = this;
-		techImpl->header_ = techHeader;
-		techImpl->descIdx_ = foundIdx;
-		techImpl->cbvs_.resize(header_.numCBuffers_);
-		techImpl->samplers_.resize(header_.numSamplers_);
-		techImpl->srvs_.resize(header_.numSRVs_);
-		techImpl->uavs_.resize(header_.numUAVs_);
-		techImpl->bs_.pipelineState_ = pipelineStates_[foundIdx];
-		techImpl->bsDirty_ = true;
+		techniques_.push_back(impl);
 
-		// Calculate offset into vectors for setting.
-		techImpl->samplerOffset_ = techImpl->cbvs_.size();
-		techImpl->srvOffset_ = techImpl->samplers_.size() + techImpl->samplerOffset_;
-		techImpl->uavOffset_ = techImpl->srvs_.size() + techImpl->srvOffset_;
+		// Setup newly created technique immediately.
+		SetupTechnique(impl);
 
-		techniques_.push_back(techImpl);
-
-		return techImpl;
+		return impl;
 	}
 
+	bool ShaderImpl::SetupTechnique(ShaderTechniqueImpl* impl)
+	{
+		DBG_ASSERT(impl);
+		DBG_ASSERT(impl->descIdx_ != -1);
+		DBG_ASSERT(impl->descIdx_ < pipelineStates_.size());
+
+		// Find valid technique header.
+		const ShaderTechniqueHeader* techHeader = nullptr;
+		for(const auto& it : techniqueHeaders_)
+		{
+			if(strcmp(it.name_, impl->header_.name_) == 0)
+			{
+				techHeader = &it;
+				break;
+			}
+		}
+
+		if(techHeader == nullptr)
+		{
+			DBG_LOG("SetupTechnique: Shader \'%s\' is missing technique \'%s\'\n", name_.c_str(), impl->header_.name_);
+			impl->Invalidate();
+			return false;
+		}
+
+		// Create pipeline state for technique if there is none.
+		GPU::Handle psHandle = pipelineStates_[impl->descIdx_];
+		if(!psHandle && GPU::Manager::IsInitialized())
+		{
+			const auto& desc = techniqueDescs_[impl->descIdx_];
+			Core::Array<char, 128> debugName;
+			sprintf_s(debugName.data(), debugName.size(), "%s/%s", name_.c_str(), impl->header_.name_);
+
+			if(techHeader->cs_ != -1)
+			{
+				GPU::ComputePipelineStateDesc psDesc;
+				psDesc.shader_ = shaders_[techHeader->cs_];
+				psHandle = GPU::Manager::CreateComputePipelineState(psDesc, debugName.data());
+			}
+			else
+			{
+				GPU::GraphicsPipelineStateDesc psDesc;
+				psDesc.shaders_[(i32)GPU::ShaderType::VERTEX] =
+				    techHeader->vs_ != -1 ? shaders_[techHeader->vs_] : GPU::Handle();
+				psDesc.shaders_[(i32)GPU::ShaderType::GEOMETRY] =
+				    techHeader->gs_ != -1 ? shaders_[techHeader->gs_] : GPU::Handle();
+				psDesc.shaders_[(i32)GPU::ShaderType::HULL] =
+				    techHeader->hs_ != -1 ? shaders_[techHeader->hs_] : GPU::Handle();
+				psDesc.shaders_[(i32)GPU::ShaderType::DOMAIN] =
+				    techHeader->ds_ != -1 ? shaders_[techHeader->ds_] : GPU::Handle();
+				psDesc.shaders_[(i32)GPU::ShaderType::PIXEL] =
+				    techHeader->ps_ != -1 ? shaders_[techHeader->ps_] : GPU::Handle();
+				psDesc.renderState_ = techHeader->rs_;
+				psDesc.numVertexElements_ = desc.numVertexElements_;
+				memcpy(&psDesc.vertexElements_[0], desc.vertexElements_.data(), sizeof(psDesc.vertexElements_));
+				psDesc.topology_ = desc.topology_;
+				psDesc.numRTs_ = desc.numRTs_;
+				memcpy(&psDesc.rtvFormats_[0], desc.rtvFormats_.data(), sizeof(psDesc.rtvFormats_));
+				psDesc.dsvFormat_ = desc.dsvFormat_;
+				psHandle = GPU::Manager::CreateGraphicsPipelineState(psDesc, debugName.data());
+			}
+			pipelineStates_[impl->descIdx_] = psHandle;
+		}
+
+		if(!psHandle)
+		{
+			DBG_LOG("SetupTechnique: Failed to create pipeline state for technique \'%s\' in shader \'%s\'\n",
+			    impl->header_.name_, name_.c_str());
+			impl->Invalidate();
+			return false;
+		}
+
+		impl->shader_ = this;
+		impl->header_ = *techHeader;
+		impl->cbvs_.resize(header_.numCBuffers_);
+		impl->samplers_.resize(header_.numSamplers_);
+		impl->srvs_.resize(header_.numSRVs_);
+		impl->uavs_.resize(header_.numUAVs_);
+		impl->bs_.pipelineState_ = psHandle;
+		impl->bsDirty_ = true;
+
+		// Calculate offset into vectors for setting.
+		impl->samplerOffset_ = impl->cbvs_.size();
+		impl->srvOffset_ = impl->samplers_.size() + impl->samplerOffset_;
+		impl->uavOffset_ = impl->srvs_.size() + impl->srvOffset_;
+
+		return true;
+	}
 
 	Shader::Shader()
 	{ //
@@ -212,7 +232,7 @@ namespace Graphics
 	ShaderTechnique Shader::CreateTechnique(const char* name, const ShaderTechniqueDesc& desc)
 	{
 		ShaderTechnique tech;
-		tech.impl_ = impl_->CreateTechnique(name, desc, nullptr);
+		tech.impl_ = impl_->CreateTechnique(name, desc);
 		return tech;
 	}
 
@@ -487,76 +507,83 @@ namespace Graphics
 		if(impl_ && impl_->bsDirty_)
 		{
 			if(impl_->bsHandle_)
+			{
 				GPU::Manager::DestroyResource(impl_->bsHandle_);
+				impl_->bsHandle_ = GPU::Handle();
+			}
 
-			// Setup binding set with offsets that come from shaders.
-			const auto SetupCBV = [this](const ShaderBindingMapping* mapping, i32 numMappings) {
-				impl_->bs_.numCBVs_ = numMappings;
-				for(i32 idx = 0; idx < numMappings; ++idx)
-				{
-					impl_->bs_.cbvs_[mapping[idx].dstSlot_] = impl_->cbvs_[mapping[idx].binding_];
-				}
-				return mapping + numMappings;
-			};
+			if(impl_->IsValid())
+			{
+				// Setup binding set with offsets that come from shaders.
+				const auto SetupCBV = [this](const ShaderBindingMapping* mapping, i32 numMappings) {
+					impl_->bs_.numCBVs_ = numMappings;
+					for(i32 idx = 0; idx < numMappings; ++idx)
+					{
+						impl_->bs_.cbvs_[mapping[idx].dstSlot_] = impl_->cbvs_[mapping[idx].binding_];
+					}
+					return mapping + numMappings;
+				};
 
-			const auto SetupSampler = [this](const ShaderBindingMapping* mapping, i32 numMappings) {
-				impl_->bs_.numSamplers_ = numMappings;
-				for(i32 idx = 0; idx < numMappings; ++idx)
-				{
-					impl_->bs_.samplers_[mapping[idx].dstSlot_] =
-					    impl_->samplers_[mapping[idx].binding_ - impl_->samplerOffset_];
-				}
-				return mapping + numMappings;
-			};
+				const auto SetupSampler = [this](const ShaderBindingMapping* mapping, i32 numMappings) {
+					impl_->bs_.numSamplers_ = numMappings;
+					for(i32 idx = 0; idx < numMappings; ++idx)
+					{
+						impl_->bs_.samplers_[mapping[idx].dstSlot_] =
+						    impl_->samplers_[mapping[idx].binding_ - impl_->samplerOffset_];
+					}
+					return mapping + numMappings;
+				};
 
-			const auto SetupSRV = [this](const ShaderBindingMapping* mapping, i32 numMappings) {
-				impl_->bs_.numSRVs_ = numMappings;
-				for(i32 idx = 0; idx < numMappings; ++idx)
-				{
-					impl_->bs_.srvs_[mapping[idx].dstSlot_] = impl_->srvs_[mapping[idx].binding_ - impl_->srvOffset_];
-				}
-				return mapping + numMappings;
-			};
+				const auto SetupSRV = [this](const ShaderBindingMapping* mapping, i32 numMappings) {
+					impl_->bs_.numSRVs_ = numMappings;
+					for(i32 idx = 0; idx < numMappings; ++idx)
+					{
+						impl_->bs_.srvs_[mapping[idx].dstSlot_] =
+						    impl_->srvs_[mapping[idx].binding_ - impl_->srvOffset_];
+					}
+					return mapping + numMappings;
+				};
 
-			const auto SetupUAV = [this](const ShaderBindingMapping* mapping, i32 numMappings) {
-				impl_->bs_.numUAVs_ = numMappings;
-				for(i32 idx = 0; idx < numMappings; ++idx)
-				{
-					impl_->bs_.uavs_[mapping[idx].dstSlot_] = impl_->uavs_[mapping[idx].binding_ - impl_->uavOffset_];
-				}
-				return mapping + numMappings;
-			};
+				const auto SetupUAV = [this](const ShaderBindingMapping* mapping, i32 numMappings) {
+					impl_->bs_.numUAVs_ = numMappings;
+					for(i32 idx = 0; idx < numMappings; ++idx)
+					{
+						impl_->bs_.uavs_[mapping[idx].dstSlot_] =
+						    impl_->uavs_[mapping[idx].binding_ - impl_->uavOffset_];
+					}
+					return mapping + numMappings;
+				};
 
-			const auto SetupBindings = [&](i32 shaderIdx) {
-				if(shaderIdx < 0)
-					return;
+				const auto SetupBindings = [&](i32 shaderIdx) {
+					if(shaderIdx < 0)
+						return;
 
-				const auto& bytecode = impl_->shader_->bytecodeHeaders_[shaderIdx];
-				const auto* mappings = impl_->shader_->shaderBindingMappings_[shaderIdx];
+					const auto& bytecode = impl_->shader_->bytecodeHeaders_[shaderIdx];
+					const auto* mappings = impl_->shader_->shaderBindingMappings_[shaderIdx];
 
-				mappings = SetupCBV(mappings, bytecode.numCBuffers_);
-				mappings = SetupSampler(mappings, bytecode.numSamplers_);
-				mappings = SetupSRV(mappings, bytecode.numSRVs_);
-				mappings = SetupUAV(mappings, bytecode.numUAVs_);
+					mappings = SetupCBV(mappings, bytecode.numCBuffers_);
+					mappings = SetupSampler(mappings, bytecode.numSamplers_);
+					mappings = SetupSRV(mappings, bytecode.numSRVs_);
+					mappings = SetupUAV(mappings, bytecode.numUAVs_);
+				};
 
-			};
+				SetupBindings(impl_->header_.vs_);
+				SetupBindings(impl_->header_.gs_);
+				SetupBindings(impl_->header_.hs_);
+				SetupBindings(impl_->header_.ds_);
+				SetupBindings(impl_->header_.ps_);
+				SetupBindings(impl_->header_.cs_);
 
-			SetupBindings(impl_->header_->vs_);
-			SetupBindings(impl_->header_->gs_);
-			SetupBindings(impl_->header_->hs_);
-			SetupBindings(impl_->header_->ds_);
-			SetupBindings(impl_->header_->ps_);
-			SetupBindings(impl_->header_->cs_);
-
-			Core::Array<char, 128> debugName;
-			sprintf_s(debugName.data(), debugName.size(), "%s/%s_binding", impl_->shader_->name_.c_str(),
-			    impl_->header_->name_);
-			impl_->bsHandle_ = GPU::Manager::CreatePipelineBindingSet(impl_->bs_, debugName.data());
-			DBG_ASSERT(impl_->bsHandle_);
-			DBG_ASSERT(GPU::Manager::GetHandleAllocator().IsValid(impl_->bsHandle_));
-			impl_->bsDirty_ = false;
+				Core::Array<char, 128> debugName;
+				sprintf_s(debugName.data(), debugName.size(), "%s/%s_binding", impl_->shader_->name_.c_str(),
+				    impl_->header_.name_);
+				impl_->bsHandle_ = GPU::Manager::CreatePipelineBindingSet(impl_->bs_, debugName.data());
+				DBG_ASSERT(impl_->bsHandle_);
+				DBG_ASSERT(GPU::Manager::GetHandleAllocator().IsValid(impl_->bsHandle_));
+				impl_->bsDirty_ = false;
+			}
 		}
-		return impl_->bsHandle_;
+		return impl_ ? impl_->bsHandle_ : GPU::Handle();
 	}
 
 

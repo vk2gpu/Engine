@@ -92,13 +92,14 @@ namespace
 				Math::Vec2 uv;
 			};
 
-			techDesc_ = Graphics::ShaderTechniqueDesc()
-			                .SetVertexElement(0, GPU::VertexElement(0, 0, GPU::Format::R32G32B32A32_FLOAT,
-			                                         GPU::VertexUsage::POSITION, 0))
-			                .SetVertexElement(
-			                    1, GPU::VertexElement(0, 16, GPU::Format::R32G32_FLOAT, GPU::VertexUsage::TEXCOORD, 0))
-			                .SetTopology(GPU::TopologyType::TRIANGLE)
-			                .SetRTVFormat(0, GPU::Format::R8G8B8A8_UNORM);
+			techDesc_ =
+			    Graphics::ShaderTechniqueDesc()
+			        .SetVertexElement(
+			            0, GPU::VertexElement(0, 0, GPU::Format::R32G32B32A32_FLOAT, GPU::VertexUsage::POSITION, 0))
+			        .SetVertexElement(
+			            1, GPU::VertexElement(0, 16, GPU::Format::R32G32_FLOAT, GPU::VertexUsage::TEXCOORD, 0))
+			        .SetTopology(GPU::TopologyType::TRIANGLE)
+			        .SetRTVFormat(0, GPU::Format::R8G8B8A8_UNORM);
 
 			const Vertex vertices[] = {
 			    {{0.0f, 0.0f, 0.0f, 1.0f}, {0.0f, 0.0f}}, {{0.5f, 0.0f, 0.0f, 1.0f}, {1.0f, 0.0f}},
@@ -202,18 +203,17 @@ TEST_CASE("graphics-tests-shader-create-technique")
 	auto techMain = shader->CreateTechnique("TECH_MAIN", drawer.techDesc_);
 	auto techShadow = shader->CreateTechnique("TECH_SHADOW", drawer.techDesc_);
 
-	auto texIdx = shader->GetBindingIndex("tex_diffuse");
-	auto samplerIdx = shader->GetBindingIndex("SS_DEFAULT");
-
-	DBG_ASSERT(texIdx >= 0);
-	DBG_ASSERT(samplerIdx >= 0);
-	techMain.SetTexture2D(texIdx, drawer.texture_->GetHandle(), 0, drawer.texture_->GetDesc().levels_);
-	techMain.SetSampler(samplerIdx, drawer.smpHandle_);
-
 	i32 testRunCounter = GPU::MAX_GPU_FRAMES * 10;
 	while(Client::Manager::Update() && (Core::IsDebuggerAttached() || testRunCounter-- > 0))
 	{
 		auto& cmdList = window.Begin();
+
+		const auto texIdx = shader->GetBindingIndex("tex_diffuse");
+		const auto samplerIdx = shader->GetBindingIndex("SS_DEFAULT");
+		if(texIdx >= 0)
+			techMain.SetTexture2D(texIdx, drawer.texture_->GetHandle(), 0, drawer.texture_->GetDesc().levels_);
+		if(samplerIdx >= 0)
+			techMain.SetSampler(samplerIdx, drawer.smpHandle_);
 
 		drawer.Draw(window.fbsHandle_, window.drawState_, techMain, cmdList);
 

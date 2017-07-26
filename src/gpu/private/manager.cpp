@@ -38,11 +38,15 @@ namespace RenderDoc
 			if(RENDERDOC_GetAPI)
 			{
 				RENDERDOC_GetAPI(eRENDERDOC_API_Version_1_1_1, (void**)&renderDocAPI_);
-
 				if(renderDocAPI_)
 				{
 					renderDocAPI_->SetCaptureOptionU32(eRENDERDOC_Option_CaptureAllCmdLists, 1);
 					renderDocAPI_->SetCaptureOptionU32(eRENDERDOC_Option_SaveAllInitials, 1);
+				}
+				else
+				{
+					Core::LibraryClose(renderDocLib_);
+					renderDocLib_ = nullptr;
 				}
 			}
 		}
@@ -324,9 +328,13 @@ namespace GPU
 	void Manager::DestroyResource(Handle handle)
 	{
 		DBG_ASSERT(IsInitialized());
-		Core::ScopedMutex lock(impl_->mutex_);
-		auto& deletions = impl_->deferredDeletions_[impl_->frameIdx_ % impl_->deferredDeletions_.size()];
-		deletions.push_back(handle);
+		if(handle)
+		{
+			DBG_ASSERT_MSG(impl_->handles_.IsValid(handle), "Attempting to destroy invalid handle.");
+			Core::ScopedMutex lock(impl_->mutex_);
+			auto& deletions = impl_->deferredDeletions_[impl_->frameIdx_ % impl_->deferredDeletions_.size()];
+			deletions.push_back(handle);
+		}
 	}
 
 	bool Manager::CompileCommandList(Handle handle, const CommandList& commandList)

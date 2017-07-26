@@ -185,23 +185,28 @@ namespace Graphics
 
 		if(isReload)
 		{
-			// Recreate all techniques.
-			for(i32 idx = 0; idx < inResource->impl_->techniques_.size(); ++idx)
+			// Setup technique descs, hashes, and empty pipeline states.
+			std::swap(impl->techniqueDescHashes_, inResource->impl_->techniqueDescHashes_);
+			std::swap(impl->techniqueDescs_, inResource->impl_->techniqueDescs_);
+			impl->pipelineStates_.resize(impl->techniqueDescs_.size());
+
+			// Swap techniques over.
+			std::swap(impl->techniques_, inResource->impl_->techniques_);
+
+			// Setup techniques again in their new impl.
+			for(i32 idx = 0; idx < impl->techniques_.size(); ++idx)
 			{
-				auto* techImpl = inResource->impl_->techniques_[idx];
-				const auto& techDesc = inResource->impl_->techniqueDescs_[techImpl->descIdx_];
-				if(!impl->CreateTechnique(techImpl->header_->name_, techDesc, techImpl))
-				{
-					DBG_ASSERT(false);
-				}
+				auto* techImpl = impl->techniques_[idx];
+				techImpl->shader_ = impl;
+				impl->SetupTechnique(techImpl);
 			}
 
-			// Clear original array of techniques.
-			inResource->impl_->techniques_.clear();
+			// Swap in new resource impl.
+			std::swap(inResource->impl_, impl);
 
-			inResource->impl_->reloadLock_.Unlock();
-			delete inResource->impl_;
-			inResource->impl_ = impl;
+			// Release reload lock and delete.
+			impl->reloadLock_.Unlock();
+			delete impl;
 		}
 		else
 		{
