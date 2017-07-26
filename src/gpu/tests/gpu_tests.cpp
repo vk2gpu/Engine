@@ -369,7 +369,7 @@ TEST_CASE("gpu-tests-create-shader")
 	GPU::Manager::ScopedDebugCapture capture(testName.c_str());
 
 	GPU::ShaderDesc desc;
-	desc.type_ = GPU::ShaderType::COMPUTE;
+	desc.type_ = GPU::ShaderType::CS;
 	desc.dataSize_ = sizeof(g_CShader);
 	desc.data_ = g_CShader;
 
@@ -395,7 +395,7 @@ TEST_CASE("gpu-tests-create-compute-pipeline-state")
 	GPU::Manager::ScopedDebugCapture capture(testName.c_str());
 
 	GPU::ShaderDesc shaderDesc;
-	shaderDesc.type_ = GPU::ShaderType::COMPUTE;
+	shaderDesc.type_ = GPU::ShaderType::CS;
 	shaderDesc.dataSize_ = sizeof(g_CShader);
 	shaderDesc.data_ = g_CShader;
 
@@ -427,7 +427,7 @@ TEST_CASE("gpu-tests-create-pipeline-binding-set")
 	GPU::Manager::ScopedDebugCapture capture(testName.c_str());
 
 	GPU::ShaderDesc shaderDesc;
-	shaderDesc.type_ = GPU::ShaderType::COMPUTE;
+	shaderDesc.type_ = GPU::ShaderType::CS;
 	shaderDesc.dataSize_ = sizeof(g_CShader);
 	shaderDesc.data_ = g_CShader;
 
@@ -545,7 +545,7 @@ TEST_CASE("gpu-tests-create-graphics-pipeline-state")
 	GPU::Manager::ScopedDebugCapture capture(testName.c_str());
 
 	GPU::ShaderDesc shaderDesc;
-	shaderDesc.type_ = GPU::ShaderType::VERTEX;
+	shaderDesc.type_ = GPU::ShaderType::VS;
 	shaderDesc.dataSize_ = sizeof(g_VShader);
 	shaderDesc.data_ = g_VShader;
 
@@ -553,7 +553,7 @@ TEST_CASE("gpu-tests-create-graphics-pipeline-state")
 	REQUIRE(shaderHandle);
 
 	GPU::GraphicsPipelineStateDesc pipelineDesc;
-	pipelineDesc.shaders_[(i32)GPU::ShaderType::VERTEX] = shaderHandle;
+	pipelineDesc.shaders_[(i32)GPU::ShaderType::VS] = shaderHandle;
 	pipelineDesc.renderState_ = GPU::RenderState();
 	pipelineDesc.numVertexElements_ = 1;
 	pipelineDesc.vertexElements_[0].streamIdx_ = 0;
@@ -776,7 +776,7 @@ TEST_CASE("gpu-tests-compile-draw")
 	REQUIRE(fbsHandle);
 
 	GPU::ShaderDesc vsDesc;
-	vsDesc.type_ = GPU::ShaderType::VERTEX;
+	vsDesc.type_ = GPU::ShaderType::VS;
 	vsDesc.dataSize_ = sizeof(g_VShader);
 	vsDesc.data_ = g_VShader;
 
@@ -784,7 +784,7 @@ TEST_CASE("gpu-tests-compile-draw")
 	REQUIRE(vsHandle);
 
 	GPU::ShaderDesc psDesc;
-	psDesc.type_ = GPU::ShaderType::VERTEX;
+	psDesc.type_ = GPU::ShaderType::VS;
 	psDesc.dataSize_ = sizeof(g_PShader);
 	psDesc.data_ = g_PShader;
 
@@ -792,8 +792,8 @@ TEST_CASE("gpu-tests-compile-draw")
 	REQUIRE(psHandle);
 
 	GPU::GraphicsPipelineStateDesc pipelineDesc;
-	pipelineDesc.shaders_[(i32)GPU::ShaderType::VERTEX] = vsHandle;
-	pipelineDesc.shaders_[(i32)GPU::ShaderType::PIXEL] = psHandle;
+	pipelineDesc.shaders_[(i32)GPU::ShaderType::VS] = vsHandle;
+	pipelineDesc.shaders_[(i32)GPU::ShaderType::PS] = psHandle;
 	pipelineDesc.renderState_ = GPU::RenderState();
 	pipelineDesc.numVertexElements_ = 1;
 	pipelineDesc.vertexElements_[0].streamIdx_ = 0;
@@ -874,7 +874,7 @@ TEST_CASE("gpu-tests-compile-dispatch")
 
 	{
 		GPU::ShaderDesc csDesc;
-		csDesc.type_ = GPU::ShaderType::COMPUTE;
+		csDesc.type_ = GPU::ShaderType::CS;
 		csDesc.dataSize_ = sizeof(g_CTestBuf);
 		csDesc.data_ = g_CTestBuf;
 
@@ -913,7 +913,7 @@ TEST_CASE("gpu-tests-compile-dispatch")
 
 	{
 		GPU::ShaderDesc csDesc;
-		csDesc.type_ = GPU::ShaderType::COMPUTE;
+		csDesc.type_ = GPU::ShaderType::CS;
 		csDesc.dataSize_ = sizeof(g_CTestTex);
 		csDesc.data_ = g_CTestTex;
 

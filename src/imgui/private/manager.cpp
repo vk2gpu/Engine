@@ -76,14 +76,14 @@ namespace ImGui
 		DBG_ASSERT(fontHandle_);
 
 		GPU::ShaderDesc vsDesc;
-		vsDesc.type_ = GPU::ShaderType::VERTEX;
+		vsDesc.type_ = GPU::ShaderType::VS;
 		vsDesc.data_ = g_VShader;
 		vsDesc.dataSize_ = sizeof(g_VShader);
 		vsHandle_ = GPU::Manager::CreateShader(vsDesc, "ImGui VS");
 		DBG_ASSERT(vsHandle_);
 
 		GPU::ShaderDesc psDesc;
-		psDesc.type_ = GPU::ShaderType::PIXEL;
+		psDesc.type_ = GPU::ShaderType::PS;
 		psDesc.data_ = g_PShader;
 		psDesc.dataSize_ = sizeof(g_PShader);
 		psHandle_ = GPU::Manager::CreateShader(psDesc, "ImGui PS");

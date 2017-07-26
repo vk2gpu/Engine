@@ -69,22 +69,22 @@ namespace Graphics
 		const char* target = nullptr;
 		switch(type)
 		{
-		case GPU::ShaderType::VERTEX:
+		case GPU::ShaderType::VS:
 			target = "vs_5_0";
 			break;
-		case GPU::ShaderType::GEOMETRY:
+		case GPU::ShaderType::GS:
 			target = "gs_5_0";
 			break;
-		case GPU::ShaderType::HULL:
+		case GPU::ShaderType::HS:
 			target = "hs_5_0";
 			break;
-		case GPU::ShaderType::DOMAIN:
+		case GPU::ShaderType::DS:
 			target = "ds_5_0";
 			break;
-		case GPU::ShaderType::PIXEL:
+		case GPU::ShaderType::PS:
 			target = "ps_5_0";
 			break;
-		case GPU::ShaderType::COMPUTE:
+		case GPU::ShaderType::CS:
 			target = "cs_5_0";
 			break;
 		}

@@ -127,17 +127,17 @@ namespace
 				for(const auto& technique : techniques)
 				{
 					if(technique.vs_.size() > 0)
-						shaders[(i32)GPU::ShaderType::VERTEX].insert(technique.vs_);
+						shaders[(i32)GPU::ShaderType::VS].insert(technique.vs_);
 					if(technique.gs_.size() > 0)
-						shaders[(i32)GPU::ShaderType::GEOMETRY].insert(technique.gs_);
+						shaders[(i32)GPU::ShaderType::GS].insert(technique.gs_);
 					if(technique.hs_.size() > 0)
-						shaders[(i32)GPU::ShaderType::HULL].insert(technique.hs_);
+						shaders[(i32)GPU::ShaderType::HS].insert(technique.hs_);
 					if(technique.ds_.size() > 0)
-						shaders[(i32)GPU::ShaderType::DOMAIN].insert(technique.ds_);
+						shaders[(i32)GPU::ShaderType::DS].insert(technique.ds_);
 					if(technique.ps_.size() > 0)
-						shaders[(i32)GPU::ShaderType::PIXEL].insert(technique.ps_);
+						shaders[(i32)GPU::ShaderType::PS].insert(technique.ps_);
 					if(technique.cs_.size() > 0)
-						shaders[(i32)GPU::ShaderType::COMPUTE].insert(technique.cs_);
+						shaders[(i32)GPU::ShaderType::CS].insert(technique.cs_);
 				}
 
 				// Grab sampler states.

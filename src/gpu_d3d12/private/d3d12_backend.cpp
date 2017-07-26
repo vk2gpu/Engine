@@ -526,11 +526,11 @@ namespace GPU
 
 		{
 			Core::ScopedReadLock lock(resLock_);
-			gpsDesc.VS = GetShaderBytecode(ShaderType::VERTEX);
-			gpsDesc.GS = GetShaderBytecode(ShaderType::GEOMETRY);
-			gpsDesc.HS = GetShaderBytecode(ShaderType::HULL);
-			gpsDesc.DS = GetShaderBytecode(ShaderType::DOMAIN);
-			gpsDesc.PS = GetShaderBytecode(ShaderType::PIXEL);
+			gpsDesc.VS = GetShaderBytecode(ShaderType::VS);
+			gpsDesc.GS = GetShaderBytecode(ShaderType::GS);
+			gpsDesc.HS = GetShaderBytecode(ShaderType::HS);
+			gpsDesc.DS = GetShaderBytecode(ShaderType::DS);
+			gpsDesc.PS = GetShaderBytecode(ShaderType::PS);
 		}
 
 		gpsDesc.NodeMask = 0x0;

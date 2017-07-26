@@ -5,10 +5,6 @@
 #include "core/float.h"
 #include "core/handle.h"
 
-#ifdef DOMAIN
-#undef DOMAIN
-#endif
-
 namespace Core
 {
 	class Handle;
@@ -241,12 +237,12 @@ namespace GPU
 	enum class ShaderType : i32
 	{
 		INVALID = -1,
-		VERTEX = 0,
-		GEOMETRY,
-		HULL,
-		DOMAIN,
-		PIXEL,
-		COMPUTE,
+		VS = 0,
+		GS,
+		HS,
+		DS,
+		PS,
+		CS,
 		MAX
 	};
 

@@ -6,11 +6,7 @@
 #include "core/misc.h"
 #include "gpu/manager.h"
 
-#define _CRT_DECLARE_NONSTDC_NAMES (0)
 #include <algorithm>
-#ifdef DOMAIN
-#undef DOMAIN
-#endif
 
 namespace Graphics
 {
@@ -161,15 +157,15 @@ namespace Graphics
 			else
 			{
 				GPU::GraphicsPipelineStateDesc psDesc;
-				psDesc.shaders_[(i32)GPU::ShaderType::VERTEX] =
+				psDesc.shaders_[(i32)GPU::ShaderType::VS] =
 				    techHeader->vs_ != -1 ? shaders_[techHeader->vs_] : GPU::Handle();
-				psDesc.shaders_[(i32)GPU::ShaderType::GEOMETRY] =
+				psDesc.shaders_[(i32)GPU::ShaderType::GS] =
 				    techHeader->gs_ != -1 ? shaders_[techHeader->gs_] : GPU::Handle();
-				psDesc.shaders_[(i32)GPU::ShaderType::HULL] =
+				psDesc.shaders_[(i32)GPU::ShaderType::HS] =
 				    techHeader->hs_ != -1 ? shaders_[techHeader->hs_] : GPU::Handle();
-				psDesc.shaders_[(i32)GPU::ShaderType::DOMAIN] =
+				psDesc.shaders_[(i32)GPU::ShaderType::DS] =
 				    techHeader->ds_ != -1 ? shaders_[techHeader->ds_] : GPU::Handle();
-				psDesc.shaders_[(i32)GPU::ShaderType::PIXEL] =
+				psDesc.shaders_[(i32)GPU::ShaderType::PS] =
 				    techHeader->ps_ != -1 ? shaders_[techHeader->ps_] : GPU::Handle();
 				psDesc.renderState_ = techHeader->rs_;
 				psDesc.numVertexElements_ = desc.numVertexElements_;
