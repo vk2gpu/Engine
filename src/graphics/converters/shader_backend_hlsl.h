@@ -42,6 +42,7 @@ namespace Graphics
 		bool isNewLine_ = false;
 		i32 indent_ = 0;
 		i32 inParams_ = 0;
+		i32 inCBuffer_ = 0;
 
 		i32 cbufferReg_ = 0;
 		i32 samplerReg_ = 0;

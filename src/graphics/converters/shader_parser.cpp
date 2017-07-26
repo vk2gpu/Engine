@@ -274,13 +274,20 @@ namespace Graphics
 			break;
 			case AST::TokenType::IDENTIFIER:
 			{
-				if(token_.value_ == "struct")
+				if(token_.value_ == "struct" || token_.value_ == "cbuffer")
 				{
 					auto* structNode = ParseStruct();
 					if(structNode)
 					{
 						structNodes_.Add(structNode);
-						node->structs_.push_back(structNode);
+						if(structNode->isCBuffer_)
+						{
+							node->cbuffers_.push_back(structNode);
+						}
+						else
+						{
+							node->structs_.push_back(structNode);
+						}
 					}
 				}
 				else
@@ -434,23 +441,30 @@ namespace Graphics
 	{
 		AST::NodeStruct* node = nullptr;
 
-		// Check struct.
-		CHECK_TOKEN(AST::TokenType::IDENTIFIER, "struct");
+		// Check if cbuffer or struct.
+		bool isCBuffer = false;
+		if(token_.value_ == "cbuffer")
+		{
+			isCBuffer = true;
+		}
+		else
+		{
+			CHECK_TOKEN(AST::TokenType::IDENTIFIER, "struct");
+		}
 
 		// Parse name.
 		PARSE_TOKEN();
 		CHECK_TOKEN(AST::TokenType::IDENTIFIER, "");
 		node = AddNode<AST::NodeStruct>(token_.value_.c_str());
+		node->isCBuffer_ = isCBuffer;
 
 		NodeType* nodeType = nullptr;
 		if(Find(nodeType, token_.value_))
 		{
 			Error(node, ErrorType::TYPE_REDEFINITION,
-			    Core::String().Printf("\'%s\': 'struct' type redefinition.", token_.value_.c_str()));
+			    Core::String().Printf("\'%s\': '%s' type redefinition.", isCBuffer ? "cbuffer" : "struct", token_.value_.c_str()));
 			return node;
 		}
-
-		node = AddNode<AST::NodeStruct>(token_.value_.c_str());
 
 		// Check if token is a reserved keyword.
 		if(reserved_.find(token_.value_) != reserved_.end())

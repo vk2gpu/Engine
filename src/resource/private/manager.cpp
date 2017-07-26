@@ -404,7 +404,8 @@ namespace Resource
 		    , convertedPath_(convertedPath)
 		{
 			Core::AtomicInc(&impl_->pendingResourceJobs_);
-			Core::AtomicInc(&entry->converting_);
+			i32 val = Core::AtomicInc(&entry->converting_);
+			DBG_ASSERT(val == 1);
 		}
 
 		virtual ~ResourceConvertJob()
@@ -468,16 +469,13 @@ namespace Resource
 				if(idx_ < impl_->resourceList_.size())
 				{
 					auto* entry = impl_->resourceList_[idx_];
-					if(entry->converting_ == 0)
+					if(entry->ResourceOutOfDate(&impl_->pathResolver_))
 					{
-						if(entry->ResourceOutOfDate(&impl_->pathResolver_))
+						if(std::find(convertList_.begin(), convertList_.end(), entry) == convertList_.end())
 						{
-							if(std::find(convertList_.begin(), convertList_.end(), entry) == convertList_.end())
-							{
-								impl_->AcquireResourceEntry(entry);
-								convertList_.push_back(entry);
-								convertTimer_.Mark();
-							}
+							impl_->AcquireResourceEntry(entry);
+							convertList_.push_back(entry);
+							convertTimer_.Mark();
 						}
 					}
 
@@ -490,18 +488,21 @@ namespace Resource
 			{
 				for(auto* entry : convertList_)
 				{
-					DBG_LOG("Resource \"%s\" is out of date.\n", entry->sourceFile_.c_str());
-
-					// Setup convert job.
-					auto* convertJob = new ResourceConvertJob(
-						entry, entry->type_, entry->sourceFile_.c_str(), entry->convertedFile_.c_str());
-
-					// Setup load job to chain.
-					if(auto factory = impl_->GetFactory(entry->type_))
+					if(entry->converting_ == 0)
 					{
-						convertJob->loadJob_ = new ResourceLoadJob(
-							factory, entry, entry->type_, entry->sourceFile_.c_str(), Core::File());
-						convertJob->RunSingle(0);
+						DBG_LOG("Resource \"%s\" is out of date.\n", entry->sourceFile_.c_str());
+
+						// Setup convert job.
+						auto* convertJob = new ResourceConvertJob(
+							entry, entry->type_, entry->sourceFile_.c_str(), entry->convertedFile_.c_str());
+
+						// Setup load job to chain.
+						if(auto factory = impl_->GetFactory(entry->type_))
+						{
+							convertJob->loadJob_ = new ResourceLoadJob(
+								factory, entry, entry->type_, entry->sourceFile_.c_str(), Core::File());
+							convertJob->RunSingle(0);
+						}
 					}
 
 					impl_->ReleaseResourceEntry(entry);

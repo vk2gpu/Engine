@@ -32,6 +32,20 @@ namespace Graphics
 			}
 		}
 
+		Write("////////////////////////////////////////////////////////////////////////////////////////////////////");
+		NextLine();
+		Write("// cbuffers");
+		NextLine();
+
+		for(auto* intNode : node->cbuffers_)
+		{
+			if(!IsInternal(intNode))
+			{
+				intNode->Visit(this);
+				NextLine();
+			}
+		}
+
 
 		Write("////////////////////////////////////////////////////////////////////////////////////////////////////");
 		NextLine();
@@ -146,17 +160,27 @@ namespace Graphics
 		for(auto* attrib : node->attributes_)
 			attrib->Visit(this);
 
-		Write("struct %s", node->name_.c_str());
+		Write("%s %s", node->isCBuffer_ ? "cbuffer" : "struct", node->name_.c_str());
+
+		if(node->isCBuffer_)
+			Write(": register(b%i)", cbufferReg_++);
+
 		NextLine();
 		Write("{");
 		NextLine();
 
 		++indent_;
 
+		if(node->isCBuffer_)
+			++inCBuffer_;
+
 		for(auto* member : node->type_->members_)
 		{
 			member->Visit(this);
 		}
+
+		if(node->isCBuffer_)
+			--inCBuffer_;
 
 		--indent_;
 
@@ -169,12 +193,6 @@ namespace Graphics
 
 	bool ShaderBackendHLSL::VisitEnter(AST::NodeDeclaration* node)
 	{
-		if(writeInternalDeclaration_)
-		{
-			int a = 0;
-			++a;
-		}
-
 		if(writeInternalDeclaration_ != nullptr && !IsInternal(node, writeInternalDeclaration_))
 			return false;
 		else if(writeInternalDeclaration_ == nullptr && IsInternal(node))
@@ -223,8 +241,6 @@ namespace Graphics
 		else
 		{
 			Core::String reg;
-			if(node->type_->baseType_->metaData_ == "CBUFFER")
-				reg.Printf("register(b%i)", cbufferReg_++);
 			if(node->type_->baseType_->metaData_ == "SRV")
 				reg.Printf("register(t%i)", srvReg_++);
 			if(node->type_->baseType_->metaData_ == "UAV")
@@ -234,11 +250,14 @@ namespace Graphics
 					if(attr->HasParameter(0) && attr->GetParameter(0) == "SamplerState")
 						reg.Printf("register(s%i)", samplerReg_++);
 
-			if(node->semantic_.size() > 0)
-				Write(" : %s", node->semantic_.c_str());
+			if(inCBuffer_ == 0)
+			{
+				if(node->semantic_.size() > 0)
+					Write(" : %s", node->semantic_.c_str());
 
-			if(reg.size() > 0)
-				Write(" : %s", reg.c_str());
+				if(reg.size() > 0)
+					Write(" : %s", reg.c_str());
+			}
 
 			if(node->value_)
 			{
@@ -287,7 +306,7 @@ namespace Graphics
 				Write("    ");
 		}
 
-#if 0
+#if 1
 		{
 			va_list args;
 			va_start(args, msg);
