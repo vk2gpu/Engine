@@ -107,7 +107,7 @@ namespace Graphics
 		 */
 		GPU::Handle GetBinding();
 
-		/// @return If shader technique is valid.
+		/// @return Is shader technique is valid.
 		operator bool() const { return !!impl_; }
 
 	private:
