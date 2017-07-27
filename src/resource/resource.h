@@ -25,5 +25,7 @@ namespace Resource
 #define DECLARE_RESOURCE(NAME, VERSION)                                                                                \
 	static const char* GetTypeName() { return #NAME; }                                                                 \
 	static Core::UUID GetTypeUUID() { return Core::UUID(GetTypeName()); }                                              \
-	static const u32 RESOURCE_VERSION = VERSION
+	static const u32 RESOURCE_VERSION = VERSION;                                                                       \
+	static void RegisterFactory();                                                                                     \
+	static void UnregisterFactory();
 }

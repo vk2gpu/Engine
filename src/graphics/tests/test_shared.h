@@ -11,7 +11,6 @@
 #include "plugin/manager.h"
 #include "resource/manager.h"
 
-#include "graphics/factory.h"
 #include "graphics/shader.h"
 #include "graphics/texture.h"
 
@@ -23,28 +22,20 @@ namespace
 		setupParams.debuggerIntegration_ = GPU::DebuggerIntegrationFlags::NONE;
 		return setupParams;
 	}
-}
 
-
-namespace
-{
 	class ScopedFactory
 	{
 	public:
 		ScopedFactory()
 		{
-			factory_ = new Graphics::Factory();
-			Resource::Manager::RegisterFactory<Graphics::Shader>(factory_);
-			Resource::Manager::RegisterFactory<Graphics::Texture>(factory_);
+			Graphics::Shader::RegisterFactory();
+			Graphics::Texture::RegisterFactory();
 		}
 
 		~ScopedFactory()
 		{
-			Resource::Manager::UnregisterFactory(factory_);
-			delete factory_;
+			Graphics::Shader::UnregisterFactory();
+			Graphics::Texture::UnregisterFactory();
 		}
-
-	private:
-		Resource::IFactory* factory_ = nullptr;
 	};
 }

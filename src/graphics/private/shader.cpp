@@ -1,7 +1,11 @@
 #include "graphics/shader.h"
 #include "graphics/private/shader_impl.h"
 
+#include "resource/factory.h"
+#include "resource/manager.h"
+
 #include "core/debug.h"
+#include "core/file.h"
 #include "core/hash.h"
 #include "core/misc.h"
 #include "gpu/manager.h"
@@ -10,198 +14,190 @@
 
 namespace Graphics
 {
-	ShaderTechniqueDesc& ShaderTechniqueDesc::SetVertexElement(i32 idx, const GPU::VertexElement& element)
+	class ShaderFactory : public Resource::IFactory
 	{
-		numVertexElements_ = Core::Max(numVertexElements_, idx + 1);
-		vertexElements_[idx] = element;
-		return *this;
-	}
-
-	ShaderTechniqueDesc& ShaderTechniqueDesc::SetTopology(GPU::TopologyType topology)
-	{
-		topology_ = topology;
-		return *this;
-	}
-
-	ShaderTechniqueDesc& ShaderTechniqueDesc::SetRTVFormat(i32 idx, GPU::Format format)
-	{
-		numRTs_ = Core::Max(numRTs_, idx + 1);
-		rtvFormats_[idx] = format;
-		return *this;
-	}
-
-	ShaderTechniqueDesc& ShaderTechniqueDesc::SetDSVFormat(GPU::Format format)
-	{
-		dsvFormat_ = format;
-		return *this;
-	}
-
-	bool operator!=(const GPU::VertexElement& a, const GPU::VertexElement& b)
-	{
-		if(a.streamIdx_ != b.streamIdx_ || a.offset_ != b.offset_ || a.format_ != b.format_ || a.usage_ != b.usage_ ||
-		    a.usageIdx_ != b.usageIdx_)
+	public:
+		bool CreateResource(Resource::IFactoryContext& context, void** outResource, const Core::UUID& type) override
+		{
+			DBG_ASSERT(type == Shader::GetTypeUUID());
+			*outResource = new Shader();
 			return true;
-		return false;
-	}
+		}
 
-	bool operator==(const ShaderTechniqueDesc& a, const ShaderTechniqueDesc& b)
-	{
-		if(a.numVertexElements_ != b.numVertexElements_)
-			return false;
-		for(i32 idx = 0; idx < a.numVertexElements_; ++idx)
-			if(a.vertexElements_[idx] != b.vertexElements_[idx])
+		bool DestroyResource(Resource::IFactoryContext& context, void** inResource, const Core::UUID& type) override
+		{
+			DBG_ASSERT(type == Shader::GetTypeUUID());
+			auto* shader = reinterpret_cast<Shader*>(*inResource);
+			delete shader;
+			*inResource = nullptr;
+			return true;
+		}
+
+		bool LoadResource(Resource::IFactoryContext& context, void** inResource, const Core::UUID& type,
+		    const char* name, Core::File& inFile) override
+		{
+			Shader* shader = *reinterpret_cast<Shader**>(inResource);
+			DBG_ASSERT(shader);
+
+			const bool isReload = shader->IsReady();
+			DBG_ASSERT(shader->impl_ == nullptr || isReload);
+
+			Graphics::ShaderHeader header;
+			i32 readBytes = 0;
+
+			// Read in desc.
+			readBytes = sizeof(header);
+			if(inFile.Read(&header, readBytes) != readBytes)
+			{
 				return false;
-		if(a.topology_ != b.topology_)
-			return false;
-		if(a.numRTs_ != b.numRTs_)
-			return false;
-		for(i32 idx = 0; idx < a.numRTs_; ++idx)
-			if(a.rtvFormats_[idx] != b.rtvFormats_[idx])
+			}
+
+			// Check magic.
+			if(header.magic_ != Graphics::ShaderHeader::MAGIC)
 				return false;
-		if(a.dsvFormat_ != b.dsvFormat_)
-			return false;
 
-		return true;
-	}
+			// Check version.
+			if(header.majorVersion_ != Graphics::ShaderHeader::MAJOR_VERSION)
+				return false;
 
-	ShaderImpl::ShaderImpl() {}
+			if(header.minorVersion_ != Graphics::ShaderHeader::MINOR_VERSION)
+				DBG_LOG("Minor version differs from expected. Can still load successfully.");
 
-	ShaderImpl::~ShaderImpl()
-	{
-		DBG_ASSERT_MSG(techniques_.size() == 0, "Techniques still reference this shader.");
+			// Creating shader impl.
+			auto* impl = new ShaderImpl();
+			impl->name_ = name;
+			impl->header_ = header;
 
-		if(GPU::Manager::IsInitialized())
-		{
-			for(auto ps : pipelineStates_)
-				GPU::Manager::DestroyResource(ps);
-			for(auto s : shaders_)
-				GPU::Manager::DestroyResource(s);
-		}
-	}
-
-	ShaderTechniqueImpl* ShaderImpl::CreateTechnique(const char* name, const ShaderTechniqueDesc& desc)
-	{
-		// See if there is a matching name + descriptor, if not, add it.
-		i32 foundIdx = -1;
-		u32 hash = Core::HashCRC32(0, &desc, sizeof(desc));
-		hash = Core::Hash(hash, name);
-		for(i32 idx = 0; idx < techniqueDescHashes_.size(); ++idx)
-		{
-			if(techniqueDescHashes_[idx] == hash)
+			impl->bindingHeaders_.resize(header.numCBuffers_ + header.numSamplers_ + header.numSRVs_ + header.numUAVs_);
+			readBytes = impl->bindingHeaders_.size() * sizeof(ShaderBindingHeader);
+			if(inFile.Read(impl->bindingHeaders_.data(), readBytes) != readBytes)
 			{
-				DBG_ASSERT_MSG(techniqueDescs_[idx] == desc, "Technique hash collision!");
-				foundIdx = idx;
+				delete impl;
+				return false;
 			}
-		}
 
-		// None found, push to end of list.
-		if(foundIdx == -1)
-		{
-			techniqueDescHashes_.push_back(hash);
-			techniqueDescs_.push_back(desc);
-			pipelineStates_.resize(techniqueDescs_.size());
-			foundIdx = techniqueDescs_.size() - 1;
-		}
-
-		auto* impl = new ShaderTechniqueImpl();
-		impl->shader_ = this;
-		strcpy_s(impl->header_.name_, sizeof(impl->header_.name_), name);
-		impl->descIdx_ = foundIdx;
-
-		techniques_.push_back(impl);
-
-		// Setup newly created technique immediately.
-		SetupTechnique(impl);
-
-		return impl;
-	}
-
-	bool ShaderImpl::SetupTechnique(ShaderTechniqueImpl* impl)
-	{
-		DBG_ASSERT(impl);
-		DBG_ASSERT(impl->descIdx_ != -1);
-		DBG_ASSERT(impl->descIdx_ < pipelineStates_.size());
-
-		// Find valid technique header.
-		const ShaderTechniqueHeader* techHeader = nullptr;
-		for(const auto& it : techniqueHeaders_)
-		{
-			if(strcmp(it.name_, impl->header_.name_) == 0)
+			impl->bytecodeHeaders_.resize(header.numShaders_);
+			readBytes = impl->bytecodeHeaders_.size() * sizeof(ShaderBytecodeHeader);
+			if(inFile.Read(impl->bytecodeHeaders_.data(), readBytes) != readBytes)
 			{
-				techHeader = &it;
-				break;
+				delete impl;
+				return false;
 			}
-		}
 
-		if(techHeader == nullptr)
-		{
-			DBG_LOG("SetupTechnique: Shader \'%s\' is missing technique \'%s\'\n", name_.c_str(), impl->header_.name_);
-			impl->Invalidate();
-			return false;
-		}
-
-		// Create pipeline state for technique if there is none.
-		GPU::Handle psHandle = pipelineStates_[impl->descIdx_];
-		if(!psHandle && GPU::Manager::IsInitialized())
-		{
-			const auto& desc = techniqueDescs_[impl->descIdx_];
-			Core::Array<char, 128> debugName;
-			sprintf_s(debugName.data(), debugName.size(), "%s/%s", name_.c_str(), impl->header_.name_);
-
-			if(techHeader->cs_ != -1)
+			i32 numBindingMappings = 0;
+			i32 bytecodeSize = 0;
+			for(const auto& bytecodeHeader : impl->bytecodeHeaders_)
 			{
-				GPU::ComputePipelineStateDesc psDesc;
-				psDesc.shader_ = shaders_[techHeader->cs_];
-				psHandle = GPU::Manager::CreateComputePipelineState(psDesc, debugName.data());
+				numBindingMappings += bytecodeHeader.numCBuffers_ + bytecodeHeader.numSamplers_ +
+				                      bytecodeHeader.numSRVs_ + bytecodeHeader.numUAVs_;
+				bytecodeSize = Core::Max(bytecodeSize, bytecodeHeader.offset_ + bytecodeHeader.numBytes_);
+			}
+
+			impl->bindingMappings_.resize(numBindingMappings);
+			readBytes = impl->bindingMappings_.size() * sizeof(ShaderBindingMapping);
+			if(inFile.Read(impl->bindingMappings_.data(), readBytes) != readBytes)
+			{
+				delete impl;
+				return false;
+			}
+
+			impl->techniqueHeaders_.resize(header.numTechniques_);
+			readBytes = impl->techniqueHeaders_.size() * sizeof(ShaderTechniqueHeader);
+			if(inFile.Read(impl->techniqueHeaders_.data(), readBytes) != readBytes)
+			{
+				delete impl;
+				return false;
+			}
+
+			impl->bytecode_.resize(bytecodeSize);
+			readBytes = impl->bytecode_.size();
+			if(inFile.Read(impl->bytecode_.data(), readBytes) != readBytes)
+			{
+				delete impl;
+				return false;
+			}
+
+			// Create all the shaders.
+			GPU::Handle handle;
+			if(GPU::Manager::IsInitialized())
+			{
+				const ShaderBindingMapping* mapping = impl->bindingMappings_.data();
+				impl->shaders_.reserve(impl->shaders_.size());
+				impl->shaderBindingMappings_.reserve(impl->shaders_.size());
+				for(const auto& bytecode : impl->bytecodeHeaders_)
+				{
+					GPU::ShaderDesc desc;
+					desc.data_ = &impl->bytecode_[bytecode.offset_];
+					desc.dataSize_ = bytecode.numBytes_;
+					desc.type_ = bytecode.type_;
+					handle = GPU::Manager::CreateShader(desc, name);
+					if(!handle)
+					{
+						for(auto s : impl->shaders_)
+							GPU::Manager::DestroyResource(s);
+						delete impl;
+						return false;
+					}
+
+					impl->shaders_.push_back(handle);
+
+					impl->shaderBindingMappings_.push_back(mapping);
+
+					mapping += (bytecode.numCBuffers_ + bytecode.numSamplers_ + bytecode.numSRVs_ + bytecode.numUAVs_);
+				}
+
+				// Bytecode no longer needed once created.
+				impl->bytecode_.clear();
+			}
+
+			if(isReload)
+			{
+				auto reloadLock = Resource::Manager::TakeReloadLock();
+
+				// Setup technique descs, hashes, and empty pipeline states.
+				std::swap(impl->techniqueDescHashes_, shader->impl_->techniqueDescHashes_);
+				std::swap(impl->techniqueDescs_, shader->impl_->techniqueDescs_);
+				impl->pipelineStates_.resize(impl->techniqueDescs_.size());
+
+				// Swap techniques over.
+				std::swap(impl->techniques_, shader->impl_->techniques_);
+
+				// Setup techniques again in their new impl.
+				for(i32 idx = 0; idx < impl->techniques_.size(); ++idx)
+				{
+					auto* techImpl = impl->techniques_[idx];
+					techImpl->shader_ = impl;
+					impl->SetupTechnique(techImpl);
+				}
+
+				std::swap(shader->impl_, impl);
+				delete impl;
 			}
 			else
 			{
-				GPU::GraphicsPipelineStateDesc psDesc;
-				psDesc.shaders_[(i32)GPU::ShaderType::VS] =
-				    techHeader->vs_ != -1 ? shaders_[techHeader->vs_] : GPU::Handle();
-				psDesc.shaders_[(i32)GPU::ShaderType::GS] =
-				    techHeader->gs_ != -1 ? shaders_[techHeader->gs_] : GPU::Handle();
-				psDesc.shaders_[(i32)GPU::ShaderType::HS] =
-				    techHeader->hs_ != -1 ? shaders_[techHeader->hs_] : GPU::Handle();
-				psDesc.shaders_[(i32)GPU::ShaderType::DS] =
-				    techHeader->ds_ != -1 ? shaders_[techHeader->ds_] : GPU::Handle();
-				psDesc.shaders_[(i32)GPU::ShaderType::PS] =
-				    techHeader->ps_ != -1 ? shaders_[techHeader->ps_] : GPU::Handle();
-				psDesc.renderState_ = techHeader->rs_;
-				psDesc.numVertexElements_ = desc.numVertexElements_;
-				memcpy(&psDesc.vertexElements_[0], desc.vertexElements_.data(), sizeof(psDesc.vertexElements_));
-				psDesc.topology_ = desc.topology_;
-				psDesc.numRTs_ = desc.numRTs_;
-				memcpy(&psDesc.rtvFormats_[0], desc.rtvFormats_.data(), sizeof(psDesc.rtvFormats_));
-				psDesc.dsvFormat_ = desc.dsvFormat_;
-				psHandle = GPU::Manager::CreateGraphicsPipelineState(psDesc, debugName.data());
+				std::swap(shader->impl_, impl);
+				DBG_ASSERT(impl == nullptr);
 			}
-			pipelineStates_[impl->descIdx_] = psHandle;
+
+			return true;
 		}
+	};
 
-		if(!psHandle)
-		{
-			DBG_LOG("SetupTechnique: Failed to create pipeline state for technique \'%s\' in shader \'%s\'\n",
-			    impl->header_.name_, name_.c_str());
-			impl->Invalidate();
-			return false;
-		}
+	static ShaderFactory* factory_ = nullptr;
 
-		impl->shader_ = this;
-		impl->header_ = *techHeader;
-		impl->cbvs_.resize(header_.numCBuffers_);
-		impl->samplers_.resize(header_.numSamplers_);
-		impl->srvs_.resize(header_.numSRVs_);
-		impl->uavs_.resize(header_.numUAVs_);
-		impl->bs_.pipelineState_ = psHandle;
-		impl->bsDirty_ = true;
+	void Shader::RegisterFactory()
+	{
+		DBG_ASSERT(factory_ == nullptr);
+		factory_ = new ShaderFactory();
+		Resource::Manager::RegisterFactory<Shader>(factory_);
+	}
 
-		// Calculate offset into vectors for setting.
-		impl->samplerOffset_ = impl->cbvs_.size();
-		impl->srvOffset_ = impl->samplers_.size() + impl->samplerOffset_;
-		impl->uavOffset_ = impl->srvs_.size() + impl->srvOffset_;
-
-		return true;
+	void Shader::UnregisterFactory()
+	{
+		DBG_ASSERT(factory_ != nullptr);
+		Resource::Manager::UnregisterFactory(factory_);
+		delete factory_;
+		factory_ = nullptr;
 	}
 
 	Shader::Shader()
@@ -582,5 +578,198 @@ namespace Graphics
 		return impl_ ? impl_->bsHandle_ : GPU::Handle();
 	}
 
+	ShaderTechniqueDesc& ShaderTechniqueDesc::SetVertexElement(i32 idx, const GPU::VertexElement& element)
+	{
+		numVertexElements_ = Core::Max(numVertexElements_, idx + 1);
+		vertexElements_[idx] = element;
+		return *this;
+	}
+
+	ShaderTechniqueDesc& ShaderTechniqueDesc::SetTopology(GPU::TopologyType topology)
+	{
+		topology_ = topology;
+		return *this;
+	}
+
+	ShaderTechniqueDesc& ShaderTechniqueDesc::SetRTVFormat(i32 idx, GPU::Format format)
+	{
+		numRTs_ = Core::Max(numRTs_, idx + 1);
+		rtvFormats_[idx] = format;
+		return *this;
+	}
+
+	ShaderTechniqueDesc& ShaderTechniqueDesc::SetDSVFormat(GPU::Format format)
+	{
+		dsvFormat_ = format;
+		return *this;
+	}
+
+	bool operator!=(const GPU::VertexElement& a, const GPU::VertexElement& b)
+	{
+		if(a.streamIdx_ != b.streamIdx_ || a.offset_ != b.offset_ || a.format_ != b.format_ || a.usage_ != b.usage_ ||
+		    a.usageIdx_ != b.usageIdx_)
+			return true;
+		return false;
+	}
+
+	bool operator==(const ShaderTechniqueDesc& a, const ShaderTechniqueDesc& b)
+	{
+		if(a.numVertexElements_ != b.numVertexElements_)
+			return false;
+		for(i32 idx = 0; idx < a.numVertexElements_; ++idx)
+			if(a.vertexElements_[idx] != b.vertexElements_[idx])
+				return false;
+		if(a.topology_ != b.topology_)
+			return false;
+		if(a.numRTs_ != b.numRTs_)
+			return false;
+		for(i32 idx = 0; idx < a.numRTs_; ++idx)
+			if(a.rtvFormats_[idx] != b.rtvFormats_[idx])
+				return false;
+		if(a.dsvFormat_ != b.dsvFormat_)
+			return false;
+
+		return true;
+	}
+
+	ShaderImpl::ShaderImpl() {}
+
+	ShaderImpl::~ShaderImpl()
+	{
+		DBG_ASSERT_MSG(techniques_.size() == 0, "Techniques still reference this shader.");
+
+		if(GPU::Manager::IsInitialized())
+		{
+			for(auto ps : pipelineStates_)
+				GPU::Manager::DestroyResource(ps);
+			for(auto s : shaders_)
+				GPU::Manager::DestroyResource(s);
+		}
+	}
+
+	ShaderTechniqueImpl* ShaderImpl::CreateTechnique(const char* name, const ShaderTechniqueDesc& desc)
+	{
+		// See if there is a matching name + descriptor, if not, add it.
+		i32 foundIdx = -1;
+		u32 hash = Core::HashCRC32(0, &desc, sizeof(desc));
+		hash = Core::Hash(hash, name);
+		for(i32 idx = 0; idx < techniqueDescHashes_.size(); ++idx)
+		{
+			if(techniqueDescHashes_[idx] == hash)
+			{
+				DBG_ASSERT_MSG(techniqueDescs_[idx] == desc, "Technique hash collision!");
+				foundIdx = idx;
+			}
+		}
+
+		// None found, push to end of list.
+		if(foundIdx == -1)
+		{
+			techniqueDescHashes_.push_back(hash);
+			techniqueDescs_.push_back(desc);
+			pipelineStates_.resize(techniqueDescs_.size());
+			foundIdx = techniqueDescs_.size() - 1;
+		}
+
+		auto* impl = new ShaderTechniqueImpl();
+		impl->shader_ = this;
+		strcpy_s(impl->header_.name_, sizeof(impl->header_.name_), name);
+		impl->descIdx_ = foundIdx;
+
+		techniques_.push_back(impl);
+
+		// Setup newly created technique immediately.
+		SetupTechnique(impl);
+
+		return impl;
+	}
+
+	bool ShaderImpl::SetupTechnique(ShaderTechniqueImpl* impl)
+	{
+		DBG_ASSERT(impl);
+		DBG_ASSERT(impl->descIdx_ != -1);
+		DBG_ASSERT(impl->descIdx_ < pipelineStates_.size());
+
+		// Find valid technique header.
+		const ShaderTechniqueHeader* techHeader = nullptr;
+		for(const auto& it : techniqueHeaders_)
+		{
+			if(strcmp(it.name_, impl->header_.name_) == 0)
+			{
+				techHeader = &it;
+				break;
+			}
+		}
+
+		if(techHeader == nullptr)
+		{
+			DBG_LOG("SetupTechnique: Shader \'%s\' is missing technique \'%s\'\n", name_.c_str(), impl->header_.name_);
+			impl->Invalidate();
+			return false;
+		}
+
+		// Create pipeline state for technique if there is none.
+		GPU::Handle psHandle = pipelineStates_[impl->descIdx_];
+		if(!psHandle && GPU::Manager::IsInitialized())
+		{
+			const auto& desc = techniqueDescs_[impl->descIdx_];
+			Core::Array<char, 128> debugName;
+			sprintf_s(debugName.data(), debugName.size(), "%s/%s", name_.c_str(), impl->header_.name_);
+
+			if(techHeader->cs_ != -1)
+			{
+				GPU::ComputePipelineStateDesc psDesc;
+				psDesc.shader_ = shaders_[techHeader->cs_];
+				psHandle = GPU::Manager::CreateComputePipelineState(psDesc, debugName.data());
+			}
+			else
+			{
+				GPU::GraphicsPipelineStateDesc psDesc;
+				psDesc.shaders_[(i32)GPU::ShaderType::VS] =
+				    techHeader->vs_ != -1 ? shaders_[techHeader->vs_] : GPU::Handle();
+				psDesc.shaders_[(i32)GPU::ShaderType::GS] =
+				    techHeader->gs_ != -1 ? shaders_[techHeader->gs_] : GPU::Handle();
+				psDesc.shaders_[(i32)GPU::ShaderType::HS] =
+				    techHeader->hs_ != -1 ? shaders_[techHeader->hs_] : GPU::Handle();
+				psDesc.shaders_[(i32)GPU::ShaderType::DS] =
+				    techHeader->ds_ != -1 ? shaders_[techHeader->ds_] : GPU::Handle();
+				psDesc.shaders_[(i32)GPU::ShaderType::PS] =
+				    techHeader->ps_ != -1 ? shaders_[techHeader->ps_] : GPU::Handle();
+				psDesc.renderState_ = techHeader->rs_;
+				psDesc.numVertexElements_ = desc.numVertexElements_;
+				memcpy(&psDesc.vertexElements_[0], desc.vertexElements_.data(), sizeof(psDesc.vertexElements_));
+				psDesc.topology_ = desc.topology_;
+				psDesc.numRTs_ = desc.numRTs_;
+				memcpy(&psDesc.rtvFormats_[0], desc.rtvFormats_.data(), sizeof(psDesc.rtvFormats_));
+				psDesc.dsvFormat_ = desc.dsvFormat_;
+				psHandle = GPU::Manager::CreateGraphicsPipelineState(psDesc, debugName.data());
+			}
+			pipelineStates_[impl->descIdx_] = psHandle;
+		}
+
+		if(!psHandle)
+		{
+			DBG_LOG("SetupTechnique: Failed to create pipeline state for technique \'%s\' in shader \'%s\'\n",
+			    impl->header_.name_, name_.c_str());
+			impl->Invalidate();
+			return false;
+		}
+
+		impl->shader_ = this;
+		impl->header_ = *techHeader;
+		impl->cbvs_.resize(header_.numCBuffers_);
+		impl->samplers_.resize(header_.numSamplers_);
+		impl->srvs_.resize(header_.numSRVs_);
+		impl->uavs_.resize(header_.numUAVs_);
+		impl->bs_.pipelineState_ = psHandle;
+		impl->bsDirty_ = true;
+
+		// Calculate offset into vectors for setting.
+		impl->samplerOffset_ = impl->cbvs_.size();
+		impl->srvOffset_ = impl->samplers_.size() + impl->samplerOffset_;
+		impl->uavOffset_ = impl->srvs_.size() + impl->srvOffset_;
+
+		return true;
+	}
 
 } // namespace Graphics

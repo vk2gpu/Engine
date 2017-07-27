@@ -3,6 +3,8 @@
 #include "job/dll.h"
 #include "core/concurrency.h"
 
+#include <utility>
+
 namespace Job
 {
 	/**
@@ -87,18 +89,23 @@ namespace Job
 	{
 	public:
 		ScopedReadLock(RWLock& lock)
-		    : lock_(lock)
+		    : lock_(&lock)
 		{
-			lock_.BeginRead();
+			lock_->BeginRead();
 		}
 
-		~ScopedReadLock() { lock_.EndRead(); }
+		ScopedReadLock(ScopedReadLock&& other) { std::swap(lock_, other.lock_); }
+
+		~ScopedReadLock()
+		{
+			if(lock_)
+				lock_->EndRead();
+		}
 
 	private:
 		ScopedReadLock(const ScopedReadLock&) = delete;
-		ScopedReadLock(ScopedReadLock&&) = delete;
 
-		RWLock& lock_;
+		RWLock* lock_ = nullptr;
 	};
 
 	/**
@@ -108,18 +115,23 @@ namespace Job
 	{
 	public:
 		ScopedWriteLock(RWLock& lock)
-		    : lock_(lock)
+		    : lock_(&lock)
 		{
-			lock_.BeginWrite();
+			lock_->BeginWrite();
 		}
 
-		~ScopedWriteLock() { lock_.EndWrite(); }
+		ScopedWriteLock(ScopedWriteLock&& other) { std::swap(lock_, other.lock_); }
+
+		~ScopedWriteLock()
+		{
+			if(lock_)
+				lock_->EndWrite();
+		}
 
 	private:
 		ScopedWriteLock(const ScopedReadLock&) = delete;
-		ScopedWriteLock(ScopedReadLock&&) = delete;
 
-		RWLock& lock_;
+		RWLock* lock_ = nullptr;
 	};
 
 } // namespace Job

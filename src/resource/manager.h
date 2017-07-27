@@ -3,6 +3,7 @@
 #include "core/types.h"
 #include "resource/dll.h"
 #include "resource/types.h"
+#include "job/concurrency.h"
 
 namespace Core
 {
@@ -46,6 +47,11 @@ namespace Resource
 		 * Wait for reloading to complete.
 		 */
 		static void WaitOnReload();
+
+		/**
+		 * Take reload lock.
+		 */
+		static Job::ScopedWriteLock TakeReloadLock();
 
 		/**
 		 * Request resource by name & type.
@@ -165,4 +171,5 @@ namespace Resource
 		Manager() = delete;
 		~Manager() = delete;
 	};
+
 } // namespace Plugin

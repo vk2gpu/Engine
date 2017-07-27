@@ -462,7 +462,8 @@ namespace Graphics
 		if(Find(nodeType, token_.value_))
 		{
 			Error(node, ErrorType::TYPE_REDEFINITION,
-			    Core::String().Printf("\'%s\': '%s' type redefinition.", isCBuffer ? "cbuffer" : "struct", token_.value_.c_str()));
+			    Core::String().Printf(
+			        "\'%s\': '%s' type redefinition.", isCBuffer ? "cbuffer" : "struct", token_.value_.c_str()));
 			return node;
 		}
 

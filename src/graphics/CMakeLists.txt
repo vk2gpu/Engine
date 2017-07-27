@@ -1,12 +1,10 @@
 SET(SOURCES_PUBLIC 
 	"dll.h"
-	"factory.h"
 	"shader.h"
 	"texture.h"
 )
 
 SET(SOURCES_PRIVATE 
-	"private/factory.cpp"
 	"private/shader.cpp"
 	"private/shader_impl.h"
 	"private/texture.cpp"

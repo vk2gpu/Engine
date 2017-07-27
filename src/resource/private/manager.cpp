@@ -118,13 +118,16 @@ namespace Resource
 		/// Number of conversions running.
 		volatile i32 numConversionJobs_ = 0;
 		volatile i32 numReloadJobs_ = 0;
-		volatile i32 canReload_ = 0;
 
 		/// Resources.
 		volatile i32 pendingResourceJobs_ = 0;
 		ResourceList resourceList_;
 		ResourceList releasedResourceList_;
 		Job::RWLock resourceRWLock_;
+
+		// Read/write lock used to allow reloading logic to wait until it's safe,
+		// and to be blocked whilst everything is ticking.
+		Job::RWLock reloadRWLock_;
 
 		void AcquireResourceEntry(ResourceEntry* entry)
 		{
@@ -136,7 +139,7 @@ namespace Resource
 		{
 			releasedResourceList_.push_back(entry);
 			auto it = std::find_if(resourceList_.begin(), resourceList_.end(),
-				[entry](ResourceEntry* listEntry) { return entry == listEntry; });
+			    [entry](ResourceEntry* listEntry) { return entry == listEntry; });
 			DBG_ASSERT(it != resourceList_.end());
 			resourceList_.erase(it);
 		}
@@ -363,8 +366,6 @@ namespace Resource
 			if(isReload)
 			{
 				Core::AtomicInc(&impl_->numReloadJobs_);
-				while(impl_->canReload_ == 0)
-					Job::Manager::YieldCPU();
 			}
 			FactoryContext factoryContext;
 			success_ = factory_->LoadResource(factoryContext, &entry_->resource_, type_, name_.c_str(), file_);
@@ -451,14 +452,14 @@ namespace Resource
 			Core::AtomicInc(&impl_->pendingResourceJobs_);
 		}
 
-		virtual ~ResourceTimestampJob() 
-		{ 
+		virtual ~ResourceTimestampJob()
+		{
 			for(auto* entry : convertList_)
 			{
 				impl_->ReleaseResourceEntry(entry);
 			}
 			convertList_.clear();
-			Core::AtomicDec(&impl_->pendingResourceJobs_); 
+			Core::AtomicDec(&impl_->pendingResourceJobs_);
 		}
 
 		void OnWork(i32 param) override
@@ -469,7 +470,7 @@ namespace Resource
 				if(idx_ < impl_->resourceList_.size())
 				{
 					auto* entry = impl_->resourceList_[idx_];
-					if(entry->ResourceOutOfDate(&impl_->pathResolver_))
+					if(entry->loaded_ && entry->ResourceOutOfDate(&impl_->pathResolver_))
 					{
 						if(std::find(convertList_.begin(), convertList_.end(), entry) == convertList_.end())
 						{
@@ -494,13 +495,13 @@ namespace Resource
 
 						// Setup convert job.
 						auto* convertJob = new ResourceConvertJob(
-							entry, entry->type_, entry->sourceFile_.c_str(), entry->convertedFile_.c_str());
+						    entry, entry->type_, entry->sourceFile_.c_str(), entry->convertedFile_.c_str());
 
 						// Setup load job to chain.
 						if(auto factory = impl_->GetFactory(entry->type_))
 						{
 							convertJob->loadJob_ = new ResourceLoadJob(
-								factory, entry, entry->type_, entry->sourceFile_.c_str(), Core::File());
+							    factory, entry, entry->type_, entry->sourceFile_.c_str(), Core::File());
 							convertJob->RunSingle(0);
 						}
 					}
@@ -536,11 +537,14 @@ namespace Resource
 		// Create timestamp job to monitor resources.
 		auto* timeStampJob = new ResourceTimestampJob();
 		timeStampJob->RunSingle(0);
+
+		impl_->reloadRWLock_.BeginRead();
 	}
 
 	void Manager::Finalize()
 	{
 		DBG_ASSERT(impl_);
+		impl_->reloadRWLock_.EndRead();
 		delete impl_;
 		impl_ = nullptr;
 	}
@@ -549,16 +553,12 @@ namespace Resource
 
 	void Manager::WaitOnReload()
 	{
-		if(impl_->numReloadJobs_ > 0)
-		{
-			Core::AtomicInc(&impl_->canReload_);
-			while(impl_->numReloadJobs_ > 0)
-			{
-				Job::Manager::YieldCPU();
-			}
-			Core::AtomicDec(&impl_->canReload_);
-		}
+		impl_->reloadRWLock_.EndRead();
+		Job::Manager::YieldCPU();
+		impl_->reloadRWLock_.BeginRead();
 	}
+
+	Job::ScopedWriteLock Manager::TakeReloadLock() { return Job::ScopedWriteLock(impl_->reloadRWLock_); }
 
 	bool Manager::RequestResource(void*& outResource, const char* name, const Core::UUID& type)
 	{

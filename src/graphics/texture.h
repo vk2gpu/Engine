@@ -26,7 +26,7 @@ namespace Graphics
 		Texture(const Texture&) = delete;
 		Texture& operator=(const Texture&) = delete;
 
-		friend class Factory;
+		friend class TextureFactory;
 
 		struct TextureImpl* impl_ = nullptr;
 	};

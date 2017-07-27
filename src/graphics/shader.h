@@ -29,7 +29,7 @@ namespace Graphics
 		ShaderTechnique CreateTechnique(const char* name, const ShaderTechniqueDesc& desc);
 
 	private:
-		friend class Factory;
+		friend class ShaderFactory;
 
 		Shader();
 		~Shader();

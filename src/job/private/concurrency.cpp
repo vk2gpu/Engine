@@ -6,9 +6,7 @@
 
 namespace Job
 {
-	SpinLock::SpinLock()
-	{
-	}
+	SpinLock::SpinLock() {}
 
 	SpinLock::~SpinLock() { DBG_ASSERT(count_ == 0); }
 
