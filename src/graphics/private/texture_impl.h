@@ -7,6 +7,8 @@ namespace Graphics
 	{
 		GPU::Handle handle_;
 		GPU::TextureDesc desc_;
+
+		~TextureImpl();
 	};
 
 } // namespace Graphics

@@ -85,10 +85,6 @@ namespace Graphics
 				}
 			}
 
-			if(isReload)
-			{
-			}
-
 			// Create GPU texture if initialized.
 			GPU::Handle handle;
 			if(GPU::Manager::IsInitialized())
@@ -96,10 +92,22 @@ namespace Graphics
 				handle = GPU::Manager::CreateTexture(desc, subRscs.data(), name);
 			}
 
-			// Finish creating texture.
-			texture->impl_ = new TextureImpl();
-			texture->impl_->desc_ = desc;
-			texture->impl_->handle_ = handle;
+			// Create impl.
+			auto impl = new TextureImpl();
+			impl->desc_ = desc;
+			impl->handle_ = handle; 
+
+			if(isReload)
+			{
+				auto lock = Resource::Manager::TakeReloadLock();
+				std::swap(texture->impl_, impl);
+				delete impl;
+			}
+			else
+			{
+				std::swap(texture->impl_, impl);
+				DBG_ASSERT(impl == nullptr);
+			}
 
 			return true;
 		}
@@ -127,13 +135,8 @@ namespace Graphics
 	}
 
 	Texture::~Texture()
-	{ //
+	{
 		DBG_ASSERT(impl_);
-
-		if(GPU::Manager::IsInitialized())
-		{
-			GPU::Manager::DestroyResource(impl_->handle_);
-		}
 		delete impl_;
 	}
 
@@ -147,6 +150,14 @@ namespace Graphics
 	{
 		DBG_ASSERT(impl_);
 		return impl_->handle_;
+	}
+
+	TextureImpl::~TextureImpl()
+	{
+		if(GPU::Manager::IsInitialized())
+		{
+			GPU::Manager::DestroyResource(handle_);
+		}
 	}
 
 } // namespace Graphics

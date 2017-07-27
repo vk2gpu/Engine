@@ -190,7 +190,9 @@ namespace GPU
 	void Manager::Finalize()
 	{
 		DBG_ASSERT(impl_);
-		impl_->ProcessDeletions();
+
+		for(i32 idx = 0; idx < MAX_GPU_FRAMES; ++idx)
+			NextFrame();
 
 #if !defined(FINAL)
 		for(i32 i = 0; i < (i32)ResourceType::MAX; ++i)

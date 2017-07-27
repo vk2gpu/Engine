@@ -130,7 +130,7 @@ namespace
 			dbsDesc.ib_.resource_ = ibHandle_;
 			dbsHandle_ = GPU::Manager::CreateDrawBindingSet(dbsDesc, "Trangle Drawer DBS");
 
-			REQUIRE(Resource::Manager::RequestResource(texture_, "test_texture_bc7.dds"));
+			REQUIRE(Resource::Manager::RequestResource(texture_, "test_texture.png"));
 			Resource::Manager::WaitForResource(texture_);
 
 			GPU::SamplerState smpDesc;
@@ -138,7 +138,15 @@ namespace
 			DBG_ASSERT(smpHandle_);
 		}
 
-		~TriangleDrawer() { REQUIRE(Resource::Manager::ReleaseResource(texture_)); }
+		~TriangleDrawer()
+		{
+			REQUIRE(Resource::Manager::ReleaseResource(texture_)); 
+
+			GPU::Manager::DestroyResource(vbHandle_);
+			GPU::Manager::DestroyResource(ibHandle_);
+			GPU::Manager::DestroyResource(dbsHandle_);
+			GPU::Manager::DestroyResource(smpHandle_);
+		}
 
 		void Draw(GPU::Handle fbs, GPU::DrawState drawState, Graphics::ShaderTechnique& tech, GPU::CommandList& cmdList)
 		{
