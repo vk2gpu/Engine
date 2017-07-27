@@ -7,8 +7,6 @@ SET(SOURCES_PUBLIC
 )
 
 SET(SOURCES_PRIVATE 
-	"private/database.h"
-	"private/database.cpp"
 	"private/converter_context.h"
 	"private/converter_context.cpp"
 	"private/factory_context.h"
@@ -21,7 +19,6 @@ SET(SOURCES_PRIVATE
 )
 
 SET(SOURCES_TESTS
-	"tests/database_tests.cpp"
 	"tests/manager_tests.cpp"
 	"tests/test_entry.cpp"
 	"tests/resource_tests.cpp"
