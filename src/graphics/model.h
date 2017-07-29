@@ -9,7 +9,6 @@
 #include "resource/resource.h"
 
 
-
 namespace Graphics
 {
 	struct ModelMeshDraw
@@ -39,7 +38,7 @@ namespace Graphics
 
 		/// @return Is model ready for use?
 		bool IsReady() const { return !!impl_; }
-		
+
 	private:
 		friend class ModelFactory;
 

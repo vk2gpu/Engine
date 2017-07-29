@@ -230,10 +230,7 @@ namespace Graphics
 		delete impl_;
 	}
 
-	i32 Model::GetNumMeshes() const
-	{
-		return impl_->data_.numMeshNodes_;
-	}
+	i32 Model::GetNumMeshes() const { return impl_->data_.numMeshNodes_; }
 
 	Core::ArrayView<GPU::VertexElement> Model::GetMeshVertexElements(i32 meshIdx) const
 	{
@@ -242,8 +239,8 @@ namespace Graphics
 		const i32 idx = meshNode.meshIdx_;
 		if(idx >= 0)
 			return Core::ArrayView<GPU::VertexElement>(
-				impl_->elements_.data() + impl_->modelMeshes_[idx].startVertexElements_,
-				impl_->elements_.data() + impl_->modelMeshes_[idx].endVertexElements_);		
+			    impl_->elements_.data() + impl_->modelMeshes_[idx].startVertexElements_,
+			    impl_->elements_.data() + impl_->modelMeshes_[idx].endVertexElements_);
 		else
 			return Core::ArrayView<GPU::VertexElement>();
 	}

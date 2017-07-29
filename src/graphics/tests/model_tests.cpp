@@ -80,7 +80,6 @@ namespace
 		GPU::Handle fbsHandle_;
 		GPU::Handle cmdHandle_;
 	};
-
 }
 
 TEST_CASE("graphics-tests-model-request")
@@ -146,12 +145,9 @@ TEST_CASE("graphics-tests-model-draw")
 		{
 			if(auto pbs = drawStuff.tech.GetBinding())
 			{
-				cmdList.Draw(pbs, drawStuff.db, window.fbsHandle_,
-					window.drawState_, 
-					GPU::PrimitiveTopology::TRIANGLE_LIST, 
-						drawStuff.draw.indexOffset_, 
-						drawStuff.draw.vertexOffset_, 
-						drawStuff.draw.noofIndices_, 0, 1);
+				cmdList.Draw(pbs, drawStuff.db, window.fbsHandle_, window.drawState_,
+				    GPU::PrimitiveTopology::TRIANGLE_LIST, drawStuff.draw.indexOffset_, drawStuff.draw.vertexOffset_,
+				    drawStuff.draw.noofIndices_, 0, 1);
 			}
 		}
 
