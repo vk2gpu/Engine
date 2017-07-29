@@ -1,5 +1,26 @@
 #include "lib.esh"
 
+struct View
+{ 
+	float4x4 view_;
+	float4x4 proj_;
+};
+
+struct Object
+{
+	float4x4 world_;	
+};
+
+cbuffer ObjectCBuffer
+{
+	Object o_;
+};
+
+cbuffer ViewCBuffer
+{
+	View v_;
+};
+
 SamplerState SS_DEFAULT =
 {
 	.AddressU = WRAP,
@@ -28,14 +49,19 @@ VS_OUT vs_main(in VS_IN _in)
 	return _out;
 }
 
+float4 ps_debug(in VS_OUT _in) : SV_TARGET0
+{
+	return float4(fmod(_in.position.x, 1.0), fmod(_in.position.y, 1.0), 1.0, 1.0);
+}
+
 float4 ps_main(in VS_OUT _in) : SV_TARGET0
 {
-	return tex_diffuse.Sample(SS_DEFAULT, _in.uv.xy) * float4(1.0, 0.0, 1.0, 1.0);
+	return tex_diffuse.Sample(SS_DEFAULT, _in.uv.xy) * float4(1.0, 1.0, 1.0, 1.0);
 }
 
 float4 ps_shadow(in VS_OUT _in) : SV_TARGET0
 {
-	return float4(1.0, 1.0, 1.0, 1.0);
+	return float4(1.0, 0.0, 1.0, 1.0);
 }
 
 RenderState RS_DEFAULT =
@@ -57,14 +83,20 @@ RenderState RS_DEFAULT =
 	.FillMode = SOLID,
 };
 
-#if 1
+Technique TECH_DEBUG =
+{
+	.VertexShader = vs_main,
+	.PixelShader = ps_debug,
+	.RenderState = RS_DEFAULT,
+};
+
 Technique TECH_MAIN =
 {
 	.VertexShader = vs_main,
 	.PixelShader = ps_main,
 	.RenderState = RS_DEFAULT,
 };
-#endif
+
 Technique TECH_SHADOW =
 {
 	.VertexShader = vs_main,
