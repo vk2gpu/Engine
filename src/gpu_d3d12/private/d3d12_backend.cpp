@@ -1102,8 +1102,11 @@ namespace GPU
 
 	ErrorCode D3D12Backend::ResizeSwapChain(Handle handle, i32 width, i32 height) { return ErrorCode::UNIMPLEMENTED; }
 
-	void D3D12Backend::NextFrame() { device_->NextFrame(); }
-
+	void D3D12Backend::NextFrame()
+	{
+		if(device_)
+			device_->NextFrame(); 
+	}
 
 	D3D12Resource* D3D12Backend::GetD3D12Resource(Handle handle)
 	{
