@@ -41,6 +41,10 @@ TARGET_LINK_LIBRARIES(graphics gpu job math resource)
 TARGET_LINK_LIBRARIES(graphics_test client fcpp)
 
 # Plugins
+SET(SOURCES_MODEL_CONVERTER
+	"converters/converter_model.cpp"
+)
+
 SET(SOURCES_TEXTURE_CONVERTER
 	"converters/converter_texture.cpp"
 	"converters/dds.h"
@@ -70,15 +74,17 @@ INCLUDE_DIRECTORIES(
 	"${ENGINE_3RDPARTY_PATH}/fcpp"
 	"${ENGINE_3RDPARTY_PATH}/stb"
 	"${ENGINE_3RDPARTY_PATH}/squish"
+	"${ENGINE_3RDPARTY_PATH}/assimp/include"
 )
 
-ADD_LIBRARY(converter_graphics_shader SHARED ${SOURCES_SHADER_CONVERTER})
+ADD_ENGINE_PLUGIN(converter_graphics_model SHARED ${SOURCES_MODEL_CONVERTER})
+SET_TARGET_PROPERTIES(converter_graphics_model PROPERTIES FOLDER Libraries/Plugins)
+TARGET_LINK_LIBRARIES(converter_graphics_model core graphics resource assimp)
+
+ADD_ENGINE_PLUGIN(converter_graphics_shader SHARED ${SOURCES_SHADER_CONVERTER})
 SET_TARGET_PROPERTIES(converter_graphics_shader PROPERTIES FOLDER Libraries/Plugins)
 TARGET_LINK_LIBRARIES(converter_graphics_shader core graphics resource fcpp)
-SOURCE_GROUP("Public" FILES ${SOURCES_SHADER_CONVERTER})
 
-
-ADD_LIBRARY(converter_graphics_texture SHARED ${SOURCES_TEXTURE_CONVERTER})
+ADD_ENGINE_PLUGIN(converter_graphics_texture SHARED ${SOURCES_TEXTURE_CONVERTER})
 SET_TARGET_PROPERTIES(converter_graphics_texture PROPERTIES FOLDER Libraries/Plugins)
 TARGET_LINK_LIBRARIES(converter_graphics_texture core graphics resource squish)
-SOURCE_GROUP("Public" FILES ${SOURCES_TEXTURE_CONVERTER})

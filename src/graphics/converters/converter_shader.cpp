@@ -71,16 +71,6 @@ namespace
 				return false;
 			}
 
-			char destDir[Core::MAX_PATH_LENGTH];
-			memset(destDir, 0, sizeof(destDir));
-			if(!Core::FileSplitPath(destPath, destDir, sizeof(destDir), nullptr, 0, nullptr, 0))
-			{
-				context.AddError(__FILE__, __LINE__, "INTERNAL ERROR: Core::FileSplitPath failed.");
-				return false;
-			}
-
-			Core::FileCreateDir(destDir);
-
 			char outFilename[Core::MAX_PATH_LENGTH];
 			memset(outFilename, 0, sizeof(outFilename));
 			strcat_s(outFilename, sizeof(outFilename), destPath);

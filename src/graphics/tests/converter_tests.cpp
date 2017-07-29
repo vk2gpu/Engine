@@ -1,13 +1,19 @@
 #include "catch.hpp"
 #include "test_shared.h"
 
+TEST_CASE("graphics-tests-converter-model")
+{
+	ScopedEngine engine;
+
+	Graphics::Model* model = nullptr;
+	REQUIRE(Resource::Manager::RequestResource(model, "model_tests/teapot.obj"));
+	Resource::Manager::WaitForResource(model);
+	REQUIRE(Resource::Manager::ReleaseResource(model));
+}
+
 TEST_CASE("graphics-tests-converter-shader")
 {
-	Plugin::Manager::Scoped pluginManager;
-	GPU::Manager::Scoped gpuManager(GetDefaultSetupParams());
-	Job::Manager::Scoped jobManager(2, 256, 32 * 1024);
-	Resource::Manager::Scoped resourceManager;
-	ScopedFactory factory;
+	ScopedEngine engine;
 
 	// Init device.
 	i32 numAdapters = GPU::Manager::EnumerateAdapters(nullptr, 0);
@@ -23,11 +29,7 @@ TEST_CASE("graphics-tests-converter-shader")
 
 TEST_CASE("graphics-tests-converter-texture")
 {
-	Plugin::Manager::Scoped pluginManager;
-	GPU::Manager::Scoped gpuManager(GetDefaultSetupParams());
-	Job::Manager::Scoped jobManager(2, 256, 32 * 1024);
-	Resource::Manager::Scoped resourceManager;
-	ScopedFactory factory;
+	ScopedEngine engine;
 
 	// Init device.
 	i32 numAdapters = GPU::Manager::EnumerateAdapters(nullptr, 0);

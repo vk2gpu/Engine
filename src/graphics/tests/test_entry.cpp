@@ -9,14 +9,14 @@
 
 int main(int argc, char* const argv[])
 {
+	Client::Manager::Scoped clientManager;
+
 	// Change to executable path.
 	char path[Core::MAX_PATH_LENGTH];
 	if(Core::FileSplitPath(argv[0], path, Core::MAX_PATH_LENGTH, nullptr, 0, nullptr, 0))
 	{
 		Core::FileChangeDir(path);
 	}
-
-	Client::Manager::Scoped();
 
 	auto RetVal = Catch::Session().run(argc, argv);
 	if(Core::IsDebuggerAttached() && RetVal != 0)

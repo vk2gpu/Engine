@@ -2,6 +2,7 @@
 
 #include "core/types.h"
 #include "core/allocator.h"
+#include "core/array_view.h"
 #include "core/debug.h"
 
 #include <utility>
@@ -32,7 +33,7 @@ namespace Core
 		}
 
 		Vector(Vector&& other) { swap(other); }
-		Vector(index_type size) { resize(size); }
+		Vector(index_type size, const TYPE& default = TYPE()) { resize(size, default); }
 
 		~Vector() { internalResize(0); }
 
@@ -63,6 +64,8 @@ namespace Core
 			std::swap(size_, other.size_);
 			std::swap(capacity_, other.capacity_);
 		}
+
+		operator ArrayView<TYPE>() const { return ArrayView<TYPE>(data_, size_); }
 
 		TYPE& operator[](index_type idx)
 		{

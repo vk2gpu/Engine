@@ -95,7 +95,7 @@ namespace Graphics
 			// Create impl.
 			auto impl = new TextureImpl();
 			impl->desc_ = desc;
-			impl->handle_ = handle; 
+			impl->handle_ = handle;
 
 			if(isReload)
 			{

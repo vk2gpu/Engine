@@ -6,6 +6,20 @@
 namespace GPU
 {
 	/**
+	 * Format type.
+	 */
+	enum FormatType
+	{
+		INVALID = -1,
+		TYPELESS = 0,
+		FLOAT,
+		UINT,
+		SINT,
+		UNORM,
+		SNORM,
+	};
+
+	/**
 	 * Format info.
 	 */
 	struct GPU_DLL FormatInfo
@@ -24,6 +38,8 @@ namespace GPU
 		i32 bBits_ = 0;
 		/// Number of bits for alpha channel.
 		i32 aBits_ = 0;
+		/// RGBA format.
+		FormatType rgbaFormat_ = FormatType::INVALID;
 		/// Number of bits for depth.
 		i32 dBits_ = 0;
 		/// Number of bits for stencil.

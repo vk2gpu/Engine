@@ -51,6 +51,16 @@ namespace Resource
 		dependencies_.clear();
 		outputs_.clear();
 
+		// Create destination directory.
+		char destDir[Core::MAX_PATH_LENGTH];
+		memset(destDir, 0, sizeof(destDir));
+		if(!Core::FileSplitPath(destPath, destDir, sizeof(destDir), nullptr, 0, nullptr, 0))
+		{
+			AddError(__FILE__, __LINE__, "INTERNAL ERROR: Core::FileSplitPath failed.");
+			return false;
+		}
+		Core::FileCreateDir(destDir);
+
 		// Do conversion.
 		return converter->Convert(*this, sourceFile, destPath);
 	}

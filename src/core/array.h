@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/types.h"
+#include "core/array_view.h"
 #include "core/debug.h"
 
 namespace Core
@@ -51,6 +52,8 @@ namespace Core
 				std::swap(Data_[Idx], Other.Data_[Idx]);
 			return *this;
 		}
+
+		operator ArrayView<TYPE>() const { return ArrayView<TYPE>(data_, size_); }
 
 		TYPE& operator[](index_type Idx)
 		{

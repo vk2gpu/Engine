@@ -140,7 +140,7 @@ namespace
 
 		~TriangleDrawer()
 		{
-			REQUIRE(Resource::Manager::ReleaseResource(texture_)); 
+			REQUIRE(Resource::Manager::ReleaseResource(texture_));
 
 			GPU::Manager::DestroyResource(vbHandle_);
 			GPU::Manager::DestroyResource(ibHandle_);
@@ -168,17 +168,7 @@ namespace
 
 TEST_CASE("graphics-tests-shader-request")
 {
-	Plugin::Manager::Scoped pluginManager;
-	GPU::Manager::Scoped gpuManager(GetDefaultSetupParams());
-	Job::Manager::Scoped jobManager(2, 256, 32 * 1024);
-	Resource::Manager::Scoped resourceManager;
-	ScopedFactory factory;
-
-	// Init device.
-	i32 numAdapters = GPU::Manager::EnumerateAdapters(nullptr, 0);
-	REQUIRE(numAdapters > 0);
-
-	REQUIRE(GPU::Manager::CreateAdapter(0) == GPU::ErrorCode::OK);
+	ScopedEngine engine;
 
 	Graphics::Shader* shader = nullptr;
 	REQUIRE(Resource::Manager::RequestResource(shader, "shader_tests/00-basic.esf"));
@@ -188,18 +178,7 @@ TEST_CASE("graphics-tests-shader-request")
 
 TEST_CASE("graphics-tests-shader-create-technique")
 {
-	Client::Manager::Scoped clientManager;
-	Plugin::Manager::Scoped pluginManager;
-	GPU::Manager::Scoped gpuManager(GetDefaultSetupParams());
-	Job::Manager::Scoped jobManager(2, 256, 32 * 1024);
-	Resource::Manager::Scoped resourceManager;
-	ScopedFactory factory;
-
-	// Init device.
-	i32 numAdapters = GPU::Manager::EnumerateAdapters(nullptr, 0);
-	REQUIRE(numAdapters > 0);
-
-	REQUIRE(GPU::Manager::CreateAdapter(0) == GPU::ErrorCode::OK);
+	ScopedEngine engine;
 
 	Window window("test");
 	TriangleDrawer drawer;
