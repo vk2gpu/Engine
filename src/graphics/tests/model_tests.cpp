@@ -157,6 +157,10 @@ TEST_CASE("graphics-tests-model-draw")
 		Resource::Manager::WaitOnReload();
 	}
 
+	drawStuffs.clear();
+
+	GPU::Manager::DestroyResource(smpHandle);
+
 	REQUIRE(Resource::Manager::ReleaseResource(shader));
 	REQUIRE(Resource::Manager::ReleaseResource(model));
 }

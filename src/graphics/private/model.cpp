@@ -189,7 +189,7 @@ namespace Graphics
 					desc.ib_.stride_ = mesh.indexStride_;
 					desc.vbs_[0].offset_ = 0;
 					desc.vbs_[0].resource_ = impl->vbs_[idx];
-					desc.vbs_[0].offset_ = mesh.noofVertices_ * mesh.vertexStride_;
+					desc.vbs_[0].size_ = mesh.noofVertices_ * mesh.vertexStride_;
 					desc.vbs_[0].stride_ = mesh.vertexStride_;
 					GPU::Handle db = GPU::Manager::CreateDrawBindingSet(desc, name);
 					impl->dbs_.push_back(db);
