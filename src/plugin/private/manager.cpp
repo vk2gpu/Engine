@@ -6,6 +6,7 @@
 #include "core/file.h"
 #include "core/library.h"
 #include "core/map.h"
+#include "core/string.h"
 #include "core/uuid.h"
 
 #include <cstring>
@@ -13,27 +14,21 @@
 
 namespace Plugin
 {
-	static const char* COPY_PREFIX = "_";
+	static const char* COPY_PATH = "plugin_tmp";
 
 	struct PluginDesc
 	{
 		PluginDesc() = default;
 		PluginDesc(const char* path, const char* libName)
 		{
-			i32 pathLength = (i32)strlen(path) + 1;
-			i32 fileNameLength = pathLength + (i32)strlen(libName);
-			i32 prefixLength = pathLength + (i32)strlen(COPY_PREFIX);
+			fileName_.Printf("%s/%s", path, libName);
+			tempFileName_.Printf("%s/%s", path, COPY_PATH);
 
-			fileName_.resize(fileNameLength + 1, 0);
-			strcat_s(fileName_.data(), fileName_.size(), path);
-			strcat_s(fileName_.data(), fileName_.size(), "/");
-			strcat_s(fileName_.data(), fileName_.size(), libName);
-
-			tempFileName_.resize(fileNameLength + prefixLength + 1, 0);
-			strcat_s(tempFileName_.data(), tempFileName_.size(), path);
-			strcat_s(tempFileName_.data(), tempFileName_.size(), "/");
-			strcat_s(tempFileName_.data(), tempFileName_.size(), COPY_PREFIX);
-			strcat_s(tempFileName_.data(), tempFileName_.size(), libName);
+			if(!Core::FileExists(tempFileName_.c_str()))
+			{
+				Core::FileCreateDir(tempFileName_.c_str());
+			}
+			tempFileName_.Appendf("/%s", libName);
 
 			Reload();
 		}
@@ -131,8 +126,8 @@ namespace Plugin
 
 		operator bool() const { return validPlugin_; }
 
-		Core::Vector<char> fileName_;
-		Core::Vector<char> tempFileName_;
+		Core::String fileName_;
+		Core::String tempFileName_;
 		Core::FileTimestamp modifiedTimestamp_;
 		Core::LibHandle handle_ = 0;
 		GetPluginFn getPlugin_ = nullptr;
@@ -190,23 +185,20 @@ namespace Plugin
 			for(i32 i = 0; i < foundLibs; ++i)
 			{
 				const Core::FileInfo& fileInfo = fileInfos[i];
-				if(strstr(fileInfo.fileName_, COPY_PREFIX) != fileInfo.fileName_)
+				PluginDesc* pluginDesc = new PluginDesc(path, fileInfo.fileName_);
+				if(*pluginDesc)
 				{
-					PluginDesc* pluginDesc = new PluginDesc(path, fileInfo.fileName_);
-					if(*pluginDesc)
-					{
-						pluginDesc->plugin_.fileName_ = pluginDesc->fileName_.data();
-						pluginDesc->plugin_.fileUuid_ = Core::UUID(pluginDesc->plugin_.fileName_);
+					pluginDesc->plugin_.fileName_ = pluginDesc->fileName_.data();
+					pluginDesc->plugin_.fileUuid_ = Core::UUID(pluginDesc->plugin_.fileName_);
 
-						if(impl_->pluginDesc_.find(pluginDesc->plugin_.fileUuid_) == impl_->pluginDesc_.end())
-						{
-							impl_->pluginDesc_.insert(pluginDesc->plugin_.fileUuid_, pluginDesc);
-						}
-					}
-					else
+					if(impl_->pluginDesc_.find(pluginDesc->plugin_.fileUuid_) == impl_->pluginDesc_.end())
 					{
-						delete pluginDesc;
+						impl_->pluginDesc_.insert(pluginDesc->plugin_.fileUuid_, pluginDesc);
 					}
+				}
+				else
+				{
+					delete pluginDesc;
 				}
 			}
 		}
