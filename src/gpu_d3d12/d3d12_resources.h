@@ -129,6 +129,9 @@ namespace GPU
 		D3D12DescriptorAllocation uavs_;
 		D3D12DescriptorAllocation cbvs_;
 		D3D12DescriptorAllocation samplers_;
+
+		Core::Array<D3D12Resource*, MAX_SRV_BINDINGS> srvTransitions_;
+		Core::Array<D3D12Resource*, MAX_UAV_BINDINGS> uavTransitions_;
 	};
 
 	struct D3D12DrawBindingSet
@@ -145,7 +148,7 @@ namespace GPU
 		D3D12DescriptorAllocation rtvs_;
 		D3D12DescriptorAllocation dsv_;
 		Core::Vector<D3D12Resource*> rtvResources_;
-		Core::Vector<D3D12Resource*> dsvResources_;
+		D3D12Resource* dsvResource_ = nullptr;
 		FrameBindingSetDesc desc_;
 		D3D12SwapChain* swapChain_ = nullptr;
 		i32 numRTs_ = 0;

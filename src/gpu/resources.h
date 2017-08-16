@@ -247,6 +247,7 @@ namespace GPU
 		i32 firstArraySlice_ = 0;
 		i32 arraySize_ = 0;
 		i32 planeSlice_ = 0;
+		i32 structureByteStride_ = 0;
 		f32 resourceMinLODClamp_ = 0.0f;
 	};
 
@@ -261,6 +262,7 @@ namespace GPU
 		i32 mipSlice_FirstElement_ = 0;
 		i32 firstArraySlice_FirstWSlice_NumElements_ = 0;
 		i32 arraySize_PlaneSlice_WSize_ = 0;
+		i32 structureByteStride_ = 0;
 	};
 
 	/**

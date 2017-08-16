@@ -603,12 +603,12 @@ namespace GPU
 		return ErrorCode::OK;
 	}
 
-	void D3D12Device::DestroyPipelineBindingSet(D3D12PipelineBindingSet& pipelineBindingSet)
+	void D3D12Device::DestroyPipelineBindingSet(D3D12PipelineBindingSet& pbs)
 	{
-		cbvSrvUavAllocator_->Free(pipelineBindingSet.cbvs_);
-		// cbvAllocator_->Free(pipelineBindingSet.srvs_);
-		// uavAllocator_->Free(pipelineBindingSet.uavs_);
-		samplerAllocator_->Free(pipelineBindingSet.samplers_);
+		cbvSrvUavAllocator_->Free(pbs.cbvs_);
+		// cbvAllocator_->Free(pbs.srvs_);
+		// uavAllocator_->Free(pbs.uavs_);
+		samplerAllocator_->Free(pbs.samplers_);
 	}
 
 	ErrorCode D3D12Device::CreateFrameBindingSet(
@@ -625,39 +625,41 @@ namespace GPU
 		dsvAllocator_->Free(frameBindingSet.dsv_);
 	}
 
-	ErrorCode D3D12Device::UpdateSRVs(D3D12PipelineBindingSet& pipelineBindingSet, i32 first, i32 num,
-	    ID3D12Resource** resources, const D3D12_SHADER_RESOURCE_VIEW_DESC* descs)
+	ErrorCode D3D12Device::UpdateSRVs(D3D12PipelineBindingSet& pbs, i32 first, i32 num, D3D12Resource** resources,
+	    const D3D12_SHADER_RESOURCE_VIEW_DESC* descs)
 	{
 		i32 incr = d3dDevice_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-		D3D12_CPU_DESCRIPTOR_HANDLE handle = pipelineBindingSet.srvs_.cpuDescHandle_;
+		D3D12_CPU_DESCRIPTOR_HANDLE handle = pbs.srvs_.cpuDescHandle_;
 		handle.ptr += first * incr;
 		for(i32 i = 0; i < num; ++i)
 		{
-			d3dDevice_->CreateShaderResourceView(resources[i], &descs[i], handle);
+			d3dDevice_->CreateShaderResourceView(resources[i]->resource_.Get(), &descs[i], handle);
+			pbs.srvTransitions_[first + i] = resources[i];
 			handle.ptr += incr;
 		}
 		return ErrorCode::OK;
 	}
 
-	ErrorCode D3D12Device::UpdateUAVs(D3D12PipelineBindingSet& pipelineBindingSet, i32 first, i32 num,
-	    ID3D12Resource** resources, const D3D12_UNORDERED_ACCESS_VIEW_DESC* descs)
+	ErrorCode D3D12Device::UpdateUAVs(D3D12PipelineBindingSet& pbs, i32 first, i32 num, D3D12Resource** resources,
+	    const D3D12_UNORDERED_ACCESS_VIEW_DESC* descs)
 	{
 		i32 incr = d3dDevice_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-		D3D12_CPU_DESCRIPTOR_HANDLE handle = pipelineBindingSet.uavs_.cpuDescHandle_;
+		D3D12_CPU_DESCRIPTOR_HANDLE handle = pbs.uavs_.cpuDescHandle_;
 		handle.ptr += first * incr;
 		for(i32 i = 0; i < num; ++i)
 		{
-			d3dDevice_->CreateUnorderedAccessView(resources[i], nullptr, &descs[i], handle);
+			d3dDevice_->CreateUnorderedAccessView(resources[i]->resource_.Get(), nullptr, &descs[i], handle);
+			pbs.uavTransitions_[first + i] = resources[i];
 			handle.ptr += incr;
 		}
 		return ErrorCode::OK;
 	}
 
 	ErrorCode D3D12Device::UpdateCBVs(
-	    D3D12PipelineBindingSet& pipelineBindingSet, i32 first, i32 num, const D3D12_CONSTANT_BUFFER_VIEW_DESC* descs)
+	    D3D12PipelineBindingSet& pbs, i32 first, i32 num, const D3D12_CONSTANT_BUFFER_VIEW_DESC* descs)
 	{
 		i32 incr = d3dDevice_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-		D3D12_CPU_DESCRIPTOR_HANDLE handle = pipelineBindingSet.cbvs_.cpuDescHandle_;
+		D3D12_CPU_DESCRIPTOR_HANDLE handle = pbs.cbvs_.cpuDescHandle_;
 		handle.ptr += first * incr;
 		for(i32 i = 0; i < num; ++i)
 		{
@@ -668,10 +670,10 @@ namespace GPU
 	}
 
 	ErrorCode D3D12Device::UpdateSamplers(
-	    D3D12PipelineBindingSet& pipelineBindingSet, i32 first, i32 num, const D3D12_SAMPLER_DESC* descs)
+	    D3D12PipelineBindingSet& pbs, i32 first, i32 num, const D3D12_SAMPLER_DESC* descs)
 	{
 		i32 incr = d3dDevice_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-		D3D12_CPU_DESCRIPTOR_HANDLE handle = pipelineBindingSet.samplers_.cpuDescHandle_;
+		D3D12_CPU_DESCRIPTOR_HANDLE handle = pbs.samplers_.cpuDescHandle_;
 		handle.ptr += first * incr;
 		for(i32 i = 0; i < num; ++i)
 		{
@@ -682,7 +684,7 @@ namespace GPU
 	}
 
 	ErrorCode D3D12Device::UpdateFrameBindingSet(D3D12FrameBindingSet& inOutFbs,
-	    const D3D12_RENDER_TARGET_VIEW_DESC* rtvDescs, const D3D12_DEPTH_STENCIL_VIEW_DESC* dsvDescs)
+	    const D3D12_RENDER_TARGET_VIEW_DESC* rtvDescs, const D3D12_DEPTH_STENCIL_VIEW_DESC* dsvDesc)
 	{
 		i32 rtvIncr = d3dDevice_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 		D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = inOutFbs.rtvs_.cpuDescHandle_;
@@ -699,13 +701,13 @@ namespace GPU
 				}
 				rtvHandle.ptr += rtvIncr;
 			}
+		}
 
-			D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = inOutFbs.dsv_.cpuDescHandle_;
-			D3D12Resource* dsvResource = inOutFbs.dsvResources_[bufferIdx];
-			if(dsvResource)
-			{
-				d3dDevice_->CreateDepthStencilView(dsvResource->resource_.Get(), &dsvDescs[bufferIdx], dsvHandle);
-			}
+		D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = inOutFbs.dsv_.cpuDescHandle_;
+		D3D12Resource* dsvResource = inOutFbs.dsvResource_;
+		if(dsvResource)
+		{
+			d3dDevice_->CreateDepthStencilView(dsvResource->resource_.Get(), dsvDesc, dsvHandle);
 		}
 
 		return ErrorCode::OK;

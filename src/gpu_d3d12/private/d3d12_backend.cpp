@@ -608,9 +608,9 @@ namespace GPU
 		D3D12PipelineBindingSet pbs;
 
 		// Grab all resources to create pipeline binding set with.
-		Core::Array<ID3D12Resource*, MAX_SRV_BINDINGS> srvResources;
+		Core::Array<D3D12Resource*, MAX_SRV_BINDINGS> srvResources;
 		Core::Array<D3D12_SHADER_RESOURCE_VIEW_DESC, MAX_UAV_BINDINGS> srvs;
-		Core::Array<ID3D12Resource*, MAX_SRV_BINDINGS> uavResources;
+		Core::Array<D3D12Resource*, MAX_SRV_BINDINGS> uavResources;
 		Core::Array<D3D12_UNORDERED_ACCESS_VIEW_DESC, MAX_UAV_BINDINGS> uavs;
 		Core::Array<D3D12_CONSTANT_BUFFER_VIEW_DESC, MAX_CBV_BINDINGS> cbvs;
 		Core::Array<D3D12_SAMPLER_DESC, MAX_SAMPLER_BINDINGS> samplers;
@@ -632,7 +632,7 @@ namespace GPU
 
 				D3D12Resource* resource = GetD3D12Resource(srvHandle);
 				DBG_ASSERT(resource);
-				srvResources[i] = resource->resource_.Get();
+				srvResources[i] = resource;
 
 				const auto& srv = desc.srvs_[i];
 				srvs[i].Format = GetFormat(srv.format_);
@@ -647,8 +647,11 @@ namespace GPU
 				case ViewDimension::BUFFER:
 					srvs[i].Buffer.FirstElement = srv.mostDetailedMip_FirstElement_;
 					srvs[i].Buffer.NumElements = srv.mipLevels_NumElements_;
-					srvs[i].Buffer.StructureByteStride = 0;
-					srvs[i].Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
+					srvs[i].Buffer.StructureByteStride = srv.structureByteStride_;
+					if(srv.structureByteStride_ == 0)
+						srvs[i].Buffer.Flags = D3D12_BUFFER_SRV_FLAG_RAW;
+					else
+						srvs[i].Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
 					break;
 				case ViewDimension::TEX1D:
 					srvs[i].Texture1D.MostDetailedMip = srv.mostDetailedMip_FirstElement_;
@@ -708,7 +711,7 @@ namespace GPU
 
 				D3D12Resource* resource = GetD3D12Resource(uavHandle);
 				DBG_ASSERT(resource);
-				uavResources[i] = resource->resource_.Get();
+				uavResources[i] = resource;
 
 				const auto& uav = desc.uavs_[i];
 				uavs[i].Format = GetFormat(uav.format_);
@@ -718,7 +721,11 @@ namespace GPU
 				case ViewDimension::BUFFER:
 					uavs[i].Buffer.FirstElement = uav.mipSlice_FirstElement_;
 					uavs[i].Buffer.NumElements = uav.firstArraySlice_FirstWSlice_NumElements_;
-					uavs[i].Buffer.StructureByteStride = 0;
+					uavs[i].Buffer.StructureByteStride = uav.structureByteStride_;
+					if(uav.structureByteStride_ == 0)
+						uavs[i].Buffer.Flags = D3D12_BUFFER_UAV_FLAG_RAW;
+					else
+						uavs[i].Buffer.Flags = D3D12_BUFFER_UAV_FLAG_NONE;
 					break;
 				case ViewDimension::TEX1D:
 					uavs[i].Texture1D.MipSlice = uav.mipSlice_FirstElement_;
@@ -753,14 +760,22 @@ namespace GPU
 			for(i32 i = 0; i < desc.numCBVs_; ++i)
 			{
 				auto cbvHandle = desc.cbvs_[i].resource_;
-				DBG_ASSERT(cbvHandle.GetType() == ResourceType::BUFFER);
-				DBG_ASSERT(cbvHandle);
+				if(cbvHandle)
+				{
+					DBG_ASSERT(cbvHandle.GetType() == ResourceType::BUFFER);
+					DBG_ASSERT(cbvHandle);
 
-				const auto& cbv = desc.cbvs_[i];
+					const auto& cbv = desc.cbvs_[i];
 
-				cbvs[i].BufferLocation =
-				    bufferResources_[cbvHandle.GetIndex()].resource_->GetGPUVirtualAddress() + cbv.offset_;
-				cbvs[i].SizeInBytes = cbv.size_;
+					cbvs[i].BufferLocation =
+					    bufferResources_[cbvHandle.GetIndex()].resource_->GetGPUVirtualAddress() + cbv.offset_;
+					cbvs[i].SizeInBytes = Core::PotRoundUp(cbv.size_, D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT);
+				}
+				else
+				{
+					cbvs[i].BufferLocation = 0;
+					cbvs[i].SizeInBytes = 0;
+				}
 			}
 
 			for(i32 i = 0; i < desc.numSamplers_; ++i)
@@ -868,7 +883,7 @@ namespace GPU
 		{
 			Core::ScopedReadLock lock(resLock_);
 			Core::Vector<D3D12_RENDER_TARGET_VIEW_DESC> rtvDescs;
-			Core::Vector<D3D12_DEPTH_STENCIL_VIEW_DESC> dsvDescs;
+			D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc;
 
 			// Check if we're using a swapchain.
 			{
@@ -884,11 +899,10 @@ namespace GPU
 
 			// Resize to support number of buffers.
 			rtvDescs.resize(MAX_BOUND_RTVS * fbs.numBuffers_);
-			dsvDescs.resize(fbs.numBuffers_);
 			memset(rtvDescs.data(), 0, sizeof(D3D12_RENDER_TARGET_VIEW_DESC) * rtvDescs.size());
-			memset(dsvDescs.data(), 0, sizeof(D3D12_DEPTH_STENCIL_VIEW_DESC) * dsvDescs.size());
+			memset(&dsvDesc, 0, sizeof(D3D12_DEPTH_STENCIL_VIEW_DESC));
 			fbs.rtvResources_.resize(MAX_BOUND_RTVS * fbs.numBuffers_, nullptr);
-			fbs.dsvResources_.resize(fbs.numBuffers_, nullptr);
+			fbs.dsvResource_ = nullptr;
 
 			for(i32 bufferIdx = 0; bufferIdx < fbs.numBuffers_; ++bufferIdx)
 			{
@@ -951,13 +965,14 @@ namespace GPU
 						}
 					}
 				}
+			}
 
+			{
 				const auto& dsv = desc.dsv_;
 				Handle resource = dsv.resource_;
 				if(resource)
 				{
-					auto& dsvDesc = dsvDescs[bufferIdx];
-					D3D12Resource*& dsvResource = fbs.dsvResources_[bufferIdx];
+					D3D12Resource*& dsvResource = fbs.dsvResource_;
 					DBG_ASSERT(resource.GetType() == ResourceType::TEXTURE);
 					D3D12Texture* texture = GetD3D12Texture(resource);
 					DBG_ASSERT(Core::ContainsAnyFlags(
@@ -997,7 +1012,7 @@ namespace GPU
 
 			ErrorCode retVal;
 			RETURN_ON_ERROR(retVal = device_->CreateFrameBindingSet(fbs, fbs.desc_, debugName));
-			RETURN_ON_ERROR(retVal = device_->UpdateFrameBindingSet(fbs, rtvDescs.data(), dsvDescs.data()));
+			RETURN_ON_ERROR(retVal = device_->UpdateFrameBindingSet(fbs, rtvDescs.data(), &dsvDesc));
 		}
 
 		//
@@ -1105,7 +1120,7 @@ namespace GPU
 	void D3D12Backend::NextFrame()
 	{
 		if(device_)
-			device_->NextFrame(); 
+			device_->NextFrame();
 	}
 
 	D3D12Resource* D3D12Backend::GetD3D12Resource(Handle handle)

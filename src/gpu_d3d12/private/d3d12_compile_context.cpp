@@ -122,8 +122,7 @@ namespace GPU
 
 		D3D12_CPU_DESCRIPTOR_HANDLE handle = fbs.dsv_.cpuDescHandle_;
 
-		i32 dsvIdx = fbs.swapChain_ == nullptr ? 0 : fbs.swapChain_->bbIdx_;
-		AddTransition(fbs.dsvResources_[dsvIdx], D3D12_RESOURCE_STATE_DEPTH_WRITE);
+		AddTransition(fbs.dsvResource_, D3D12_RESOURCE_STATE_DEPTH_WRITE);
 		FlushTransitions();
 
 		d3dCommandList_->ClearDepthStencilView(
@@ -275,10 +274,21 @@ namespace GPU
 	ErrorCode D3D12CompileContext::SetPipelineBinding(Handle pbsHandle)
 	{
 		const auto& pbs = backend_.pipelineBindingSets_[pbsHandle.GetIndex()];
-
 		ID3D12DescriptorHeap* heaps[] = {
 		    pbs.samplers_.d3dDescriptorHeap_.Get(), pbs.srvs_.d3dDescriptorHeap_.Get(),
 		};
+
+		// Lazily setup transitions.
+		// TODO: Some better transition management here.
+		// Not all resources nessisarily need transitions.
+		for(i32 i = 0; i < pbs.srvTransitions_.size(); ++i)
+			if(pbs.srvTransitions_[i])
+				AddTransition(pbs.srvTransitions_[i],
+				    D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+
+		for(i32 i = 0; i < pbs.uavTransitions_.size(); ++i)
+			if(pbs.uavTransitions_[i])
+				AddTransition(pbs.uavTransitions_[i], D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
 		d3dCommandList_->SetDescriptorHeaps(2, heaps);
 		d3dCommandList_->SetPipelineState(pbs.pipelineState_.Get());
@@ -318,8 +328,7 @@ namespace GPU
 		D3D12_CPU_DESCRIPTOR_HANDLE* rtvDesc = nullptr;
 		D3D12_CPU_DESCRIPTOR_HANDLE* dsvDesc = nullptr;
 
-		i32 rtvBaseIdx = fbs.swapChain_ == nullptr ? 0 : fbs.swapChain_->bbIdx_ * MAX_BOUND_RTVS;
-		i32 dsvBaseIdx = fbs.swapChain_ == nullptr ? 0 : fbs.swapChain_->bbIdx_;
+		const i32 rtvBaseIdx = fbs.swapChain_ == nullptr ? 0 : fbs.swapChain_->bbIdx_ * MAX_BOUND_RTVS;
 
 		if(fbs.numRTs_)
 		{
@@ -342,16 +351,12 @@ namespace GPU
 
 			if(Core::ContainsAllFlags(fbs.desc_.dsv_.flags_, DSVFlags::READ_ONLY_DEPTH))
 			{
-				AddTransition(fbs.dsvResources_[dsvBaseIdx], D3D12_RESOURCE_STATE_DEPTH_READ);
+				AddTransition(fbs.dsvResource_, D3D12_RESOURCE_STATE_DEPTH_READ);
 			}
 			else
 			{
-				AddTransition(fbs.dsvResources_[dsvBaseIdx], D3D12_RESOURCE_STATE_DEPTH_WRITE);
+				AddTransition(fbs.dsvResource_, D3D12_RESOURCE_STATE_DEPTH_WRITE);
 			}
-
-			dsvDesc->ptr +=
-			    dsvBaseIdx *
-			    backend_.device_->d3dDevice_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
 		}
 
 		FlushTransitions();

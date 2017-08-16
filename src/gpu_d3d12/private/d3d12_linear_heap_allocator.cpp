@@ -89,11 +89,11 @@ namespace GPU
 		// If we have many blocks, merge into 1 and create as large as current total size.
 		if(blocks_.size() > 1)
 		{
-			Core::Log("More than 1 block allocated. Compacting.");
-			Core::Log("Total size: %u kB", totalSize / 1024);
-			Core::Log("Total usage this frame: %u kB", totalUsage / 1024);
-			Core::Log("Blocks: %u", blocks_.size());
-			Core::Log("Blocks created: %u", blocksCreated_);
+			Core::Log("More than 1 block allocated. Compacting.\n");
+			Core::Log("Total size: %u kB\n", totalSize / 1024);
+			Core::Log("Total usage this frame: %u kB\n", totalUsage / 1024);
+			Core::Log("Blocks: %u\n", blocks_.size());
+			Core::Log("Blocks created: %u\n", blocksCreated_);
 
 			blocks_.clear();
 			auto block = CreateResourceBlock(totalSize);
