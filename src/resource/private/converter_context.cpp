@@ -84,7 +84,7 @@ namespace Resource
 			callback(metaDataSer_, metaData);
 		}
 
-		if(auto object = metaDataSer_.Object("internal"))
+		if(auto object = metaDataSer_.Object("$internal"))
 		{
 			metaDataSer_.Serialize("dependencies", dependencies_);
 			metaDataSer_.Serialize("outputs", outputs_);

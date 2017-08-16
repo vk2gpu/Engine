@@ -292,7 +292,7 @@ namespace Graphics
 		binding.dimension_ = GPU::ViewDimension::BUFFER;
 		binding.mostDetailedMip_FirstElement_ = firstElement;
 		binding.mipLevels_NumElements_ = numElements;
-		DBG_ASSERT(structureByteStride == 0); // TODO.
+		binding.structureByteStride_ = structureByteStride;
 		impl_->bsDirty_ = true;
 	}
 
@@ -410,7 +410,7 @@ namespace Graphics
 	}
 
 	void ShaderTechnique::SetRWBuffer(
-	    i32 idx, GPU::Handle res, i32 firstElement, i32 numElements, i32 structuredByteSize)
+	    i32 idx, GPU::Handle res, i32 firstElement, i32 numElements, i32 structureByteStride)
 	{
 		idx -= impl_->uavOffset_;
 		DBG_ASSERT(idx >= 0 && idx < impl_->uavs_.size());
@@ -420,7 +420,7 @@ namespace Graphics
 		binding.dimension_ = GPU::ViewDimension::BUFFER;
 		binding.mipSlice_FirstElement_ = firstElement;
 		binding.firstArraySlice_FirstWSlice_NumElements_ = numElements;
-		DBG_ASSERT(structuredByteSize == 0); // TODO.
+		binding.structureByteStride_ = structureByteStride;
 		impl_->bsDirty_ = true;
 	}
 
@@ -506,42 +506,52 @@ namespace Graphics
 
 			if(impl_->IsValid())
 			{
+				impl_->bs_.numCBVs_ = 0;
+				impl_->bs_.numSamplers_ = 0;
+				impl_->bs_.numSRVs_ = 0;
+				impl_->bs_.numUAVs_ = 0;
+
 				// Setup binding set with offsets that come from shaders.
 				const auto SetupCBV = [this](const ShaderBindingMapping* mapping, i32 numMappings) {
-					impl_->bs_.numCBVs_ = numMappings;
 					for(i32 idx = 0; idx < numMappings; ++idx)
 					{
-						impl_->bs_.cbvs_[mapping[idx].dstSlot_] = impl_->cbvs_[mapping[idx].binding_];
+						const i32 dst = mapping[idx].dstSlot_;
+						const i32 binding = mapping[idx].binding_;
+						impl_->bs_.cbvs_[dst] = impl_->cbvs_[binding];
+						impl_->bs_.numCBVs_ = Core::Max(impl_->bs_.numCBVs_, dst + 1);
 					}
 					return mapping + numMappings;
 				};
 
 				const auto SetupSampler = [this](const ShaderBindingMapping* mapping, i32 numMappings) {
-					impl_->bs_.numSamplers_ = numMappings;
 					for(i32 idx = 0; idx < numMappings; ++idx)
 					{
-						impl_->bs_.samplers_[mapping[idx].dstSlot_] =
-						    impl_->samplers_[mapping[idx].binding_ - impl_->samplerOffset_];
+						const i32 dst = mapping[idx].dstSlot_;
+						const i32 binding = mapping[idx].binding_;
+						impl_->bs_.samplers_[dst] = impl_->samplers_[binding - impl_->samplerOffset_];
+						impl_->bs_.numSamplers_ = Core::Max(impl_->bs_.numSamplers_, dst + 1);
 					}
 					return mapping + numMappings;
 				};
 
 				const auto SetupSRV = [this](const ShaderBindingMapping* mapping, i32 numMappings) {
-					impl_->bs_.numSRVs_ = numMappings;
 					for(i32 idx = 0; idx < numMappings; ++idx)
 					{
-						impl_->bs_.srvs_[mapping[idx].dstSlot_] =
-						    impl_->srvs_[mapping[idx].binding_ - impl_->srvOffset_];
+						const i32 dst = mapping[idx].dstSlot_;
+						const i32 binding = mapping[idx].binding_;
+						impl_->bs_.srvs_[dst] = impl_->srvs_[binding - impl_->srvOffset_];
+						impl_->bs_.numSRVs_ = Core::Max(impl_->bs_.numSRVs_, dst + 1);
 					}
 					return mapping + numMappings;
 				};
 
 				const auto SetupUAV = [this](const ShaderBindingMapping* mapping, i32 numMappings) {
-					impl_->bs_.numUAVs_ = numMappings;
 					for(i32 idx = 0; idx < numMappings; ++idx)
 					{
-						impl_->bs_.uavs_[mapping[idx].dstSlot_] =
-						    impl_->uavs_[mapping[idx].binding_ - impl_->uavOffset_];
+						const i32 dst = mapping[idx].dstSlot_;
+						const i32 binding = mapping[idx].binding_;
+						impl_->bs_.uavs_[dst] = impl_->uavs_[binding - impl_->uavOffset_];
+						impl_->bs_.numUAVs_ = Core::Max(impl_->bs_.numUAVs_, dst + 1);
 					}
 					return mapping + numMappings;
 				};

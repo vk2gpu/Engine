@@ -300,6 +300,7 @@ namespace Graphics
 			bool isFunction_ = false;
 			Core::Vector<NodeDeclaration*> parameters_;
 			NodeValue* value_ = nullptr;
+			Core::Array<i32, 3> arrayDims_;
 		};
 
 		struct NodeValue : Node

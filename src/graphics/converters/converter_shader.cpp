@@ -88,6 +88,15 @@ namespace
 
 				Graphics::ShaderPreprocessor preprocessor;
 
+				// Resolve standard library path.
+				char stdLibFile[Core::MAX_PATH_LENGTH];
+				if(context.GetPathResolver()->ResolvePath("stdlib.esh", stdLibFile, sizeof(stdLibFile)))
+				{
+					char stdLibPath[Core::MAX_PATH_LENGTH];
+					Core::FileSplitPath(stdLibFile, stdLibPath, sizeof(stdLibPath), nullptr, 0, nullptr, 0);
+					preprocessor.AddInclude(stdLibPath);
+				}
+
 				// Setup include path to root of shader.
 				preprocessor.AddInclude(path);
 
@@ -187,24 +196,25 @@ namespace
 				BindingMap uavs;
 				i32 bindingIdx = 0;
 
-				for(const auto& compile : outputCompiles)
-				{
-					const auto AddBindings = [&](
-					    const Core::Vector<Graphics::ShaderBinding>& inBindings, BindingMap& outBindings) {
-						for(const auto& binding : inBindings)
+				const auto AddBindings = [&](
+				    const Core::Vector<Graphics::ShaderBinding>& inBindings, BindingMap& outBindings) {
+					for(const auto& binding : inBindings)
+					{
+						if(outBindings.find(binding.name_) == outBindings.end())
 						{
-							if(outBindings.find(binding.name_) == outBindings.end())
-							{
-								outBindings.insert(binding.name_, bindingIdx++);
-							}
+							outBindings.insert(binding.name_, bindingIdx++);
 						}
-					};
+					}
+				};
 
+				for(const auto& compile : outputCompiles)
 					AddBindings(compile.cbuffers_, cbuffers);
+				for(const auto& compile : outputCompiles)
 					AddBindings(compile.samplers_, samplers);
+				for(const auto& compile : outputCompiles)
 					AddBindings(compile.srvs_, srvs);
+				for(const auto& compile : outputCompiles)
 					AddBindings(compile.uavs_, uavs);
-				}
 
 				// Setup data ready to serialize.
 				Graphics::ShaderHeader outHeader;

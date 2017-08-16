@@ -25,7 +25,14 @@ namespace
 		"volatile",
 		"in",
 		"out",
-		"inout"
+		"inout",
+
+		// Geometry shader only.
+		"point",
+		"line",
+		"triangle",
+		"lineadj",
+		"triangleadj",
 	};
 
 	NodeModifier MODIFIERS[] =
@@ -52,6 +59,13 @@ namespace
 		{"uint2", 8},
 		{"uint3", 12},
 		{"uint4", 16},
+	};
+
+	NodeType STREAM_TYPES[] =
+	{
+		{"PointStream", -1, "STREAM"}, 
+		{"LineStream", -1, "STREAM"}, 
+		{"TriangleStream", -1, "STREAM"}, 
 	};
 
 	NodeType SRV_TYPES[] =
@@ -192,6 +206,7 @@ namespace Graphics
 		AddNodes(MODIFIERS);
 		AddReserved(MODIFIERS);
 		AddNodes(BASE_TYPES);
+		AddNodes(STREAM_TYPES);
 		AddNodes(SRV_TYPES);
 		AddNodes(UAV_TYPES);
 		AddNodes(ENUM_TYPES);
@@ -554,7 +569,28 @@ namespace Graphics
 
 		// Check for params/semantic/assignment/end.
 		PARSE_TOKEN();
-		if(token_.value_ == "(")
+
+		// Arrays.
+		node->arrayDims_.fill(0);
+		if(token_.value_ == "[")
+		{
+			i32 arrayDim = 0;
+			{
+				PARSE_TOKEN();
+				CHECK_TOKEN(AST::TokenType::INT, "");
+
+				node->arrayDims_[arrayDim++] = token_.valueInt_;
+
+				PARSE_TOKEN();
+				CHECK_TOKEN(AST::TokenType::CHAR, "]");
+
+				PARSE_TOKEN();
+			}
+			while(token_.value_ == "[" && arrayDim < 3)
+				;
+		}
+
+		else if(token_.value_ == "(")
 		{
 			node->isFunction_ = true;
 

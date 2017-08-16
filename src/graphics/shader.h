@@ -93,7 +93,7 @@ namespace Graphics
 
 		// UAV
 		void SetRWBuffer(
-		    i32 idx, GPU::Handle res, i32 firstElement = 0, i32 numElements = 0, i32 structuredByteSize = 0);
+		    i32 idx, GPU::Handle res, i32 firstElement = 0, i32 numElements = 0, i32 structureByteStride = 0);
 		void SetRWTexture1D(i32 idx, GPU::Handle res, i32 mipSlice = 0);
 		void SetRWTexture1DArray(
 		    i32 idx, GPU::Handle res, i32 mipSlice = 0, i32 firstArraySlice = 0, i32 arraySize = 0);

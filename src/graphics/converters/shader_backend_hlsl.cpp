@@ -207,11 +207,14 @@ namespace Graphics
 		for(auto* storageClass : node->storageClasses_)
 			Write("%s ", storageClass->name_.c_str());
 
-		for(auto* attrib : node->attributes_)
-			attrib->Visit(this);
-
 		node->type_->Visit(this);
 		Write(" %s", node->name_.c_str());
+
+		for(auto arrayDim : node->arrayDims_)
+		{
+			if(arrayDim > 0)
+				Write("[%u]", arrayDim);
+		}
 
 		if(node->isFunction_)
 		{

@@ -1,8 +1,10 @@
 #include "catch.hpp"
 #include "client/manager.h"
 #include "client/window.h"
+#include "core/misc.h"
 #include "math/vec2.h"
 #include "math/vec4.h"
+#include "math/mat44.h"
 #include "test_shared.h"
 
 namespace
@@ -148,11 +150,13 @@ namespace
 			GPU::Manager::DestroyResource(smpHandle_);
 		}
 
-		void Draw(GPU::Handle fbs, GPU::DrawState drawState, Graphics::ShaderTechnique& tech, GPU::CommandList& cmdList)
+		void Draw(GPU::Handle fbs, GPU::DrawState drawState, Graphics::ShaderTechnique& tech, GPU::CommandList& cmdList,
+		    i32 numInstanes = 1)
 		{
 			if(auto pbs = tech.GetBinding())
 			{
-				cmdList.Draw(pbs, dbsHandle_, fbs, drawState, GPU::PrimitiveTopology::TRIANGLE_LIST, 0, 0, 3, 0, 1);
+				cmdList.Draw(
+				    pbs, dbsHandle_, fbs, drawState, GPU::PrimitiveTopology::TRIANGLE_LIST, 0, 0, 3, 0, numInstanes);
 			}
 		}
 
@@ -176,7 +180,7 @@ TEST_CASE("graphics-tests-shader-request")
 	REQUIRE(Resource::Manager::ReleaseResource(shader));
 }
 
-TEST_CASE("graphics-tests-shader-create-technique")
+TEST_CASE("graphics-tests-shader-graphics-create-technique")
 {
 	ScopedEngine engine;
 
@@ -187,7 +191,7 @@ TEST_CASE("graphics-tests-shader-create-technique")
 	REQUIRE(Resource::Manager::RequestResource(shader, "shader_tests/00-basic.esf"));
 	Resource::Manager::WaitForResource(shader);
 
-	auto techMain = shader->CreateTechnique("TECH_MAIN", drawer.techDesc_);
+	auto techUpdate = shader->CreateTechnique("TECH_MAIN", drawer.techDesc_);
 	auto techShadow = shader->CreateTechnique("TECH_SHADOW", drawer.techDesc_);
 
 	i32 testRunCounter = GPU::MAX_GPU_FRAMES * 10;
@@ -198,11 +202,11 @@ TEST_CASE("graphics-tests-shader-create-technique")
 		const auto texIdx = shader->GetBindingIndex("tex_diffuse");
 		const auto samplerIdx = shader->GetBindingIndex("SS_DEFAULT");
 		if(texIdx >= 0)
-			techMain.SetTexture2D(texIdx, drawer.texture_->GetHandle(), 0, drawer.texture_->GetDesc().levels_);
+			techUpdate.SetTexture2D(texIdx, drawer.texture_->GetHandle(), 0, drawer.texture_->GetDesc().levels_);
 		if(samplerIdx >= 0)
-			techMain.SetSampler(samplerIdx, drawer.smpHandle_);
+			techUpdate.SetSampler(samplerIdx, drawer.smpHandle_);
 
-		drawer.Draw(window.fbsHandle_, window.drawState_, techMain, cmdList);
+		drawer.Draw(window.fbsHandle_, window.drawState_, techUpdate, cmdList);
 
 		window.End();
 
@@ -211,8 +215,148 @@ TEST_CASE("graphics-tests-shader-create-technique")
 	}
 
 
-	techMain = Graphics::ShaderTechnique();
+	techUpdate = Graphics::ShaderTechnique();
 	techShadow = Graphics::ShaderTechnique();
+
+	REQUIRE(Resource::Manager::ReleaseResource(shader));
+}
+
+TEST_CASE("graphics-tests-shader-compute-create-technique")
+{
+	ScopedEngine engine;
+
+	Window window("test");
+	TriangleDrawer drawer;
+
+	Graphics::Shader* shader = nullptr;
+	REQUIRE(Resource::Manager::RequestResource(shader, "shader_tests/00-particle.esf"));
+	Resource::Manager::WaitForResource(shader);
+
+	struct Particle
+	{
+		Math::Vec3 position;
+		Math::Vec3 velocity;
+	};
+
+	struct ParticleParams
+	{
+		Math::Vec4 time;
+		Math::Vec4 tick;
+		i32 maxWidth;
+	};
+
+	struct Camera
+	{
+		Math::Mat44 view;
+		Math::Mat44 viewProj;
+	};
+
+	const i32 numParticles = 8 * 1024;
+	const i32 maxParticleWidth = 4096;
+
+	const f32 tick = 1.0f / 600.0f;
+	ParticleParams params;
+	params.time = Math::Vec4(0.0f, 0.0f, 0.0f, 0.0f);
+	params.tick = Math::Vec4(tick, tick * 2.0f, tick * 0.5f, tick * 0.25f);
+	params.maxWidth = maxParticleWidth;
+
+	Camera camera;
+	camera.view.LookAt(Math::Vec3(0.0f, 5.0f, 10.0f), Math::Vec3(0.0f, 1.0f, 0.0f), Math::Vec3(0.0f, 1.0f, 0.0f));
+	camera.viewProj.PerspProjectionVertical(Core::F32_PIDIV4, 1024.0f / 720.0f, 0.01f, 300.0f);
+	camera.viewProj = camera.view * camera.viewProj;
+
+	GPU::BufferDesc particleParamsDesc;
+	particleParamsDesc.bindFlags_ = GPU::BindFlags::CONSTANT_BUFFER;
+	particleParamsDesc.size_ = sizeof(ParticleParams);
+	GPU::Handle particleParams = GPU::Manager::CreateBuffer(particleParamsDesc, &params, "particleParams");
+
+	GPU::BufferDesc cameraParamsDesc;
+	cameraParamsDesc.bindFlags_ = GPU::BindFlags::CONSTANT_BUFFER;
+	cameraParamsDesc.size_ = sizeof(Camera);
+	GPU::Handle cameraParams = GPU::Manager::CreateBuffer(cameraParamsDesc, &camera, "cameraParams");
+
+	Core::Random rng;
+
+	Core::Vector<Particle> particles(numParticles);
+
+	auto RNG_F32 = [&rng](f32 min, f32 max) {
+		f64 val = rng.Generate() / (f64)INT_MAX;
+		val = (min + (val * (max - min)));
+		val = Core::Clamp(val, min, max);
+		return (f32)val;
+	};
+
+	for(auto& particle : particles)
+	{
+		{
+			f32 xVal = RNG_F32(-4.0f, 4.0f);
+			f32 yVal = RNG_F32(4.0f, 4.0f);
+			f32 zVal = RNG_F32(-4.0f, 4.0f);
+			particle.position = Math::Vec3(xVal, yVal, zVal);
+		}
+
+		{
+			f32 xVal = RNG_F32(-2.0f, 2.0f);
+			f32 yVal = RNG_F32(2.0f, 8.0f);
+			f32 zVal = RNG_F32(-2.0f, 2.0f);
+			particle.velocity.x = xVal;
+			particle.velocity.y = yVal;
+			particle.velocity.z = zVal;
+		}
+	}
+
+	GPU::BufferDesc particleBufferDesc;
+	particleBufferDesc.bindFlags_ = GPU::BindFlags::UNORDERED_ACCESS | GPU::BindFlags::VERTEX_BUFFER;
+	particleBufferDesc.size_ = sizeof(Particle) * numParticles;
+	GPU::Handle particleBuffer = GPU::Manager::CreateBuffer(particleBufferDesc, particles.data(), "particleBuffer");
+
+	auto techUpdate = shader->CreateTechnique("TECH_PARTICLE_UPDATE", Graphics::ShaderTechniqueDesc());
+	auto techDraw = shader->CreateTechnique("TECH_PARTICLE_DRAW", drawer.techDesc_);
+
+	i32 testRunCounter = GPU::MAX_GPU_FRAMES * 10;
+	while(Client::Manager::Update() && (Core::IsDebuggerAttached() || testRunCounter-- > 0))
+	{
+		auto& cmdList = window.Begin();
+
+		const auto particleParamsIdx = shader->GetBindingIndex("ParticleConfig");
+		const auto cameraIdx = shader->GetBindingIndex("Camera");
+		const auto inoutParticlesIdx = shader->GetBindingIndex("inout_particles");
+		const auto inParticlesIdx = shader->GetBindingIndex("in_particles");
+		if(particleParamsIdx >= 0)
+		{
+			techUpdate.SetCBV(particleParamsIdx, particleParams, 0, sizeof(params));
+			techDraw.SetCBV(particleParamsIdx, particleParams, 0, sizeof(params));
+		}
+		if(cameraIdx >= 0)
+		{
+			techUpdate.SetCBV(cameraIdx, cameraParams, 0, sizeof(camera));
+			techDraw.SetCBV(cameraIdx, cameraParams, 0, sizeof(camera));
+		}
+		if(inoutParticlesIdx >= 0)
+		{
+			techUpdate.SetRWBuffer(inoutParticlesIdx, particleBuffer, 0, numParticles, sizeof(Particle));
+			techDraw.SetRWBuffer(inoutParticlesIdx, particleBuffer, 0, numParticles, sizeof(Particle));
+		}
+		if(inParticlesIdx >= 0)
+		{
+			techUpdate.SetBuffer(inParticlesIdx, particleBuffer, 0, numParticles, sizeof(Particle));
+			techDraw.SetBuffer(inParticlesIdx, particleBuffer, 0, numParticles, sizeof(Particle));
+		}
+
+		cmdList.Dispatch(techUpdate.GetBinding(), Core::Min(numParticles, maxParticleWidth),
+		    Core::Max(1, numParticles / maxParticleWidth), 1);
+
+		drawer.Draw(window.fbsHandle_, window.drawState_, techDraw, cmdList, numParticles);
+
+		params.time += params.tick;
+		cmdList.UpdateBuffer(particleParams, 0, sizeof(params), &params);
+		window.End();
+
+		// Wait for reloading to complete.
+		Resource::Manager::WaitOnReload();
+	}
+
+	techUpdate = Graphics::ShaderTechnique();
 
 	REQUIRE(Resource::Manager::ReleaseResource(shader));
 }
