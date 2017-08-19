@@ -100,6 +100,11 @@ TEST_CASE("function-tests-alloc")
 
 	i32 size2 = AllocatorTest::numBytes_;
 	REQUIRE(size2 == size0);
+
+	func = nullptr;
+
+	i32 size3 = AllocatorTest::numBytes_;
+	REQUIRE(size3 == 0);
 }
 
 

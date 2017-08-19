@@ -83,14 +83,12 @@ namespace Core
 
 		Function(const Function& func)
 		{
-			if(func.funcObj_)
-				funcObj_ = func.funcObj_->DoCopy(storage_);
+			copy(func.funcObj_);
 		}
 
 		Function& operator=(const Function& func)
 		{
-			if(func.funcObj_)
-				funcObj_ = func.funcObj_->DoCopy(storage_);
+			copy(func.funcObj_);
 			return *this;
 		}
 
@@ -103,11 +101,7 @@ namespace Core
 
 		~Function()
 		{
-			if(funcObj_)
-			{
-				funcObj_->~func_obj_base();
-				funcObj_ = nullptr;
-			}
+			destroy();
 		}
 
 		RET operator()(ARGS... args) const
@@ -119,6 +113,23 @@ namespace Core
 		operator bool() { return !!funcObj_; }
 
 	private:
+		void destroy()
+		{
+			if(funcObj_)
+			{
+				funcObj_->~func_obj_base();
+				funcObj_ = nullptr;
+			}
+		}
+
+		void copy(func_obj_base* other)
+		{
+			if(other)
+				funcObj_ = other->DoCopy(storage_);
+			else
+				destroy();
+		}
+
 		u8 storage_[MAX_SIZE];
 		func_obj_base* funcObj_ = nullptr;
 	};
