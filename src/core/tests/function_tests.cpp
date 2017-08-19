@@ -55,20 +55,21 @@ TEST_CASE("function-tests-copy")
 	{
 		i32 a = 123;
 		auto lambda = [a](i32 b) { return a * b; };
-		REQUIRE(lambda(2) == (a*2));
+		REQUIRE(lambda(2) == (a * 2));
 		Core::Function<i32(i32)> func;
 		REQUIRE(func == false);
 		func = lambda;
 		REQUIRE(func == true);
-		REQUIRE(func(2) == (a*2));
+		REQUIRE(func(2) == (a * 2));
 
 		Core::Function<i32(i32)> func2 = func;
 		REQUIRE(func == true);
-		REQUIRE(func(2) == (a*2));
+		REQUIRE(func(2) == (a * 2));
 		REQUIRE(func2 == true);
-		REQUIRE(func2(2) == (a*2));
+		REQUIRE(func2(2) == (a * 2));
 	}
 }
+
 
 TEST_CASE("function-tests-alloc")
 {
@@ -76,6 +77,7 @@ TEST_CASE("function-tests-alloc")
 	Core::Function<i32(i32)> func;
 
 	Vector vec;
+	vec.reserve(32);
 	for(i32 idx = 0; idx < 32; ++idx)
 	{
 		vec.push_back(idx);
@@ -83,7 +85,7 @@ TEST_CASE("function-tests-alloc")
 
 	i32 size0 = AllocatorTest::numBytes_;
 
-	func = [vec](i32 idx){ return vec[idx]; };
+	func = [vec](i32 idx) { return vec[idx]; };
 
 	i32 size1 = AllocatorTest::numBytes_;
 	REQUIRE(size1 > size0);
@@ -94,7 +96,6 @@ TEST_CASE("function-tests-alloc")
 		REQUIRE(func(idx) == vec[idx]);
 	}
 
-	std::function
 	vec.resize(0);
 
 	i32 size2 = AllocatorTest::numBytes_;
@@ -108,7 +109,7 @@ TEST_CASE("function-tests-vector")
 
 	for(i32 idx = 0; idx < 32; ++idx)
 	{
-		funcs.push_back([idx](){ return idx * 2; });
+		funcs.push_back([idx]() { return idx * 2; });
 	}
 
 	for(i32 idx = 0; idx < 32; ++idx)

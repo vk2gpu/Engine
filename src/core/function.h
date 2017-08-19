@@ -87,7 +87,7 @@ namespace Core
 				funcObj_ = func.funcObj_->DoCopy(storage_);
 		}
 
-		Function& operator = (const Function& func)
+		Function& operator=(const Function& func)
 		{
 			if(func.funcObj_)
 				funcObj_ = func.funcObj_->DoCopy(storage_);
@@ -109,11 +109,13 @@ namespace Core
 				funcObj_ = nullptr;
 			}
 		}
-		RET operator()(ARGS&&... args) const
+
+		RET operator()(ARGS... args) const
 		{
 			DBG_ASSERT(funcObj_);
 			return funcObj_->DoCall(std::forward<ARGS>(args)...);
 		}
+
 		operator bool() { return !!funcObj_; }
 
 	private:
