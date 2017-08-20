@@ -81,10 +81,7 @@ namespace Core
 		Function() {}
 		Function(nullptr_t) {}
 
-		Function(const Function& func)
-		{
-			copy(func.funcObj_);
-		}
+		Function(const Function& func) { copy(func.funcObj_); }
 
 		Function& operator=(const Function& func)
 		{
@@ -99,10 +96,7 @@ namespace Core
 			funcObj_ = new(&storage_[0]) func_obj<CALLABLE>(std::move(callable));
 		}
 
-		~Function()
-		{
-			destroy();
-		}
+		~Function() { destroy(); }
 
 		RET operator()(ARGS... args) const
 		{

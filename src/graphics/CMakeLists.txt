@@ -1,6 +1,9 @@
 SET(SOURCES_PUBLIC 
 	"dll.h"
 	"model.h"
+	"render_graph.h"
+	"render_pass.h"
+	"render_resources.h"
 	"shader.h"
 	"texture.h"
 )
@@ -8,6 +11,8 @@ SET(SOURCES_PUBLIC
 SET(SOURCES_PRIVATE 
 	"private/model.cpp"
 	"private/model_impl.h"
+	"private/render_graph.cpp"
+	"private/render_pass.cpp"
 	"private/shader.cpp"
 	"private/shader_impl.h"
 	"private/texture.cpp"
@@ -17,6 +22,7 @@ SET(SOURCES_PRIVATE
 SET(SOURCES_TESTS
 	"tests/converter_tests.cpp"
 	"tests/model_tests.cpp"
+	"tests/render_graph_tests.cpp"
 	"tests/shader_parser_tests.cpp"
 	"tests/shader_tests.cpp"
 	"tests/test_entry.cpp"

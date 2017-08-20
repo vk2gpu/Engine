@@ -5,6 +5,33 @@
 
 namespace GPU
 {
+	// command_list.h
+	class CommandList;
+
+	// resources.h
+	enum class ResourceType : i32;
+	class GPU_DLL Handle;
+	struct GPU_DLL SwapChainDesc;
+	struct GPU_DLL BufferDesc;
+	struct GPU_DLL TextureDesc;
+	struct GPU_DLL TextureSubResourceData;
+	struct GPU_DLL SamplerState;
+	struct GPU_DLL ShaderDesc;
+	struct GPU_DLL BlendState;
+	struct GPU_DLL StencilFaceState;
+	struct GPU_DLL RenderState;
+	struct GPU_DLL GraphicsPipelineStateDesc;
+	struct GPU_DLL ComputePipelineStateDesc;
+	struct GPU_DLL BindingRTV;
+	struct GPU_DLL BindingDSV;
+	struct GPU_DLL BindingSRV;
+	struct GPU_DLL BindingUAV;
+	struct GPU_DLL BindingBuffer;
+	struct GPU_DLL BindingSampler;
+	struct GPU_DLL PipelineBindingSetDesc;
+	struct GPU_DLL DrawBindingSetDesc;
+	struct GPU_DLL FrameBindingSetDesc;
+
 	// types.h
 	enum class ErrorCode : i32;
 	enum class DebuggerIntegrationFlags : u32;
@@ -33,29 +60,5 @@ namespace GPU
 	struct GPU_DLL ScissorRect;
 	struct GPU_DLL Viewport;
 	struct GPU_DLL DrawState;
-
-	// resources.h
-	enum class ResourceType : i32;
-	class GPU_DLL Handle;
-	struct GPU_DLL SwapChainDesc;
-	struct GPU_DLL BufferDesc;
-	struct GPU_DLL TextureDesc;
-	struct GPU_DLL TextureSubResourceData;
-	struct GPU_DLL SamplerState;
-	struct GPU_DLL ShaderDesc;
-	struct GPU_DLL BlendState;
-	struct GPU_DLL StencilFaceState;
-	struct GPU_DLL RenderState;
-	struct GPU_DLL GraphicsPipelineStateDesc;
-	struct GPU_DLL ComputePipelineStateDesc;
-	struct GPU_DLL BindingRTV;
-	struct GPU_DLL BindingDSV;
-	struct GPU_DLL BindingSRV;
-	struct GPU_DLL BindingUAV;
-	struct GPU_DLL BindingBuffer;
-	struct GPU_DLL BindingSampler;
-	struct GPU_DLL PipelineBindingSetDesc;
-	struct GPU_DLL DrawBindingSetDesc;
-	struct GPU_DLL FrameBindingSetDesc;
 
 } // namespace GPU
