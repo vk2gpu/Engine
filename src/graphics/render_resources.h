@@ -28,10 +28,10 @@ namespace Graphics
 		RenderGraphResource(i32 id)
 		{
 			idx_ = (id >> 16) & 0x7fff;
-			version_ = (id) & 0x7fff;
+			version_ = (id)&0x7fff;
 		}
 
-		bool operator == (const RenderGraphResource& other) const
+		bool operator==(const RenderGraphResource& other) const
 		{
 			return idx_ == other.idx_ && version_ == other.version_;
 		}

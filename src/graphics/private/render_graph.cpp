@@ -4,8 +4,12 @@
 
 #include "core/concurrency.h"
 #include "core/misc.h"
+#include "core/set.h"
 #include "core/string.h"
 #include "core/vector.h"
+
+#include "gpu/command_list.h"
+#include "gpu/manager.h"
 
 #include <algorithm>
 
@@ -41,11 +45,12 @@ namespace Graphics
 		Core::Vector<u8> frameData_;
 		volatile i32 frameDataOffset_ = 0;
 
-		void AddDependencies(Core::Vector<RenderPassEntry*> outRenderPasses, 
-			const Core::ArrayView<RenderGraphResource>& resources)
+		void AddDependencies(Core::Vector<RenderPassEntry*>& outRenderPasses,
+		    const Core::ArrayView<const RenderGraphResource>& resources)
 		{
 			i32 beginIdx = outRenderPasses.size();
 			i32 endIdx = beginIdx;
+
 			for(auto& entry : renderPassEntries_)
 			{
 				for(const auto& outputRes : entry.renderPass_->GetOutputs())
@@ -60,15 +65,22 @@ namespace Graphics
 					}
 				}
 			}
+
+			// Add all dependencies for the added render passes.
+			for(i32 idx = beginIdx; idx < endIdx; ++idx)
+			{
+				const auto* renderPass = outRenderPasses[idx]->renderPass_;
+				AddDependencies(outRenderPasses, renderPass->GetInputs());
+			}
 		};
 
-		void FilterRenderPasses(Core::Vector<RenderPassEntry*> outRenderPasses)
+		void FilterRenderPasses(Core::Vector<RenderPassEntry*>& outRenderPasses)
 		{
-			RenderPassEntry* lastEntry = nullptr;
-			for(auto it = outRenderPasses.begin(); it != outRenderPasses.end(); )
+			Core::Set<i32> exists;
+			for(auto it = outRenderPasses.begin(); it != outRenderPasses.end();)
 			{
 				RenderPassEntry* entry = *it;
-				if(entry == lastEntry)
+				if(exists.find(entry->idx_) != exists.end())
 				{
 					it = outRenderPasses.erase(it);
 				}
@@ -76,7 +88,7 @@ namespace Graphics
 				{
 					++it;
 				}
-				lastEntry = entry;
+				exists.insert(entry->idx_);
 			}
 		}
 	};
@@ -139,9 +151,6 @@ namespace Graphics
 		auto& resource = impl_->resourceDescs_[res.idx_];
 		switch(resource.resType_)
 		{
-		case GPU::ResourceType::BUFFER:
-			resource.bufferDesc_.bindFlags_ |= GPU::BindFlags::RENDER_TARGET;
-			break;
 		case GPU::ResourceType::TEXTURE:
 		case GPU::ResourceType::SWAP_CHAIN:
 			resource.textureDesc_.bindFlags_ |= GPU::BindFlags::RENDER_TARGET;
@@ -152,8 +161,37 @@ namespace Graphics
 			break;
 		}
 
+		renderPass->impl_->AddInput(res);
 		res.version_++;
 		renderPass->impl_->AddOutput(res);
+		return res;
+	}
+
+	RenderGraphResource RenderGraphBuilder::UseDSV(RenderPass* renderPass, RenderGraphResource res, GPU::DSVFlags flags)
+	{
+		// Patch up required bind flags.
+		auto& resource = impl_->resourceDescs_[res.idx_];
+		switch(resource.resType_)
+		{
+		case GPU::ResourceType::TEXTURE:
+		case GPU::ResourceType::SWAP_CHAIN:
+			resource.textureDesc_.bindFlags_ |= GPU::BindFlags::DEPTH_STENCIL;
+			break;
+
+		default:
+			DBG_BREAK;
+			break;
+		}
+
+		renderPass->impl_->AddInput(res);
+
+		// If not read only, then it's also an output.
+		if(!Core::ContainsAllFlags(flags, GPU::DSVFlags::READ_ONLY_DEPTH | GPU::DSVFlags::READ_ONLY_STENCIL))
+		{
+			res.version_++;
+			renderPass->impl_->AddOutput(res);
+		}
+
 		return res;
 	}
 
@@ -163,7 +201,11 @@ namespace Graphics
 		impl_->frameData_.resize(MAX_FRAME_DATA);
 	}
 
-	RenderGraph::~RenderGraph() { delete impl_; }
+	RenderGraph::~RenderGraph()
+	{
+		Clear();
+		delete impl_;
+	}
 
 	RenderGraphResource RenderGraph::ImportResource(GPU::Handle handle)
 	{
@@ -187,7 +229,7 @@ namespace Graphics
 		impl_->frameData_.fill(0);
 	}
 
-	void RenderGraph::Compile(RenderGraphResource finalRes)
+	void RenderGraph::Execute(RenderGraphResource finalRes)
 	{
 		// Find newest version of finalRes.
 		finalRes.version_ = -1;
@@ -208,7 +250,7 @@ namespace Graphics
 		}
 
 		// Add finalRes to outputs to start traversal.
-		const i32 MAX_OUTPUTS = Core::Max(GPU::MAX_UAV_BINDINGS, GPU::MAX_BOUND_RTVS); 
+		const i32 MAX_OUTPUTS = Core::Max(GPU::MAX_UAV_BINDINGS, GPU::MAX_BOUND_RTVS);
 		Core::Vector<RenderGraphResource> outputs;
 		outputs.reserve(MAX_OUTPUTS);
 
@@ -220,28 +262,25 @@ namespace Graphics
 		renderPassEntries.reserve(renderPasses.size());
 
 		impl_->AddDependencies(renderPassEntries, outputs);
+
+		std::reverse(renderPassEntries.begin(), renderPassEntries.end());
+
 		impl_->FilterRenderPasses(renderPassEntries);
 
-#if 0
-		for(;;)
-		{
-			auto renderPassIt = std::find_if(renderPasses.begin(), renderPasses.end(),
-				[](const RenderPassEntry& entry)
-				{
-					return entry.idx_ == ....
-				});
-			++renderPassIt;
+		// TODO: Create all resources required by the graph.
 
-			
+		GPU::CommandList cmdList(GPU::Manager::GetHandleAllocator());
+		for(auto* entry : renderPassEntries)
+		{
+			entry->renderPass_->Execute(*this, cmdList);
 		}
-#endif
 	}
 
 	void* RenderGraph::Alloc(i32 size)
 	{
 		size = Core::PotRoundUp(size, PLATFORM_ALIGNMENT);
 
-		i32 nextOffset = Core::AtomicAddAcq(&impl_->frameDataOffset_, size) - size;
+		i32 nextOffset = Core::AtomicAddAcq(&impl_->frameDataOffset_, size);
 		DBG_ASSERT(nextOffset <= impl_->frameData_.size());
 		if(nextOffset > impl_->frameData_.size())
 			return nullptr;

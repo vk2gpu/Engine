@@ -13,6 +13,7 @@ SET(SOURCES_PRIVATE
 	"private/model_impl.h"
 	"private/render_graph.cpp"
 	"private/render_pass.cpp"
+	"private/render_pass_impl.h"
 	"private/shader.cpp"
 	"private/shader_impl.h"
 	"private/texture.cpp"

@@ -3,7 +3,7 @@
 
 namespace Graphics
 {
-	RenderPass::RenderPass(RenderGraphBuilder&) 
+	RenderPass::RenderPass(RenderGraphBuilder&)
 	{
 		// TODO: Allocate this on the render graph.
 		impl_ = new RenderPassImpl;
@@ -15,26 +15,8 @@ namespace Graphics
 		impl_ = nullptr;
 	}
 
-#if 0
-	void RenderPass::AddInput(RenderGraphResource res)
-	{
-		return impl_->AddInput(res);
-	}
+	Core::ArrayView<const RenderGraphResource> RenderPass::GetInputs() const { return impl_->GetInputs(); }
 
-	void RenderPass::AddOutput(RenderGraphResource res)
-	{
-		return impl_->AddOutput(res);
-	}
-#endif
-
-	Core::ArrayView<const RenderGraphResource> RenderPass::GetInputs() const
-	{
-		return impl_->GetInputs();
-	}
-
-	Core::ArrayView<const RenderGraphResource> RenderPass::GetOutputs() const
-	{
-		return impl_->GetOutputs();
-	}
+	Core::ArrayView<const RenderGraphResource> RenderPass::GetOutputs() const { return impl_->GetOutputs(); }
 
 } // namespace Graphics

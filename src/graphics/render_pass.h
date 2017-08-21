@@ -22,13 +22,16 @@ namespace Graphics
 		 */
 		virtual void Execute(RenderGraph& rg, GPU::CommandList& cmdList) = 0;
 
-#if 0
-		void AddInput(RenderGraphResource res);
-		void AddOutput(RenderGraphResource res);
-#endif
-
+		/**
+		 * @return inputs for this render passs.
+		 */
 		Core::ArrayView<const RenderGraphResource> GetInputs() const;
+
+		/**
+		 * @return outputs for this render pass.
+		 */
 		Core::ArrayView<const RenderGraphResource> GetOutputs() const;
+
 	private:
 		friend class RenderGraph;
 		friend class RenderGraphBuilder;

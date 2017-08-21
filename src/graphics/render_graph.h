@@ -39,6 +39,11 @@ namespace Graphics
 		 */
 		RenderGraphResource UseRTV(RenderPass* renderPass, RenderGraphResource res);
 
+		/**
+		 * Use resource as DSV.
+		 */
+		RenderGraphResource UseDSV(RenderPass* renderPass, RenderGraphResource res, GPU::DSVFlags flags);
+
 	private:
 		friend class RenderGraph;
 
@@ -86,12 +91,14 @@ namespace Graphics
 		void Clear();
 
 		/**
-		 * Compile graph.
+		 * Execute graph.
 		 * This stage will determine the execute order of all the render passes
 		 * added, and cull any parts of the graph that are unconnected.
+		 * It will then create the appropriate resource,, then execute the render passes 
+		 * in the best order determined.
 		 * @param finalRes Final output resource for the graph. Will take newest version.
 		 */
-		void Compile(RenderGraphResource finalRes);
+		void Execute(RenderGraphResource finalRes);
 
 		/**
 		 * Allocate memory that exists for the life time of a single execute phase.
