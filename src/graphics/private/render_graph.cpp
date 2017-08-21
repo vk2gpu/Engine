@@ -28,6 +28,7 @@ namespace Graphics
 	struct ResourceDesc
 	{
 		i32 id_ = 0;
+		Core::String name_;
 		GPU::ResourceType resType_ = GPU::ResourceType::INVALID;
 		GPU::Handle handle_;
 		RenderGraphBufferDesc bufferDesc_;
@@ -38,8 +39,9 @@ namespace Graphics
 	{
 		// Built during setup.
 		Core::Vector<RenderPassEntry> renderPassEntries_;
-
 		Core::Vector<ResourceDesc> resourceDescs_;
+		Core::Set<i32> resourcesNeeded_;
+		Core::Vector<GPU::Handle> transientResources_;
 
 		// Frame data for allocation.
 		Core::Vector<u8> frameData_;
@@ -50,6 +52,11 @@ namespace Graphics
 		{
 			i32 beginIdx = outRenderPasses.size();
 			i32 endIdx = beginIdx;
+
+			for(auto& res : resources)
+			{
+				resourcesNeeded_.insert(res.idx_);
+			}
 
 			for(auto& entry : renderPassEntries_)
 			{
@@ -91,6 +98,31 @@ namespace Graphics
 				exists.insert(entry->idx_);
 			}
 		}
+
+		void CreateResources()
+		{
+			for(i32 idx : resourcesNeeded_)
+			{
+				auto& resDesc = resourceDescs_[idx];
+				Core::Log(" Needed Resource: %s (%i)\n", resDesc.name_.c_str(), resDesc.id_);
+
+				if(!resDesc.handle_)
+				{
+					if(resDesc.resType_ == GPU::ResourceType::BUFFER)
+					{
+						resDesc.handle_ =
+						    GPU::Manager::CreateBuffer(resDesc.bufferDesc_, nullptr, resDesc.name_.c_str());
+					}
+					else if(resDesc.resType_ == GPU::ResourceType::TEXTURE)
+					{
+						resDesc.handle_ =
+						    GPU::Manager::CreateTexture(resDesc.textureDesc_, nullptr, resDesc.name_.c_str());
+					}
+
+					transientResources_.push_back(resDesc.handle_);
+				}
+			}
+		}
 	};
 
 
@@ -105,6 +137,7 @@ namespace Graphics
 	{
 		ResourceDesc resDesc;
 		resDesc.id_ = impl_->resourceDescs_.size();
+		resDesc.name_ = name;
 		resDesc.resType_ = GPU::ResourceType::BUFFER;
 		resDesc.bufferDesc_ = desc;
 		impl_->resourceDescs_.push_back(resDesc);
@@ -115,6 +148,7 @@ namespace Graphics
 	{
 		ResourceDesc resDesc;
 		resDesc.id_ = impl_->resourceDescs_.size();
+		resDesc.name_ = name;
 		resDesc.resType_ = GPU::ResourceType::TEXTURE;
 		resDesc.textureDesc_ = desc;
 		impl_->resourceDescs_.push_back(resDesc);
@@ -223,6 +257,12 @@ namespace Graphics
 		{
 			renderPassEntry.renderPass_->~RenderPass();
 		}
+
+		for(auto handle : impl_->transientResources_)
+		{
+			GPU::Manager::DestroyResource(handle);
+		}
+		impl_->transientResources_.clear();
 		impl_->renderPassEntries_.clear();
 		impl_->resourceDescs_.clear();
 		impl_->frameDataOffset_ = 0;
@@ -267,7 +307,7 @@ namespace Graphics
 
 		impl_->FilterRenderPasses(renderPassEntries);
 
-		// TODO: Create all resources required by the graph.
+		impl_->CreateResources();
 
 		GPU::CommandList cmdList(GPU::Manager::GetHandleAllocator());
 		for(auto* entry : renderPassEntries)

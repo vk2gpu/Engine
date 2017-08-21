@@ -1,4 +1,5 @@
 #include "catch.hpp"
+#include "core/string.h"
 #include "graphics/render_graph.h"
 #include "graphics/render_pass.h"
 #include "graphics/render_resources.h"
@@ -46,11 +47,17 @@ namespace
 		return desc;
 	}
 
+	struct DebugData
+	{
+		Core::Vector<Core::String> passes_;
+	};
+
 	class RenderPassMain : public Graphics::RenderPass
 	{
 	public:
-		RenderPassMain(Graphics::RenderGraphBuilder& builder)
+		RenderPassMain(Graphics::RenderGraphBuilder& builder, DebugData& debugData)
 		    : Graphics::RenderPass(builder)
+		    , debugData_(debugData)
 		{
 			output_ = builder.UseRTV(this, builder.CreateTexture("Main", GetDefaultTextureDesc()));
 		}
@@ -60,7 +67,10 @@ namespace
 		{
 			// Do scene rendering.
 			Core::Log("RenderPassMain::Execute\n");
+			debugData_.passes_.push_back("RenderPassMain");
 		}
+
+		DebugData& debugData_;
 
 		Graphics::RenderGraphResource output_;
 	};
@@ -69,8 +79,9 @@ namespace
 	class RenderPassHUD : public Graphics::RenderPass
 	{
 	public:
-		RenderPassHUD(Graphics::RenderGraphBuilder& builder, Graphics::RenderGraphResource input)
+		RenderPassHUD(Graphics::RenderGraphBuilder& builder, DebugData& debugData, Graphics::RenderGraphResource input)
 		    : Graphics::RenderPass(builder)
+		    , debugData_(debugData)
 		{
 			input_ = builder.UseSRV(this, input);
 			output_ = builder.UseRTV(this, builder.CreateTexture("FrameBuffer", GetDefaultTextureDesc()));
@@ -81,9 +92,13 @@ namespace
 		{
 			// Do HUD rendering.
 			Core::Log("RenderPassHUD::Execute\n");
+			debugData_.passes_.push_back("RenderPassHUD");
 		}
 
+		DebugData& debugData_;
+
 		Graphics::RenderGraphResource input_;
+
 		Graphics::RenderGraphResource output_;
 	};
 
@@ -91,9 +106,10 @@ namespace
 	class RenderPassFinal : public Graphics::RenderPass
 	{
 	public:
-		RenderPassFinal(Graphics::RenderGraphBuilder& builder, Graphics::RenderGraphResource inputA,
-		    Graphics::RenderGraphResource inputB)
+		RenderPassFinal(Graphics::RenderGraphBuilder& builder, DebugData& debugData,
+		    Graphics::RenderGraphResource inputA, Graphics::RenderGraphResource inputB)
 		    : Graphics::RenderPass(builder)
+		    , debugData_(debugData)
 		{
 			inputA_ = builder.UseSRV(this, inputA);
 			inputB_ = builder.UseSRV(this, inputB);
@@ -105,20 +121,25 @@ namespace
 		{
 			// Do HUD rendering.
 			Core::Log("RenderPassFinal::Execute\n");
+			debugData_.passes_.push_back("RenderPassFinal");
 		}
+
+		DebugData& debugData_;
 
 		Graphics::RenderGraphResource inputA_;
 		Graphics::RenderGraphResource inputB_;
+
 		Graphics::RenderGraphResource output_;
 	};
 
 	class RenderPassDepthPrepass : public Graphics::RenderPass
 	{
 	public:
-		RenderPassDepthPrepass(Graphics::RenderGraphBuilder& builder)
+		RenderPassDepthPrepass(Graphics::RenderGraphBuilder& builder, DebugData& debugData)
 		    : Graphics::RenderPass(builder)
+		    , debugData_(debugData)
 		{
-			depth_ = builder.UseDSV(this, builder.CreateTexture("Main", GetDefaultTextureDesc()), GPU::DSVFlags::NONE);
+			depth_ = builder.UseDSV(this, builder.CreateTexture("Main", GetDepthTextureDesc()), GPU::DSVFlags::NONE);
 		}
 
 		virtual ~RenderPassDepthPrepass() {}
@@ -126,7 +147,10 @@ namespace
 		{
 			// Do scene rendering.
 			Core::Log("RenderPassDepthPrepass::Execute\n");
+			debugData_.passes_.push_back("RenderPassDepthPrepass");
 		}
+
+		DebugData& debugData_;
 
 		Graphics::RenderGraphResource depth_;
 	};
@@ -135,8 +159,10 @@ namespace
 	class RenderPassSolid : public Graphics::RenderPass
 	{
 	public:
-		RenderPassSolid(Graphics::RenderGraphBuilder& builder, Graphics::RenderGraphResource depth)
+		RenderPassSolid(
+		    Graphics::RenderGraphBuilder& builder, DebugData& debugData, Graphics::RenderGraphResource depth)
 		    : Graphics::RenderPass(builder)
+		    , debugData_(debugData)
 		{
 			depth_ = builder.UseDSV(this, depth, GPU::DSVFlags::READ_ONLY_DEPTH | GPU::DSVFlags::READ_ONLY_STENCIL);
 			albedo_ = builder.UseRTV(this, builder.CreateTexture("Albedo", GetDefaultTextureDesc()));
@@ -149,9 +175,13 @@ namespace
 		{
 			// Do scene rendering.
 			Core::Log("RenderPassSolid::Execute\n");
+			debugData_.passes_.push_back("RenderPassSolid");
 		}
 
+		DebugData& debugData_;
+
 		Graphics::RenderGraphResource depth_;
+
 		Graphics::RenderGraphResource albedo_;
 		Graphics::RenderGraphResource material_;
 		Graphics::RenderGraphResource normal_;
@@ -161,8 +191,9 @@ namespace
 	class RenderPassSSAO : public Graphics::RenderPass
 	{
 	public:
-		RenderPassSSAO(Graphics::RenderGraphBuilder& builder, Graphics::RenderGraphResource depth)
+		RenderPassSSAO(Graphics::RenderGraphBuilder& builder, DebugData& debugData, Graphics::RenderGraphResource depth)
 		    : Graphics::RenderPass(builder)
+		    , debugData_(debugData)
 		{
 			depth_ = builder.UseSRV(this, depth);
 
@@ -174,9 +205,13 @@ namespace
 		{
 			// Do scene rendering.
 			Core::Log("RenderPassSSAO::Execute\n");
+			debugData_.passes_.push_back("RenderPassSSAO");
 		}
 
+		DebugData& debugData_;
+
 		Graphics::RenderGraphResource depth_;
+
 		Graphics::RenderGraphResource ssao_;
 	};
 
@@ -184,10 +219,12 @@ namespace
 	class RenderPassLighting : public Graphics::RenderPass
 	{
 	public:
-		RenderPassLighting(Graphics::RenderGraphBuilder& builder, Graphics::RenderGraphResource depth,
-		    Graphics::RenderGraphResource albedo, Graphics::RenderGraphResource material,
-		    Graphics::RenderGraphResource normal, Graphics::RenderGraphResource ssao)
+		RenderPassLighting(Graphics::RenderGraphBuilder& builder, DebugData& debugData,
+		    Graphics::RenderGraphResource depth, Graphics::RenderGraphResource albedo,
+		    Graphics::RenderGraphResource material, Graphics::RenderGraphResource normal,
+		    Graphics::RenderGraphResource ssao)
 		    : Graphics::RenderPass(builder)
+		    , debugData_(debugData)
 		{
 			depth_ = builder.UseSRV(this, depth);
 			albedo_ = builder.UseSRV(this, albedo);
@@ -203,7 +240,10 @@ namespace
 		{
 			// Do scene rendering.
 			Core::Log("RenderPassLighting::Execute\n");
+			debugData_.passes_.push_back("RenderPassLighting");
 		}
+
+		DebugData& debugData_;
 
 		Graphics::RenderGraphResource depth_;
 		Graphics::RenderGraphResource albedo_;
@@ -226,10 +266,15 @@ TEST_CASE("render-graph-tests-forward-simple")
 	ScopedEngine engine;
 	Graphics::RenderGraph graph;
 
-	auto& renderPassMain = graph.AddRenderPass<RenderPassMain>("Main");
+	DebugData debugData;
+
+	auto& renderPassMain = graph.AddRenderPass<RenderPassMain>("Main", debugData);
 	(void)renderPassMain;
 
 	graph.Execute(renderPassMain.output_);
+
+	REQUIRE(debugData.passes_.size() == 1);
+	REQUIRE(debugData.passes_[0] == "RenderPassMain");
 }
 
 
@@ -238,18 +283,25 @@ TEST_CASE("render-graph-tests-forward-advanced")
 	ScopedEngine engine;
 	Graphics::RenderGraph graph;
 
-	auto& renderPassMain = graph.AddRenderPass<RenderPassMain>("Main");
+	DebugData debugData;
+
+	auto& renderPassMain = graph.AddRenderPass<RenderPassMain>("Main", debugData);
 	(void)renderPassMain;
 
-	auto& renderPassHUD = graph.AddRenderPass<RenderPassHUD>("HUD", renderPassMain.output_);
+	auto& renderPassHUD = graph.AddRenderPass<RenderPassHUD>("HUD", debugData, renderPassMain.output_);
 	(void)renderPassHUD;
 
 
 	auto& renderPassFinal =
-	    graph.AddRenderPass<RenderPassFinal>("Final", renderPassMain.output_, renderPassHUD.output_);
+	    graph.AddRenderPass<RenderPassFinal>("Final", debugData, renderPassMain.output_, renderPassHUD.output_);
 	(void)renderPassFinal;
 
 	graph.Execute(renderPassFinal.output_);
+
+	REQUIRE(debugData.passes_.size() == 3);
+	REQUIRE(debugData.passes_[0] == "RenderPassMain");
+	REQUIRE(debugData.passes_[1] == "RenderPassHUD");
+	REQUIRE(debugData.passes_[2] == "RenderPassFinal");
 }
 
 
@@ -258,18 +310,26 @@ TEST_CASE("render-graph-tests-deferred-simple")
 	ScopedEngine engine;
 	Graphics::RenderGraph graph;
 
-	auto& renderPassDepthPrepass = graph.AddRenderPass<RenderPassDepthPrepass>("Depth Prepass");
+	DebugData debugData;
+
+	auto& renderPassDepthPrepass = graph.AddRenderPass<RenderPassDepthPrepass>("Depth Prepass", debugData);
 	(void)renderPassDepthPrepass;
 
-	auto& renderPassSolid = graph.AddRenderPass<RenderPassSolid>("Solid", renderPassDepthPrepass.depth_);
+	auto& renderPassSolid = graph.AddRenderPass<RenderPassSolid>("Solid", debugData, renderPassDepthPrepass.depth_);
 	(void)renderPassSolid;
 
-	auto& renderPassSSAO = graph.AddRenderPass<RenderPassSSAO>("SSAO", renderPassDepthPrepass.depth_);
+	auto& renderPassSSAO = graph.AddRenderPass<RenderPassSSAO>("SSAO", debugData, renderPassDepthPrepass.depth_);
 	(void)renderPassSSAO;
 
-	auto& renderPassLighting = graph.AddRenderPass<RenderPassLighting>("Lighting", renderPassSolid.depth_,
+	auto& renderPassLighting = graph.AddRenderPass<RenderPassLighting>("Lighting", debugData, renderPassSolid.depth_,
 	    renderPassSolid.albedo_, renderPassSolid.material_, renderPassSolid.normal_, renderPassSSAO.ssao_);
 	(void)renderPassLighting;
 
 	graph.Execute(renderPassLighting.hdr_);
+
+	REQUIRE(debugData.passes_.size() == 4);
+	REQUIRE(debugData.passes_[0] == "RenderPassDepthPrepass");
+	REQUIRE(debugData.passes_[1] == "RenderPassSSAO");
+	REQUIRE(debugData.passes_[2] == "RenderPassSolid");
+	REQUIRE(debugData.passes_[3] == "RenderPassLighting");
 }
