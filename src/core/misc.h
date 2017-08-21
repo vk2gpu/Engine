@@ -7,19 +7,19 @@
 namespace Core
 {
 	template<typename TYPE, typename TYPE2>
-	TYPE Min(TYPE a, TYPE2 b)
+	constexpr TYPE Min(TYPE a, TYPE2 b)
 	{
 		return a < (TYPE)b ? a : (TYPE)b;
 	}
 
 	template<typename TYPE, typename TYPE2>
-	TYPE Max(TYPE a, TYPE2 b)
+	constexpr TYPE Max(TYPE a, TYPE2 b)
 	{
 		return a > (TYPE)b ? a : (TYPE)b;
 	}
 
 	template<typename TYPE, typename TYPE2, typename TYPE3>
-	TYPE Clamp(TYPE v, TYPE2 min, TYPE3 max)
+	constexpr TYPE Clamp(TYPE v, TYPE2 min, TYPE3 max)
 	{
 		return Max(min, Min(v, max));
 	}

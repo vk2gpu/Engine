@@ -16,7 +16,7 @@ namespace Graphics
 	using RenderGraphExecFn = Core::Function<void(RenderGraph&, void*), 256>;
 
 
-	class GRAPHICS_DLL RenderGraphBuilder
+	class GRAPHICS_DLL RenderGraphBuilder final
 	{
 	public:
 		/**
@@ -32,12 +32,12 @@ namespace Graphics
 		/**
 		 * Use resource as SRV.
 		 */
-		RenderGraphResource UseSRV(RenderGraphResource res);
+		RenderGraphResource UseSRV(RenderPass* renderPass, RenderGraphResource res);
 
 		/**
 		 * Use resource as RTV.
 		 */
-		RenderGraphResource UseRTV(RenderGraphResource res);
+		RenderGraphResource UseRTV(RenderPass* renderPass, RenderGraphResource res);
 
 	private:
 		friend class RenderGraph;
@@ -48,7 +48,7 @@ namespace Graphics
 		RenderGraphImpl* impl_ = nullptr;
 	};
 
-	class GRAPHICS_DLL RenderGraphResources
+	class GRAPHICS_DLL RenderGraphResources final
 	{
 	public:
 	private:
@@ -60,7 +60,7 @@ namespace Graphics
 		struct RenderGraphImpl* impl_ = nullptr;
 	};
 
-	class GRAPHICS_DLL RenderGraph
+	class GRAPHICS_DLL RenderGraph final
 	{
 	public:
 		RenderGraph();
@@ -69,11 +69,9 @@ namespace Graphics
 		template<typename RENDER_PASS, typename... ARGS>
 		RENDER_PASS& AddRenderPass(const char* name, ARGS&&... args)
 		{
-			InternalPushPass();
 			RenderGraphBuilder builder(impl_);
 			auto* renderPass = new(Alloc<RENDER_PASS>(1)) RENDER_PASS(builder, std::forward<ARGS>(args)...);
 			InternalAddRenderPass(name, renderPass);
-			InternalPopPass();
 			return *renderPass;
 		}
 
@@ -86,6 +84,14 @@ namespace Graphics
 		 * Clear all added render passes, memory used, etc.
 		 */
 		void Clear();
+
+		/**
+		 * Compile graph.
+		 * This stage will determine the execute order of all the render passes
+		 * added, and cull any parts of the graph that are unconnected.
+		 * @param finalRes Final output resource for the graph. Will take newest version.
+		 */
+		void Compile(RenderGraphResource finalRes);
 
 		/**
 		 * Allocate memory that exists for the life time of a single execute phase.

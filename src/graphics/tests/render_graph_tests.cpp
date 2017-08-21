@@ -19,7 +19,7 @@ TEST_CASE("render-graph-tests-simple-forward")
 			desc.height_ = 720;
 			desc.format_ = GPU::Format::R8G8B8A8_UNORM;
 
-			output_ = builder.UseRTV(builder.CreateTexture("Main", desc));
+			output_ = builder.UseRTV(this, builder.CreateTexture("Main", desc));
 		}
 
 		virtual ~RenderPassMain() {}
@@ -41,7 +41,7 @@ TEST_CASE("render-graph-tests-simple-forward")
 		RenderPassHUD(Graphics::RenderGraphBuilder& builder, Graphics::RenderGraphResource input)
 		    : Graphics::RenderPass(builder)
 		{
-			input_ = builder.UseSRV(input);
+			input_ = builder.UseSRV(this, input);
 
 			Graphics::RenderGraphTextureDesc desc;
 			desc.type_ = GPU::TextureType::TEX2D;
@@ -49,7 +49,7 @@ TEST_CASE("render-graph-tests-simple-forward")
 			desc.height_ = 720;
 			desc.format_ = GPU::Format::R8G8B8A8_UNORM;
 
-			output_ = builder.UseRTV(builder.CreateTexture("FrameBuffer", desc));
+			output_ = builder.UseRTV(this, builder.CreateTexture("FrameBuffer", desc));
 		}
 
 		virtual ~RenderPassHUD() {}
@@ -65,4 +65,6 @@ TEST_CASE("render-graph-tests-simple-forward")
 
 	auto& renderPassHUD = graph.AddRenderPass<RenderPassHUD>("HUD", renderPassMain.output_);
 	(void)renderPassHUD;
+
+	graph.Compile(renderPassHUD.output_);
 }
