@@ -66,6 +66,7 @@ namespace Core
 		}
 
 		operator ArrayView<TYPE>() const { return ArrayView<TYPE>(data_, size_); }
+		operator ArrayView<const TYPE>() const { return ArrayView<const TYPE>(data_, size_); }
 
 		TYPE& operator[](index_type idx)
 		{
