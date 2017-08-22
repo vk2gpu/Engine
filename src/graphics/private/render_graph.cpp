@@ -123,6 +123,16 @@ namespace Graphics
 				}
 			}
 		}
+
+		void* Alloc(i32 size)
+		{
+			size = Core::PotRoundUp(size, PLATFORM_ALIGNMENT);
+			i32 nextOffset = Core::AtomicAddAcq(&frameDataOffset_, size);
+			DBG_ASSERT(nextOffset <= frameData_.size());
+			if(nextOffset > frameData_.size())
+				return nullptr;
+			return frameData_.data() + (nextOffset - size);
+		}
 	};
 
 
@@ -229,6 +239,11 @@ namespace Graphics
 		return res;
 	}
 
+	void* RenderGraphBuilder::Alloc(i32 size)
+	{
+		return impl_->Alloc(size);
+	}
+
 	RenderGraph::RenderGraph()
 	{
 		impl_ = new RenderGraphImpl;
@@ -314,17 +329,6 @@ namespace Graphics
 		{
 			entry->renderPass_->Execute(*this, cmdList);
 		}
-	}
-
-	void* RenderGraph::Alloc(i32 size)
-	{
-		size = Core::PotRoundUp(size, PLATFORM_ALIGNMENT);
-
-		i32 nextOffset = Core::AtomicAddAcq(&impl_->frameDataOffset_, size);
-		DBG_ASSERT(nextOffset <= impl_->frameData_.size());
-		if(nextOffset > impl_->frameData_.size())
-			return nullptr;
-		return impl_->frameData_.data() + (nextOffset - size);
 	}
 
 	void RenderGraph::InternalAddRenderPass(const char* name, RenderPass* renderPass)

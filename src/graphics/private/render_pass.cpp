@@ -1,17 +1,18 @@
 #include "graphics/render_pass.h"
 #include "graphics/private/render_pass_impl.h"
 
+#include "graphics/render_graph.h"
+
 namespace Graphics
 {
-	RenderPass::RenderPass(RenderGraphBuilder&)
+	RenderPass::RenderPass(RenderGraphBuilder& builder)
 	{
-		// TODO: Allocate this on the render graph.
-		impl_ = new RenderPassImpl;
+		impl_ = new (builder.Alloc<RenderPassImpl>()) RenderPassImpl;
 	}
 
 	RenderPass::~RenderPass()
 	{
-		delete impl_;
+		impl_->~RenderPassImpl();
 		impl_ = nullptr;
 	}
 

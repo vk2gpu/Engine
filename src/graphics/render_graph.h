@@ -44,6 +44,20 @@ namespace Graphics
 		 */
 		RenderGraphResource UseDSV(RenderPass* renderPass, RenderGraphResource res, GPU::DSVFlags flags);
 
+		/**
+		 * Allocate memory that exists for the life time of a single execute phase.
+		 */
+		void* Alloc(i32 size);
+
+		/**
+		 * Allocate objects that exists for the life time of a single execute phase.
+		 */
+		template<typename TYPE>
+		TYPE* Alloc(i32 num = 1)
+		{
+			return reinterpret_cast<TYPE*>(Alloc(num * sizeof(TYPE)));
+		}
+
 	private:
 		friend class RenderGraph;
 
@@ -75,7 +89,7 @@ namespace Graphics
 		RENDER_PASS& AddRenderPass(const char* name, ARGS&&... args)
 		{
 			RenderGraphBuilder builder(impl_);
-			auto* renderPass = new(Alloc<RENDER_PASS>(1)) RENDER_PASS(builder, std::forward<ARGS>(args)...);
+			auto* renderPass = new(builder.Alloc<RENDER_PASS>(1)) RENDER_PASS(builder, std::forward<ARGS>(args)...);
 			InternalAddRenderPass(name, renderPass);
 			return *renderPass;
 		}
@@ -99,20 +113,6 @@ namespace Graphics
 		 * @param finalRes Final output resource for the graph. Will take newest version.
 		 */
 		void Execute(RenderGraphResource finalRes);
-
-		/**
-		 * Allocate memory that exists for the life time of a single execute phase.
-		 */
-		void* Alloc(i32 size);
-
-		/**
-		 * Allocate objects that exists for the life time of a single execute phase.
-		 */
-		template<typename TYPE>
-		TYPE* Alloc(i32 num)
-		{
-			return reinterpret_cast<TYPE*>(Alloc(num * sizeof(TYPE)));
-		}
 
 	private:
 		void InternalPushPass();
