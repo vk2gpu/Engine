@@ -43,9 +43,16 @@ namespace Graphics
 		Core::Set<i32> resourcesNeeded_;
 		Core::Vector<GPU::Handle> transientResources_;
 
+		// Built during execute.
+		Core::Vector<RenderPassEntry*> executeRenderPasses_;
+
+
 		// Frame data for allocation.
 		Core::Vector<u8> frameData_;
 		volatile i32 frameDataOffset_ = 0;
+
+		// Command lists.
+		GPU::Handle cmdHandle_;
 
 		void AddDependencies(Core::Vector<RenderPassEntry*>& outRenderPasses,
 		    const Core::ArrayView<const RenderGraphResource>& resources)
@@ -104,8 +111,6 @@ namespace Graphics
 			for(i32 idx : resourcesNeeded_)
 			{
 				auto& resDesc = resourceDescs_[idx];
-				Core::Log(" Needed Resource: %s (%i)\n", resDesc.name_.c_str(), resDesc.id_);
-
 				if(!resDesc.handle_)
 				{
 					if(resDesc.resType_ == GPU::ResourceType::BUFFER)
@@ -167,6 +172,9 @@ namespace Graphics
 
 	RenderGraphResource RenderGraphBuilder::UseSRV(RenderPass* renderPass, RenderGraphResource res)
 	{
+		if(!res)
+			return res;
+
 		// Patch up required bind flags.
 		auto& resource = impl_->resourceDescs_[res.idx_];
 		switch(resource.resType_)
@@ -191,6 +199,9 @@ namespace Graphics
 
 	RenderGraphResource RenderGraphBuilder::UseRTV(RenderPass* renderPass, RenderGraphResource res)
 	{
+		if(!res)
+			return res;
+
 		// Patch up required bind flags.
 		auto& resource = impl_->resourceDescs_[res.idx_];
 		switch(resource.resType_)
@@ -213,6 +224,9 @@ namespace Graphics
 
 	RenderGraphResource RenderGraphBuilder::UseDSV(RenderPass* renderPass, RenderGraphResource res, GPU::DSVFlags flags)
 	{
+		if(!res)
+			return res;
+
 		// Patch up required bind flags.
 		auto& resource = impl_->resourceDescs_[res.idx_];
 		switch(resource.resType_)
@@ -239,27 +253,53 @@ namespace Graphics
 		return res;
 	}
 
-	void* RenderGraphBuilder::Alloc(i32 size)
+	void* RenderGraphBuilder::Alloc(i32 size) { return impl_->Alloc(size); }
+
+	RenderGraphResources::RenderGraphResources(RenderGraphImpl* impl)
+	    : impl_(impl)
 	{
-		return impl_->Alloc(size);
+	}
+
+	RenderGraphResources::~RenderGraphResources() {}
+
+	GPU::Handle RenderGraphResources::GetBuffer(RenderGraphResource res, RenderGraphBufferDesc* outDesc) const
+	{
+		const auto& resDesc = impl_->resourceDescs_[res.idx_];
+		DBG_ASSERT(resDesc.resType_ == GPU::ResourceType::BUFFER);
+		if(outDesc)
+			*outDesc = resDesc.bufferDesc_;
+		return resDesc.handle_;
+	}
+
+	GPU::Handle RenderGraphResources::GetTexture(RenderGraphResource res, RenderGraphTextureDesc* outDesc) const
+	{
+		const auto& resDesc = impl_->resourceDescs_[res.idx_];
+		DBG_ASSERT(resDesc.resType_ == GPU::ResourceType::TEXTURE || resDesc.resType_ == GPU::ResourceType::SWAP_CHAIN);
+		if(outDesc)
+			*outDesc = resDesc.textureDesc_;
+		return resDesc.handle_;
 	}
 
 	RenderGraph::RenderGraph()
 	{
 		impl_ = new RenderGraphImpl;
 		impl_->frameData_.resize(MAX_FRAME_DATA);
+
+		impl_->cmdHandle_ = GPU::Manager::CreateCommandList("RenderGraph");
 	}
 
 	RenderGraph::~RenderGraph()
 	{
 		Clear();
+		GPU::Manager::DestroyResource(impl_->cmdHandle_);
 		delete impl_;
 	}
 
-	RenderGraphResource RenderGraph::ImportResource(GPU::Handle handle)
+	RenderGraphResource RenderGraph::ImportResource(const char* name, GPU::Handle handle)
 	{
 		ResourceDesc resDesc;
 		resDesc.id_ = impl_->resourceDescs_.size();
+		resDesc.name_ = name;
 		resDesc.resType_ = handle.GetType();
 		resDesc.handle_ = handle;
 		impl_->resourceDescs_.push_back(resDesc);
@@ -277,6 +317,8 @@ namespace Graphics
 		{
 			GPU::Manager::DestroyResource(handle);
 		}
+
+		impl_->resourcesNeeded_.clear();
 		impl_->transientResources_.clear();
 		impl_->renderPassEntries_.clear();
 		impl_->resourceDescs_.clear();
@@ -313,22 +355,48 @@ namespace Graphics
 
 		// From finalRes, work backwards and push all render passes that are required onto the stack.
 		auto& renderPasses = impl_->renderPassEntries_;
-		Core::Vector<RenderPassEntry*> renderPassEntries;
-		renderPassEntries.reserve(renderPasses.size());
+		impl_->executeRenderPasses_.clear();
+		impl_->executeRenderPasses_.reserve(renderPasses.size());
 
-		impl_->AddDependencies(renderPassEntries, outputs);
+		impl_->AddDependencies(impl_->executeRenderPasses_, outputs);
 
-		std::reverse(renderPassEntries.begin(), renderPassEntries.end());
+		std::reverse(impl_->executeRenderPasses_.begin(), impl_->executeRenderPasses_.end());
 
-		impl_->FilterRenderPasses(renderPassEntries);
+		impl_->FilterRenderPasses(impl_->executeRenderPasses_);
 
 		impl_->CreateResources();
 
+		RenderGraphResources resources(impl_);
 		GPU::CommandList cmdList(GPU::Manager::GetHandleAllocator());
-		for(auto* entry : renderPassEntries)
+		for(auto* entry : impl_->executeRenderPasses_)
 		{
-			entry->renderPass_->Execute(*this, cmdList);
+			entry->renderPass_->Execute(resources, cmdList);
 		}
+
+		// Compile command list.
+		GPU::Manager::CompileCommandList(impl_->cmdHandle_, cmdList);
+		GPU::Manager::SubmitCommandList(impl_->cmdHandle_);
+	}
+
+	i32 RenderGraph::GetNumExecutedRenderPasses() const { return impl_->executeRenderPasses_.size(); }
+
+	void RenderGraph::GetExecutedRenderPasses(const RenderPass** renderPasses, const char** renderPassNames) const
+	{
+		i32 idx = 0;
+		for(const auto* entry : impl_->executeRenderPasses_)
+		{
+			if(renderPasses)
+				renderPasses[idx] = entry->renderPass_;
+			if(renderPassNames)
+				renderPassNames[idx] = entry->name_.c_str();
+			++idx;
+		}
+	}
+
+	void RenderGraph::GetResourceName(RenderGraphResource res, const char** name) const
+	{
+		if(name)
+			*name = impl_->resourceDescs_[res.idx_].name_.c_str();
 	}
 
 	void RenderGraph::InternalAddRenderPass(const char* name, RenderPass* renderPass)

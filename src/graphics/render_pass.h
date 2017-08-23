@@ -9,6 +9,7 @@
 namespace Graphics
 {
 	class RenderGraphBuilder;
+	class RenderGraphResources;
 	class RenderGraph;
 
 	class GRAPHICS_DLL RenderPass
@@ -20,7 +21,7 @@ namespace Graphics
 		/**
 		 * Execute render pass, building up command list.
 		 */
-		virtual void Execute(RenderGraph& rg, GPU::CommandList& cmdList) = 0;
+		virtual void Execute(RenderGraphResources& res, GPU::CommandList& cmdList) = 0;
 
 		/**
 		 * @return inputs for this render passs.

@@ -15,7 +15,6 @@ namespace Graphics
 
 	using RenderGraphExecFn = Core::Function<void(RenderGraph&, void*), 256>;
 
-
 	class GRAPHICS_DLL RenderGraphBuilder final
 	{
 	public:
@@ -70,6 +69,16 @@ namespace Graphics
 	class GRAPHICS_DLL RenderGraphResources final
 	{
 	public:
+		/**
+		 * @return Concrete buffer from render graph.
+		 */
+		GPU::Handle GetBuffer(RenderGraphResource res, RenderGraphBufferDesc* outDesc = nullptr) const;
+
+		/**
+		 * @return Concrete texture from render graph.
+		 */
+		GPU::Handle GetTexture(RenderGraphResource res, RenderGraphTextureDesc* outDesc = nullptr) const;
+
 	private:
 		friend class RenderGraph;
 
@@ -97,7 +106,7 @@ namespace Graphics
 		/**
 		 * Import GPU resource from handle.
 		 */
-		RenderGraphResource ImportResource(GPU::Handle handle);
+		RenderGraphResource ImportResource(const char* name, GPU::Handle handle);
 
 		/**
 		 * Clear all added render passes, memory used, etc.
@@ -113,6 +122,23 @@ namespace Graphics
 		 * @param finalRes Final output resource for the graph. Will take newest version.
 		 */
 		void Execute(RenderGraphResource finalRes);
+
+		/**
+		 * Get number of executed render passes.
+		 */
+		i32 GetNumExecutedRenderPasses() const;
+
+		/**
+		 * Get executed render passes + names.
+		 * @pre renderPasses is nullptr, or points to an array large enough for all executed render passes.
+		 * @pre renderPassNames is nullptr points to an array large enough for all executed render passes.
+		 */
+		void GetExecutedRenderPasses(const RenderPass** renderPasses, const char** renderPassNames) const;
+
+		/**
+		 * Get resource name.
+		 */
+		void GetResourceName(RenderGraphResource res, const char** name) const;
 
 	private:
 		void InternalPushPass();

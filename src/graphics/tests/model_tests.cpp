@@ -10,28 +10,10 @@ namespace
 	class Window
 	{
 	public:
-		Window(const char* name)
-		    : window_(name, 100, 100, 1024, 768, true)
+		Window(ScopedEngine& engine, const char* name)
+		    : engine_(engine)
 		    , cmdList_(GPU::Manager::GetHandleAllocator())
 		{
-			GPU::SwapChainDesc scDesc;
-			scDesc.width_ = 1024;
-			scDesc.height_ = 768;
-			scDesc.format_ = GPU::Format::R8G8B8A8_UNORM;
-			scDesc.bufferCount_ = 2;
-			scDesc.outputWindow_ = window_.GetPlatformData().handle_;
-
-			scHandle_ = GPU::Manager::CreateSwapChain(scDesc, name);
-			REQUIRE(scHandle_);
-
-			GPU::FrameBindingSetDesc fbDesc;
-			fbDesc.rtvs_[0].resource_ = scHandle_;
-			fbDesc.rtvs_[0].format_ = scDesc.format_;
-			fbDesc.rtvs_[0].dimension_ = GPU::ViewDimension::TEX2D;
-
-			fbsHandle_ = GPU::Manager::CreateFrameBindingSet(fbDesc, name);
-			REQUIRE(fbsHandle_);
-
 			cmdHandle_ = GPU::Manager::CreateCommandList(name);
 			REQUIRE(cmdHandle_);
 
@@ -41,12 +23,7 @@ namespace
 			drawState_.scissorRect_.h_ = 768;
 		}
 
-		~Window()
-		{
-			GPU::Manager::DestroyResource(cmdHandle_);
-			GPU::Manager::DestroyResource(fbsHandle_);
-			GPU::Manager::DestroyResource(scHandle_);
-		}
+		~Window() { GPU::Manager::DestroyResource(cmdHandle_); }
 
 		GPU::CommandList& Begin()
 		{
@@ -55,7 +32,7 @@ namespace
 
 			// Clear swapchain.
 			f32 color[] = {0.1f, 0.1f, 0.2f, 1.0f};
-			cmdList_.ClearRTV(fbsHandle_, 0, color);
+			cmdList_.ClearRTV(engine_.fbsHandle, 0, color);
 
 			return cmdList_;
 		}
@@ -67,17 +44,15 @@ namespace
 			GPU::Manager::SubmitCommandList(cmdHandle_);
 
 			// Present.
-			GPU::Manager::PresentSwapChain(scHandle_);
+			GPU::Manager::PresentSwapChain(engine_.scHandle);
 
 			// Next frame.
 			GPU::Manager::NextFrame();
 		}
 
-		Client::Window window_;
+		ScopedEngine& engine_;
 		GPU::CommandList cmdList_;
 		GPU::DrawState drawState_;
-		GPU::Handle scHandle_;
-		GPU::Handle fbsHandle_;
 		GPU::Handle cmdHandle_;
 	};
 }
@@ -95,8 +70,7 @@ TEST_CASE("graphics-tests-model-request")
 TEST_CASE("graphics-tests-model-draw")
 {
 	ScopedEngine engine;
-
-	Window window("test");
+	Window window(engine, "test");
 
 	Graphics::Shader* shader = nullptr;
 	REQUIRE(Resource::Manager::RequestResource(shader, "shader_tests/00-basic.esf"));
@@ -145,7 +119,7 @@ TEST_CASE("graphics-tests-model-draw")
 		{
 			if(auto pbs = drawStuff.tech.GetBinding())
 			{
-				cmdList.Draw(pbs, drawStuff.db, window.fbsHandle_, window.drawState_,
+				cmdList.Draw(pbs, drawStuff.db, engine.fbsHandle, window.drawState_,
 				    GPU::PrimitiveTopology::TRIANGLE_LIST, drawStuff.draw.indexOffset_, drawStuff.draw.vertexOffset_,
 				    drawStuff.draw.noofIndices_, 0, 1);
 			}

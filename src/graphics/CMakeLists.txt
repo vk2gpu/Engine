@@ -46,7 +46,7 @@ SET(SOURCES_TESTS
 
 ADD_ENGINE_LIBRARY(graphics ${SOURCES_PUBLIC} ${SOURCES_PRIVATE} ${SOURCES_TESTS})
 TARGET_LINK_LIBRARIES(graphics gpu job math resource)
-TARGET_LINK_LIBRARIES(graphics_test client fcpp)
+TARGET_LINK_LIBRARIES(graphics_test client imgui fcpp)
 
 # Plugins
 SET(SOURCES_MODEL_CONVERTER

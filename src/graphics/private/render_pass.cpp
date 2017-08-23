@@ -5,10 +5,7 @@
 
 namespace Graphics
 {
-	RenderPass::RenderPass(RenderGraphBuilder& builder)
-	{
-		impl_ = new (builder.Alloc<RenderPassImpl>()) RenderPassImpl;
-	}
+	RenderPass::RenderPass(RenderGraphBuilder& builder) { impl_ = new(builder.Alloc<RenderPassImpl>()) RenderPassImpl; }
 
 	RenderPass::~RenderPass()
 	{

@@ -30,6 +30,38 @@ namespace ImGui
 		GPU::Handle pbsHandle_;
 
 		bool isInitialized_ = false;
+
+		GPU::GraphicsPipelineStateDesc GetGPSDesc(GPU::Format rtvFormat)
+		{
+			GPU::GraphicsPipelineStateDesc gpsDesc;
+			gpsDesc.shaders_[(i32)GPU::ShaderType::VS] = vsHandle_;
+			gpsDesc.shaders_[(i32)GPU::ShaderType::PS] = psHandle_;
+			gpsDesc.renderState_.blendStates_[0].enable_ = true;
+			gpsDesc.renderState_.blendStates_[0].srcBlend_ = GPU::BlendType::SRC_ALPHA;
+			gpsDesc.renderState_.blendStates_[0].srcBlendAlpha_ = GPU::BlendType::SRC_ALPHA;
+			gpsDesc.renderState_.blendStates_[0].destBlend_ = GPU::BlendType::INV_SRC_ALPHA;
+			gpsDesc.renderState_.blendStates_[0].destBlendAlpha_ = GPU::BlendType::INV_SRC_ALPHA;
+			gpsDesc.numVertexElements_ = 3;
+			gpsDesc.vertexElements_[0].usage_ = GPU::VertexUsage::POSITION;
+			gpsDesc.vertexElements_[0].usageIdx_ = 0;
+			gpsDesc.vertexElements_[0].streamIdx_ = 0;
+			gpsDesc.vertexElements_[0].format_ = GPU::Format::R32G32_FLOAT;
+			gpsDesc.vertexElements_[0].offset_ = 0;
+			gpsDesc.vertexElements_[1].usage_ = GPU::VertexUsage::TEXCOORD;
+			gpsDesc.vertexElements_[1].usageIdx_ = 0;
+			gpsDesc.vertexElements_[1].streamIdx_ = 0;
+			gpsDesc.vertexElements_[1].format_ = GPU::Format::R32G32_FLOAT;
+			gpsDesc.vertexElements_[1].offset_ = 8;
+			gpsDesc.vertexElements_[2].usage_ = GPU::VertexUsage::COLOR;
+			gpsDesc.vertexElements_[2].usageIdx_ = 0;
+			gpsDesc.vertexElements_[2].streamIdx_ = 0;
+			gpsDesc.vertexElements_[2].format_ = GPU::Format::R8G8B8A8_UNORM;
+			gpsDesc.vertexElements_[2].offset_ = 16;
+			gpsDesc.topology_ = GPU::TopologyType::TRIANGLE;
+			gpsDesc.numRTs_ = 1;
+			gpsDesc.rtvFormats_[0] = rtvFormat;
+			return gpsDesc;
+		}
 	}
 
 	void Manager::Initialize()
@@ -89,33 +121,7 @@ namespace ImGui
 		psHandle_ = GPU::Manager::CreateShader(psDesc, "ImGui PS");
 		DBG_ASSERT(psHandle_);
 
-		GPU::GraphicsPipelineStateDesc gpsDesc;
-		gpsDesc.shaders_[(i32)vsDesc.type_] = vsHandle_;
-		gpsDesc.shaders_[(i32)psDesc.type_] = psHandle_;
-		gpsDesc.renderState_.blendStates_[0].enable_ = true;
-		gpsDesc.renderState_.blendStates_[0].srcBlend_ = GPU::BlendType::SRC_ALPHA;
-		gpsDesc.renderState_.blendStates_[0].srcBlendAlpha_ = GPU::BlendType::SRC_ALPHA;
-		gpsDesc.renderState_.blendStates_[0].destBlend_ = GPU::BlendType::INV_SRC_ALPHA;
-		gpsDesc.renderState_.blendStates_[0].destBlendAlpha_ = GPU::BlendType::INV_SRC_ALPHA;
-		gpsDesc.numVertexElements_ = 3;
-		gpsDesc.vertexElements_[0].usage_ = GPU::VertexUsage::POSITION;
-		gpsDesc.vertexElements_[0].usageIdx_ = 0;
-		gpsDesc.vertexElements_[0].streamIdx_ = 0;
-		gpsDesc.vertexElements_[0].format_ = GPU::Format::R32G32_FLOAT;
-		gpsDesc.vertexElements_[0].offset_ = 0;
-		gpsDesc.vertexElements_[1].usage_ = GPU::VertexUsage::TEXCOORD;
-		gpsDesc.vertexElements_[1].usageIdx_ = 0;
-		gpsDesc.vertexElements_[1].streamIdx_ = 0;
-		gpsDesc.vertexElements_[1].format_ = GPU::Format::R32G32_FLOAT;
-		gpsDesc.vertexElements_[1].offset_ = 8;
-		gpsDesc.vertexElements_[2].usage_ = GPU::VertexUsage::COLOR;
-		gpsDesc.vertexElements_[2].usageIdx_ = 0;
-		gpsDesc.vertexElements_[2].streamIdx_ = 0;
-		gpsDesc.vertexElements_[2].format_ = GPU::Format::R8G8B8A8_UNORM;
-		gpsDesc.vertexElements_[2].offset_ = 16;
-		gpsDesc.topology_ = GPU::TopologyType::TRIANGLE;
-		gpsDesc.numRTs_ = 1;
-		gpsDesc.rtvFormats_[0] = GPU::Format::R8G8B8A8_UNORM;
+		auto gpsDesc = GetGPSDesc(GPU::Format::R8G8B8A8_UNORM);
 		gpsHandle_ = GPU::Manager::CreateGraphicsPipelineState(gpsDesc, "ImGui GPS");
 		DBG_ASSERT(gpsHandle_);
 
@@ -332,6 +338,9 @@ namespace ImGui
 			noofVertices += drawList->VtxBuffer.size();
 			DBG_ASSERT(noofVertices < MAX_VERTICES);
 		}
+
+		if(noofVertices == 0)
+			return;
 
 		cmdList.UpdateBuffer(vbHandle_, 0, noofVertices * sizeof(ImDrawVert), baseVertices);
 
