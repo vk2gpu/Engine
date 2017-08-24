@@ -46,8 +46,8 @@ namespace
 	template<typename TYPE, index_type ARRAY_SIZE>
 	void ArrayTestCopy(TYPE(IdxToVal)(index_type))
 	{
-		Array<TYPE, ARRAY_SIZE> TestArray;
-		Array<TYPE, ARRAY_SIZE> TestArray2;
+		Array<TYPE, ARRAY_SIZE> TestArray = {};
+		Array<TYPE, ARRAY_SIZE> TestArray2 = {};
 
 		bool Success = true;
 		for(index_type Idx = 0; Idx < ARRAY_SIZE; ++Idx)
