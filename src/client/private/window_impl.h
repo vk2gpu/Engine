@@ -58,6 +58,8 @@ namespace Client
 		InputState prevInputState_;
 		InputState currInputState_;
 
+		WindowImpl();
+
 		void UpdateInputState();
 
 		void HandleEvent(const SDL_Event& event);

@@ -20,7 +20,7 @@ namespace Resource
 		bool ResolvePath(const char* inPath, char* outPath, i32 maxOutPath) override;
 
 	private:
-		Core::Array<char, Core::MAX_PATH_LENGTH> rootPath_;
+		Core::Array<char, Core::MAX_PATH_LENGTH> rootPath_ = {};
 		Core::Vector<Core::String> searchPaths_;
 	};
 

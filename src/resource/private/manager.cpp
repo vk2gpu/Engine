@@ -50,7 +50,7 @@ namespace Resource
 			bool sourceExists = false;
 			if(pathResolver)
 			{
-				Core::Array<char, Core::MAX_PATH_LENGTH> resolvedSourcePath;
+				Core::Array<char, Core::MAX_PATH_LENGTH> resolvedSourcePath = {};
 				pathResolver->ResolvePath(sourceFile_.c_str(), resolvedSourcePath.data(), resolvedSourcePath.size());
 				sourceExists = Core::FileStats(resolvedSourcePath.data(), nullptr, &sourceTimestamp, nullptr);
 			}
@@ -565,9 +565,9 @@ namespace Resource
 		DBG_ASSERT(IsInitialized());
 		DBG_ASSERT(outResource == nullptr);
 
-		Core::Array<char, Core::MAX_PATH_LENGTH> path;
-		Core::Array<char, Core::MAX_PATH_LENGTH> fileName;
-		Core::Array<char, Core::MAX_PATH_LENGTH> ext;
+		Core::Array<char, Core::MAX_PATH_LENGTH> path = {};
+		Core::Array<char, Core::MAX_PATH_LENGTH> fileName = {};
+		Core::Array<char, Core::MAX_PATH_LENGTH> ext = {};
 		if(!Core::FileSplitPath(
 		       name, path.data(), path.size(), fileName.data(), fileName.size(), ext.data(), ext.size()))
 		{
@@ -576,8 +576,8 @@ namespace Resource
 		}
 
 		// Build converted filename.
-		Core::Array<char, Core::MAX_PATH_LENGTH> convertedFileName;
-		Core::Array<char, Core::MAX_PATH_LENGTH> convertedPath;
+		Core::Array<char, Core::MAX_PATH_LENGTH> convertedFileName = {};
+		Core::Array<char, Core::MAX_PATH_LENGTH> convertedPath = {};
 		sprintf_s(convertedFileName.data(), convertedFileName.size(), "%s.%s.converted", fileName.data(), ext.data());
 		sprintf_s(convertedPath.data(), convertedPath.size(), "converter_output");
 

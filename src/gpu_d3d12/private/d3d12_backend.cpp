@@ -555,7 +555,7 @@ namespace GPU
 
 		gpsDesc.SampleMask = D3D12_DEFAULT_SAMPLE_MASK;
 
-		Core::Array<D3D12_INPUT_ELEMENT_DESC, 16> elementDesc;
+		Core::Array<D3D12_INPUT_ELEMENT_DESC, 16> elementDesc = {};
 		gpsDesc.InputLayout.NumElements = desc.numVertexElements_;
 		gpsDesc.InputLayout.pInputElementDescs = elementDesc.data();
 		for(i32 i = 0; i < desc.numVertexElements_; ++i)
@@ -608,12 +608,12 @@ namespace GPU
 		D3D12PipelineBindingSet pbs;
 
 		// Grab all resources to create pipeline binding set with.
-		Core::Array<D3D12Resource*, MAX_SRV_BINDINGS> srvResources;
-		Core::Array<D3D12_SHADER_RESOURCE_VIEW_DESC, MAX_UAV_BINDINGS> srvs;
-		Core::Array<D3D12Resource*, MAX_SRV_BINDINGS> uavResources;
-		Core::Array<D3D12_UNORDERED_ACCESS_VIEW_DESC, MAX_UAV_BINDINGS> uavs;
-		Core::Array<D3D12_CONSTANT_BUFFER_VIEW_DESC, MAX_CBV_BINDINGS> cbvs;
-		Core::Array<D3D12_SAMPLER_DESC, MAX_SAMPLER_BINDINGS> samplers;
+		Core::Array<D3D12Resource*, MAX_SRV_BINDINGS> srvResources = {};
+		Core::Array<D3D12_SHADER_RESOURCE_VIEW_DESC, MAX_UAV_BINDINGS> srvs = {};
+		Core::Array<D3D12Resource*, MAX_SRV_BINDINGS> uavResources = {};
+		Core::Array<D3D12_UNORDERED_ACCESS_VIEW_DESC, MAX_UAV_BINDINGS> uavs = {};
+		Core::Array<D3D12_CONSTANT_BUFFER_VIEW_DESC, MAX_CBV_BINDINGS> cbvs = {};
+		Core::Array<D3D12_SAMPLER_DESC, MAX_SAMPLER_BINDINGS> samplers = {};
 
 		memset(srvResources.data(), 0, sizeof(srvResources));
 		memset(srvs.data(), 0, sizeof(srvs));

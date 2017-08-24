@@ -73,7 +73,7 @@ namespace Core
 
 	String& String::Appendfv(const char* fmt, va_list argList)
 	{
-		Core::Array<char, 4096> buffer;
+		Core::Array<char, 4096> buffer = {0};
 		vsprintf_s(buffer.data(), buffer.size(), fmt, argList);
 		internalAppend(buffer.data());
 		return *this;

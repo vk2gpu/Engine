@@ -90,7 +90,7 @@ namespace Resource
 	 * This is responsible for converting individual resources into
 	 * something usable by the engine.
 	 */
-	class RESOURCE_DLL IConverter
+	class IConverter
 	{
 	public:
 		virtual ~IConverter() {}

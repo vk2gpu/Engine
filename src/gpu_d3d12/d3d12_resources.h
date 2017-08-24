@@ -130,16 +130,16 @@ namespace GPU
 		D3D12DescriptorAllocation cbvs_;
 		D3D12DescriptorAllocation samplers_;
 
-		Core::Array<D3D12Resource*, MAX_SRV_BINDINGS> srvTransitions_;
-		Core::Array<D3D12Resource*, MAX_UAV_BINDINGS> uavTransitions_;
+		Core::Array<D3D12Resource*, MAX_SRV_BINDINGS> srvTransitions_ = {};
+		Core::Array<D3D12Resource*, MAX_UAV_BINDINGS> uavTransitions_ = {};
 	};
 
 	struct D3D12DrawBindingSet
 	{
 		DrawBindingSetDesc desc_;
-		Core::Array<D3D12Resource*, MAX_VERTEX_STREAMS> vbResources_;
+		Core::Array<D3D12Resource*, MAX_VERTEX_STREAMS> vbResources_ = {};
 		D3D12Resource* ibResource_ = nullptr;
-		Core::Array<D3D12_VERTEX_BUFFER_VIEW, MAX_VERTEX_STREAMS> vbs_;
+		Core::Array<D3D12_VERTEX_BUFFER_VIEW, MAX_VERTEX_STREAMS> vbs_ = {};
 		D3D12_INDEX_BUFFER_VIEW ib_;
 	};
 

@@ -532,7 +532,7 @@ namespace Serialization
 	{
 		if(IsReading())
 		{
-			Core::Array<char, 37> str;
+			Core::Array<char, 37> str = {};
 			if(SerializeString(key, str.data(), str.size()))
 			{
 				return value.FromString(str.data());
@@ -541,7 +541,7 @@ namespace Serialization
 		}
 		else if(IsWriting())
 		{
-			Core::Array<char, 37> str;
+			Core::Array<char, 37> str = {};
 			value.AsString(str.data());
 			return SerializeString(key, str.data(), str.size());
 		}

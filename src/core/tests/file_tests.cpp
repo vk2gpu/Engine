@@ -237,9 +237,9 @@ TEST_CASE("file-tests-find-files")
 TEST_CASE("file-tests-split-path")
 {
 	auto TestPath = [&](const char* input, const char* path, const char* file, const char* ext) {
-		Core::Array<char, Core::MAX_PATH_LENGTH> outPath;
-		Core::Array<char, Core::MAX_PATH_LENGTH> outFile;
-		Core::Array<char, Core::MAX_PATH_LENGTH> outExt;
+		Core::Array<char, Core::MAX_PATH_LENGTH> outPath = {0};
+		Core::Array<char, Core::MAX_PATH_LENGTH> outFile = {0};
+		Core::Array<char, Core::MAX_PATH_LENGTH> outExt = {0};
 		memset(outPath.data(), 0, outPath.size());
 		memset(outFile.data(), 0, outFile.size());
 		memset(outExt.data(), 0, outExt.size());

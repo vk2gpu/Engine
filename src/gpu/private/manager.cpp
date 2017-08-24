@@ -97,7 +97,7 @@ namespace GPU
 
 		Core::Mutex mutex_;
 		Core::HandleAllocator handles_ = Core::HandleAllocator(ResourceType::MAX);
-		Core::Array<Core::Vector<Handle>, MAX_GPU_FRAMES> deferredDeletions_;
+		Core::Array<Core::Vector<Handle>, MAX_GPU_FRAMES> deferredDeletions_ = {};
 		i64 frameIdx_ = 0;
 
 		ManagerImpl(const SetupParams& setupParams)

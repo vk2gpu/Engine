@@ -11,6 +11,14 @@
 
 namespace Client
 {
+	WindowImpl::WindowImpl()
+	{
+		prevInputState_.keyCodeStates_.fill(false);
+		prevInputState_.scanCodeStates_.fill(false);
+		prevInputState_.mouseButtonStates_.fill(false);
+		currInputState_ = prevInputState_;
+	}
+
 	void WindowImpl::UpdateInputState()
 	{
 		using std::swap;
