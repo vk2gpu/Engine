@@ -18,41 +18,6 @@ namespace Core
 		typedef value_type* iterator;
 		typedef const value_type* const_iterator;
 
-		Array()
-		{
-			for(index_type Idx = 0; Idx < SIZE; ++Idx)
-				Data_[Idx] = TYPE();
-		}
-
-		Array(const Array& Other)
-		{
-			for(index_type Idx = 0; Idx < SIZE; ++Idx)
-				Data_[Idx] = Other.Data_[Idx];
-		}
-
-		Array(Array&& Other)
-		    : Array()
-		{
-			for(index_type Idx = 0; Idx < SIZE; ++Idx)
-				std::swap(Data_[Idx], Other.Data_[Idx]);
-		}
-
-		~Array() {}
-
-		Array& operator=(const Array& Other)
-		{
-			for(index_type Idx = 0; Idx < SIZE; ++Idx)
-				Data_[Idx] = Other.Data_[Idx];
-			return *this;
-		}
-
-		Array& operator=(Array&& Other)
-		{
-			for(index_type Idx = 0; Idx < SIZE; ++Idx)
-				std::swap(Data_[Idx], Other.Data_[Idx]);
-			return *this;
-		}
-
 		operator ArrayView<TYPE>() const { return ArrayView<TYPE>(data_, size_); }
 
 		TYPE& operator[](index_type Idx)
@@ -87,7 +52,6 @@ namespace Core
 		const TYPE* data() const { return &Data_[0]; }
 		index_type size() const { return SIZE; }
 
-	private:
 		TYPE Data_[SIZE];
 	};
 } // namespace Core

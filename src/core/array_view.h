@@ -28,7 +28,7 @@ namespace Core
 			DBG_ASSERT(begin_ == nullptr && end_ == nullptr || (begin_ != nullptr && end_ != nullptr));
 		}
 
-		ArrayView(value_type* data, index_type size)
+		ArrayView(const value_type* data, index_type size)
 		    : begin_(data)
 		    , end_(data + size)
 		{
