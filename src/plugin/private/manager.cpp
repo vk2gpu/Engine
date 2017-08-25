@@ -73,7 +73,7 @@ namespace Plugin
 			}
 
 			// Make a copy to actually use to ensure the original file isn't locked when in use.
-			if(!Core::FileCopy(fileName_.data(), tempFileName_.data()))
+			if(!Core::FileCopy(fileName_.c_str(), tempFileName_.c_str()))
 			{
 				DBG_LOG("Failed to copy plugin library %s!\n", fileName_.data());
 				return false;

@@ -15,12 +15,6 @@ TEST_CASE("graphics-tests-converter-shader")
 {
 	ScopedEngine engine;
 
-	// Init device.
-	i32 numAdapters = GPU::Manager::EnumerateAdapters(nullptr, 0);
-	REQUIRE(numAdapters > 0);
-
-	REQUIRE(GPU::Manager::CreateAdapter(0) == GPU::ErrorCode::OK);
-
 	Graphics::Shader* shader = nullptr;
 	REQUIRE(Resource::Manager::RequestResource(shader, "shader_tests/00-basic.esf"));
 	Resource::Manager::WaitForResource(shader);
@@ -30,12 +24,6 @@ TEST_CASE("graphics-tests-converter-shader")
 TEST_CASE("graphics-tests-converter-texture")
 {
 	ScopedEngine engine;
-
-	// Init device.
-	i32 numAdapters = GPU::Manager::EnumerateAdapters(nullptr, 0);
-	REQUIRE(numAdapters > 0);
-
-	REQUIRE(GPU::Manager::CreateAdapter(0) == GPU::ErrorCode::OK);
 
 	Graphics::Texture* texture = nullptr;
 

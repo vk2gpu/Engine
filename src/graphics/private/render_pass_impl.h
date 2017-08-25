@@ -11,8 +11,8 @@ namespace Graphics
 		static constexpr i32 MAX_INPUTS = 16;
 		static constexpr i32 MAX_OUTPUTS = 16;
 
-		Core::Array<RenderGraphResource, MAX_INPUTS> inputs_;
-		Core::Array<RenderGraphResource, MAX_OUTPUTS> outputs_;
+		Core::Array<RenderGraphResource, MAX_INPUTS> inputs_ = {};
+		Core::Array<RenderGraphResource, MAX_OUTPUTS> outputs_ = {};
 
 		i32 numInputs_ = 0;
 		i32 numOutputs_ = 0;

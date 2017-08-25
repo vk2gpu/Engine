@@ -576,7 +576,7 @@ namespace Graphics
 				SetupBindings(impl_->header_.ps_);
 				SetupBindings(impl_->header_.cs_);
 
-				Core::Array<char, 128> debugName;
+				Core::Array<char, 128> debugName = {};
 				sprintf_s(debugName.data(), debugName.size(), "%s/%s_binding", impl_->shader_->name_.c_str(),
 				    impl_->header_.name_);
 				impl_->bsHandle_ = GPU::Manager::CreatePipelineBindingSet(impl_->bs_, debugName.data());
@@ -723,7 +723,7 @@ namespace Graphics
 		if(!psHandle && GPU::Manager::IsInitialized())
 		{
 			const auto& desc = techniqueDescs_[impl->descIdx_];
-			Core::Array<char, 128> debugName;
+			Core::Array<char, 128> debugName = {};
 			sprintf_s(debugName.data(), debugName.size(), "%s/%s", name_.c_str(), impl->header_.name_);
 
 			if(techHeader->cs_ != -1)

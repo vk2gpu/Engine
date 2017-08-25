@@ -1,6 +1,7 @@
 SET(SOURCES_PUBLIC 
 	"dll.h"
 	"model.h"
+	"pipeline.h"
 	"render_graph.h"
 	"render_pass.h"
 	"render_resources.h"
@@ -11,6 +12,7 @@ SET(SOURCES_PUBLIC
 SET(SOURCES_PRIVATE 
 	"private/model.cpp"
 	"private/model_impl.h"
+	"private/pipeline.cpp"
 	"private/render_graph.cpp"
 	"private/render_pass.cpp"
 	"private/render_pass_impl.h"
@@ -77,6 +79,10 @@ SET(SOURCES_SHADER_CONVERTER
 	"converters/shader_preprocessor.cpp"
 )
 
+SET(SOURCES_TEST_PIPELINE
+	"pipelines/pipeline_test.cpp"
+)
+
 INCLUDE_DIRECTORIES(
 	# 3rd party includes.
 	"${ENGINE_3RDPARTY_PATH}/fcpp"
@@ -85,6 +91,7 @@ INCLUDE_DIRECTORIES(
 	"${ENGINE_3RDPARTY_PATH}/assimp/include"
 )
 
+# Converter plugins.
 ADD_ENGINE_PLUGIN(converter_graphics_model SHARED ${SOURCES_MODEL_CONVERTER})
 SET_TARGET_PROPERTIES(converter_graphics_model PROPERTIES FOLDER Libraries/Plugins)
 TARGET_LINK_LIBRARIES(converter_graphics_model core graphics resource assimp)
@@ -96,3 +103,8 @@ TARGET_LINK_LIBRARIES(converter_graphics_shader core graphics resource fcpp)
 ADD_ENGINE_PLUGIN(converter_graphics_texture SHARED ${SOURCES_TEXTURE_CONVERTER})
 SET_TARGET_PROPERTIES(converter_graphics_texture PROPERTIES FOLDER Libraries/Plugins)
 TARGET_LINK_LIBRARIES(converter_graphics_texture core graphics resource squish)
+
+# Pipeline plugins.
+ADD_ENGINE_PLUGIN(graphics_test_pipeline SHARED ${SOURCES_TEST_PIPELINE})
+SET_TARGET_PROPERTIES(graphics_test_pipeline PROPERTIES FOLDER Tests/Plugins)
+TARGET_LINK_LIBRARIES(graphics_test_pipeline core graphics)

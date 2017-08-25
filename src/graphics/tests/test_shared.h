@@ -38,7 +38,7 @@ namespace
 		GPU::Handle fbsHandle;
 
 		ScopedEngine()
-		    : window("ScopedEngine", 100, 100, 1024, 768, true)
+		    : window("unit-test-engine", 100, 100, 1024, 768, true)
 		{
 			Graphics::Model::RegisterFactory();
 			Graphics::Shader::RegisterFactory();
@@ -73,6 +73,7 @@ namespace
 
 		~ScopedEngine()
 		{
+			GPU::Manager::DestroyResource(fbsHandle);
 			GPU::Manager::DestroyResource(scHandle);
 			Graphics::Model::UnregisterFactory();
 			Graphics::Shader::UnregisterFactory();

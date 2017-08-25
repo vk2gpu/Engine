@@ -172,6 +172,7 @@ namespace Graphics
 
 	RenderGraphResource RenderGraphBuilder::UseSRV(RenderPass* renderPass, RenderGraphResource res)
 	{
+		DBG_ASSERT(res);
 		if(!res)
 			return res;
 
@@ -199,6 +200,7 @@ namespace Graphics
 
 	RenderGraphResource RenderGraphBuilder::UseRTV(RenderPass* renderPass, RenderGraphResource res)
 	{
+		DBG_ASSERT(res);
 		if(!res)
 			return res;
 
@@ -224,6 +226,7 @@ namespace Graphics
 
 	RenderGraphResource RenderGraphBuilder::UseDSV(RenderPass* renderPass, RenderGraphResource res, GPU::DSVFlags flags)
 	{
+		DBG_ASSERT(res);
 		if(!res)
 			return res;
 

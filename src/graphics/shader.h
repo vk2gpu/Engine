@@ -52,10 +52,10 @@ namespace Graphics
 		ShaderTechniqueDesc& SetDSVFormat(GPU::Format format);
 
 		i32 numVertexElements_ = 0;
-		Core::Array<GPU::VertexElement, GPU::MAX_VERTEX_ELEMENTS> vertexElements_;
+		Core::Array<GPU::VertexElement, GPU::MAX_VERTEX_ELEMENTS> vertexElements_ = {};
 		GPU::TopologyType topology_ = GPU::TopologyType::INVALID;
 		i32 numRTs_ = 0;
-		Core::Array<GPU::Format, GPU::MAX_BOUND_RTVS> rtvFormats_;
+		Core::Array<GPU::Format, GPU::MAX_BOUND_RTVS> rtvFormats_ = {};
 		GPU::Format dsvFormat_ = GPU::Format::INVALID;
 	};
 
