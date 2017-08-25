@@ -1,6 +1,8 @@
 #include "graphics/pipeline.h"
 #include "graphics/render_graph.h"
 #include "graphics/render_pass.h"
+#include "core/concurrency.h"
+#include "core/set.h"
 #include "core/string.h"
 #include "core/vector.h"
 #include "gpu/command_list.h"
@@ -54,7 +56,16 @@ namespace
 
 	struct DebugData
 	{
-		Core::Vector<Core::String> passes_;
+		Core::Mutex mutex_;
+		Core::Set<Core::String> passes_;
+
+		void AddPass(const char* name)
+		{
+			Core::ScopedMutex lock(mutex_);
+			passes_.insert(name);
+		}
+
+		bool HavePass(const char* name) const { return passes_.find(name) != passes_.end(); }
 	};
 
 	class RenderPassMain : public Graphics::RenderPass
@@ -79,7 +90,7 @@ namespace
 
 		void Execute(Graphics::RenderGraphResources& res, GPU::CommandList& cmdList) override
 		{
-			debugData_.passes_.push_back("RenderPassMain");
+			debugData_.AddPass("RenderPassMain");
 
 			Graphics::RenderGraphTextureDesc rtTexDesc;
 			Graphics::RenderGraphTextureDesc dsTexDesc;
@@ -123,7 +134,7 @@ namespace
 		virtual ~RenderPassHUD() {}
 		void Execute(Graphics::RenderGraphResources& res, GPU::CommandList& cmdList) override
 		{
-			debugData_.passes_.push_back("RenderPassHUD");
+			debugData_.AddPass("RenderPassHUD");
 		}
 
 		DebugData& debugData_;
@@ -148,7 +159,7 @@ namespace
 		virtual ~RenderPassFinal() {}
 		void Execute(Graphics::RenderGraphResources& res, GPU::CommandList& cmdList) override
 		{
-			debugData_.passes_.push_back("RenderPassFinal");
+			debugData_.AddPass("RenderPassFinal");
 		}
 
 		DebugData& debugData_;
@@ -172,7 +183,7 @@ namespace
 		virtual ~RenderPassDepthPrepass() {}
 		void Execute(Graphics::RenderGraphResources& res, GPU::CommandList& cmdList) override
 		{
-			debugData_.passes_.push_back("RenderPassDepthPrepass");
+			debugData_.AddPass("RenderPassDepthPrepass");
 		}
 
 		DebugData& debugData_;
@@ -200,7 +211,7 @@ namespace
 		virtual ~RenderPassSolid() {}
 		void Execute(Graphics::RenderGraphResources& res, GPU::CommandList& cmdList) override
 		{
-			debugData_.passes_.push_back("RenderPassSolid");
+			debugData_.AddPass("RenderPassSolid");
 		}
 
 		DebugData& debugData_;
@@ -227,7 +238,7 @@ namespace
 		virtual ~RenderPassSSAO() {}
 		void Execute(Graphics::RenderGraphResources& res, GPU::CommandList& cmdList) override
 		{
-			debugData_.passes_.push_back("RenderPassSSAO");
+			debugData_.AddPass("RenderPassSSAO");
 		}
 
 		DebugData& debugData_;
@@ -259,7 +270,7 @@ namespace
 		virtual ~RenderPassLighting() {}
 		void Execute(Graphics::RenderGraphResources& res, GPU::CommandList& cmdList) override
 		{
-			debugData_.passes_.push_back("RenderPassLighting");
+			debugData_.AddPass("RenderPassLighting");
 		}
 
 		DebugData& debugData_;
@@ -289,7 +300,7 @@ namespace
 
 		void Execute(Graphics::RenderGraphResources& res, GPU::CommandList& cmdList) override
 		{
-			debugData_.passes_.push_back("RenderPassToneMap");
+			debugData_.AddPass("RenderPassToneMap");
 
 			Graphics::RenderGraphTextureDesc rtTexDesc;
 			auto rtTex = color_ ? res.GetTexture(color_, &rtTexDesc) : GPU::Handle();
@@ -375,20 +386,20 @@ namespace
 				haveErrors |= debugData_.passes_.size() != 3;
 				if(haveErrors)
 					return haveErrors;
-				haveErrors |= debugData_.passes_[0] != "RenderPassMain";
-				haveErrors |= debugData_.passes_[1] != "RenderPassHUD";
-				haveErrors |= debugData_.passes_[2] != "RenderPassFinal";
+				haveErrors |= !debugData_.HavePass("RenderPassMain");
+				haveErrors |= !debugData_.HavePass("RenderPassHUD");
+				haveErrors |= !debugData_.HavePass("RenderPassFinal");
 			}
 			else if(renderer_ == 1)
 			{
 				haveErrors |= debugData_.passes_.size() != 5;
 				if(haveErrors)
 					return haveErrors;
-				haveErrors |= debugData_.passes_[0] != "RenderPassDepthPrepass";
-				haveErrors |= debugData_.passes_[1] != "RenderPassSSAO";
-				haveErrors |= debugData_.passes_[2] != "RenderPassSolid";
-				haveErrors |= debugData_.passes_[3] != "RenderPassLighting";
-				haveErrors |= debugData_.passes_[4] != "RenderPassToneMap";
+				haveErrors |= !debugData_.HavePass("RenderPassDepthPrepass");
+				haveErrors |= !debugData_.HavePass("RenderPassSSAO");
+				haveErrors |= !debugData_.HavePass("RenderPassSolid");
+				haveErrors |= !debugData_.HavePass("RenderPassLighting");
+				haveErrors |= !debugData_.HavePass("RenderPassToneMap");
 			}
 
 			return haveErrors;

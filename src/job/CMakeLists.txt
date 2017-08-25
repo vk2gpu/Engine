@@ -2,6 +2,7 @@ SET(SOURCES_PUBLIC
 	"dll.h"
 	"basic_job.h"
 	"concurrency.h"
+	"function_job.h"
 	"manager.h"
 	"types.h"
 )
@@ -9,6 +10,7 @@ SET(SOURCES_PUBLIC
 SET(SOURCES_PRIVATE 
 	"private/basic_job.cpp"
 	"private/concurrency.cpp"
+	"private/function_job.cpp"
 	"private/manager.cpp"
 )
 

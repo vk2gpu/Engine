@@ -6,6 +6,18 @@
 
 namespace GPU
 {
+	CommandList::CommandList(CommandList&& other)
+	    : handleAllocator_(other.handleAllocator_)
+	{
+		using std::swap;
+		swap(queueType_, other.queueType_);
+		swap(allocatedBytes_, other.allocatedBytes_);
+		swap(commandData_, other.commandData_);
+		swap(commands_, other.commands_);
+		swap(drawState_, other.drawState_);
+		swap(cachedDrawState_, other.cachedDrawState_);
+	}
+
 	CommandList::CommandList(const Core::HandleAllocator& handleAllocator, i32 bufferSize)
 	    : handleAllocator_(handleAllocator)
 	{

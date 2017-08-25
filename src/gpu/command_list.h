@@ -16,6 +16,8 @@ namespace GPU
 	class CommandList
 	{
 	public:
+		GPU_DLL CommandList(CommandList&& other);
+
 		/**
 		 * @param handleAllocator Used to validate handles passed in.
 		 * @param bufferSize Buffer size to allocate.
@@ -174,6 +176,11 @@ namespace GPU
 		 */
 		GPU_DLL CommandCopyTextureSubResource* CopyTextureSubResource(Handle dstTexture, i32 dstSubResourceIdx,
 		    const Point& dstPoint, Handle srcTexture, i32 srcSubResourceIdx, const Box& srcBox);
+
+		/**
+		 * @return number of commands currently in command list.
+ 		 */
+		i32 NumCommands() const { return commands_.size(); }
 
 		/// for iterator support.
 		typedef Core::Vector<Command*> CommandVector;

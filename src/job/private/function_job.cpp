@@ -1,30 +1,28 @@
-#include "job/basic_job.h"
+#include "job/function_job.h"
 #include "job/manager.h"
 #include "core/concurrency.h"
 #include "core/vector.h"
 
 namespace Job
 {
-	BasicJob::BasicJob(const char* name)
+	FunctionJob::FunctionJob(const char* name, JobFunction onWorkFn)
+	    : onWorkFn_(onWorkFn)
 	{
 		// Setup base job descriptor.
 		baseJobDesc_.func_ = [](i32 param, void* data) {
-			auto* _this = reinterpret_cast<BasicJob*>(data);
-			_this->OnWork(param);
+			auto* _this = reinterpret_cast<FunctionJob*>(data);
+			_this->onWorkFn_(param);
 
 			i32 numRunning = Core::AtomicDec(&(_this->running_));
 			DBG_ASSERT(numRunning >= 0);
-
-			if(numRunning == 0)
-				_this->OnCompleted();
 		};
 		baseJobDesc_.data_ = this;
 		baseJobDesc_.name_ = name;
 	}
 
-	BasicJob::~BasicJob() {}
+	FunctionJob::~FunctionJob() {}
 
-	void BasicJob::RunSingle(i32 param, Counter** counter)
+	void FunctionJob::RunSingle(i32 param, Counter** counter)
 	{
 		JobDesc jobDesc = baseJobDesc_;
 		jobDesc.param_ = param;
@@ -32,7 +30,7 @@ namespace Job
 		Job::Manager::RunJobs(&jobDesc, 1, counter);
 	}
 
-	void BasicJob::RunMultiple(i32 paramMin, i32 paramMax, Counter** counter)
+	void FunctionJob::RunMultiple(i32 paramMin, i32 paramMax, Counter** counter)
 	{
 		DBG_ASSERT(paramMax >= paramMin);
 		Core::Vector<JobDesc> jobDescs;
@@ -46,7 +44,5 @@ namespace Job
 		Core::AtomicAdd(&running_, jobDescs.size());
 		Job::Manager::RunJobs(jobDescs.data(), jobDescs.size(), counter);
 	}
-
-	void BasicJob::OnCompleted() {}
 
 } // namespace Job

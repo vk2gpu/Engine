@@ -1,5 +1,6 @@
 #include "catch.hpp"
 #include "client/manager.h"
+#include "core/set.h"
 #include "core/string.h"
 #include "graphics/pipeline.h"
 #include "graphics/render_graph.h"
@@ -52,7 +53,16 @@ namespace
 
 	struct DebugData
 	{
-		Core::Vector<Core::String> passes_;
+		Core::Mutex mutex_;
+		Core::Set<Core::String> passes_;
+
+		void AddPass(const char* name)
+		{
+			Core::ScopedMutex lock(mutex_);
+			passes_.insert(name);
+		}
+
+		bool HavePass(const char* name) { return passes_.find(name) != passes_.end(); }
 	};
 
 	namespace Mock
@@ -77,7 +87,7 @@ namespace
 			virtual ~RenderPassMain() {}
 			void Execute(Graphics::RenderGraphResources& res, GPU::CommandList& cmdList) override
 			{
-				debugData_.passes_.push_back("RenderPassMain");
+				debugData_.AddPass("RenderPassMain");
 			}
 
 			DebugData& debugData_;
@@ -102,7 +112,7 @@ namespace
 			virtual ~RenderPassHUD() {}
 			void Execute(Graphics::RenderGraphResources& res, GPU::CommandList& cmdList) override
 			{
-				debugData_.passes_.push_back("RenderPassHUD");
+				debugData_.AddPass("RenderPassHUD");
 			}
 
 			DebugData& debugData_;
@@ -129,7 +139,7 @@ namespace
 			virtual ~RenderPassFinal() {}
 			void Execute(Graphics::RenderGraphResources& res, GPU::CommandList& cmdList) override
 			{
-				debugData_.passes_.push_back("RenderPassFinal");
+				debugData_.AddPass("RenderPassFinal");
 			}
 
 			DebugData& debugData_;
@@ -154,7 +164,7 @@ namespace
 			virtual ~RenderPassDepthPrepass() {}
 			void Execute(Graphics::RenderGraphResources& res, GPU::CommandList& cmdList) override
 			{
-				debugData_.passes_.push_back("RenderPassDepthPrepass");
+				debugData_.AddPass("RenderPassDepthPrepass");
 			}
 
 			DebugData& debugData_;
@@ -180,7 +190,7 @@ namespace
 			virtual ~RenderPassSolid() {}
 			void Execute(Graphics::RenderGraphResources& res, GPU::CommandList& cmdList) override
 			{
-				debugData_.passes_.push_back("RenderPassSolid");
+				debugData_.AddPass("RenderPassSolid");
 			}
 
 			DebugData& debugData_;
@@ -209,7 +219,7 @@ namespace
 			virtual ~RenderPassSSAO() {}
 			void Execute(Graphics::RenderGraphResources& res, GPU::CommandList& cmdList) override
 			{
-				debugData_.passes_.push_back("RenderPassSSAO");
+				debugData_.AddPass("RenderPassSSAO");
 			}
 
 			DebugData& debugData_;
@@ -242,7 +252,7 @@ namespace
 			virtual ~RenderPassLighting() {}
 			void Execute(Graphics::RenderGraphResources& res, GPU::CommandList& cmdList) override
 			{
-				debugData_.passes_.push_back("RenderPassLighting");
+				debugData_.AddPass("RenderPassLighting");
 			}
 
 			DebugData& debugData_;
@@ -543,9 +553,8 @@ TEST_CASE("render-graph-tests-forward-simple")
 	graph.Execute(renderPassMain.color_);
 
 	REQUIRE(debugData.passes_.size() == 1);
-	REQUIRE(debugData.passes_[0] == "RenderPassMain");
+	REQUIRE(debugData.HavePass("RenderPassMain"));
 }
-
 
 TEST_CASE("render-graph-tests-forward-advanced")
 {
@@ -561,9 +570,9 @@ TEST_CASE("render-graph-tests-forward-advanced")
 	graph.Execute(colorRes);
 
 	REQUIRE(debugData.passes_.size() == 3);
-	REQUIRE(debugData.passes_[0] == "RenderPassMain");
-	REQUIRE(debugData.passes_[1] == "RenderPassHUD");
-	REQUIRE(debugData.passes_[2] == "RenderPassFinal");
+	REQUIRE(debugData.HavePass("RenderPassMain"));
+	REQUIRE(debugData.HavePass("RenderPassHUD"));
+	REQUIRE(debugData.HavePass("RenderPassFinal"));
 }
 
 
@@ -581,10 +590,10 @@ TEST_CASE("render-graph-tests-deferred-simple")
 	graph.Execute(hdrRes);
 
 	REQUIRE(debugData.passes_.size() == 4);
-	REQUIRE(debugData.passes_[0] == "RenderPassDepthPrepass");
-	REQUIRE(debugData.passes_[1] == "RenderPassSSAO");
-	REQUIRE(debugData.passes_[2] == "RenderPassSolid");
-	REQUIRE(debugData.passes_[3] == "RenderPassLighting");
+	REQUIRE(debugData.HavePass("RenderPassDepthPrepass"));
+	REQUIRE(debugData.HavePass("RenderPassSSAO"));
+	REQUIRE(debugData.HavePass("RenderPassSolid"));
+	REQUIRE(debugData.HavePass("RenderPassLighting"));
 }
 
 TEST_CASE("render-graph-tests-pipeline-plugin")

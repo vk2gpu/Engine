@@ -12,6 +12,9 @@
 #include "gpu/command_list.h"
 #include "gpu/manager.h"
 
+#include "job/function_job.h"
+#include "job/manager.h"
+
 #include <algorithm>
 
 namespace Graphics
@@ -51,10 +54,11 @@ namespace Graphics
 		Core::LinearAllocator frameAllocator_;
 
 		// Command lists.
-		GPU::Handle cmdHandle_;
+		Core::Vector<GPU::CommandList> cmdLists_;
+		Core::Vector<GPU::Handle> cmdHandles_;
 
 		RenderGraphImpl(i32 frameAllocatorSize)
-			: frameAllocator_(frameAllocatorSize)
+		    : frameAllocator_(frameAllocatorSize)
 		{
 		}
 
@@ -277,17 +281,13 @@ namespace Graphics
 		return resDesc.handle_;
 	}
 
-	RenderGraph::RenderGraph()
-	{
-		impl_ = new RenderGraphImpl(MAX_FRAME_DATA);
-
-		impl_->cmdHandle_ = GPU::Manager::CreateCommandList("RenderGraph");
-	}
+	RenderGraph::RenderGraph() { impl_ = new RenderGraphImpl(MAX_FRAME_DATA); }
 
 	RenderGraph::~RenderGraph()
 	{
 		Clear();
-		GPU::Manager::DestroyResource(impl_->cmdHandle_);
+		for(auto cmdHandle : impl_->cmdHandles_)
+			GPU::Manager::DestroyResource(cmdHandle);
 		delete impl_;
 	}
 
@@ -361,16 +361,46 @@ namespace Graphics
 
 		impl_->CreateResources();
 
-		RenderGraphResources resources(impl_);
-		GPU::CommandList cmdList(GPU::Manager::GetHandleAllocator());
-		for(auto* entry : impl_->executeRenderPasses_)
+		// Create more command lists as required.
+		const i32 numPasses = impl_->executeRenderPasses_.size();
+		if(impl_->cmdLists_.size() < numPasses)
 		{
-			entry->renderPass_->Execute(resources, cmdList);
+			impl_->cmdLists_.reserve(numPasses);
+			impl_->cmdHandles_.reserve(numPasses);
+			for(i32 idx = impl_->cmdLists_.size(); idx < numPasses; ++idx)
+			{
+				impl_->cmdLists_.emplace_back(GPU::Manager::GetHandleAllocator());
+				impl_->cmdHandles_.emplace_back(GPU::Manager::CreateCommandList("RenderGraph"));
+			}
 		}
 
-		// Compile command list.
-		GPU::Manager::CompileCommandList(impl_->cmdHandle_, cmdList);
-		GPU::Manager::SubmitCommandList(impl_->cmdHandle_);
+		// Setup job to execute & compile all command lists.
+		Job::FunctionJob executeJob("RenderGraph::Execute", [impl = this->impl_](i32 idx) {
+			RenderGraphResources resources(impl);
+
+			auto& entry = impl->executeRenderPasses_[idx];
+			auto& cmdList = impl->cmdLists_[idx];
+			auto& cmdHandle = impl->cmdHandles_[idx];
+
+			cmdList.Reset();
+			entry->renderPass_->Execute(resources, cmdList);
+			if(cmdList.NumCommands() > 0)
+				GPU::Manager::CompileCommandList(cmdHandle, cmdList);
+		});
+
+		// Wait for all render pass execution to complete.
+		Job::Counter* counter = nullptr;
+		executeJob.RunMultiple(0, numPasses - 1, &counter);
+		Job::Manager::WaitForCounter(counter, 0);
+
+		// Submit all command lists with commands in sequential order.
+		for(i32 idx = 0; idx < numPasses; ++idx)
+		{
+			const auto& cmdList = impl_->cmdLists_[idx];
+			auto cmdHandle = impl_->cmdHandles_[idx];
+			if(cmdList.NumCommands() > 0)
+				GPU::Manager::SubmitCommandList(cmdHandle);
+		}
 	}
 
 	i32 RenderGraph::GetNumExecutedRenderPasses() const { return impl_->executeRenderPasses_.size(); }
