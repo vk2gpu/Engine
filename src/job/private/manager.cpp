@@ -17,8 +17,6 @@ namespace Job
 	{
 		/// Counter value. Decreases as job completes.
 		volatile i32 value_ = 0;
-		/// Should counter be freed by the last that's using it?
-		bool free_ = false;
 
 		Counter() = default;
 		Counter(const Counter&) = delete;
@@ -86,7 +84,7 @@ namespace Job
 				u32 counter = Core::AtomicDec(&fiber->job_.counter_->value_);
 				if(counter == 0)
 				{
-					if(fiber->job_.counter_->free_)
+					if(fiber->job_.freeCounter_)
 						delete fiber->job_.counter_;
 				}
 
@@ -273,7 +271,6 @@ namespace Job
 			return true;
 		}
 
-
 		return !exiting_;
 	}
 
@@ -384,10 +381,11 @@ namespace Job
 		DBG_ASSERT(IsInitialized());
 		DBG_ASSERT(counter == nullptr || *counter == nullptr);
 
+		const bool jobShouldFreeCounter = (counter == nullptr);
+
 		// Setup counter.
 		auto* localCounter = new Counter();
 		localCounter->value_ = numJobDesc;
-		localCounter->free_ = counter == nullptr;
 
 		Core::AtomicAdd(&impl_->jobCount_, numJobDesc);
 
@@ -403,6 +401,7 @@ namespace Job
 		{
 			DBG_ASSERT(jobDescs[i].counter_ == nullptr);
 			jobDescs[i].counter_ = localCounter;
+			jobDescs[i].freeCounter_ = jobShouldFreeCounter;
 
 			while(!impl_->pendingJobs_.Enqueue(jobDescs[i]))
 			{
