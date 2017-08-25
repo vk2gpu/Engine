@@ -8,7 +8,7 @@ namespace Core
 	class CORE_DLL LinearAllocator
 	{
 	public:
-		LinearAllocator(i32 Size, i32 alignment = PLATFORM_ALIGNMENT);
+		LinearAllocator(i32 size, i32 alignment = PLATFORM_ALIGNMENT);
 		~LinearAllocator();
 
 		/**

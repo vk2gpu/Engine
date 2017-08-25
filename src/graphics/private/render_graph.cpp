@@ -3,6 +3,7 @@
 #include "graphics/private/render_pass_impl.h"
 
 #include "core/concurrency.h"
+#include "core/linear_allocator.h"
 #include "core/misc.h"
 #include "core/set.h"
 #include "core/string.h"
@@ -46,13 +47,16 @@ namespace Graphics
 		// Built during execute.
 		Core::Vector<RenderPassEntry*> executeRenderPasses_;
 
-
 		// Frame data for allocation.
-		Core::Vector<u8> frameData_;
-		volatile i32 frameDataOffset_ = 0;
+		Core::LinearAllocator frameAllocator_;
 
 		// Command lists.
 		GPU::Handle cmdHandle_;
+
+		RenderGraphImpl(i32 frameAllocatorSize)
+			: frameAllocator_(frameAllocatorSize)
+		{
+		}
 
 		void AddDependencies(Core::Vector<RenderPassEntry*>& outRenderPasses,
 		    const Core::ArrayView<const RenderGraphResource>& resources)
@@ -127,16 +131,6 @@ namespace Graphics
 					transientResources_.push_back(resDesc.handle_);
 				}
 			}
-		}
-
-		void* Alloc(i32 size)
-		{
-			size = Core::PotRoundUp(size, PLATFORM_ALIGNMENT);
-			i32 nextOffset = Core::AtomicAddAcq(&frameDataOffset_, size);
-			DBG_ASSERT(nextOffset <= frameData_.size());
-			if(nextOffset > frameData_.size())
-				return nullptr;
-			return frameData_.data() + (nextOffset - size);
 		}
 	};
 
@@ -256,7 +250,7 @@ namespace Graphics
 		return res;
 	}
 
-	void* RenderGraphBuilder::Alloc(i32 size) { return impl_->Alloc(size); }
+	void* RenderGraphBuilder::Alloc(i32 size) { return impl_->frameAllocator_.Allocate(size); }
 
 	RenderGraphResources::RenderGraphResources(RenderGraphImpl* impl)
 	    : impl_(impl)
@@ -285,8 +279,7 @@ namespace Graphics
 
 	RenderGraph::RenderGraph()
 	{
-		impl_ = new RenderGraphImpl;
-		impl_->frameData_.resize(MAX_FRAME_DATA);
+		impl_ = new RenderGraphImpl(MAX_FRAME_DATA);
 
 		impl_->cmdHandle_ = GPU::Manager::CreateCommandList("RenderGraph");
 	}
@@ -325,8 +318,7 @@ namespace Graphics
 		impl_->transientResources_.clear();
 		impl_->renderPassEntries_.clear();
 		impl_->resourceDescs_.clear();
-		impl_->frameDataOffset_ = 0;
-		impl_->frameData_.fill(0);
+		impl_->frameAllocator_.Reset();
 	}
 
 	void RenderGraph::Execute(RenderGraphResource finalRes)
