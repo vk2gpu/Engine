@@ -16,13 +16,21 @@ namespace GPU
 	class CommandList
 	{
 	public:
+		static const i32 DEFAULT_BUFFER_SIZE = 1024 * 1024;
+
 		GPU_DLL CommandList(CommandList&& other);
 
 		/**
-		 * @param handleAllocator Used to validate handles passed in.
 		 * @param bufferSize Buffer size to allocate.
 		 */
-		GPU_DLL CommandList(const Core::HandleAllocator& handleAllocator, i32 bufferSize = 1024 * 1024);
+		GPU_DLL CommandList(i32 bufferSize = DEFAULT_BUFFER_SIZE);
+
+		/**
+		 * @param bufferSize Buffer size to allocate.
+		 * @param handleAllocator Used to validate handles passed in if a custom implementation is required.
+		 */
+		GPU_DLL CommandList(i32 bufferSize, const Core::HandleAllocator& handleAllocator);
+
 
 		/**
 		 * Allocate from command list.

@@ -206,13 +206,21 @@ namespace GPU
 	};
 
 	/**
-	 * Binding for a render target view.
+	 * Base binding information for views.
 	 */
-	struct GPU_DLL BindingRTV
+	struct GPU_DLL BindingView
 	{
 		Handle resource_;
 		Format format_ = Format::INVALID;
 		ViewDimension dimension_ = ViewDimension::INVALID;
+	};
+
+
+	/**
+	 * Binding for a render target view.
+	 */
+	struct GPU_DLL BindingRTV : BindingView
+	{
 		i32 mipSlice_ = 0;
 		i32 firstArraySlice_ = 0;
 		i32 planeSlice_FirstWSlice_ = 0;
@@ -223,47 +231,44 @@ namespace GPU
 	/**
 	 * Binding for a depth stencil view.
 	 */
-	struct GPU_DLL BindingDSV
+	struct GPU_DLL BindingDSV : BindingView
 	{
-		Handle resource_;
-		Format format_ = Format::INVALID;
-		ViewDimension dimension_ = ViewDimension::INVALID;
 		DSVFlags flags_ = DSVFlags::NONE;
 		i32 mipSlice_ = 0;
 		i32 firstArraySlice_ = 0;
 		i32 arraySize_ = 0;
 	};
 
+	static_assert(sizeof(BindingDSV) <= 32, "BindingDSV should remain under 32 bytes.");
+
 	/**
 	 * Binding for a shader resource view.
 	 */
-	struct GPU_DLL BindingSRV
+	struct GPU_DLL BindingSRV : BindingView
 	{
-		Handle resource_;
-		Format format_ = Format::INVALID;
-		ViewDimension dimension_ = ViewDimension::INVALID;
 		i32 mostDetailedMip_FirstElement_ = 0;
 		i32 mipLevels_NumElements_ = 0;
 		i32 firstArraySlice_ = 0;
-		i32 arraySize_ = 0;
 		i32 planeSlice_ = 0;
+		i32 arraySize_ = 0;
 		i32 structureByteStride_ = 0;
 		f32 resourceMinLODClamp_ = 0.0f;
 	};
 
+	static_assert(sizeof(BindingSRV) <= 64, "BindingSRV should remain under 64 bytes.");
+
 	/**
 	 * Binding for an unordered access view.
 	 */
-	struct GPU_DLL BindingUAV
+	struct GPU_DLL BindingUAV : BindingView
 	{
-		Handle resource_;
-		Format format_ = Format::INVALID;
-		ViewDimension dimension_ = ViewDimension::INVALID;
 		i32 mipSlice_FirstElement_ = 0;
 		i32 firstArraySlice_FirstWSlice_NumElements_ = 0;
 		i32 arraySize_PlaneSlice_WSize_ = 0;
 		i32 structureByteStride_ = 0;
 	};
+
+	static_assert(sizeof(BindingUAV) <= 32, "BindingUAV should remain under 32 bytes.");
 
 	/**
 	 * Binding for a buffer.

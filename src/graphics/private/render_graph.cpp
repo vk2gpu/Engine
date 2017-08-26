@@ -369,7 +369,7 @@ namespace Graphics
 			impl_->cmdHandles_.reserve(numPasses);
 			for(i32 idx = impl_->cmdLists_.size(); idx < numPasses; ++idx)
 			{
-				impl_->cmdLists_.emplace_back(GPU::Manager::GetHandleAllocator());
+				impl_->cmdLists_.emplace_back();
 				impl_->cmdHandles_.emplace_back(GPU::Manager::CreateCommandList("RenderGraph"));
 			}
 		}

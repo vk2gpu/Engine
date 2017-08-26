@@ -701,7 +701,7 @@ TEST_CASE("gpu-tests-clears")
 	REQUIRE(fbsHandle);
 
 	GPU::Handle cmdHandle = GPU::Manager::CreateCommandList(testName.c_str());
-	GPU::CommandList cmdList(GPU::Manager::GetHandleAllocator());
+	GPU::CommandList cmdList;
 
 	f32 color[4] = {0.0f, 0.0f, 0.0f, 0.0f};
 	REQUIRE(cmdList.ClearRTV(fbsHandle, 0, color));
@@ -813,7 +813,7 @@ TEST_CASE("gpu-tests-compile-draw")
 	GPU::Handle pbsHandle = GPU::Manager::CreatePipelineBindingSet(pipelineBindingSetDesc, testName.c_str());
 
 	GPU::Handle cmdHandle = GPU::Manager::CreateCommandList(testName.c_str());
-	GPU::CommandList cmdList(GPU::Manager::GetHandleAllocator());
+	GPU::CommandList cmdList;
 
 	GPU::DrawState drawState;
 	drawState.viewport_.w_ = (f32)rtDesc.width_;
@@ -898,7 +898,7 @@ TEST_CASE("gpu-tests-compile-dispatch")
 		REQUIRE(pbsHandle);
 
 		GPU::Handle cmdHandle = GPU::Manager::CreateCommandList(testName.c_str());
-		GPU::CommandList cmdList(GPU::Manager::GetHandleAllocator());
+		GPU::CommandList cmdList;
 
 		i32 xGroups = (i32)(bufDesc.size_ / sizeof(i32)) / 8;
 		REQUIRE(cmdList.Dispatch(pbsHandle, xGroups, 1, 1));
@@ -936,7 +936,7 @@ TEST_CASE("gpu-tests-compile-dispatch")
 		REQUIRE(pbsHandle);
 
 		GPU::Handle cmdHandle = GPU::Manager::CreateCommandList(testName.c_str());
-		GPU::CommandList cmdList(GPU::Manager::GetHandleAllocator());
+		GPU::CommandList cmdList;
 
 		i32 xGroups = texDesc.width_ / 8;
 		i32 yGroups = texDesc.height_ / 8;
@@ -975,7 +975,7 @@ TEST_CASE("gpu-tests-compile-update-buffer")
 	REQUIRE(vbHandle);
 
 	GPU::Handle cmdHandle = GPU::Manager::CreateCommandList(testName.c_str());
-	GPU::CommandList cmdList(GPU::Manager::GetHandleAllocator());
+	GPU::CommandList cmdList;
 
 	f32 data[8] = {0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f};
 	REQUIRE(cmdList.UpdateBuffer(vbHandle, 0, sizeof(data), data));
@@ -1009,7 +1009,7 @@ TEST_CASE("gpu-tests-compile-update-texture")
 	REQUIRE(texHandle);
 
 	GPU::Handle cmdHandle = GPU::Manager::CreateCommandList(testName.c_str());
-	GPU::CommandList cmdList(GPU::Manager::GetHandleAllocator());
+	GPU::CommandList cmdList;
 
 	u32 data[8] = {0xff00ff00, 0xffff0000, 0x0000ffff, 0x00ff00ff, 0xff00ff00, 0xffff0000, 0x0000ffff, 0x00ff00ff};
 	GPU::TextureSubResourceData texSubRscData;
@@ -1048,7 +1048,7 @@ TEST_CASE("gpu-tests-compile-copy-buffer")
 	REQUIRE(vb1Handle);
 
 	GPU::Handle cmdHandle = GPU::Manager::CreateCommandList(testName.c_str());
-	GPU::CommandList cmdList(GPU::Manager::GetHandleAllocator());
+	GPU::CommandList cmdList;
 
 	REQUIRE(cmdList.CopyBuffer(vb1Handle, 0, vb0Handle, 0, sizeof(data)));
 	REQUIRE(GPU::Manager::CompileCommandList(cmdHandle, cmdList));
@@ -1089,7 +1089,7 @@ TEST_CASE("gpu-tests-compile-copy-texture")
 	REQUIRE(tex1Handle);
 
 	GPU::Handle cmdHandle = GPU::Manager::CreateCommandList(testName.c_str());
-	GPU::CommandList cmdList(GPU::Manager::GetHandleAllocator());
+	GPU::CommandList cmdList;
 
 	GPU::Point dstPoint;
 	GPU::Box srcBox;
@@ -1138,7 +1138,7 @@ TEST_CASE("gpu-tests-compile-present")
 	REQUIRE(fbsHandle);
 
 	GPU::Handle cmdHandle = GPU::Manager::CreateCommandList(testName.c_str());
-	GPU::CommandList cmdList(GPU::Manager::GetHandleAllocator());
+	GPU::CommandList cmdList;
 
 	// clang-format off
 	f32 colors[] = {

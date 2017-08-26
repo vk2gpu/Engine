@@ -10,7 +10,7 @@ namespace
 TEST_CASE("commandlist-tests-alloc")
 {
 	Core::HandleAllocator handleAllocator = Core::HandleAllocator(GPU::ResourceType::MAX);
-	GPU::CommandList commandList(handleAllocator, sizeof(size_t) * 4);
+	GPU::CommandList commandList(sizeof(size_t) * 4, handleAllocator);
 
 	// Allocate 4 blocks of data.
 	REQUIRE(commandList.Alloc(sizeof(size_t)) != nullptr);
@@ -34,7 +34,7 @@ TEST_CASE("commandlist-tests-commands")
 	GPU::Handle drawBindingHandle = handleAllocator.Alloc<GPU::Handle>(GPU::ResourceType::DRAW_BINDING_SET);
 	GPU::Handle frameBindingHandle = handleAllocator.Alloc<GPU::Handle>(GPU::ResourceType::FRAME_BINDING_SET);
 
-	GPU::CommandList commandList(handleAllocator);
+	GPU::CommandList commandList(GPU::CommandList::DEFAULT_BUFFER_SIZE, handleAllocator);
 	float f[4] = {0.0f, 0.0f, 0.0f, 0.0f};
 	u32 u[4] = {0, 0, 0, 0};
 	GPU::TextureSubResourceData texSubRsc;

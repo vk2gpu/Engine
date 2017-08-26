@@ -56,7 +56,7 @@ TEST_CASE("imgui-tests-run")
 
 	GPU::Handle cmdHandle = GPU::Manager::CreateCommandList(testName.c_str());
 	REQUIRE(cmdHandle);
-	GPU::CommandList cmdList(GPU::Manager::GetHandleAllocator());
+	GPU::CommandList cmdList;
 
 	f32 color[] = {0.1f, 0.1f, 0.2f, 1.0f};
 

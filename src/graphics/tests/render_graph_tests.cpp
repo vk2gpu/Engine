@@ -569,7 +569,8 @@ TEST_CASE("render-graph-tests-forward-advanced")
 
 	graph.Execute(colorRes);
 
-	REQUIRE(debugData.passes_.size() == 3);
+	REQUIRE(debugData.passes_.size() == 4);
+	REQUIRE(debugData.HavePass("RenderPassDepthPrepass"));
 	REQUIRE(debugData.HavePass("RenderPassMain"));
 	REQUIRE(debugData.HavePass("RenderPassHUD"));
 	REQUIRE(debugData.HavePass("RenderPassFinal"));

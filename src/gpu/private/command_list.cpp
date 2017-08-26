@@ -1,4 +1,5 @@
 #include "gpu/command_list.h"
+#include "gpu/manager.h"
 
 #if !CODE_INLINE
 #include "gpu/private/command_list.inl"
@@ -18,7 +19,14 @@ namespace GPU
 		swap(cachedDrawState_, other.cachedDrawState_);
 	}
 
-	CommandList::CommandList(const Core::HandleAllocator& handleAllocator, i32 bufferSize)
+	CommandList::CommandList(i32 bufferSize)
+	    : handleAllocator_(GPU::Manager::GetHandleAllocator())
+	{
+		commandData_.resize(bufferSize);
+		cachedDrawState_ = &drawState_;
+	}
+
+	CommandList::CommandList(i32 bufferSize, const Core::HandleAllocator& handleAllocator)
 	    : handleAllocator_(handleAllocator)
 	{
 		commandData_.resize(bufferSize);

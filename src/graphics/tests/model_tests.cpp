@@ -12,7 +12,7 @@ namespace
 	public:
 		Window(ScopedEngine& engine, const char* name)
 		    : engine_(engine)
-		    , cmdList_(GPU::Manager::GetHandleAllocator())
+		    , cmdList_()
 		{
 			cmdHandle_ = GPU::Manager::CreateCommandList(name);
 			REQUIRE(cmdHandle_);

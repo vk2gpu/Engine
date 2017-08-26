@@ -14,7 +14,7 @@ namespace
 	public:
 		Window(const char* name)
 		    : window_(name, 100, 100, 1024, 768, true)
-		    , cmdList_(GPU::Manager::GetHandleAllocator())
+		    , cmdList_()
 		{
 			GPU::SwapChainDesc scDesc;
 			scDesc.width_ = 1024;
