@@ -89,6 +89,8 @@ namespace Core
 	CORE_DLL_INLINE void Barrier();
 	/// Allow OS to switch threads.
 	CORE_DLL_INLINE void SwitchThread();
+	/// Get number of logical cores.
+	CORE_DLL i32 GetNumLogicalCores();
 
 	/**
 	 * Thread.
@@ -204,44 +206,39 @@ namespace Core
 	};
 
 	/**
-	 * Event.
+	 * Semaphore.
 	 */
-	class CORE_DLL Event final
+	class CORE_DLL Semaphore final
 	{
 	public:
 		/**
-		 * Create event.
-		 * @param manualReset Should manual reset be required?
-		 * @param initialState Should start signalled?
-		 * @param debugName Debug name for event.
+		 * Create semaphore.
+		 * @param initialCount Initial count for semaphore.
+		 * @param maximumCount Maximum count for semaphore.
+		 * @param debugName Debug name for semaphore.
 		 */
-		Event(bool manualReset = false, bool initialState = false, const char* debugName = nullptr);
-		~Event();
+		Semaphore(i32 initialCount, i32 maximumCount, const char* debugName = nullptr);
+		~Semaphore();
 
 		/**
-		 * Wait for event to be signalled.
+		 * Wait for semaphore to be signalled, and decrease count by one if so.
 		 * @param timeout Timeout in milliseconds.
 		 * @return True if signalled, false if timed out or spurious wakeup.
 		 */
 		bool Wait(i32 timeout = -1);
 
 		/**
-		 * Signal.
+		 * Signal sempahore.
+		 * @param count Value to increment semaphore count by.
 		 * @return Success.
 		 */
-		bool Signal();
-
-		/**
-		 * Reset.
-		 * @return Success.
-		 */
-		bool Reset();
+		bool Signal(i32 count);
 
 	private:
-		Event(const Event&) = delete;
-		Event(Event&&) = delete;
+		Semaphore(const Semaphore&) = delete;
+		Semaphore(Semaphore&&) = delete;
 
-		struct EventImpl* impl_;
+		struct SemaphoreImpl* impl_;
 	};
 
 	/**

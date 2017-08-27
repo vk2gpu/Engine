@@ -383,109 +383,67 @@ TEST_CASE("concurrency-tests-fiber")
 	REQUIRE(sharedData.exited_ == sharedData.fibers_.size());
 }
 
-TEST_CASE("concurrency-tests-event")
+TEST_CASE("concurrency-tests-sem")
 {
 	SECTION("st-default")
 	{
-		Event event(false, false);
-		REQUIRE(!event.Wait(1));
-		REQUIRE(!event.Wait(10));
-		REQUIRE(event.Signal());
-		REQUIRE(event.Wait(-1));
-		REQUIRE(!event.Wait(1));
-		REQUIRE(!event.Wait(10));
-	}
-
-	SECTION("st-manual-reset")
-	{
-		Event event(true, false);
-		REQUIRE(event.Signal());
-		REQUIRE(event.Wait(-1));
-		REQUIRE(event.Wait(1));
-		REQUIRE(event.Wait(10));
-		REQUIRE(event.Reset());
-		REQUIRE(!event.Wait(1));
-		REQUIRE(!event.Wait(10));
+		Semaphore sem(0, 1000);
+		REQUIRE(!sem.Wait(1));
+		REQUIRE(!sem.Wait(10));
+		REQUIRE(sem.Signal(1));
+		REQUIRE(sem.Wait(-1));
+		REQUIRE(!sem.Wait(1));
+		REQUIRE(!sem.Wait(10));
 	}
 
 	SECTION("st-manual-reset-start-signalled")
 	{
-		Event event(true, true);
+		Semaphore sem(2, 1000);
 
-		REQUIRE(event.Wait(-1));
-		REQUIRE(event.Wait(1));
-		REQUIRE(event.Wait(10));
-		REQUIRE(event.Reset());
-		REQUIRE(!event.Wait(1));
-		REQUIRE(!event.Wait(10));
-		REQUIRE(event.Signal());
-		REQUIRE(event.Wait(-1));
-		REQUIRE(event.Wait(1));
-		REQUIRE(event.Wait(10));
-		REQUIRE(event.Reset());
-		REQUIRE(!event.Wait(1));
-		REQUIRE(!event.Wait(10));
+		REQUIRE(sem.Wait(-1));
+		REQUIRE(sem.Wait(1));
+		REQUIRE(!sem.Wait(10));
+		REQUIRE(sem.Signal(2));
+		REQUIRE(sem.Wait(-1));
+		REQUIRE(sem.Wait(1));
+		REQUIRE(!sem.Wait(10));
 	}
-
 
 	SECTION("mt-default")
 	{
-		Event event(false, false);
-		REQUIRE(!event.Wait(1));
-		REQUIRE(!event.Wait(10));
+		Semaphore sem(0, 1000);
+		REQUIRE(!sem.Wait(1));
+		REQUIRE(!sem.Wait(10));
 		Thread thread(
 		    [](void* userData) -> int {
-			    auto* event = (Event*)userData;
-			    return event->Signal() ? 1 : 0;
+			    auto* sem = (Semaphore*)userData;
+			    return sem->Signal(2) ? 1 : 0;
 			},
-		    (void*)&event);
-		REQUIRE(event.Wait(-1));
+		    (void*)&sem);
+		REQUIRE(sem.Wait(-1));
 		REQUIRE(thread.Join());
-		REQUIRE(!event.Wait(1));
-		REQUIRE(!event.Wait(10));
-	}
-
-	SECTION("mt-manual-reset")
-	{
-		Event event(true, false);
-		Thread thread(
-		    [](void* userData) -> int {
-			    auto* event = (Event*)userData;
-			    return event->Signal() ? 1 : 0;
-			},
-		    (void*)&event);
-		REQUIRE(event.Wait(-1));
-		REQUIRE(thread.Join());
-		REQUIRE(event.Wait(1));
-		REQUIRE(event.Wait(10));
-		REQUIRE(event.Reset());
-		REQUIRE(!event.Wait(1));
-		REQUIRE(!event.Wait(10));
+		REQUIRE(sem.Wait(1));
+		REQUIRE(!sem.Wait(10));
 	}
 
 	SECTION("mt-manual-reset-start-signalled")
 	{
-		Event event(true, true);
+		Semaphore sem(2, 1000);
 
-		REQUIRE(event.Wait(-1));
-		REQUIRE(event.Wait(1));
-		REQUIRE(event.Wait(10));
-		REQUIRE(event.Reset());
-		REQUIRE(!event.Wait(1));
-		REQUIRE(!event.Wait(10));
+		REQUIRE(sem.Wait(-1));
+		REQUIRE(sem.Wait(1));
+		REQUIRE(!sem.Wait(10));
+
 		Thread thread(
 		    [](void* userData) -> int {
-			    auto* event = (Event*)userData;
-			    return event->Signal() ? 1 : 0;
+			    auto* sem = (Semaphore*)userData;
+			    return sem->Signal(2) ? 1 : 0;
 			},
-		    (void*)&event);
-		REQUIRE(event.Wait(-1));
+		    (void*)&sem);
+		REQUIRE(sem.Wait(-1));
 		REQUIRE(thread.Join());
-		REQUIRE(event.Wait(1));
-		REQUIRE(event.Wait(10));
-		REQUIRE(event.Reset());
-		REQUIRE(!event.Wait(1));
-		REQUIRE(!event.Wait(10));
+		REQUIRE(sem.Wait(1));
+		REQUIRE(!sem.Wait(10));
 	}
 }
 

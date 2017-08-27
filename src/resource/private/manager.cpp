@@ -98,14 +98,14 @@ namespace Resource
 		/// Read job queue.
 		Core::MPMCBoundedQueue<FileIOJob> readJobs_;
 		/// Signalled when read job is waiting.
-		Core::Event readJobEvent_;
+		Core::Semaphore readJobSem_;
 		/// Thread to use for blocking reads.
 		Core::Thread readThread_;
 
 		/// Write job queue.
 		Core::MPMCBoundedQueue<FileIOJob> writeJobs_;
 		/// Signalled when write job is waiting.
-		Core::Event writeJobEvent_;
+		Core::Semaphore writeJobSem_;
 		/// Thread to use for blocking reads.
 		Core::Thread writeThread_;
 
@@ -253,10 +253,10 @@ namespace Resource
 
 		ManagerImpl()
 		    : readJobs_(MAX_READ_JOBS)
-		    , readJobEvent_(false, false, "Resource Manager Read Event")
+		    , readJobSem_(0, MAX_READ_JOBS, "Resource Manager Read Semamphore")
 		    , readThread_(ReadIOThread, this, 65536, "Resource Manager Read Thread")
 		    , writeJobs_(MAX_WRITE_JOBS)
-		    , writeJobEvent_(false, false, "Resource Manager Write Event")
+		    , writeJobSem_(0, MAX_WRITE_JOBS, "Resource Manager Write Semaphore")
 		    , writeThread_(WriteIOThread, this, 65536, "Resource Manager Write Thread")
 		    , isActive_(true)
 		{
@@ -294,12 +294,12 @@ namespace Resource
 			// TODO: Mark jobs as cancelled.
 			while(readJobs_.Enqueue(FileIOJob()) == false)
 				Job::Manager::YieldCPU();
-			readJobEvent_.Signal();
+			readJobSem_.Signal(1);
 			readThread_.Join();
 
 			while(writeJobs_.Enqueue(FileIOJob()) == false)
 				Job::Manager::YieldCPU();
-			writeJobEvent_.Signal();
+			writeJobSem_.Signal(1);
 			writeThread_.Join();
 		}
 
@@ -317,7 +317,7 @@ namespace Resource
 					else
 						return 0;
 				}
-				impl->readJobEvent_.Wait();
+				impl->readJobSem_.Wait();
 			}
 		}
 
@@ -335,7 +335,7 @@ namespace Resource
 					else
 						return 0;
 				}
-				impl->writeJobEvent_.Wait();
+				impl->writeJobSem_.Wait();
 			}
 		}
 	};
@@ -766,7 +766,7 @@ namespace Resource
 		{
 			Core::AtomicAddAcq(&result->workRemaining_, size);
 			impl_->readJobs_.Enqueue(job);
-			impl_->readJobEvent_.Signal();
+			impl_->readJobSem_.Signal(1);
 		}
 		else
 		{
@@ -801,7 +801,7 @@ namespace Resource
 		{
 			Core::AtomicAddAcq(&result->workRemaining_, size);
 			impl_->writeJobs_.Enqueue(job);
-			impl_->writeJobEvent_.Signal();
+			impl_->writeJobSem_.Signal(1);
 		}
 		else
 		{

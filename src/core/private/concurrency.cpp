@@ -2,6 +2,7 @@
 
 #include "core/concurrency.h"
 #include "core/debug.h"
+#include "core/string.h"
 
 #include <utility>
 
@@ -14,6 +15,13 @@
 
 namespace Core
 {
+	i32 GetNumLogicalCores()
+	{
+		SYSTEM_INFO sysInfo;
+		::GetSystemInfo(&sysInfo);
+		return sysInfo.dwNumberOfProcessors;
+	}
+
 	struct ThreadImpl
 	{
 		DWORD threadId_ = 0;
@@ -21,7 +29,7 @@ namespace Core
 		Thread::EntryPointFunc entryPointFunc_ = nullptr;
 		void* userData_ = nullptr;
 #ifdef DEBUG
-		const char* debugName_ = nullptr;
+		Core::String debugName_;
 #endif
 	};
 
@@ -30,7 +38,7 @@ namespace Core
 		auto* impl = reinterpret_cast<ThreadImpl*>(lpThreadParameter);
 
 #ifdef DEBUG
-		if(IsDebuggerAttached() && impl->debugName_)
+		if(IsDebuggerAttached() && impl->debugName_.size() > 0)
 		{
 #pragma pack(push, 8)
 			typedef struct tagTHREADNAME_INFO
@@ -44,7 +52,7 @@ namespace Core
 			THREADNAME_INFO info;
 			memset(&info, 0, sizeof(info));
 			info.dwType = 0x1000;
-			info.szName = impl->debugName_;
+			info.szName = impl->debugName_.c_str();
 			info.dwThreadID = (DWORD)-1;
 			info.dwFlags = 0;
 			::RaiseException(0x406D1388, 0, sizeof(info) / sizeof(ULONG), (const ULONG_PTR*)&info);
@@ -119,7 +127,7 @@ namespace Core
 		Fiber::EntryPointFunc entryPointFunc_ = nullptr;
 		void* userData_ = nullptr;
 #ifdef DEBUG
-		const char* debugName_ = nullptr;
+		Core::String debugName_;
 #endif
 	};
 
@@ -243,46 +251,44 @@ namespace Core
 		return nullptr;
 	}
 
-	struct EventImpl
+	struct SemaphoreImpl
 	{
 		HANDLE handle_;
 #ifdef DEBUG
-		const char* debugName_ = nullptr;
+		Core::String debugName_;
 #endif
 	};
 
-	Event::Event(bool manualReset, bool initialState, const char* debugName)
+	Semaphore::Semaphore(i32 initialCount, i32 maximumCount, const char* debugName)
 	{
-		impl_ = new EventImpl();
-		// NOTE: Don't set debug name on event. If 2 names are the same, they'll reference the same event.
-		impl_->handle_ = ::CreateEvent(nullptr, manualReset ? TRUE : FALSE, initialState ? TRUE : FALSE, nullptr);
+		DBG_ASSERT(initialCount >= 0);
+		DBG_ASSERT(maximumCount >= 0);
+
+		impl_ = new SemaphoreImpl();
+
+		// NOTE: Don't set debug name on semaphore. If 2 names are the same, they'll reference the same event.
+		impl_->handle_ = ::CreateSemaphore(nullptr, initialCount, maximumCount, nullptr);
 #ifdef DEBUG
 		impl_->debugName_ = debugName;
 #endif
 	}
 
-	Event::~Event()
+	Semaphore::~Semaphore()
 	{
 		::CloseHandle(impl_->handle_);
 		delete impl_;
 	}
 
-	bool Event::Wait(i32 timeout)
+	bool Semaphore::Wait(i32 timeout)
 	{
 		DBG_ASSERT(impl_);
 		return (::WaitForSingleObject(impl_->handle_, timeout) == WAIT_OBJECT_0);
 	}
 
-	bool Event::Signal()
+	bool Semaphore::Signal(i32 count)
 	{
 		DBG_ASSERT(impl_);
-		return !!::SetEvent(impl_->handle_);
-	}
-
-	bool Event::Reset()
-	{
-		DBG_ASSERT(impl_);
-		return !!::ResetEvent(impl_->handle_);
+		return !!::ReleaseSemaphore(impl_->handle_, count, nullptr);
 	}
 
 	struct MutexImpl
