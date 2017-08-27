@@ -49,11 +49,12 @@ void ps_depthprepass(in VS_OUT _in)
 
 float4 ps_forward(in VS_OUT _in) : SV_TARGET0
 {
-	const float3 sunDirection = float3(-0.707, -0.707, -0.707);
-	const float3 sunColor = float3(1.0, 0.9, 0.8);
+	const float3 sunDirection = normalize(float3(--0.707, -0.707, -0.707));
+	const float3 normal = normalize(_in.normal.xyz);
+	const float3 sunColor = float3(1.0, 1.0, 1.0);
 	const float3 ambient = float3(0.0, 0.0, 0.0);
 
-	float3 lightColor = sunColor * saturate(-dot(_in.normal.xyz, sunDirection));
+	float3 lightColor = sunColor * saturate(-dot(normal, sunDirection));
 	lightColor += ambient;
 
 	return float4(lightColor, 1.0);

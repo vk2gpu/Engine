@@ -582,332 +582,354 @@ void Loop()
 
 	while(Client::Manager::Update())
 	{
-		rmt_ScopedCPUSample(Update, RMTSF_None);
-
 		const f64 targetFrameTime = 1.0 / 120.0;
 		f64 beginFrameTime = Core::Timer::GetAbsoluteTime();
 
 		{
-			rmt_ScopedCPUSample(WaitForFrameSubmit, RMTSF_None);
+			rmt_ScopedCPUSample(Update, RMTSF_None);
 
-			// Wait for previous frame submission to complete.
-			// Must update client to pump messages as the present step can send messages.
-			times_.waitForFrameSubmit_ = Core::Timer::GetAbsoluteTime();
-			while(Job::Manager::GetCounterValue(frameSubmitCounter) > 0)
 			{
-				Client::Manager::Update();
-				Job::Manager::YieldCPU();
-			}
-			Job::Manager::WaitForCounter(frameSubmitCounter, 0);
-			times_.waitForFrameSubmit_ = Core::Timer::GetAbsoluteTime() - times_.waitForFrameSubmit_;
-		}
+				rmt_ScopedCPUSample(WaitForFrameSubmit, RMTSF_None);
 
-		i32 w = w_;
-		i32 h = h_;
-		engine.window.GetSize(w_, h_);
-
-		if(w != w_ || h != h_)
-		{
-			// Resize swapchain.
-			GPU::Manager::ResizeSwapChain(engine.scHandle, w_, h_);
-
-			engine.scDesc.width_ = w_;
-			engine.scDesc.height_ = h_;
-
-		}
-
-		// Wait for reloading to occur. No important jobs should be running at this point.
-		Resource::Manager::WaitOnReload();
-
-		times_.getProfileData_= Core::Timer::GetAbsoluteTime();
-
-		if(profilingEnabled)
-		{
-			numProfilerEntries = Job::Manager::EndProfiling(profilerEntries.data(), profilerEntries.size());
-			Job::Manager::BeginProfiling();
-		}
-		times_.getProfileData_ = Core::Timer::GetAbsoluteTime() - times_.getProfileData_;
-
-		Graphics::RenderGraphResource scRes;
-		Graphics::RenderGraphResource dsRes;
-
-		ImGui::Manager::BeginFrame(input, w_, h_);
-
-		times_.profilerUI_ = Core::Timer::GetAbsoluteTime();
-		if(ImGui::Begin("Job Profiler"))
-		{
-			bool oldProfilingEnabled = profilingEnabled;
-			ImGui::Checkbox("Enable Profiling", &profilingEnabled);
-			static f32 totalTimeMS = 16.0f;
-			ImGui::SliderFloat("Total Time", &totalTimeMS, 1.0f, 100.0f);
-			if(oldProfilingEnabled != profilingEnabled)
-			{
-				if(profilingEnabled)
-					Job::Manager::BeginProfiling();
-				else
-					Job::Manager::EndProfiling(nullptr, 0);
-			}
-
-			Core::Array<ImColor, 12> colors = 
-			{
-				ImColor(0.8f, 0.0f, 0.0f, 1.0f),
-				ImColor(0.0f, 0.8f, 0.0f, 1.0f),
-				ImColor(0.0f, 0.0f, 0.8f, 1.0f),
-				ImColor(0.0f, 0.8f, 0.8f, 1.0f),
-				ImColor(0.8f, 0.0f, 0.8f, 1.0f),
-				ImColor(0.8f, 0.8f, 0.0f, 1.0f),
-				ImColor(0.4f, 0.0f, 0.0f, 1.0f),
-				ImColor(0.0f, 0.4f, 0.0f, 1.0f),
-				ImColor(0.0f, 0.0f, 0.4f, 1.0f),
-				ImColor(0.0f, 0.4f, 0.4f, 1.0f),
-				ImColor(0.4f, 0.0f, 0.4f, 1.0f),
-				ImColor(0.4f, 0.4f, 0.0f, 1.0f),
-			};
-
-			i32 numJobs = 0;
-			i32 numWorkers = 0;
-			f64 minTime = Core::Timer::GetAbsoluteTime();
-			f64 maxTime = 0.0;
-
-			for(i32 idx = 0; idx < numProfilerEntries; ++idx)
-			{
-				const auto& profilerEntry = profilerEntries[idx];
-				numJobs = Core::Max(numJobs, profilerEntry.jobIdx_ + 1);
-				numWorkers = Core::Max(numWorkers, profilerEntry.workerIdx_ + 1);
-				minTime = Core::Min(minTime, profilerEntry.startTime_);
-				maxTime = Core::Max(maxTime, profilerEntry.endTime_);
-			}
-			numWorkers = Core::Max(8, numWorkers);
-
-			ImGui::Text("Number of jobs: %i", numJobs);
-			ImGui::Text("Number of entries: %i", numProfilerEntries);
-			ImGui::Separator();
-			ImGui::BeginChildFrame(0, Math::Vec2(ImGui::GetWindowWidth(), numWorkers * 50.0f));
-
-			f32 profileDrawOffsetX = 0.0f;
-			f32 profileDrawOffsetY = ImGui::GetCursorPosY();
-			f32 profileDrawAdvanceY = 0.0f;
-			for(i32 idx = 0; idx < numWorkers; ++idx)
-			{
-				auto text = Core::String().Printf("Worker %i", idx);
-				auto size = ImGui::CalcTextSize(text.c_str(), nullptr);
-				ImGui::Text(text.c_str());
-				ImGui::Separator();
-
-				profileDrawOffsetX = Core::Max(profileDrawOffsetX, size.x);
-
-				if(profileDrawAdvanceY == 0.0f)
+				// Wait for previous frame submission to complete.
+				// Must update client to pump messages as the present step can send messages.
+				times_.waitForFrameSubmit_ = Core::Timer::GetAbsoluteTime();
+				while(Job::Manager::GetCounterValue(frameSubmitCounter) > 0)
 				{
-					profileDrawAdvanceY = ImGui::GetCursorPosY() - profileDrawOffsetY;
+					Client::Manager::Update();
+					Job::Manager::YieldCPU();
 				}
+				Job::Manager::WaitForCounter(frameSubmitCounter, 0);
+				times_.waitForFrameSubmit_ = Core::Timer::GetAbsoluteTime() - times_.waitForFrameSubmit_;
 			}
 
-			if(numProfilerEntries > 0)
+			i32 w = w_;
+			i32 h = h_;
+			engine.window.GetSize(w_, h_);
+
+			if(w != w_ || h != h_)
 			{
-				const f64 timeRange = totalTimeMS / 1000.0f;//maxTime - minTime;
+				// Resize swapchain.
+				GPU::Manager::ResizeSwapChain(engine.scHandle, w_, h_);
 
-				f32 totalWidth = ImGui::GetWindowWidth() - profileDrawOffsetX; 
+				engine.scDesc.width_ = w_;
+				engine.scDesc.height_ = h_;
 
-				profileDrawOffsetX += 8.0f;
+			}
 
-				auto GetEntryPosition = [&](const Job::ProfilerEntry& entry, Math::Vec2& a, Math::Vec2& b)
+			// Wait for reloading to occur. No important jobs should be running at this point.
+			Resource::Manager::WaitOnReload();
+
+			times_.getProfileData_= Core::Timer::GetAbsoluteTime();
+
+			if(profilingEnabled)
+			{
+				numProfilerEntries = Job::Manager::EndProfiling(profilerEntries.data(), profilerEntries.size());
+				Job::Manager::BeginProfiling();
+			}
+			times_.getProfileData_ = Core::Timer::GetAbsoluteTime() - times_.getProfileData_;
+
+			Graphics::RenderGraphResource scRes;
+			Graphics::RenderGraphResource dsRes;
+
+			ImGui::Manager::BeginFrame(input, w_, h_);
+
+			times_.profilerUI_ = Core::Timer::GetAbsoluteTime();
+			if(ImGui::Begin("Job Profiler"))
+			{
+				bool oldProfilingEnabled = profilingEnabled;
+				ImGui::Checkbox("Enable Profiling", &profilingEnabled);
+				static f32 totalTimeMS = 16.0f;
+				ImGui::SliderFloat("Total Time", &totalTimeMS, 1.0f, 100.0f);
+				if(oldProfilingEnabled != profilingEnabled)
 				{
-					f32 x = profileDrawOffsetX;
-					f32 y = profileDrawOffsetY + (entry.workerIdx_ * profileDrawAdvanceY);
+					if(profilingEnabled)
+						Job::Manager::BeginProfiling();
+					else
+						Job::Manager::EndProfiling(nullptr, 0);
+				}
 
-					a.x = x;
-					a.y = y;
-					b = a;
-
-					f64 normalizedStart = (entry.startTime_ - minTime) / timeRange;
-					f64 normalizedEnd = (entry.endTime_ - minTime) / timeRange;
-					normalizedStart *= totalWidth;
-					normalizedEnd *= totalWidth;
-
-					a.x += (f32)normalizedStart;
-					b.x += (f32)normalizedEnd;
-					b.y += profileDrawAdvanceY;
-
-					a += ImGui::GetWindowPos();
-					b += ImGui::GetWindowPos();
+				Core::Array<ImColor, 12> colors = 
+				{
+					ImColor(0.8f, 0.0f, 0.0f, 1.0f),
+					ImColor(0.0f, 0.8f, 0.0f, 1.0f),
+					ImColor(0.0f, 0.0f, 0.8f, 1.0f),
+					ImColor(0.0f, 0.8f, 0.8f, 1.0f),
+					ImColor(0.8f, 0.0f, 0.8f, 1.0f),
+					ImColor(0.8f, 0.8f, 0.0f, 1.0f),
+					ImColor(0.4f, 0.0f, 0.0f, 1.0f),
+					ImColor(0.0f, 0.4f, 0.0f, 1.0f),
+					ImColor(0.0f, 0.0f, 0.4f, 1.0f),
+					ImColor(0.0f, 0.4f, 0.4f, 1.0f),
+					ImColor(0.4f, 0.0f, 0.4f, 1.0f),
+					ImColor(0.4f, 0.4f, 0.0f, 1.0f),
 				};
 
-				// Draw bars for each worker.
-				i32 hoverEntry = -1;
-				auto* drawList = ImGui::GetWindowDrawList();
+				i32 numJobs = 0;
+				i32 numWorkers = 0;
+				f64 minTime = Core::Timer::GetAbsoluteTime();
+				f64 maxTime = 0.0;
+
 				for(i32 idx = 0; idx < numProfilerEntries; ++idx)
 				{
-					const auto& entry = profilerEntries[idx];
-					const f64 entryTimeMS = (entry.endTime_ - entry.startTime_) * 1000.0;
+					const auto& profilerEntry = profilerEntries[idx];
+					numJobs = Core::Max(numJobs, profilerEntry.jobIdx_ + 1);
+					numWorkers = Core::Max(numWorkers, profilerEntry.workerIdx_ + 1);
+					minTime = Core::Min(minTime, profilerEntry.startTime_);
+					maxTime = Core::Max(maxTime, profilerEntry.endTime_);
+				}
+				numWorkers = Core::Max(8, numWorkers);
 
-					// Only draw > 1us.
-					if(entryTimeMS > (1.0 / 1000.0) && entry.jobIdx_ >= 0)
+				ImGui::Text("Number of jobs: %i", numJobs);
+				ImGui::Text("Number of entries: %i", numProfilerEntries);
+				ImGui::Separator();
+				ImGui::BeginChildFrame(0, Math::Vec2(ImGui::GetWindowWidth(), numWorkers * 50.0f));
+
+				f32 profileDrawOffsetX = 0.0f;
+				f32 profileDrawOffsetY = ImGui::GetCursorPosY();
+				f32 profileDrawAdvanceY = 0.0f;
+				for(i32 idx = 0; idx < numWorkers; ++idx)
+				{
+					auto text = Core::String().Printf("Worker %i", idx);
+					auto size = ImGui::CalcTextSize(text.c_str(), nullptr);
+					ImGui::Text(text.c_str());
+					ImGui::Separator();
+
+					profileDrawOffsetX = Core::Max(profileDrawOffsetX, size.x);
+
+					if(profileDrawAdvanceY == 0.0f)
 					{
-						Math::Vec2 a, b;
-						GetEntryPosition(entry, a, b);
-						drawList->AddRectFilled(a, b, colors[entry.jobIdx_ % colors.size()]);
-						if(ImGui::IsMouseHoveringRect(a, b))
-						{
-							hoverEntry = idx;
-						}
-
-						if((i32)(b.x - a.x) > 8)
-						{
-							auto name = Core::String().Printf("%s (%.2f ms)", entry.name_.data(), entryTimeMS);
-							drawList->PushClipRect(a, b, true);
-							drawList->AddText(a, 0xffffffff, name.c_str());
-							drawList->PopClipRect();
-						}
+						profileDrawAdvanceY = ImGui::GetCursorPosY() - profileDrawOffsetY;
 					}
 				}
 
-				const f32 lineHeight = numWorkers * profileDrawAdvanceY;
-				for(f64 time = 0.0; time < timeRange; time += 0.001)
+				if(numProfilerEntries > 0)
 				{
-					Math::Vec2 a(profileDrawOffsetX, profileDrawOffsetY);
-					Math::Vec2 b(profileDrawOffsetX, profileDrawOffsetY + lineHeight);
+					const f64 timeRange = totalTimeMS / 1000.0f;//maxTime - minTime;
 
-					f64 x = time / timeRange;
-					x *= totalWidth;
+					f32 totalWidth = ImGui::GetWindowWidth() - profileDrawOffsetX; 
 
-					a.x += (f32)x;
-					b.x += (f32)x;
+					profileDrawOffsetX += 8.0f;
 
-					a += ImGui::GetWindowPos();
-					b += ImGui::GetWindowPos();
+					auto GetEntryPosition = [&](const Job::ProfilerEntry& entry, Math::Vec2& a, Math::Vec2& b)
+					{
+						f32 x = profileDrawOffsetX;
+						f32 y = profileDrawOffsetY + (entry.workerIdx_ * profileDrawAdvanceY);
 
-					drawList->AddLine(a, b, ImColor(1.0f, 1.0f, 1.0f, 0.2f));
-				}
+						a.x = x;
+						a.y = y;
+						b = a;
 
-				if(hoverEntry >= 0)
-				{
-					const Math::Vec2 pos(ImGui::GetMousePos());
-					const Math::Vec2 borderSize(4.0f, 4.0f);
-					const auto& entry = profilerEntries[hoverEntry];
+						f64 normalizedStart = (entry.startTime_ - minTime) / timeRange;
+						f64 normalizedEnd = (entry.endTime_ - minTime) / timeRange;
+						normalizedStart *= totalWidth;
+						normalizedEnd *= totalWidth;
 
-					auto name = Core::String().Printf("%s (%.4f ms)", entry.name_.data(), (entry.endTime_ - entry.startTime_) * 1000.0);
+						a.x += (f32)normalizedStart;
+						b.x += (f32)normalizedEnd;
+						b.y += profileDrawAdvanceY;
 
-					Math::Vec2 size = ImGui::CalcTextSize(name.c_str(), nullptr);
+						a += ImGui::GetWindowPos();
+						b += ImGui::GetWindowPos();
+					};
+
+					// Draw bars for each worker.
+					i32 hoverEntry = -1;
+					auto* drawList = ImGui::GetWindowDrawList();
+					for(i32 idx = 0; idx < numProfilerEntries; ++idx)
+					{
+						const auto& entry = profilerEntries[idx];
+						const f64 entryTimeMS = (entry.endTime_ - entry.startTime_) * 1000.0;
+
+						// Only draw > 1us.
+						if(entryTimeMS > (1.0 / 1000.0) && entry.jobIdx_ >= 0)
+						{
+							Math::Vec2 a, b;
+							GetEntryPosition(entry, a, b);
+							drawList->AddRectFilled(a, b, colors[entry.jobIdx_ % colors.size()]);
+							if(ImGui::IsMouseHoveringRect(a, b))
+							{
+								hoverEntry = idx;
+							}
+
+							if((i32)(b.x - a.x) > 8)
+							{
+								auto name = Core::String().Printf("%s (%.2f ms)", entry.name_.data(), entryTimeMS);
+								drawList->PushClipRect(a, b, true);
+								drawList->AddText(a, 0xffffffff, name.c_str());
+								drawList->PopClipRect();
+							}
+						}
+					}
+
+					const f32 lineHeight = numWorkers * profileDrawAdvanceY;
+					for(f64 time = 0.0; time < timeRange; time += 0.001)
+					{
+						Math::Vec2 a(profileDrawOffsetX, profileDrawOffsetY);
+						Math::Vec2 b(profileDrawOffsetX, profileDrawOffsetY + lineHeight);
+
+						f64 x = time / timeRange;
+						x *= totalWidth;
+
+						a.x += (f32)x;
+						b.x += (f32)x;
+
+						a += ImGui::GetWindowPos();
+						b += ImGui::GetWindowPos();
+
+						drawList->AddLine(a, b, ImColor(1.0f, 1.0f, 1.0f, 0.2f));
+					}
+
+					for(f64 time = 0.0; time < timeRange; time += 0.0001)
+					{
+						Math::Vec2 a(profileDrawOffsetX, profileDrawOffsetY);
+						Math::Vec2 b(profileDrawOffsetX, profileDrawOffsetY + lineHeight);
+
+						f64 x = time / timeRange;
+						x *= totalWidth;
+
+						a.x += (f32)x;
+						b.x += (f32)x;
+
+						a += ImGui::GetWindowPos();
+						b += ImGui::GetWindowPos();
+
+						drawList->AddLine(a, b, ImColor(1.0f, 1.0f, 1.0f, 0.1f));
+					}
+
+					if(hoverEntry >= 0)
+					{
+						const Math::Vec2 pos(ImGui::GetMousePos());
+						const Math::Vec2 borderSize(4.0f, 4.0f);
+						const auto& entry = profilerEntries[hoverEntry];
+
+						auto name = Core::String().Printf("%s (%.4f ms)", entry.name_.data(), (entry.endTime_ - entry.startTime_) * 1000.0);
+
+						Math::Vec2 size = ImGui::CalcTextSize(name.c_str(), nullptr);
 				
-					drawList->AddRectFilled(pos - borderSize, pos + size + borderSize, ImColor(0.0f, 0.0f, 0.0f, 0.8f));
-					drawList->AddText(ImGui::GetMousePos(), 0xffffffff, name.c_str());
+						drawList->AddRectFilled(pos - borderSize, pos + size + borderSize, ImColor(0.0f, 0.0f, 0.0f, 0.8f));
+						drawList->AddText(ImGui::GetMousePos(), 0xffffffff, name.c_str());
 								
-				}
-			}			
-			ImGui::EndChildFrame();
-		}
-		ImGui::End();
-		times_.profilerUI_ = Core::Timer::GetAbsoluteTime() - times_.profilerUI_;
+					}
+				}			
+				ImGui::EndChildFrame();
+			}
+			ImGui::End();
+			times_.profilerUI_ = Core::Timer::GetAbsoluteTime() - times_.profilerUI_;
 
-		if(ImGui::Begin("Timers"))
-		{
-			ImGui::Text("Wait on frame submit: %f ms", times_.waitForFrameSubmit_ * 1000.0);
-			ImGui::Text("Get profile data: %f ms", times_.getProfileData_* 1000.0);
-			ImGui::Text("Profiler UI: %f ms", times_.profilerUI_ * 1000.0);
-			ImGui::Text("ImGui end frame: %f ms", times_.imguiEndFrame_ * 1000.0);
-			ImGui::Text("Graph Setup: %f ms", times_.graphSetup_ * 1000.0);
-			ImGui::Text("Shader Technique Setup: %f ms", times_.shaderTechniqueSetup_ * 1000.0);
-			ImGui::Text("Graph Execute + Submit: %f ms", times_.graphExecute_ * 1000.0);
-			ImGui::Text("Present Time: %f ms", times_.present_ * 1000.0);
-			ImGui::Text("Process deletions: %f ms", times_.processDeletions_ * 1000.0);
-			ImGui::Text("Frame Time: %f ms", times_.frame_ * 1000.0);
-		}
-		ImGui::End();
+			if(ImGui::Begin("Timers"))
+			{
+				ImGui::Text("Wait on frame submit: %f ms", times_.waitForFrameSubmit_ * 1000.0);
+				ImGui::Text("Get profile data: %f ms", times_.getProfileData_* 1000.0);
+				ImGui::Text("Profiler UI: %f ms", times_.profilerUI_ * 1000.0);
+				ImGui::Text("ImGui end frame: %f ms", times_.imguiEndFrame_ * 1000.0);
+				ImGui::Text("Graph Setup: %f ms", times_.graphSetup_ * 1000.0);
+				ImGui::Text("Shader Technique Setup: %f ms", times_.shaderTechniqueSetup_ * 1000.0);
+				ImGui::Text("Graph Execute + Submit: %f ms", times_.graphExecute_ * 1000.0);
+				ImGui::Text("Present Time: %f ms", times_.present_ * 1000.0);
+				ImGui::Text("Process deletions: %f ms", times_.processDeletions_ * 1000.0);
+				ImGui::Text("Frame Time: %f ms", times_.frame_ * 1000.0);
+			}
+			ImGui::End();
 		
-		DrawRenderGraphUI(graph);
+			DrawRenderGraphUI(graph);
 
-		// Update render packet positions.
-		{
-			rmt_ScopedCPUSample(UpdateRenderPackets, RMTSF_None);
-
-			for(auto& packet : packets_)
+			// Update render packet positions.
 			{
-				if(packet->type_ == MeshRenderPacket::TYPE)
+				rmt_ScopedCPUSample(UpdateRenderPackets, RMTSF_None);
+
+				for(auto& packet : packets_)
 				{
-					auto* meshPacket = static_cast<MeshRenderPacket*>(packet);
+					if(packet->type_ == MeshRenderPacket::TYPE)
+					{
+						auto* meshPacket = static_cast<MeshRenderPacket*>(packet);
 	
-					meshPacket->angle_ += (f32)targetFrameTime;
-					meshPacket->object_.world_.Rotation(Math::Vec3(0.0f, meshPacket->angle_, 0.0f));
-					meshPacket->object_.world_.Translation(meshPacket->position_);
+						meshPacket->angle_ += (f32)targetFrameTime;
+						meshPacket->object_.world_.Rotation(Math::Vec3(0.0f, meshPacket->angle_, 0.0f));
+						meshPacket->object_.world_.Translation(meshPacket->position_);
+					}
 				}
 			}
-		}
 
-		times_.imguiEndFrame_ = Core::Timer::GetAbsoluteTime();
-		ImGui::Manager::EndFrame();
-		times_.imguiEndFrame_ = Core::Timer::GetAbsoluteTime() - times_.imguiEndFrame_;
+			times_.imguiEndFrame_ = Core::Timer::GetAbsoluteTime();
+			ImGui::Manager::EndFrame();
+			times_.imguiEndFrame_ = Core::Timer::GetAbsoluteTime() - times_.imguiEndFrame_;
 
-		// Setup pipeline camera.
-		Math::Mat44 view;
-		Math::Mat44 proj;
-		view.LookAt(Math::Vec3(0.0f, 5.0f, 10.0f), Math::Vec3(0.0f, 1.0f, 0.0f), Math::Vec3(0.0f, 1.0f, 0.0f));
-		proj.PerspProjectionVertical(Core::F32_PIDIV4, (f32)h_ / (f32)w_, 0.01f, 300.0f);
-		forwardPipeline.SetCamera(view, proj);
+			// Setup pipeline camera.
+			Math::Mat44 view;
+			Math::Mat44 proj;
+			view.LookAt(Math::Vec3(0.0f, 5.0f, 10.0f), Math::Vec3(0.0f, 1.0f, 0.0f), Math::Vec3(0.0f, 1.0f, 0.0f));
+			proj.PerspProjectionVertical(Core::F32_PIDIV4, (f32)h_ / (f32)w_, 0.01f, 300.0f);
+			forwardPipeline.SetCamera(view, proj);
 
-		// Clear graph prior to beginning work.
-		graph.Clear();
+			// Clear graph prior to beginning work.
+			graph.Clear();
 
-		times_.graphSetup_ = Core::Timer::GetAbsoluteTime();
-		{
-			rmt_ScopedCPUSample(Setup_Graph, RMTSF_None);
-
-			// Import back buffer.
-			Graphics::RenderGraphTextureDesc scDesc;
-			scDesc.type_ = GPU::TextureType::TEX2D;
-			scDesc.width_ = engine.scDesc.width_;
-			scDesc.height_ = engine.scDesc.height_;
-			scDesc.format_ = engine.scDesc.format_;
-			auto bbRes = graph.ImportResource("Back Buffer", engine.scHandle, scDesc);
-
-			// Set color target to back buffer.
-			forwardPipeline.SetResource("in_color", bbRes);
-
-			// Have the pipeline setup on the graph.
+			times_.graphSetup_ = Core::Timer::GetAbsoluteTime();
 			{
-				rmt_ScopedCPUSample(Setup_ForwardPipeline, RMTSF_None);
-				forwardPipeline.Setup(graph);
-			}
+				rmt_ScopedCPUSample(Setup_Graph, RMTSF_None);
 
-			// Setup ImGui pipeline.
-			imguiPipeline.SetResource("in_color", forwardPipeline.GetResource("out_color"));
-			{
-				rmt_ScopedCPUSample(Setup_ImGuiPipeline, RMTSF_None);
-				imguiPipeline.Setup(graph);
-			}
-		}
-		times_.graphSetup_ = Core::Timer::GetAbsoluteTime() - times_.graphSetup_;
+				// Import back buffer.
+				Graphics::RenderGraphTextureDesc scDesc;
+				scDesc.type_ = GPU::TextureType::TEX2D;
+				scDesc.width_ = engine.scDesc.width_;
+				scDesc.height_ = engine.scDesc.height_;
+				scDesc.format_ = engine.scDesc.format_;
+				auto bbRes = graph.ImportResource("Back Buffer", engine.scHandle, scDesc);
 
-		times_.shaderTechniqueSetup_ = Core::Timer::GetAbsoluteTime();
+				// Set color target to back buffer.
+				forwardPipeline.SetResource("in_color", bbRes);
 
-		// Setup all shader techniques for the built graph.
-		{
-			rmt_ScopedCPUSample(CreateTechniques, RMTSF_None);
-			for(auto& packet : packets_)
-			{
-				if(packet->type_ == MeshRenderPacket::TYPE)
+				// Have the pipeline setup on the graph.
 				{
-					auto* meshPacket = static_cast<MeshRenderPacket*>(packet);
-					forwardPipeline.CreateTechniques(shader, meshPacket->techDesc_, *meshPacket->techs_);
+					rmt_ScopedCPUSample(Setup_ForwardPipeline, RMTSF_None);
+					forwardPipeline.Setup(graph);
 				}
+
+				// Setup ImGui pipeline.
+				imguiPipeline.SetResource("in_color", forwardPipeline.GetResource("out_color"));
+				{
+					rmt_ScopedCPUSample(Setup_ImGuiPipeline, RMTSF_None);
+					imguiPipeline.Setup(graph);
+				}
+			}
+			times_.graphSetup_ = Core::Timer::GetAbsoluteTime() - times_.graphSetup_;
+
+			times_.shaderTechniqueSetup_ = Core::Timer::GetAbsoluteTime();
+
+			// Setup all shader techniques for the built graph.
+			{
+				rmt_ScopedCPUSample(CreateTechniques, RMTSF_None);
+				for(auto& packet : packets_)
+				{
+					if(packet->type_ == MeshRenderPacket::TYPE)
+					{
+						auto* meshPacket = static_cast<MeshRenderPacket*>(packet);
+						forwardPipeline.CreateTechniques(shader, meshPacket->techDesc_, *meshPacket->techs_);
+					}
+				}
+			}
+
+			times_.shaderTechniqueSetup_ = Core::Timer::GetAbsoluteTime() - times_.shaderTechniqueSetup_;
+
+			// Schedule frame submit job.
+			{
+				rmt_ScopedCPUSample(FrameSubmit, RMTSF_None);
+				frameSubmitJob.RunSingle(0, &frameSubmitCounter);
 			}
 		}
 
-		times_.shaderTechniqueSetup_ = Core::Timer::GetAbsoluteTime() - times_.shaderTechniqueSetup_;
-
-		// Schedule frame submit job.
-		{
-			rmt_ScopedCPUSample(FrameSubmit, RMTSF_None);
-			frameSubmitJob.RunSingle(0, &frameSubmitCounter);
-		}
+		rmt_ScopedCPUSample(Sleep, RMTSF_None);
 
 		// Sleep for the appropriate amount of time
 		times_.frame_ = Core::Timer::GetAbsoluteTime() - beginFrameTime;
 		if(times_.frame_ < targetFrameTime)
 		{
-			rmt_ScopedCPUSample(Sleep, RMTSF_None);
 			Core::Sleep(targetFrameTime - times_.frame_);
 		}
 	}
+
+	Job::Manager::WaitForCounter(frameSubmitCounter, 0);
 
 	// Clean up.
 	for(auto* packet : packets_)
