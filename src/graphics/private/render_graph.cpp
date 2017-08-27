@@ -15,6 +15,8 @@
 #include "job/function_job.h"
 #include "job/manager.h"
 
+#include "Remotery.h"
+
 #include <algorithm>
 
 namespace Graphics
@@ -381,6 +383,8 @@ namespace Graphics
 
 	void RenderGraph::Clear()
 	{
+		rmt_ScopedCPUSample(RenderGraph_Clear, RMTSF_None);
+
 		for(auto& renderPassEntry : impl_->renderPassEntries_)
 		{
 			renderPassEntry.renderPass_->~RenderPass();
@@ -427,16 +431,26 @@ namespace Graphics
 
 		// From finalRes, work backwards and push all render passes that are required onto the stack.
 		auto& renderPasses = impl_->renderPassEntries_;
-		impl_->executeRenderPasses_.clear();
-		impl_->executeRenderPasses_.reserve(renderPasses.size());
+		{
+			rmt_ScopedCPUSample(RenderGraph_AddDependencies, RMTSF_None);
+			impl_->executeRenderPasses_.clear();
+			impl_->executeRenderPasses_.reserve(renderPasses.size());
 
-		impl_->AddDependencies(impl_->executeRenderPasses_, outputs);
+			impl_->AddDependencies(impl_->executeRenderPasses_, outputs);
 
-		std::reverse(impl_->executeRenderPasses_.begin(), impl_->executeRenderPasses_.end());
+			std::reverse(impl_->executeRenderPasses_.begin(), impl_->executeRenderPasses_.end());
+		}
 
-		impl_->FilterRenderPasses(impl_->executeRenderPasses_);
+		{
+			rmt_ScopedCPUSample(RenderGraph_FilterPasses, RMTSF_None);
+			impl_->FilterRenderPasses(impl_->executeRenderPasses_);
+		}
 
-		impl_->CreateResources();
+		{
+			rmt_ScopedCPUSample(RenderGraph_CreateResources, RMTSF_None);
+			impl_->CreateResources();
+		}
+		
 
 		// Create more command lists as required.
 		const i32 numPasses = impl_->executeRenderPasses_.size();
@@ -472,8 +486,6 @@ namespace Graphics
 		Job::FunctionJob executeJob("RenderGraph::Execute", [impl = this->impl_, &completed](i32 idx) {
 			RenderGraphResources resources(impl);
 
-			//Core::Log("Execute(%i)\n", idx);
-
 			auto& entry = impl->executeRenderPasses_[idx];
 			auto& cmdList = impl->cmdLists_[idx];
 			auto& cmdHandle = impl->cmdHandles_[idx];
@@ -481,7 +493,9 @@ namespace Graphics
 			cmdList.Reset();
 			entry->renderPass_->Execute(resources, cmdList);
 			if(cmdList.NumCommands() > 0)
+			{
 				GPU::Manager::CompileCommandList(cmdHandle, cmdList);
+			}
 
 			Core::AtomicAdd(&completed, -1);
 		});
@@ -497,12 +511,15 @@ namespace Graphics
 
 		//Core::Log("Execute done\n");
 		// Submit all command lists with commands in sequential order.
+		rmt_ScopedCPUSample(RenderGraph_SubmitCommandLists, RMTSF_None);
 		for(i32 idx = 0; idx < numPasses; ++idx)
 		{
 			const auto& cmdList = impl_->cmdLists_[idx];
 			auto cmdHandle = impl_->cmdHandles_[idx];
 			if(cmdList.NumCommands() > 0)
+			{
 				GPU::Manager::SubmitCommandList(cmdHandle);
+			}
 		}
 	}
 

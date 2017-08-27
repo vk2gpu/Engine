@@ -22,6 +22,7 @@ namespace
 		RenderPassImGui(Graphics::RenderGraphBuilder& builder, Graphics::RenderGraphResource rt)
 			: Graphics::RenderPass(builder)
 		{
+			rmt_ScopedCPUSample(RenderPassImGui_Setup, RMTSF_None);
 			rt_ = builder.UseRTV(this, rt);
 		};
 
@@ -33,6 +34,8 @@ namespace
 
 		void Execute(Graphics::RenderGraphResources& res, GPU::CommandList& cmdList) override
 		{
+			rmt_ScopedCPUSample(RenderPassImGui_Execute, RMTSF_None);
+
 			Graphics::RenderGraphTextureDesc rtTexDesc;
 			auto rtTex = res.GetTexture(rt_, &rtTexDesc);
 			GPU::FrameBindingSetDesc fbsDesc;
@@ -201,6 +204,8 @@ namespace
 
 	void DrawRenderPackets(GPU::CommandList& cmdList, const char* passName, const GPU::DrawState& drawState, GPU::Handle fbs, GPU::Handle viewCBHandle, GPU::Handle objectCBHandle)
 	{
+		rmt_ScopedCPUSample(DrawRenderPackets, RMTSF_None);
+
 		// Draw all packets.
 		for(auto& packet : packets_)
 		{
@@ -243,6 +248,8 @@ namespace
 		RenderPassDepthPrepass(Graphics::RenderGraphBuilder& builder, const Graphics::RenderGraphTextureDesc& dsDesc, Graphics::RenderGraphResource ds, const ViewConstants& view)
 			: Graphics::RenderPass(builder)
 		{
+			rmt_ScopedCPUSample(RenderPassDepthPrePass_Setup, RMTSF_None);
+
 			if(!ds)
 				ds = builder.CreateTexture("Depth", dsDesc);
 			ds_ = builder.UseDSV(this, ds, GPU::DSVFlags::NONE);
@@ -273,6 +280,8 @@ namespace
 
 		void Execute(Graphics::RenderGraphResources& res, GPU::CommandList& cmdList) override
 		{
+			rmt_ScopedCPUSample(RenderPassDepthPrePass_Execute, RMTSF_None);
+
 			Graphics::RenderGraphTextureDesc dsTexDesc;
 			fbsDesc_.dsv_.resource_ = res.GetTexture(ds_, &dsTexDesc);
 			fbs_ = GPU::Manager::CreateFrameBindingSet(fbsDesc_, StaticGetName());
@@ -314,6 +323,8 @@ namespace
 			const Graphics::RenderGraphTextureDesc& dsDesc, Graphics::RenderGraphResource ds, const ViewConstants& view)
 			: Graphics::RenderPass(builder)
 		{
+			rmt_ScopedCPUSample(RenderPassForward_Setup, RMTSF_None);
+
 			color_ = builder.UseRTV(this, color);
 			if(!ds)
 				ds = builder.CreateTexture("Depth", dsDesc);
@@ -348,6 +359,8 @@ namespace
 
 		void Execute(Graphics::RenderGraphResources& res, GPU::CommandList& cmdList) override
 		{
+			rmt_ScopedCPUSample(RenderPassForward_Execute, RMTSF_None);
+
 			Graphics::RenderGraphTextureDesc rtTexDesc;
 			Graphics::RenderGraphTextureDesc dsTexDesc;
 			fbsDesc_.rtvs_[0].resource_ = res.GetTexture(color_, &rtTexDesc);
@@ -528,10 +541,15 @@ void Loop()
 
 	struct
 	{
+		f64 waitForFrameSubmit_ = 0.0;
+		f64 getProfileData_ = 0.0;
+		f64 profilerUI_ = 0.0;
+		f64 imguiEndFrame_ = 0.0;
 		f64 graphSetup_ = 0.0;
 		f64 shaderTechniqueSetup_ = 0.0;
 		f64 graphExecute_ = 0.0;
 		f64 present_ = 0.0;
+		f64 processDeletions_ = 0.0;
 		f64 frame_ = 0.0;		
 	} times_;
 
@@ -543,20 +561,20 @@ void Loop()
 	Job::FunctionJob frameSubmitJob("Frame Submit", 
 	[&](i32)
 	{
-		times_.graphExecute_ = Core::Timer::GetAbsoluteTime();
-
 		// Execute, and resolve the out color target.
+		times_.graphExecute_ = Core::Timer::GetAbsoluteTime();
 		graph.Execute(imguiPipeline.GetResource("out_color"));
-
 		times_.graphExecute_ = Core::Timer::GetAbsoluteTime() - times_.graphExecute_;
 
-		times_.present_ = Core::Timer::GetAbsoluteTime();
-
 		// Present, next frame, wait.
+		times_.present_ = Core::Timer::GetAbsoluteTime();
 		GPU::Manager::PresentSwapChain(engine.scHandle);
-		GPU::Manager::NextFrame();
-
 		times_.present_ = Core::Timer::GetAbsoluteTime() - times_.present_;
+		
+		times_.processDeletions_ = Core::Timer::GetAbsoluteTime();
+		GPU::Manager::NextFrame();
+		times_.processDeletions_ = Core::Timer::GetAbsoluteTime() - times_.processDeletions_;
+
 	});
 
 	Core::Vector<Job::ProfilerEntry> profilerEntries(65536);
@@ -566,42 +584,44 @@ void Loop()
 
 	while(Client::Manager::Update())
 	{
+		rmt_ScopedCPUSample(Update, RMTSF_None);
+
 		const f64 targetFrameTime = 1.0 / 120.0;
 		f64 beginFrameTime = Core::Timer::GetAbsoluteTime();
 
-		// Wait for previous frame submission to complete.
-		// Must update client to pump messages as the present step can send messages.
-		while(Job::Manager::GetCounterValue(frameSubmitCounter) > 0)
 		{
-			Client::Manager::Update();
-			Job::Manager::YieldCPU();
+			rmt_ScopedCPUSample(WaitForFrameSubmit, RMTSF_None);
+
+			// Wait for previous frame submission to complete.
+			// Must update client to pump messages as the present step can send messages.
+			times_.waitForFrameSubmit_ = Core::Timer::GetAbsoluteTime();
+			while(Job::Manager::GetCounterValue(frameSubmitCounter) > 0)
+			{
+				Client::Manager::Update();
+				Job::Manager::YieldCPU();
+			}
+			Job::Manager::WaitForCounter(frameSubmitCounter, 0);
+			times_.waitForFrameSubmit_ = Core::Timer::GetAbsoluteTime() - times_.waitForFrameSubmit_;
 		}
-		Job::Manager::WaitForCounter(frameSubmitCounter, 0);
 
 		// Wait for reloading to occur. No important jobs should be running at this point.
 		Resource::Manager::WaitOnReload();
+
+		times_.getProfileData_= Core::Timer::GetAbsoluteTime();
 
 		if(profilingEnabled)
 		{
 			numProfilerEntries = Job::Manager::EndProfiling(profilerEntries.data(), profilerEntries.size());
 			Job::Manager::BeginProfiling();
 		}
+		times_.getProfileData_ = Core::Timer::GetAbsoluteTime() - times_.getProfileData_;
 
 		Graphics::RenderGraphResource scRes;
 		Graphics::RenderGraphResource dsRes;
 
 		ImGui::Manager::BeginFrame(input, w, h);
 
-		if(ImGui::Begin("Timers"))
-		{
-			ImGui::Text("Graph Setup: %f ms", times_.graphSetup_ * 1000.0);
-			ImGui::Text("Shader Technique Setup: %f ms", times_.shaderTechniqueSetup_ * 1000.0);
-			ImGui::Text("Graph Execute + Submit: %f ms", times_.graphExecute_ * 1000.0);
-			ImGui::Text("Present Time: %f ms", times_.present_ * 1000.0);
-			ImGui::Text("Frame Time: %f ms", times_.frame_ * 1000.0);
-		}
-		ImGui::End();
-
+		times_.profilerUI_ = Core::Timer::GetAbsoluteTime();
 		if(ImGui::Begin("Job Profiler"))
 		{
 			bool oldProfilingEnabled = profilingEnabled;
@@ -673,8 +693,6 @@ void Loop()
 			if(numProfilerEntries > 0)
 			{
 				const f64 timeRange = totalTimeMS / 1000.0f;//maxTime - minTime;
-
-
 
 				f32 totalWidth = ImGui::GetWindowWidth() - profileDrawOffsetX; 
 
@@ -767,22 +785,45 @@ void Loop()
 			ImGui::EndChildFrame();
 		}
 		ImGui::End();
+		times_.profilerUI_ = Core::Timer::GetAbsoluteTime() - times_.profilerUI_;
 
+		if(ImGui::Begin("Timers"))
+		{
+			ImGui::Text("Wait on frame submit: %f ms", times_.waitForFrameSubmit_ * 1000.0);
+			ImGui::Text("Get profile data: %f ms", times_.getProfileData_* 1000.0);
+			ImGui::Text("Profiler UI: %f ms", times_.profilerUI_ * 1000.0);
+			ImGui::Text("ImGui end frame: %f ms", times_.imguiEndFrame_ * 1000.0);
+			ImGui::Text("Graph Setup: %f ms", times_.graphSetup_ * 1000.0);
+			ImGui::Text("Shader Technique Setup: %f ms", times_.shaderTechniqueSetup_ * 1000.0);
+			ImGui::Text("Graph Execute + Submit: %f ms", times_.graphExecute_ * 1000.0);
+			ImGui::Text("Present Time: %f ms", times_.present_ * 1000.0);
+			ImGui::Text("Process deletions: %f ms", times_.processDeletions_ * 1000.0);
+			ImGui::Text("Frame Time: %f ms", times_.frame_ * 1000.0);
+		}
+		ImGui::End();
+		
 		DrawRenderGraphUI(graph);
 
 		// Update render packet positions.
-		for(auto& packet : packets_)
 		{
-			if(packet->type_ == MeshRenderPacket::TYPE)
-			{
-				auto* meshPacket = static_cast<MeshRenderPacket*>(packet);
+			rmt_ScopedCPUSample(UpdateRenderPackets, RMTSF_None);
 
-				meshPacket->angle_ += (f32)targetFrameTime;
-				meshPacket->object_.world_.Rotation(Math::Vec3(0.0f, meshPacket->angle_, 0.0f));
-				meshPacket->object_.world_.Translation(meshPacket->position_);
+			for(auto& packet : packets_)
+			{
+				if(packet->type_ == MeshRenderPacket::TYPE)
+				{
+					auto* meshPacket = static_cast<MeshRenderPacket*>(packet);
+	
+					meshPacket->angle_ += (f32)targetFrameTime;
+					meshPacket->object_.world_.Rotation(Math::Vec3(0.0f, meshPacket->angle_, 0.0f));
+					meshPacket->object_.world_.Translation(meshPacket->position_);
+				}
 			}
 		}
+
+		times_.imguiEndFrame_ = Core::Timer::GetAbsoluteTime();
 		ImGui::Manager::EndFrame();
+		times_.imguiEndFrame_ = Core::Timer::GetAbsoluteTime() - times_.imguiEndFrame_;
 
 		// Setup pipeline camera.
 		Math::Mat44 view;
@@ -795,48 +836,63 @@ void Loop()
 		graph.Clear();
 
 		times_.graphSetup_ = Core::Timer::GetAbsoluteTime();
+		{
+			rmt_ScopedCPUSample(Setup_Graph, RMTSF_None);
 
-		// Import back buffer.
-		Graphics::RenderGraphTextureDesc scDesc;
-		scDesc.type_ = GPU::TextureType::TEX2D;
-		scDesc.width_ = engine.scDesc.width_;
-		scDesc.height_ = engine.scDesc.height_;
-		scDesc.format_ = engine.scDesc.format_;
-		auto bbRes = graph.ImportResource("Back Buffer", engine.scHandle, scDesc);
+			// Import back buffer.
+			Graphics::RenderGraphTextureDesc scDesc;
+			scDesc.type_ = GPU::TextureType::TEX2D;
+			scDesc.width_ = engine.scDesc.width_;
+			scDesc.height_ = engine.scDesc.height_;
+			scDesc.format_ = engine.scDesc.format_;
+			auto bbRes = graph.ImportResource("Back Buffer", engine.scHandle, scDesc);
 
-		// Set color target to back buffer.
-		forwardPipeline.SetResource("in_color", bbRes);
+			// Set color target to back buffer.
+			forwardPipeline.SetResource("in_color", bbRes);
 
-		// Have the pipeline setup on the graph.
-		forwardPipeline.Setup(graph);
+			// Have the pipeline setup on the graph.
+			{
+				rmt_ScopedCPUSample(Setup_ForwardPipeline, RMTSF_None);
+				forwardPipeline.Setup(graph);
+			}
 
-		// Setup ImGui pipeline.
-		imguiPipeline.SetResource("in_color", forwardPipeline.GetResource("out_color"));
-		imguiPipeline.Setup(graph);
-
+			// Setup ImGui pipeline.
+			imguiPipeline.SetResource("in_color", forwardPipeline.GetResource("out_color"));
+			{
+				rmt_ScopedCPUSample(Setup_ImGuiPipeline, RMTSF_None);
+				imguiPipeline.Setup(graph);
+			}
+		}
 		times_.graphSetup_ = Core::Timer::GetAbsoluteTime() - times_.graphSetup_;
 
 		times_.shaderTechniqueSetup_ = Core::Timer::GetAbsoluteTime();
 
 		// Setup all shader techniques for the built graph.
-		for(auto& packet : packets_)
 		{
-			if(packet->type_ == MeshRenderPacket::TYPE)
+			rmt_ScopedCPUSample(CreateTechniques, RMTSF_None);
+			for(auto& packet : packets_)
 			{
-				auto* meshPacket = static_cast<MeshRenderPacket*>(packet);
-				forwardPipeline.CreateTechniques(shader, meshPacket->techDesc_, *meshPacket->techs_);
+				if(packet->type_ == MeshRenderPacket::TYPE)
+				{
+					auto* meshPacket = static_cast<MeshRenderPacket*>(packet);
+					forwardPipeline.CreateTechniques(shader, meshPacket->techDesc_, *meshPacket->techs_);
+				}
 			}
 		}
 
 		times_.shaderTechniqueSetup_ = Core::Timer::GetAbsoluteTime() - times_.shaderTechniqueSetup_;
 
 		// Schedule frame submit job.
-		frameSubmitJob.RunSingle(0, &frameSubmitCounter);
+		{
+			rmt_ScopedCPUSample(FrameSubmit, RMTSF_None);
+			frameSubmitJob.RunSingle(0, &frameSubmitCounter);
+		}
 
 		// Sleep for the appropriate amount of time
 		times_.frame_ = Core::Timer::GetAbsoluteTime() - beginFrameTime;
 		if(times_.frame_ < targetFrameTime)
 		{
+			rmt_ScopedCPUSample(Sleep, RMTSF_None);
 			Core::Sleep(targetFrameTime - times_.frame_);
 		}
 	}

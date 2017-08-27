@@ -30,6 +30,10 @@ SET(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/output/bin)
 # Add third party libraries.
 ADD_SUBDIRECTORY("3rdparty")
 
+# Enable Remotery DLL support everywhere.
+ADD_DEFINITIONS(-DRMT_DLL=1)
+ADD_DEFINITIONS(-DRMT_ENABLED=1)
+
 # Version.
 SET(ENGINE_MAJOR_VERSION 0)
 SET(ENGINE_MINOR_VERSION 0)
@@ -48,6 +52,9 @@ ENDIF()
 
 INCLUDE_DIRECTORIES(
 	"${ENGINE_SRC_PATH}"
+
+	# 3rdparty.
+	"${ENGINE_3RDPARTY_PATH}/Remotery/lib"
 )
 
 ADD_SUBDIRECTORY("src")

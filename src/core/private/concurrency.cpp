@@ -13,6 +13,8 @@
 #if PLATFORM_WINDOWS
 #include "core/os.h"
 
+#include "Remotery.h"
+
 namespace Core
 {
 	i32 GetNumLogicalCores()
@@ -56,6 +58,12 @@ namespace Core
 			info.dwThreadID = (DWORD)-1;
 			info.dwFlags = 0;
 			::RaiseException(0x406D1388, 0, sizeof(info) / sizeof(ULONG), (const ULONG_PTR*)&info);
+		}
+
+		if(impl->debugName_.size() > 0)
+		{
+			rmt_SetCurrentThreadName(impl->debugName_.c_str());
+			rmt_ScopedCPUSample(ThreadBegin, RMTSF_None);
 		}
 #endif
 		return impl->entryPointFunc_(impl->userData_);

@@ -1,6 +1,8 @@
 #include "core/debug.h"
 #include "core/concurrency.h"
 
+#include "Remotery.h"
+
 #include <cstdio>
 
 #if PLATFORM_WINDOWS
@@ -43,6 +45,7 @@ namespace Core
 		__android_log_print(ANDROID_LOG_INFO, "Engine", MessageBuffer);
 #endif
 		printf("%s", MessageBuffer);
+		rmt_LogText(MessageBuffer);
 	}
 
 	void Log(const char* Text, ...)

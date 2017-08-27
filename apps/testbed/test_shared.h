@@ -16,18 +16,41 @@
 #include "graphics/shader.h"
 #include "graphics/texture.h"
 
+#include "Remotery.h"
+
 namespace
 {
 	GPU::SetupParams GetDefaultSetupParams()
 	{
 		GPU::SetupParams setupParams;
-		setupParams.debuggerIntegration_ = GPU::DebuggerIntegrationFlags::NONE;
+		setupParams.debuggerIntegration_ = GPU::DebuggerIntegrationFlags::RENDERDOC;
 		return setupParams;
 	}
 
 	class ScopedEngine
 	{
 	public:
+		struct ScopedRemotery
+		{
+			ScopedRemotery()
+			{
+				auto* settings = rmt_Settings();
+				settings->messageQueueSizeInBytes = 1024 * 1024;
+				settings->maxNbMessagesPerUpdate = 100;
+				settings->msSleepBetweenServerUpdates = 1;
+				
+				rmt_CreateGlobalInstance(&rmt_);
+				rmt_SetCurrentThreadName("Main Thread");
+			}
+
+			~ScopedRemotery()
+			{
+				rmt_DestroyGlobalInstance(rmt_);
+			}
+			Remotery* rmt_ = nullptr;
+		};
+		ScopedRemotery remotery;
+
 		Client::Window window;
 		Plugin::Manager::Scoped pluginManager;
 		GPU::Manager::Scoped gpuManager = GPU::Manager::Scoped(GetDefaultSetupParams());
@@ -38,9 +61,12 @@ namespace
 		GPU::Handle scHandle;
 		GPU::Handle fbsHandle;
 
+
 		ScopedEngine(const char* name)
 		    : window(name, 100, 100, 1024, 768, true)
 		{
+				
+
 			Graphics::Model::RegisterFactory();
 			Graphics::Shader::RegisterFactory();
 			Graphics::Texture::RegisterFactory();

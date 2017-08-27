@@ -6,6 +6,8 @@
 #include "core/timer.h"
 #include "core/vector.h"
 
+#include "Remotery.h"
+
 #include <utility>
 
 #define VERBOSE_LOGGING (0)

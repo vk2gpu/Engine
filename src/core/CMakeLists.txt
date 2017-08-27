@@ -59,5 +59,7 @@ SET(SOURCES_TESTS
 	"tests/vector_tests.cpp"
 )
 
-
 ADD_ENGINE_LIBRARY(core ${SOURCES_PUBLIC} ${SOURCES_PRIVATE} ${SOURCES_TESTS})
+TARGET_LINK_LIBRARIES(core Remotery)
+
+

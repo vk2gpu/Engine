@@ -25,6 +25,8 @@
 #include "plugin/manager.h"
 #include "serialization/serializer.h"
 
+#include "Remotery.h"
+
 #include <algorithm>
 #include <utility>
 
@@ -345,6 +347,8 @@ namespace Resource
 			FileIOJob ioJob;
 			for(;;)
 			{
+				rmt_ScopedCPUSample(ResourceReadIO, RMTSF_None);
+
 				if(impl->readJobs_.Dequeue(ioJob))
 				{
 					if(ioJob.file_ != nullptr)
@@ -363,6 +367,8 @@ namespace Resource
 			FileIOJob ioJob;
 			for(;;)
 			{
+				rmt_ScopedCPUSample(ResourceWriteIO, RMTSF_None);
+
 				if(impl->writeJobs_.Dequeue(ioJob))
 				{
 					if(ioJob.file_ != nullptr)
@@ -385,51 +391,54 @@ namespace Resource
 
 			while(impl->isActive_)
 			{
-				// Check resource timestamps.
 				{
-					Job::ScopedReadLock lock(impl->resourceRWLock_);
-					if(idx < impl->resourceList_.size())
+					rmt_ScopedCPUSample(ResourceTimestamp, RMTSF_None);
+
 					{
-						auto* entry = impl->resourceList_[idx];
-						if(entry->loaded_ && entry->ResourceOutOfDate(&impl->pathResolver_))
+						Job::ScopedReadLock lock(impl->resourceRWLock_);
+						if(idx < impl->resourceList_.size())
 						{
-							if(std::find(convertList.begin(), convertList.end(), entry) == convertList.end())
+							auto* entry = impl->resourceList_[idx];
+							if(entry->loaded_ && entry->ResourceOutOfDate(&impl->pathResolver_))
 							{
-								impl->AcquireResourceEntry(entry);
-								convertList.push_back(entry);
-								convertTimer.Mark();
+								if(std::find(convertList.begin(), convertList.end(), entry) == convertList.end())
+								{
+									impl->AcquireResourceEntry(entry);
+									convertList.push_back(entry);
+									convertTimer.Mark();
+								}
 							}
+
+							idx = (idx + 1) % impl->resourceList_.size();
 						}
-
-						idx = (idx + 1) % impl->resourceList_.size();
 					}
-				}
 
-				// Check if the appropriate amount of time has passed.
-				if(convertTimer.GetTime() > CONVERT_WAIT_TIME && convertList.size() > 0)
-				{
-					for(auto* entry : convertList)
+					// Check if the appropriate amount of time has passed.
+					if(convertTimer.GetTime() > CONVERT_WAIT_TIME && convertList.size() > 0)
 					{
-						if(entry->converting_ == 0)
+						for(auto* entry : convertList)
 						{
-							DBG_LOG("Resource \"%s\" is out of date.\n", entry->sourceFile_.c_str());
-
-							// Setup convert job.
-							auto* convertJob = new ResourceConvertJob(
-							    entry, entry->type_, entry->sourceFile_.c_str(), entry->convertedFile_.c_str());
-
-							// Setup load job to chain.
-							if(auto factory = impl->GetFactory(entry->type_))
+							if(entry->converting_ == 0)
 							{
-								convertJob->loadJob_ = new ResourceLoadJob(
-								    factory, entry, entry->type_, entry->sourceFile_.c_str(), Core::File());
-								convertJob->RunSingle(0);
-							}
-						}
+								DBG_LOG("Resource \"%s\" is out of date.\n", entry->sourceFile_.c_str());
 
-						impl->ReleaseResourceEntry(entry);
+								// Setup convert job.
+								auto* convertJob = new ResourceConvertJob(
+									entry, entry->type_, entry->sourceFile_.c_str(), entry->convertedFile_.c_str());
+
+								// Setup load job to chain.
+								if(auto factory = impl->GetFactory(entry->type_))
+								{
+									convertJob->loadJob_ = new ResourceLoadJob(
+										factory, entry, entry->type_, entry->sourceFile_.c_str(), Core::File());
+									convertJob->RunSingle(0);
+								}
+							}
+
+							impl->ReleaseResourceEntry(entry);
+						}
+						convertList.clear();
 					}
-					convertList.clear();
 				}
 
 				// Sleep for a bit once all have been checked.

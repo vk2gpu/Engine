@@ -31,12 +31,11 @@ namespace GPU
 
 	D3D12CommandList::~D3D12CommandList()
 	{
+		d3dFence_->SetEventOnCompletion(listIdx_ - 1, fenceEvent_);
 		if(listIdx_ > 0 && d3dFence_->GetCompletedValue() != listIdx_ - 1)
 		{
-			d3dFence_->SetEventOnCompletion(listIdx_ - 1, fenceEvent_);
 			::WaitForSingleObject(fenceEvent_, INFINITE);
 		}
-
 		::CloseHandle(fenceEvent_);
 	}
 
@@ -45,9 +44,9 @@ namespace GPU
 		DBG_ASSERT(!isOpen_);
 
 		// Check that we've completed uploads from the next allocator.
+		d3dFence_->SetEventOnCompletion(listIdx_ - listCount_, fenceEvent_);
 		if((listIdx_ - d3dFence_->GetCompletedValue()) >= listCount_)
 		{
-			d3dFence_->SetEventOnCompletion(listIdx_ - listCount_, fenceEvent_);
 			::WaitForSingleObject(fenceEvent_, INFINITE);
 		}
 		i32 listIdx = listIdx_ % listCount_;
@@ -75,10 +74,9 @@ namespace GPU
 		d3dCommandQueue->ExecuteCommandLists(1, d3dCommandLists);
 		CHECK_D3D(d3dCommandQueue->Signal(d3dFence_.Get(), listIdx_));
 
-		// HACK TO WAIT.
-		if(d3dFence_->GetCompletedValue() != listIdx_)
+		d3dFence_->SetEventOnCompletion(listIdx_ - listCount_, fenceEvent_);
+		if((listIdx_ - d3dFence_->GetCompletedValue()) >= listCount_)
 		{
-			d3dFence_->SetEventOnCompletion(listIdx_, fenceEvent_);
 			::WaitForSingleObject(fenceEvent_, INFINITE);
 		}
 
