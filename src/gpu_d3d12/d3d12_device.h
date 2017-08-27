@@ -73,7 +73,7 @@ namespace GPU
 		/// Upload management.
 		Core::Mutex uploadMutex_;
 		Core::Array<class D3D12LinearHeapAllocator*, MAX_GPU_FRAMES> uploadAllocators_ = {};
-		class D3D12CommandList* uploadCommandList_;
+		class D3D12CommandList* uploadCommandList_ = nullptr;
 		ComPtr<ID3D12Fence> d3dUploadFence_;
 		HANDLE uploadFenceEvent_ = 0;
 		volatile i64 uploadFenceIdx_ = 0;

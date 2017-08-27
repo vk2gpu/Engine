@@ -277,17 +277,20 @@ namespace GPU
 
 	void D3D12Device::NextFrame()
 	{
-		if((frameIdx_ - d3dFrameFence_->GetCompletedValue()) >= MAX_GPU_FRAMES)
+		if(d3dFrameFence_)
 		{
-			d3dFrameFence_->SetEventOnCompletion(frameIdx_ - MAX_GPU_FRAMES, frameFenceEvent_);
-			::WaitForSingleObject(frameFenceEvent_, INFINITE);
+			if((frameIdx_ - d3dFrameFence_->GetCompletedValue()) >= MAX_GPU_FRAMES)
+			{
+				d3dFrameFence_->SetEventOnCompletion(frameIdx_ - MAX_GPU_FRAMES, frameFenceEvent_);
+				::WaitForSingleObject(frameFenceEvent_, INFINITE);
+			}
+
+			frameIdx_++;
+
+			// Reset upload allocators as we go along.
+			GetUploadAllocator().Reset();
+			d3dDirectQueue_->Signal(d3dFrameFence_.Get(), frameIdx_);
 		}
-
-		frameIdx_++;
-
-		// Reset upload allocators as we go along.
-		GetUploadAllocator().Reset();
-		d3dDirectQueue_->Signal(d3dFrameFence_.Get(), frameIdx_);
 	}
 
 	ErrorCode D3D12Device::CreateSwapChain(
@@ -445,7 +448,7 @@ namespace GPU
 		else if(Core::ContainsAllFlags(desc.bindFlags_, BindFlags::DEPTH_STENCIL))
 		{
 			clearValue.Format = GetFormat(desc.format_);
-			clearValue.DepthStencil.Depth = 0.0f;
+			clearValue.DepthStencil.Depth = 1.0f;
 			clearValue.DepthStencil.Stencil = 0;
 			setClearValue = &clearValue;
 		}
