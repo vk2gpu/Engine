@@ -288,6 +288,7 @@ namespace Core
 	struct MutexImpl
 	{
 		CRITICAL_SECTION critSec_;
+		HANDLE lockThread_ = nullptr;
 	};
 
 	Mutex::Mutex()
@@ -319,70 +320,63 @@ namespace Core
 	{
 		DBG_ASSERT(impl_);
 		::EnterCriticalSection(&impl_->critSec_);
+		impl_->lockThread_ = ::GetCurrentThread();
 	}
 
 	bool Mutex::TryLock()
 	{
 		DBG_ASSERT(impl_);
-		return !!::TryEnterCriticalSection(&impl_->critSec_);
+		if(!!::TryEnterCriticalSection(&impl_->critSec_))
+		{
+			impl_->lockThread_ = ::GetCurrentThread();
+			return true;
+		}
+		return false;
 	}
 
 	void Mutex::Unlock()
 	{
 		DBG_ASSERT(impl_);
+		DBG_ASSERT(impl_->lockThread_ == ::GetCurrentThread());
+		impl_->lockThread_ = nullptr;
 		::LeaveCriticalSection(&impl_->critSec_);
 	}
 
-	RWLock::RWLock() {}
+	struct RWLockImpl
+	{
+		SRWLOCK srwLock_ = SRWLOCK_INIT;
+	};
+
+	RWLock::RWLock() { impl_ = new RWLockImpl; }
 
 	RWLock::~RWLock()
 	{
-		DBG_ASSERT(readCount_ == 0);
 #ifdef DEBUG
-		if(gMutex_.TryLock() == false)
+		if(!::TryAcquireSRWLockExclusive(&impl_->srwLock_))
 			DBG_BREAK;
-		gMutex_.Unlock();
 #endif
 	}
 
 	RWLock::RWLock(RWLock&& other)
 	{
 		using std::swap;
-		std::swap(rMutex_, other.rMutex_);
-		std::swap(gMutex_, other.gMutex_);
-		std::swap(readCount_, other.readCount_);
+		std::swap(impl_, other.impl_);
 	}
 
 	RWLock& RWLock::operator=(RWLock&& other)
 	{
 		using std::swap;
-		std::swap(rMutex_, other.rMutex_);
-		std::swap(gMutex_, other.gMutex_);
-		std::swap(readCount_, other.readCount_);
+		std::swap(impl_, other.impl_);
 		return *this;
 	}
 
-	void RWLock::BeginRead()
-	{
-		ScopedMutex lock(rMutex_);
-		if(AtomicInc(&readCount_) == 1)
-		{
-			gMutex_.Lock();
-		}
-	}
+	void RWLock::BeginRead() { ::AcquireSRWLockShared(&impl_->srwLock_); }
 
-	void RWLock::EndRead()
-	{
-		ScopedMutex lock(rMutex_);
-		if(AtomicDec(&readCount_) == 0)
-		{
-			gMutex_.Unlock();
-		}
-	}
+	void RWLock::EndRead() { ::ReleaseSRWLockShared(&impl_->srwLock_); }
 
-	void RWLock::BeginWrite() { gMutex_.Lock(); }
+	void RWLock::BeginWrite() { ::AcquireSRWLockExclusive(&impl_->srwLock_); }
 
-	void RWLock::EndWrite() { gMutex_.Unlock(); }
+	void RWLock::EndWrite() { ::ReleaseSRWLockExclusive(&impl_->srwLock_); }
 
 	struct TLSImpl
 	{

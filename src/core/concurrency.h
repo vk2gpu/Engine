@@ -331,9 +331,7 @@ namespace Core
 	private:
 		RWLock(const RWLock&) = delete;
 
-		Mutex rMutex_;
-		Mutex gMutex_;
-		volatile i32 readCount_ = 0;
+		struct RWLockImpl* impl_ = nullptr;
 	};
 
 	/**
