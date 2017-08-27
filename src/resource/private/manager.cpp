@@ -83,14 +83,45 @@ namespace Core
 
 namespace Resource
 {
-	struct ResourceLoadJob;
-	struct ResourceConvertJob;
-	struct ResourceTimestampJob;
+	/// Resource load job.
+	struct ResourceLoadJob : public Job::BasicJob
+	{
+		ResourceLoadJob(IFactory* factory, ResourceEntry* entry, Core::UUID type, const char* name, Core::File&& file);
+		virtual ~ResourceLoadJob();
+		void OnWork(i32 param) override;
+		void OnCompleted() override;
+
+		IFactory* factory_ = nullptr;
+		ResourceEntry* entry_ = nullptr;
+		Core::UUID type_;
+		Core::String name_;
+		Core::File file_;
+		bool success_ = false;
+	};
+
+	/// Job to convert resource, and chain load if required.
+	struct ResourceConvertJob : public Job::BasicJob
+	{
+		ResourceConvertJob(ResourceEntry* entry, Core::UUID type, const char* name, const char* convertedPath);
+		virtual ~ResourceConvertJob();
+		void OnWork(i32 param) override;
+		void OnCompleted() override;
+
+		ResourceEntry* entry_ = nullptr;
+		Core::UUID type_;
+		Core::String name_;
+		Core::String convertedPath_;
+		bool success_ = false;
+		ResourceLoadJob* loadJob_ = nullptr;
+	};
 
 	struct ManagerImpl
 	{
 		static const i32 MAX_READ_JOBS = 128;
 		static const i32 MAX_WRITE_JOBS = 128;
+
+		/// Is resource manager active? true from initialize, false at finalize.
+		bool isActive_ = false;
 
 		/// Plugins.
 		Core::Vector<ConverterPlugin> converterPlugins_;
@@ -109,11 +140,12 @@ namespace Resource
 		/// Thread to use for blocking reads.
 		Core::Thread writeThread_;
 
+		/// Timestamp thread.
+		Core::Thread timestampThread_;
+
 		/// Path resolver.
 		PathResolver pathResolver_;
 
-		/// Is resource manager active? true from initialize, false at finalize.
-		bool isActive_ = false;
 
 		/// Number of conversions running.
 		volatile i32 numConversionJobs_ = 0;
@@ -252,13 +284,14 @@ namespace Resource
 		}
 
 		ManagerImpl()
-		    : readJobs_(MAX_READ_JOBS)
+		    : isActive_(true)
+			, readJobs_(MAX_READ_JOBS)
 		    , readJobSem_(0, MAX_READ_JOBS, "Resource Manager Read Semamphore")
 		    , readThread_(ReadIOThread, this, 65536, "Resource Manager Read Thread")
 		    , writeJobs_(MAX_WRITE_JOBS)
 		    , writeJobSem_(0, MAX_WRITE_JOBS, "Resource Manager Write Semaphore")
 		    , writeThread_(WriteIOThread, this, 65536, "Resource Manager Write Thread")
-		    , isActive_(true)
+			, timestampThread_(TimestampThread, this, 65536, "Resource Manager Timestamp Thread")
 		{
 			// Get converter plugins.
 			i32 found = Plugin::Manager::GetPlugins<ConverterPlugin>(nullptr, 0);
@@ -301,6 +334,8 @@ namespace Resource
 				Job::Manager::YieldCPU();
 			writeJobSem_.Signal(1);
 			writeThread_.Join();
+
+			timestampThread_.Join();
 		}
 
 		static int ReadIOThread(void* userData)
@@ -338,15 +373,84 @@ namespace Resource
 				impl->writeJobSem_.Wait();
 			}
 		}
+
+		static int TimestampThread(void* userData)
+		{
+			auto* impl = reinterpret_cast<ManagerImpl*>(userData);
+
+			i32 idx = 0;
+			Core::Vector<ResourceEntry*> convertList;
+			Core::Timer convertTimer;
+			const f64 CONVERT_WAIT_TIME = 0.01f;
+
+			while(impl->isActive_)
+			{
+				// Check resource timestamps.
+				{
+					Job::ScopedReadLock lock(impl->resourceRWLock_);
+					if(idx < impl->resourceList_.size())
+					{
+						auto* entry = impl->resourceList_[idx];
+						if(entry->loaded_ && entry->ResourceOutOfDate(&impl->pathResolver_))
+						{
+							if(std::find(convertList.begin(), convertList.end(), entry) == convertList.end())
+							{
+								impl->AcquireResourceEntry(entry);
+								convertList.push_back(entry);
+								convertTimer.Mark();
+							}
+						}
+
+						idx = (idx + 1) % impl->resourceList_.size();
+					}
+				}
+
+				// Check if the appropriate amount of time has passed.
+				if(convertTimer.GetTime() > CONVERT_WAIT_TIME && convertList.size() > 0)
+				{
+					for(auto* entry : convertList)
+					{
+						if(entry->converting_ == 0)
+						{
+							DBG_LOG("Resource \"%s\" is out of date.\n", entry->sourceFile_.c_str());
+
+							// Setup convert job.
+							auto* convertJob = new ResourceConvertJob(
+								entry, entry->type_, entry->sourceFile_.c_str(), entry->convertedFile_.c_str());
+
+							// Setup load job to chain.
+							if(auto factory = impl->GetFactory(entry->type_))
+							{
+								convertJob->loadJob_ = new ResourceLoadJob(
+									factory, entry, entry->type_, entry->sourceFile_.c_str(), Core::File());
+								convertJob->RunSingle(0);
+							}
+						}
+
+						impl->ReleaseResourceEntry(entry);
+					}
+					convertList.clear();
+				}
+
+				// Sleep for a bit once all have been checked.
+				if(idx == 0)
+					Core::Sleep(0.1f);
+			}
+
+			for(auto* entry : convertList)
+			{
+				impl->ReleaseResourceEntry(entry);
+			}
+			convertList.clear();
+			Core::AtomicDec(&impl->pendingResourceJobs_);
+			return 0;
+		}
+
 	};
 
 	ManagerImpl* impl_ = nullptr;
 
-
-	/// Resource load job.
-	struct ResourceLoadJob : public Job::BasicJob
-	{
-		ResourceLoadJob(IFactory* factory, ResourceEntry* entry, Core::UUID type, const char* name, Core::File&& file)
+	ResourceLoadJob::ResourceLoadJob(IFactory* factory, ResourceEntry* entry, Core::UUID type, const char* name, Core::File&& file)
 		    : Job::BasicJob("ResourceLoadJob")
 		    , factory_(factory)
 		    , entry_(entry)
@@ -358,174 +462,74 @@ namespace Resource
 			Core::AtomicInc(&impl_->pendingResourceJobs_);
 		}
 
-		virtual ~ResourceLoadJob() { Core::AtomicDec(&impl_->pendingResourceJobs_); }
-
-		void OnWork(i32 param) override
-		{
-			const bool isReload = entry_->loaded_ != 0;
-			if(isReload)
-			{
-				Core::AtomicInc(&impl_->numReloadJobs_);
-			}
-			FactoryContext factoryContext;
-			success_ = factory_->LoadResource(factoryContext, &entry_->resource_, type_, name_.c_str(), file_);
-			if(success_ && !isReload)
-			{
-				Core::AtomicInc(&entry_->loaded_);
-			}
-
-			if(isReload)
-			{
-				Core::AtomicDec(&impl_->numReloadJobs_);
-			}
-		}
-
-		void OnCompleted() override
-		{
-			impl_->ReleaseResourceEntry(entry_);
-			delete this;
-		}
-
-		IFactory* factory_ = nullptr;
-		ResourceEntry* entry_ = nullptr;
-		Core::UUID type_;
-		Core::String name_;
-		Core::File file_;
-		bool success_ = false;
-	};
-
-	/// Job to convert resource, and chain load if required.
-	struct ResourceConvertJob : public Job::BasicJob
+	ResourceLoadJob::~ResourceLoadJob()
 	{
-		ResourceConvertJob(ResourceEntry* entry, Core::UUID type, const char* name, const char* convertedPath)
-		    : Job::BasicJob("ResourceConvertJob")
-		    , entry_(entry)
-		    , type_(type)
-		    , name_(name)
-		    , convertedPath_(convertedPath)
-		{
-			Core::AtomicInc(&impl_->pendingResourceJobs_);
-			i32 val = Core::AtomicInc(&entry->converting_);
-			DBG_ASSERT(val == 1);
-		}
+		Core::AtomicDec(&impl_->pendingResourceJobs_); 
+	}
 
-		virtual ~ResourceConvertJob()
-		{
-			Core::AtomicDec(&entry_->converting_);
-			Core::AtomicDec(&impl_->pendingResourceJobs_);
-		}
-
-		void OnWork(i32 param) override
-		{
-			success_ = Manager::ConvertResource(name_.c_str(), convertedPath_.c_str(), type_);
-		}
-
-		void OnCompleted() override
-		{
-			// If conversion was successful and there is a load job to chain, run it but block untll completion.
-			if(success_ && loadJob_)
-			{
-				loadJob_->file_ = Core::File(convertedPath_.data(), Core::FileFlags::READ);
-				DBG_ASSERT_MSG(loadJob_->file_, "Can't load converted file \"%s\"", convertedPath_.data());
-
-				Job::Counter* counter = nullptr;
-				loadJob_->RunSingle(0, &counter);
-				Job::Manager::WaitForCounter(counter, 0);
-			}
-			delete this;
-		}
-
-		ResourceEntry* entry_ = nullptr;
-		Core::UUID type_;
-		Core::String name_;
-		Core::String convertedPath_;
-		bool success_ = false;
-		ResourceLoadJob* loadJob_ = nullptr;
-	};
-
-	///
-	struct ResourceTimestampJob : public Job::BasicJob
+	void ResourceLoadJob::OnWork(i32 param)
 	{
-		ResourceTimestampJob()
-		    : Job::BasicJob("ResourceTimestampJob")
+		const bool isReload = entry_->loaded_ != 0;
+		if(isReload)
 		{
-			Core::AtomicInc(&impl_->pendingResourceJobs_);
+			Core::AtomicInc(&impl_->numReloadJobs_);
+		}
+		FactoryContext factoryContext;
+		success_ = factory_->LoadResource(factoryContext, &entry_->resource_, type_, name_.c_str(), file_);
+		if(success_ && !isReload)
+		{
+			Core::AtomicInc(&entry_->loaded_);
 		}
 
-		virtual ~ResourceTimestampJob()
+		if(isReload)
 		{
-			for(auto* entry : convertList_)
-			{
-				impl_->ReleaseResourceEntry(entry);
-			}
-			convertList_.clear();
-			Core::AtomicDec(&impl_->pendingResourceJobs_);
+			Core::AtomicDec(&impl_->numReloadJobs_);
 		}
+	}
 
-		void OnWork(i32 param) override
+	void ResourceLoadJob::OnCompleted()
+	{
+		impl_->ReleaseResourceEntry(entry_);
+		delete this;
+	}
+
+	ResourceConvertJob::ResourceConvertJob(ResourceEntry* entry, Core::UUID type, const char* name, const char* convertedPath)
+		: Job::BasicJob("ResourceConvertJob")
+		, entry_(entry)
+		, type_(type)
+		, name_(name)
+		, convertedPath_(convertedPath)
+	{
+		Core::AtomicInc(&impl_->pendingResourceJobs_);
+		i32 val = Core::AtomicInc(&entry->converting_);
+		DBG_ASSERT(val == 1);
+	}
+
+	ResourceConvertJob::~ResourceConvertJob()
+	{
+		Core::AtomicDec(&entry_->converting_);
+		Core::AtomicDec(&impl_->pendingResourceJobs_);
+	}
+
+	void ResourceConvertJob::OnWork(i32 param)
+	{
+		success_ = Manager::ConvertResource(name_.c_str(), convertedPath_.c_str(), type_);
+	}
+
+	void ResourceConvertJob::OnCompleted()
+	{
+		// If conversion was successful and there is a load job to chain, run it but block untll completion.
+		if(success_ && loadJob_)
 		{
-			// Check time stamp of a single resource.
-			{
-				Job::ScopedReadLock lock(impl_->resourceRWLock_);
-				if(idx_ < impl_->resourceList_.size())
-				{
-					auto* entry = impl_->resourceList_[idx_];
-					if(entry->loaded_ && entry->ResourceOutOfDate(&impl_->pathResolver_))
-					{
-						if(std::find(convertList_.begin(), convertList_.end(), entry) == convertList_.end())
-						{
-							impl_->AcquireResourceEntry(entry);
-							convertList_.push_back(entry);
-							convertTimer_.Mark();
-						}
-					}
+			loadJob_->file_ = Core::File(convertedPath_.data(), Core::FileFlags::READ);
+			DBG_ASSERT_MSG(loadJob_->file_, "Can't load converted file \"%s\"", convertedPath_.data());
 
-					idx_ = (idx_ + 1) % impl_->resourceList_.size();
-				}
-			}
-
-			// Check if the appropriate amount of time has passed.
-			if(convertTimer_.GetTime() > CONVERT_WAIT_TIME && convertList_.size() > 0)
-			{
-				for(auto* entry : convertList_)
-				{
-					if(entry->converting_ == 0)
-					{
-						DBG_LOG("Resource \"%s\" is out of date.\n", entry->sourceFile_.c_str());
-
-						// Setup convert job.
-						auto* convertJob = new ResourceConvertJob(
-						    entry, entry->type_, entry->sourceFile_.c_str(), entry->convertedFile_.c_str());
-
-						// Setup load job to chain.
-						if(auto factory = impl_->GetFactory(entry->type_))
-						{
-							convertJob->loadJob_ = new ResourceLoadJob(
-							    factory, entry, entry->type_, entry->sourceFile_.c_str(), Core::File());
-							convertJob->RunSingle(0);
-						}
-					}
-
-					impl_->ReleaseResourceEntry(entry);
-				}
-				convertList_.clear();
-			}
+			Job::Counter* counter = nullptr;
+			loadJob_->RunSingle(0, &counter);
+			Job::Manager::WaitForCounter(counter, 0);
 		}
-
-		void OnCompleted() override
-		{
-			// If active, reschedule job to check timestamps of the next file.
-			if(impl_->isActive_)
-				RunSingle(0);
-			else
-				delete this;
-		}
-
-		i32 idx_ = 0;
-		Core::Vector<ResourceEntry*> convertList_;
-		Core::Timer convertTimer_;
-		const f64 CONVERT_WAIT_TIME = 0.f;
-	};
+		delete this;
+	}
 
 	void Manager::Initialize()
 	{
@@ -533,10 +537,6 @@ namespace Resource
 		DBG_ASSERT(Job::Manager::IsInitialized());
 		DBG_ASSERT(Plugin::Manager::IsInitialized());
 		impl_ = new ManagerImpl();
-
-		// Create timestamp job to monitor resources.
-		auto* timeStampJob = new ResourceTimestampJob();
-		timeStampJob->RunSingle(0);
 
 		impl_->reloadRWLock_.BeginRead();
 	}
