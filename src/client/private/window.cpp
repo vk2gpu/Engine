@@ -211,7 +211,7 @@ namespace Client
 		return currInputState_.mouseButtonStates_[buttonIdx] && !currInputState_.mouseButtonStates_[buttonIdx];
 	}
 
-	Window::Window(const char* title, i32 x, i32 y, i32 w, i32 h, bool visible)
+	Window::Window(const char* title, i32 x, i32 y, i32 w, i32 h, bool visible, bool resizable)
 	{
 		DBG_ASSERT(title);
 		DBG_ASSERT(w >= 0);
@@ -222,6 +222,9 @@ namespace Client
 			flags |= SDL_WINDOW_SHOWN;
 		else
 			flags |= SDL_WINDOW_HIDDEN;
+
+		if(resizable)
+			flags |= SDL_WINDOW_RESIZABLE;
 
 		impl_ = new WindowImpl();
 		impl_->sdlWindow_ = SDL_CreateWindow(title, x, y, w, h, flags);
