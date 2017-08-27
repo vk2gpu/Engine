@@ -85,6 +85,8 @@ namespace GPU
 	ErrorCode D3D12CompileContext::CompileCommand(const CommandDispatch* command)
 	{
 		SetPipelineBinding(command->pipelineBinding_);
+
+		FlushTransitions();
 		d3dCommandList_->Dispatch(command->xGroups_, command->yGroups_, command->zGroups_);
 		return ErrorCode::OK;
 	}

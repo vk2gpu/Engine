@@ -890,7 +890,7 @@ TEST_CASE("gpu-tests-compile-dispatch")
 		pipelineBindingSetDesc.pipelineState_ = pipelineHandle;
 		pipelineBindingSetDesc.numUAVs_ = 1;
 		pipelineBindingSetDesc.uavs_[0].resource_ = bufHandle;
-		pipelineBindingSetDesc.uavs_[0].format_ = GPU::Format::R32_SINT;
+		pipelineBindingSetDesc.uavs_[0].format_ = GPU::Format::R32_TYPELESS;
 		pipelineBindingSetDesc.uavs_[0].dimension_ = GPU::ViewDimension::BUFFER;
 		pipelineBindingSetDesc.uavs_[0].mipSlice_FirstElement_ = 0;
 		pipelineBindingSetDesc.uavs_[0].firstArraySlice_FirstWSlice_NumElements_ = (i32)(bufDesc.size_ / sizeof(i32));

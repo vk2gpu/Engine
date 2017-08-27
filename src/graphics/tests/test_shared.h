@@ -34,6 +34,7 @@ namespace
 		Job::Manager::Scoped jobManager = Job::Manager::Scoped(2, 256, 32 * 1024);
 		Resource::Manager::Scoped resourceManager;
 
+		GPU::SwapChainDesc scDesc;
 		GPU::Handle scHandle;
 		GPU::Handle fbsHandle;
 
@@ -51,7 +52,6 @@ namespace
 			REQUIRE(GPU::Manager::CreateAdapter(0) == GPU::ErrorCode::OK);
 
 			// Create swap chain.
-			GPU::SwapChainDesc scDesc;
 			scDesc.width_ = 1024;
 			scDesc.height_ = 768;
 			scDesc.format_ = GPU::Format::R8G8B8A8_UNORM;

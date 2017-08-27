@@ -168,6 +168,34 @@ namespace Graphics
 		return RenderGraphResource(resDesc.id_, 0);
 	}
 
+	RenderGraphResource RenderGraphBuilder::UseCBV(RenderPass* renderPass, RenderGraphResource res, bool update)
+	{
+		DBG_ASSERT(res);
+		if(!res)
+			return res;
+
+		// Patch up required bind flags.
+		auto& resource = impl_->resourceDescs_[res.idx_];
+		switch(resource.resType_)
+		{
+		case GPU::ResourceType::BUFFER:
+			resource.bufferDesc_.bindFlags_ |= GPU::BindFlags::CONSTANT_BUFFER;
+			break;
+
+		default:
+			DBG_BREAK;
+			break;
+		}
+
+		renderPass->impl_->AddInput(res);
+		if(update)
+		{
+			res.version_++;
+			renderPass->impl_->AddOutput(res);
+		}
+		return res;
+	}
+
 	RenderGraphResource RenderGraphBuilder::UseSRV(RenderPass* renderPass, RenderGraphResource res)
 	{
 		DBG_ASSERT(res);
@@ -254,6 +282,40 @@ namespace Graphics
 		return res;
 	}
 
+	bool RenderGraphBuilder::GetBuffer(RenderGraphResource res, RenderGraphBufferDesc* outDesc) const
+	{
+		if(res.idx_ < impl_->resourceDescs_.size())
+		{
+			const auto& resDesc = impl_->resourceDescs_[res.idx_];
+			if(resDesc.resType_ == GPU::ResourceType::BUFFER)
+			{
+				if(outDesc)
+				{
+					*outDesc = resDesc.bufferDesc_;
+				}
+				return true;
+			}
+		}
+		return false;
+	}
+
+	bool RenderGraphBuilder::GetTexture(RenderGraphResource res, RenderGraphTextureDesc* outDesc) const
+	{
+		if(res.idx_ < impl_->resourceDescs_.size())
+		{
+			const auto& resDesc = impl_->resourceDescs_[res.idx_];
+			if(resDesc.resType_ == GPU::ResourceType::TEXTURE || resDesc.resType_ == GPU::ResourceType::SWAP_CHAIN)
+			{
+				if(outDesc)
+				{
+					*outDesc = resDesc.textureDesc_;
+				}
+				return true;
+			}
+		}
+		return false;
+	}
+
 	void* RenderGraphBuilder::Alloc(i32 size) { return impl_->frameAllocator_.Allocate(size); }
 
 	RenderGraphResources::RenderGraphResources(RenderGraphImpl* impl)
@@ -291,13 +353,28 @@ namespace Graphics
 		delete impl_;
 	}
 
-	RenderGraphResource RenderGraph::ImportResource(const char* name, GPU::Handle handle)
+	RenderGraphResource RenderGraph::ImportResource(
+	    const char* name, GPU::Handle handle, const RenderGraphBufferDesc& desc)
 	{
 		ResourceDesc resDesc;
 		resDesc.id_ = impl_->resourceDescs_.size();
 		resDesc.name_ = name;
 		resDesc.resType_ = handle.GetType();
 		resDesc.handle_ = handle;
+		resDesc.bufferDesc_ = desc;
+		impl_->resourceDescs_.push_back(resDesc);
+		return RenderGraphResource(resDesc.id_, 0);
+	}
+
+	RenderGraphResource RenderGraph::ImportResource(
+	    const char* name, GPU::Handle handle, const RenderGraphTextureDesc& desc)
+	{
+		ResourceDesc resDesc;
+		resDesc.id_ = impl_->resourceDescs_.size();
+		resDesc.name_ = name;
+		resDesc.resType_ = handle.GetType();
+		resDesc.handle_ = handle;
+		resDesc.textureDesc_ = desc;
 		impl_->resourceDescs_.push_back(resDesc);
 		return RenderGraphResource(resDesc.id_, 0);
 	}
@@ -369,14 +446,33 @@ namespace Graphics
 			impl_->cmdHandles_.reserve(numPasses);
 			for(i32 idx = impl_->cmdLists_.size(); idx < numPasses; ++idx)
 			{
-				impl_->cmdLists_.emplace_back();
+				impl_->cmdLists_.emplace_back(8 * 1024 * 1024);
 				impl_->cmdHandles_.emplace_back(GPU::Manager::CreateCommandList("RenderGraph"));
 			}
 		}
 
+#if 0
+		// Execute render passes sequentially.
+		for(i32 idx = 0; idx < numPasses; ++idx)
+		{
+			RenderGraphResources resources(impl_);
+			auto& entry = impl_->executeRenderPasses_[idx];
+			auto& cmdList = impl_->cmdLists_[idx];
+			auto& cmdHandle = impl_->cmdHandles_[idx];
+
+			cmdList.Reset();
+			entry->renderPass_->Execute(resources, cmdList);
+			if(cmdList.NumCommands() > 0)
+				GPU::Manager::CompileCommandList(cmdHandle, cmdList);
+		}
+
+#else
 		// Setup job to execute & compile all command lists.
-		Job::FunctionJob executeJob("RenderGraph::Execute", [impl = this->impl_](i32 idx) {
+		volatile i32 completed = 0;
+		Job::FunctionJob executeJob("RenderGraph::Execute", [impl = this->impl_, &completed](i32 idx) {
 			RenderGraphResources resources(impl);
+
+			//Core::Log("Execute(%i)\n", idx);
 
 			auto& entry = impl->executeRenderPasses_[idx];
 			auto& cmdList = impl->cmdLists_[idx];
@@ -386,13 +482,20 @@ namespace Graphics
 			entry->renderPass_->Execute(resources, cmdList);
 			if(cmdList.NumCommands() > 0)
 				GPU::Manager::CompileCommandList(cmdHandle, cmdList);
+
+			Core::AtomicAdd(&completed, -1);
 		});
 
+		completed = numPasses;
 		// Wait for all render pass execution to complete.
 		Job::Counter* counter = nullptr;
 		executeJob.RunMultiple(0, numPasses - 1, &counter);
 		Job::Manager::WaitForCounter(counter, 0);
 
+		DBG_ASSERT(completed == 0);
+#endif
+
+		//Core::Log("Execute done\n");
 		// Submit all command lists with commands in sequential order.
 		for(i32 idx = 0; idx < numPasses; ++idx)
 		{
@@ -431,6 +534,40 @@ namespace Graphics
 		entry.name_ = name;
 		entry.renderPass_ = renderPass;
 		impl_->renderPassEntries_.push_back(entry);
+	}
+
+	bool RenderGraph::GetBuffer(RenderGraphResource res, RenderGraphBufferDesc* outDesc) const
+	{
+		if(res.idx_ < impl_->resourceDescs_.size())
+		{
+			const auto& resDesc = impl_->resourceDescs_[res.idx_];
+			if(resDesc.resType_ == GPU::ResourceType::BUFFER)
+			{
+				if(outDesc)
+				{
+					*outDesc = resDesc.bufferDesc_;
+				}
+				return true;
+			}
+		}
+		return false;
+	}
+
+	bool RenderGraph::GetTexture(RenderGraphResource res, RenderGraphTextureDesc* outDesc) const
+	{
+		if(res.idx_ < impl_->resourceDescs_.size())
+		{
+			const auto& resDesc = impl_->resourceDescs_[res.idx_];
+			if(resDesc.resType_ == GPU::ResourceType::TEXTURE || resDesc.resType_ == GPU::ResourceType::SWAP_CHAIN)
+			{
+				if(outDesc)
+				{
+					*outDesc = resDesc.textureDesc_;
+				}
+				return true;
+			}
+		}
+		return false;
 	}
 
 } // namespace Graphics

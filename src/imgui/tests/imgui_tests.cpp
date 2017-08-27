@@ -76,7 +76,9 @@ TEST_CASE("imgui-tests-run")
 
 		ImGui::ShowTestWindow();
 
-		ImGui::Manager::EndFrame(fbsHandle, cmdList);
+		ImGui::Manager::EndFrame();
+
+		ImGui::Manager::Render(fbsHandle, cmdList);
 
 		// Compile and submit.
 		GPU::Manager::CompileCommandList(cmdHandle, cmdList);

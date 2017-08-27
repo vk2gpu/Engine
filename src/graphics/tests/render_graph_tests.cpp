@@ -407,7 +407,7 @@ namespace
 				fbsDesc.rtvs_[0].dimension_ = GPU::ViewDimension::TEX2D;
 				fbs_ = GPU::Manager::CreateFrameBindingSet(fbsDesc, "RenderPassImGui");
 
-				ImGui::Manager::EndFrame(fbs_, cmdList);
+				ImGui::Manager::Render(fbs_, cmdList);
 			}
 
 			Graphics::RenderGraphResource rt_;
@@ -661,8 +661,14 @@ TEST_CASE("render-graph-tests-pipeline-plugin")
 		{
 			pipeline = selectedPlugin->CreatePipeline();
 		}
+
 		// Import back buffer.
-		auto bbRes = graph.ImportResource("Back Buffer", engine.scHandle);
+		Graphics::RenderGraphTextureDesc scDesc;
+		scDesc.type_ = GPU::TextureType::TEX2D;
+		scDesc.width_ = engine.scDesc.width_;
+		scDesc.height_ = engine.scDesc.height_;
+		scDesc.format_ = engine.scDesc.format_;
+		auto bbRes = graph.ImportResource("Back Buffer", engine.scHandle, scDesc);
 
 		// Set color target to back buffer.
 		pipeline->SetResource(pipeline->GetResourceIdx("in_color"), bbRes);
@@ -674,6 +680,8 @@ TEST_CASE("render-graph-tests-pipeline-plugin")
 		imguiPipeline.SetResource(
 		    imguiPipeline.GetResourceIdx("in_color"), pipeline->GetResource(pipeline->GetResourceIdx("out_color")));
 		imguiPipeline.Setup(graph);
+
+		ImGui::Manager::EndFrame();
 
 		// Execute, and resolve the out color target.
 		graph.Execute(imguiPipeline.GetResource(imguiPipeline.GetResourceIdx("out_color")));
@@ -711,7 +719,14 @@ TEST_CASE("render-graph-tests-draw-simple")
 
 		// Setup render graph.
 		graph.Clear();
-		scRes = graph.ImportResource("Back buffer", engine.scHandle);
+
+		// Import back buffer.
+		Graphics::RenderGraphTextureDesc scDesc;
+		scDesc.type_ = GPU::TextureType::TEX2D;
+		scDesc.width_ = engine.scDesc.width_;
+		scDesc.height_ = engine.scDesc.height_;
+		scDesc.format_ = engine.scDesc.format_;
+		scRes = graph.ImportResource("Back buffer", engine.scHandle, scDesc);
 
 		DebugData debugData;
 		Mock::CreateForward(graph, debugData, scRes, dsRes);

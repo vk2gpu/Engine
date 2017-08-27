@@ -350,7 +350,7 @@ namespace
 		inoutColor = renderPassToneMap.color_;
 	}
 
-	static const char* RESOURCE_NAMES[] = {"in_color", "out_color", "out_depth"};
+	static const char* RESOURCE_NAMES[] = {"in_color", "out_color", "out_depth", nullptr};
 
 	class PipelineTest : public Graphics::Pipeline
 	{

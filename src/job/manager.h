@@ -50,9 +50,28 @@ namespace Job
 		static void WaitForCounter(Counter*& counter, i32 value);
 
 		/**
+		 * @return Counter value.
+		 */
+		static i32 GetCounterValue(Counter* counter);
+
+		/**
 		 * Yield execution.
 		 */
 		static void YieldCPU();
+
+		/**
+		 * Begin profiling.
+		 * This will allow profile entries to be gathered for scheduled jobs.
+		 */
+		static void BeginProfiling();
+
+		/**
+		 * End profiling.
+		 * @param profilerEntries Pointer to array of profiler entries.
+		 * @param maxProfilerEntries Maximum number of profiler entries to output.
+		 * @return Number of profile entries.
+		 */
+		static i32 EndProfiling(ProfilerEntry* profileEntries, i32 maxProfileEntries);
 
 		/**
 		 * Scoped manager init/fini.

@@ -1,9 +1,9 @@
 {
-   "flattenHierarchy" : false,
-   "internal" : {
+   "$internal" : {
       "dependencies" : [],
       "outputs" : [ "converter_output/model_tests/teapot.obj.converted" ]
    },
+   "flattenHierarchy" : false,
    "maxBoneInfluences" : 4,
    "maxBones" : 256,
    "vertexFormat" : {

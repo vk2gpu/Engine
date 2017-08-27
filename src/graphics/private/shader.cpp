@@ -588,10 +588,20 @@ namespace Graphics
 		return impl_ ? impl_->bsHandle_ : GPU::Handle();
 	}
 
+	ShaderTechnique::operator bool() const { return !!impl_ && impl_->IsValid(); }
+
 	ShaderTechniqueDesc& ShaderTechniqueDesc::SetVertexElement(i32 idx, const GPU::VertexElement& element)
 	{
 		numVertexElements_ = Core::Max(numVertexElements_, idx + 1);
 		vertexElements_[idx] = element;
+		return *this;
+	}
+
+	ShaderTechniqueDesc& ShaderTechniqueDesc::SetVertexElements(Core::ArrayView<GPU::VertexElement> elements)
+	{
+		numVertexElements_ = 0;
+		for(const auto& element : elements)
+			vertexElements_[numVertexElements_++] = element;
 		return *this;
 	}
 
@@ -611,6 +621,22 @@ namespace Graphics
 	ShaderTechniqueDesc& ShaderTechniqueDesc::SetDSVFormat(GPU::Format format)
 	{
 		dsvFormat_ = format;
+		return *this;
+	}
+
+	ShaderTechniqueDesc& ShaderTechniqueDesc::SetFrameBindingSet(const GPU::FrameBindingSetDesc& desc)
+	{
+		numRTs_ = 0;
+		i32 idx = 0;
+		for(const auto& rtv : desc.rtvs_)
+		{
+			if(rtv.format_ != GPU::Format::INVALID)
+				rtvFormats_[numRTs_++] = rtv.format_;
+			else
+				break;
+			++idx;
+		}
+		dsvFormat_ = desc.dsv_.format_;
 		return *this;
 	}
 

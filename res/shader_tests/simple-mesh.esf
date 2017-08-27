@@ -1,0 +1,114 @@
+#include "lib.esh"
+
+struct Object
+{
+	float4x4 world_;
+};
+
+struct View
+{
+	float4x4 view_;
+	float4x4 viewProj_;
+};
+
+cbuffer ObjectCBuffer
+{
+	Object o_;
+};
+
+cbuffer ViewCBuffer
+{
+	View v_;
+};
+
+struct VS_IN
+{
+	float3 position : POSITION;
+	float3 normal : NORMAL;
+};
+
+struct VS_OUT
+{
+	float4 position : SV_POSITION;
+	float3 normal : NORMAL;
+};
+
+VS_OUT vs_main(in VS_IN _in)
+{
+	VS_OUT _out = (VS_OUT)0;
+	float4 position = mul(o_.world_, float4(_in.position, 1.0));
+	_out.position = mul(v_.viewProj_, position);
+	_out.normal = mul((float3x3)o_.world_, float4(_in.normal, 0.0));
+	return _out;
+}
+
+void ps_depthprepass(in VS_OUT _in)
+{
+	
+}
+
+float4 ps_forward(in VS_OUT _in) : SV_TARGET0
+{
+	const float3 sunDirection = float3(-0.707, -0.707, -0.707);
+	const float3 sunColor = float3(1.0, 0.9, 0.8);
+	const float3 ambient = float3(0.0, 0.0, 0.0);
+
+	float3 lightColor = sunColor * saturate(-dot(_in.normal.xyz, sunDirection));
+	lightColor += ambient;
+
+	return float4(lightColor, 1.0);
+}
+
+float4 ps_shadow(in VS_OUT _in) : SV_TARGET0
+{
+	return float4(1.0, 0.0, 1.0, 1.0);
+}
+
+RenderState RS_DEPTH_PREPASS =
+{
+	.BlendStates = {
+		.WriteMask = 0,
+	},
+
+	.DepthFunc = LESS_EQUAL,
+	.DepthEnable = 1,
+	.DepthWriteMask = 1,
+	.FillMode = SOLID,
+};
+
+RenderState RS_FORWARD =
+{
+	.DepthFunc = LESS_EQUAL,
+	.DepthEnable = 1,
+	.DepthWriteMask = 1,
+	.FillMode = SOLID,
+};
+
+RenderState RS_SHADOW =
+{
+	.DepthFunc = LESS_EQUAL,
+	.DepthEnable = 1,
+	.DepthWriteMask = 1,
+	.FillMode = SOLID,
+};
+
+Technique RenderPassDepthPrepass =
+{
+	.VertexShader = vs_main,
+	.PixelShader = ps_depthprepass,
+	.RenderState = RS_DEPTH_PREPASS,
+};
+
+Technique RenderPassForward =
+{
+	.VertexShader = vs_main,
+	.PixelShader = ps_forward,
+	.RenderState = RS_FORWARD,
+};
+
+Technique RenderPassShadow =
+{
+	.VertexShader = vs_main,
+	.PixelShader = ps_shadow,
+	.RenderState = RS_SHADOW,
+};

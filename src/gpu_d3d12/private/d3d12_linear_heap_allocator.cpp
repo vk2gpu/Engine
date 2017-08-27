@@ -50,7 +50,7 @@ namespace GPU
 			foundBlock = &blocks_.back();
 		}
 
-		// Grab the correct offset and assert remaining siz.e
+		// Grab the correct offset and assert remaining size.
 		i64 alignedOffset = Core::PotRoundUp(foundBlock->currentOffset_, alignment);
 		i64 remaining = static_cast<i64>(foundBlock->size_ - alignedOffset);
 		DBG_ASSERT(remaining >= static_cast<i64>(size));
@@ -84,20 +84,6 @@ namespace GPU
 			totalUsage += block.currentOffset_;
 			totalSize += block.size_;
 			block.currentOffset_ = 0;
-		}
-
-		// If we have many blocks, merge into 1 and create as large as current total size.
-		if(blocks_.size() > 1)
-		{
-			Core::Log("More than 1 block allocated. Compacting.\n");
-			Core::Log("Total size: %u kB\n", totalSize / 1024);
-			Core::Log("Total usage this frame: %u kB\n", totalUsage / 1024);
-			Core::Log("Blocks: %u\n", blocks_.size());
-			Core::Log("Blocks created: %u\n", blocksCreated_);
-
-			blocks_.clear();
-			auto block = CreateResourceBlock(totalSize);
-			blocks_.push_back(block);
 		}
 
 		// Reset stats.

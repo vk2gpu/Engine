@@ -286,11 +286,11 @@ namespace ImGui
 		ImGui::NewFrame();
 	}
 
-	void Manager::EndFrame(const GPU::Handle& fbs, GPU::CommandList& cmdList)
+	void Manager::EndFrame() { ImGui::Render(); }
+
+	void Manager::Render(const GPU::Handle& fbs, GPU::CommandList& cmdList)
 	{
 		DBG_ASSERT(IsInitialized());
-
-		ImGui::Render();
 
 		ImGuiIO& IO = ImGui::GetIO();
 		ImDrawData* drawData = ImGui::GetDrawData();
@@ -344,7 +344,7 @@ namespace ImGui
 
 		cmdList.UpdateBuffer(vbHandle_, 0, noofVertices * sizeof(ImDrawVert), baseVertices);
 
-		static_assert(sizeof(ImDrawIdx) == sizeof(u16), "Indices must be 16 bit.");
+		static_assert(sizeof(ImDrawIdx) == sizeof(u32), "Indices must be 32 bit.");
 		i32 noofIndices = 0;
 		i32 vertexOffset = 0;
 		for(int cmdListIdx = 0; cmdListIdx < drawData->CmdListsCount; ++cmdListIdx)
@@ -353,7 +353,6 @@ namespace ImGui
 			for(int Idx = 0; Idx < drawList->IdxBuffer.size(); ++Idx)
 			{
 				i32 index = vertexOffset + static_cast<i32>(drawList->IdxBuffer[Idx]);
-				DBG_ASSERT(index < 0xffff);
 				indices[Idx] = static_cast<ImDrawIdx>(index);
 			}
 			indices += drawList->IdxBuffer.size();

@@ -1,5 +1,6 @@
 #include "job/manager.h"
 #include "core/concurrency.h"
+#include "core/misc.h"
 #include "core/mpmc_bounded_queue.h"
 #include "core/string.h"
 #include "core/timer.h"
@@ -8,6 +9,7 @@
 #include <utility>
 
 #define VERBOSE_LOGGING (0)
+#define ENABLE_JOB_PROFILER (!defined(FINAL))
 
 namespace Job
 {
@@ -57,8 +59,29 @@ namespace Job
 		/// How many jobs are in flight.
 		volatile i32 jobCount_ = 0;
 
+#if ENABLE_JOB_PROFILER
+		/// Is job profiling enabled?
+		volatile i32 profilerEnabled_ = 0;
+		/// Is job profliing running?
+		volatile i32 profilerRunning_ = 0;
+		/// Entry index.
+		volatile i32 profilerEntryIdx_ = 0;
+		/// Job index.
+		volatile i32 profilerJobIdx_ = 0;
+
+		struct PaddedProfilerEntry
+		{
+			ProfilerEntry data_;
+
+			// Pad up to at least the size of a cache line to avoid false sharing when writing the entries.
+			u8 padding_[CACHE_LINE_SIZE];
+		};
+
+		Core::Vector<PaddedProfilerEntry> profilerEntries_;
+#endif // ENABLE_JOB_PROFILER
+
 		/// Semaphore for workers to wait on.
-		Core::Semaphore scheduleSem_ = Core::Semaphore(0, 65535);
+		Core::Semaphore scheduleSem_ = Core::Semaphore(0, 65536);
 
 		bool GetFiber(Fiber** outFiber);
 		void ReleaseFiber(Fiber* fiber, bool complete);
@@ -140,6 +163,7 @@ namespace Job
 	public:
 		Worker(ManagerImpl* manager, i32 idx)
 		    : manager_(manager)
+		    , idx_(idx)
 		{
 			// Create thread.
 			auto debugName = Core::String().Printf("Job Worker Thread %i", idx);
@@ -165,15 +189,48 @@ namespace Job
 
 			ManagerImpl* manager = worker->manager_;
 
+#if ENABLE_JOB_PROFILER
+			ProfilerEntry profilerEntry;
+			i32 profilerEntryIdx = -1;
+#endif
+
 			// Grab fiber from manager to execute.
 			Job::Fiber* jobFiber = nullptr;
 			while(manager->GetFiber(&jobFiber))
 			{
 				if(jobFiber)
 				{
+#if ENABLE_JOB_PROFILER
+					if(impl_->profilerRunning_)
+					{
+						profilerEntryIdx = Core::AtomicInc(&impl_->profilerEntryIdx_) - 1;
+						if(profilerEntryIdx >= impl_->profilerEntries_.size())
+							profilerEntryIdx = -1;
+					}
+
+					if(profilerEntryIdx >= 0)
+					{
+						profilerEntry.workerIdx_ = worker->idx_;
+						profilerEntry.jobIdx_ = jobFiber->job_.idx_;
+						profilerEntry.startTime_ = Core::Timer::GetAbsoluteTime();
+						profilerEntry.name_[0] = '\0';
+						sprintf_s(profilerEntry.name_.data(), profilerEntry.name_.size(), "%s (%i)",
+						    jobFiber->job_.name_, jobFiber->job_.param_);
+						profilerEntry.param_ = jobFiber->job_.param_;
+					}
+#endif // ENABLE_JOB_PROFILER
+
 					// Reset moveToWaiting_.
 					Core::AtomicExchg(&worker->moveToWaiting_, 0);
 					jobFiber->SwitchTo(worker, &workerFiber);
+
+#if ENABLE_JOB_PROFILER
+					if(profilerEntryIdx >= 0)
+					{
+						profilerEntry.endTime_ = Core::Timer::GetAbsoluteTime();
+						manager->profilerEntries_[profilerEntryIdx].data_ = profilerEntry;
+					}
+#endif // ENABLE_JOB_PROFILER
 
 					// Reset moveToWaiting, if it was set, move fiber to waiting.
 					bool complete = !Core::AtomicExchg(&worker->moveToWaiting_, 0);
@@ -185,6 +242,9 @@ namespace Job
 				{
 					manager->scheduleSem_.Wait(WORKER_SEMAPHORE_TIMEOUT);
 				}
+#if ENABLE_JOB_PROFILER
+				profilerEntryIdx = -1;
+#endif
 			}
 			while(!worker->exiting_)
 				Core::SwitchThread();
@@ -193,6 +253,7 @@ namespace Job
 		}
 
 		ManagerImpl* manager_ = nullptr;
+		i32 idx_ = -1;
 		Core::Thread thread_;
 		volatile i32 moveToWaiting_ = 0;
 		bool exiting_ = false;
@@ -335,6 +396,9 @@ namespace Job
 		impl_->waitingFibers_ = Core::MPMCBoundedQueue<class Fiber*>(numFibers);
 		impl_->pendingJobs_ = Core::MPMCBoundedQueue<JobDesc>(numFibers);
 		impl_->fiberStackSize_ = fiberStackSize;
+#if ENABLE_JOB_PROFILER
+		impl_->profilerEntries_.resize(65536);
+#endif
 
 		for(i32 i = 0; i < numWorkers; ++i)
 		{
@@ -420,6 +484,11 @@ namespace Job
 			jobDescs[i].counter_ = localCounter;
 			jobDescs[i].freeCounter_ = jobShouldFreeCounter;
 
+#if ENABLE_JOB_PROFILER
+			if(impl_->profilerRunning_)
+				jobDescs[i].idx_ = Core::AtomicInc(&impl_->profilerJobIdx_) - 1;
+#endif
+
 			while(!impl_->pendingJobs_.Enqueue(jobDescs[i]))
 			{
 #if VERBOSE_LOGGING >= 1
@@ -453,20 +522,30 @@ namespace Job
 	void Manager::WaitForCounter(Counter*& counter, i32 value)
 	{
 		DBG_ASSERT(IsInitialized());
-		DBG_ASSERT(counter);
-
-		while(counter->value_ > value)
+		if(counter)
 		{
-			YieldCPU();
-		}
+			while(counter->value_ > value)
+			{
+				YieldCPU();
+			}
 
-		// Free counter.
-		// TODO: Keep a pool of these?
-		if(value == 0)
-		{
-			delete counter;
-			counter = nullptr;
+			// Free counter.
+			// TODO: Keep a pool of these?
+			if(value == 0)
+			{
+				delete counter;
+				counter = nullptr;
+			}
 		}
+	}
+
+	i32 Manager::GetCounterValue(Counter* counter)
+	{
+		if(counter)
+		{
+			return counter->value_;
+		}
+		return 0;
 	}
 
 	void Manager::YieldCPU()
@@ -493,5 +572,75 @@ namespace Job
 			Core::SwitchThread();
 		}
 	}
+
+	void Manager::BeginProfiling()
+	{
+#if ENABLE_JOB_PROFILER
+		DBG_ASSERT(IsInitialized());
+		// Enable the profiler.
+		i32 wasEnabled = Core::AtomicExchgAcq(&impl_->profilerEnabled_, 1);
+		DBG_ASSERT(wasEnabled == 0);
+		if(wasEnabled == 1)
+			return;
+
+		// Reset profiler entry index. It should already be 0 by this point, but confirm it.
+		i32 idx = Core::AtomicExchgAcq(&impl_->profilerEntryIdx_, 0);
+		DBG_ASSERT(idx == 0);
+
+		// Reset job index.
+		Core::AtomicExchgAcq(&impl_->profilerJobIdx_, 0);
+
+		// Add begin marker.
+		idx = Core::AtomicInc(&impl_->profilerEntryIdx_) - 1;
+		DBG_ASSERT(idx == 0);
+
+		auto& entry = impl_->profilerEntries_[0].data_;
+		strcpy_s(entry.name_.data(), entry.name_.size(), "Profile");
+		entry.startTime_ = Core::Timer::GetAbsoluteTime();
+
+		// Enable running.
+		i32 wasRunning = Core::AtomicExchgAcq(&impl_->profilerRunning_, 1);
+		DBG_ASSERT(wasRunning == 0);
+#endif
+	}
+
+	i32 Manager::EndProfiling(ProfilerEntry* profilerEntries, i32 maxProfilerEntries)
+	{
+#if ENABLE_JOB_PROFILER
+		DBG_ASSERT(IsInitialized());
+
+		// Stop the profiler from running.
+		i32 wasRunning = Core::AtomicExchgAcq(&impl_->profilerRunning_, 0);
+		DBG_ASSERT(wasRunning == 1);
+		if(wasRunning == 0)
+			return 0;
+
+		// End time marker.
+		auto& entry = impl_->profilerEntries_[0].data_;
+		entry.endTime_ = Core::Timer::GetAbsoluteTime();
+
+		i32 numProfilerEntries = Core::AtomicExchgAcq(&impl_->profilerEntryIdx_, 0);
+		numProfilerEntries = Core::Min(numProfilerEntries, impl_->profilerEntries_.size());
+		numProfilerEntries = Core::Min(numProfilerEntries, maxProfilerEntries);
+		for(i32 idx = 0; idx < numProfilerEntries; ++idx)
+		{
+			profilerEntries[idx] = impl_->profilerEntries_[idx].data_;
+			if(idx != 0 && profilerEntries[idx].workerIdx_ == -1)
+			{
+				numProfilerEntries = idx;
+				break;
+			}
+		}
+
+		// Now disable the profiler.
+		i32 wasEnabled = Core::AtomicExchgAcq(&impl_->profilerEnabled_, 0);
+		DBG_ASSERT(wasEnabled == 1);
+
+		return numProfilerEntries;
+#else
+		return 0;
+#endif
+	}
+
 
 } // namespace Job

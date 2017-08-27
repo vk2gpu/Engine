@@ -23,6 +23,8 @@
 #define IMGUI_API __declspec(dllimport)
 #endif
 
+#define ImDrawIdx u32
+
 //---- Include imgui_user.h at the end of imgui.h
 //#define IMGUI_INCLUDE_IMGUI_USER_H
 

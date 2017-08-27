@@ -39,4 +39,9 @@ namespace Graphics
 		return Graphics::RenderGraphResource();
 	}
 
+	void Pipeline::SetResource(const char* name, RenderGraphResource res) { SetResource(GetResourceIdx(name), res); }
+
+	RenderGraphResource Pipeline::GetResource(const char* name) const { return GetResource(GetResourceIdx(name)); }
+
+
 } // namespace Graphics

@@ -29,6 +29,11 @@ namespace Graphics
 		RenderGraphResource CreateTexture(const char* name, const RenderGraphTextureDesc& desc);
 
 		/**
+		 * Use resource as CBV.
+		 */
+		RenderGraphResource UseCBV(RenderPass* renderPass, RenderGraphResource res, bool update);
+
+		/**
 		 * Use resource as SRV.
 		 */
 		RenderGraphResource UseSRV(RenderPass* renderPass, RenderGraphResource res);
@@ -42,6 +47,16 @@ namespace Graphics
 		 * Use resource as DSV.
 		 */
 		RenderGraphResource UseDSV(RenderPass* renderPass, RenderGraphResource res, GPU::DSVFlags flags);
+
+		/**
+		 * @return Buffer desc from render graph.
+		 */
+		bool GetBuffer(RenderGraphResource res, RenderGraphBufferDesc* outDesc = nullptr) const;
+
+		/**
+		 * @return Texture desc from render graph.
+		 */
+		bool GetTexture(RenderGraphResource res, RenderGraphTextureDesc* outDesc = nullptr) const;
 
 		/**
 		 * Allocate memory that exists for the life time of a single execute phase.
@@ -104,9 +119,14 @@ namespace Graphics
 		}
 
 		/**
-		 * Import GPU resource from handle.
+		 * Import buffer resource from handle.
 		 */
-		RenderGraphResource ImportResource(const char* name, GPU::Handle handle);
+		RenderGraphResource ImportResource(const char* name, GPU::Handle handle, const RenderGraphBufferDesc& desc);
+
+		/**
+		 * Import texture resource from handle.
+		 */
+		RenderGraphResource ImportResource(const char* name, GPU::Handle handle, const RenderGraphTextureDesc& desc);
 
 		/**
 		 * Clear all added render passes, memory used, etc.
@@ -139,6 +159,17 @@ namespace Graphics
 		 * Get resource name.
 		 */
 		void GetResourceName(RenderGraphResource res, const char** name) const;
+
+		/**
+		 * @return Buffer desc from render graph.
+		 */
+		bool GetBuffer(RenderGraphResource res, RenderGraphBufferDesc* outDesc = nullptr) const;
+
+		/**
+		 * @return Texture desc from render graph.
+		 */
+		bool GetTexture(RenderGraphResource res, RenderGraphTextureDesc* outDesc = nullptr) const;
+
 
 	private:
 		void InternalPushPass();

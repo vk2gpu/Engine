@@ -285,13 +285,13 @@ namespace Resource
 
 		ManagerImpl()
 		    : isActive_(true)
-			, readJobs_(MAX_READ_JOBS)
+		    , readJobs_(MAX_READ_JOBS)
 		    , readJobSem_(0, MAX_READ_JOBS, "Resource Manager Read Semamphore")
 		    , readThread_(ReadIOThread, this, 65536, "Resource Manager Read Thread")
 		    , writeJobs_(MAX_WRITE_JOBS)
 		    , writeJobSem_(0, MAX_WRITE_JOBS, "Resource Manager Write Semaphore")
 		    , writeThread_(WriteIOThread, this, 65536, "Resource Manager Write Thread")
-			, timestampThread_(TimestampThread, this, 65536, "Resource Manager Timestamp Thread")
+		    , timestampThread_(TimestampThread, this, 65536, "Resource Manager Timestamp Thread")
 		{
 			// Get converter plugins.
 			i32 found = Plugin::Manager::GetPlugins<ConverterPlugin>(nullptr, 0);
@@ -416,13 +416,13 @@ namespace Resource
 
 							// Setup convert job.
 							auto* convertJob = new ResourceConvertJob(
-								entry, entry->type_, entry->sourceFile_.c_str(), entry->convertedFile_.c_str());
+							    entry, entry->type_, entry->sourceFile_.c_str(), entry->convertedFile_.c_str());
 
 							// Setup load job to chain.
 							if(auto factory = impl->GetFactory(entry->type_))
 							{
 								convertJob->loadJob_ = new ResourceLoadJob(
-									factory, entry, entry->type_, entry->sourceFile_.c_str(), Core::File());
+								    factory, entry, entry->type_, entry->sourceFile_.c_str(), Core::File());
 								convertJob->RunSingle(0);
 							}
 						}
@@ -445,27 +445,24 @@ namespace Resource
 			Core::AtomicDec(&impl->pendingResourceJobs_);
 			return 0;
 		}
-
 	};
 
 	ManagerImpl* impl_ = nullptr;
 
-	ResourceLoadJob::ResourceLoadJob(IFactory* factory, ResourceEntry* entry, Core::UUID type, const char* name, Core::File&& file)
-		    : Job::BasicJob("ResourceLoadJob")
-		    , factory_(factory)
-		    , entry_(entry)
-		    , type_(type)
-		    , name_(name)
-		    , file_(std::move(file))
-		{
-			impl_->AcquireResourceEntry(entry);
-			Core::AtomicInc(&impl_->pendingResourceJobs_);
-		}
-
-	ResourceLoadJob::~ResourceLoadJob()
+	ResourceLoadJob::ResourceLoadJob(
+	    IFactory* factory, ResourceEntry* entry, Core::UUID type, const char* name, Core::File&& file)
+	    : Job::BasicJob("ResourceLoadJob")
+	    , factory_(factory)
+	    , entry_(entry)
+	    , type_(type)
+	    , name_(name)
+	    , file_(std::move(file))
 	{
-		Core::AtomicDec(&impl_->pendingResourceJobs_); 
+		impl_->AcquireResourceEntry(entry);
+		Core::AtomicInc(&impl_->pendingResourceJobs_);
 	}
+
+	ResourceLoadJob::~ResourceLoadJob() { Core::AtomicDec(&impl_->pendingResourceJobs_); }
 
 	void ResourceLoadJob::OnWork(i32 param)
 	{
@@ -493,12 +490,13 @@ namespace Resource
 		delete this;
 	}
 
-	ResourceConvertJob::ResourceConvertJob(ResourceEntry* entry, Core::UUID type, const char* name, const char* convertedPath)
-		: Job::BasicJob("ResourceConvertJob")
-		, entry_(entry)
-		, type_(type)
-		, name_(name)
-		, convertedPath_(convertedPath)
+	ResourceConvertJob::ResourceConvertJob(
+	    ResourceEntry* entry, Core::UUID type, const char* name, const char* convertedPath)
+	    : Job::BasicJob("ResourceConvertJob")
+	    , entry_(entry)
+	    , type_(type)
+	    , name_(name)
+	    , convertedPath_(convertedPath)
 	{
 		Core::AtomicInc(&impl_->pendingResourceJobs_);
 		i32 val = Core::AtomicInc(&entry->converting_);

@@ -8,7 +8,7 @@
 namespace Job
 {
 	/// Job function alias.
-	using JobFunction = Core::Function<void(i32)>;
+	using JobFunction = Core::Function<void(i32), 64>;
 
 	/**
 	 * Basic job for simple tasks.

@@ -69,6 +69,8 @@ namespace Graphics
 		i32 GetResourceIdx(const char* name) const override;
 		void SetResource(i32 idx, RenderGraphResource res) override;
 		RenderGraphResource GetResource(i32 idx) const override;
+		void SetResource(const char* name, RenderGraphResource res);
+		RenderGraphResource GetResource(const char* name) const;
 
 	protected:
 		const char** resourceNames_ = nullptr;

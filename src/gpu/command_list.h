@@ -46,7 +46,10 @@ namespace GPU
 		template<typename TYPE>
 		TYPE* Alloc(i32 num = 1)
 		{
-			return new(Alloc(sizeof(TYPE) * num)) TYPE[num];
+			auto* data = Alloc(sizeof(TYPE) * num);
+			if(data)
+				return new(data) TYPE[num];
+			return nullptr;
 		}
 
 		/**
@@ -65,8 +68,9 @@ namespace GPU
 		TYPE* Push(const TYPE* data, i32 num = 1)
 		{
 			void* dest = Alloc(sizeof(TYPE) * num);
-			for(i32 idx = 0; idx < num; ++idx)
-				new(dest) TYPE(data[idx]);
+			if(dest)
+				for(i32 idx = 0; idx < num; ++idx)
+					new(dest) TYPE(data[idx]);
 			return dest;
 		}
 

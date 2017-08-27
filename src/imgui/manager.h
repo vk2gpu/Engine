@@ -43,7 +43,12 @@ namespace ImGui
 		/**
 		 * End ImGui frame.
 		 */
-		static void EndFrame(const GPU::Handle& fbs, GPU::CommandList& cmdList);
+		static void EndFrame();
+
+		/**
+		 * Render ImGui frame.
+		 */
+		static void Render(const GPU::Handle& fbs, GPU::CommandList& cmdList);
 
 		/**
 		 * Scoped manager init/fini.

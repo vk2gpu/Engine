@@ -47,9 +47,11 @@ namespace Graphics
 		ShaderTechniqueDesc() = default;
 
 		ShaderTechniqueDesc& SetVertexElement(i32 idx, const GPU::VertexElement& element);
+		ShaderTechniqueDesc& SetVertexElements(Core::ArrayView<GPU::VertexElement> elements);
 		ShaderTechniqueDesc& SetTopology(GPU::TopologyType topology);
 		ShaderTechniqueDesc& SetRTVFormat(i32 idx, GPU::Format format);
 		ShaderTechniqueDesc& SetDSVFormat(GPU::Format format);
+		ShaderTechniqueDesc& SetFrameBindingSet(const GPU::FrameBindingSetDesc& desc);
 
 		i32 numVertexElements_ = 0;
 		Core::Array<GPU::VertexElement, GPU::MAX_VERTEX_ELEMENTS> vertexElements_ = {};
@@ -108,7 +110,7 @@ namespace Graphics
 		GPU::Handle GetBinding();
 
 		/// @return Is shader technique is valid.
-		operator bool() const { return !!impl_; }
+		operator bool() const;
 
 	private:
 		friend class Shader;

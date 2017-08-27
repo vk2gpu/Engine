@@ -31,9 +31,10 @@ namespace
 		Client::Window window;
 		Plugin::Manager::Scoped pluginManager;
 		GPU::Manager::Scoped gpuManager = GPU::Manager::Scoped(GetDefaultSetupParams());
-		Job::Manager::Scoped jobManager = Job::Manager::Scoped(2, 256, 32 * 1024);
+		Job::Manager::Scoped jobManager = Job::Manager::Scoped(Core::GetNumLogicalCores(), 256, 32 * 1024);
 		Resource::Manager::Scoped resourceManager;
 
+		GPU::SwapChainDesc scDesc;
 		GPU::Handle scHandle;
 		GPU::Handle fbsHandle;
 
@@ -50,7 +51,6 @@ namespace
 			DBG_ASSERT(GPU::Manager::CreateAdapter(0) == GPU::ErrorCode::OK);
 
 			// Create swap chain.
-			GPU::SwapChainDesc scDesc;
 			scDesc.width_ = 1024;
 			scDesc.height_ = 768;
 			scDesc.format_ = GPU::Format::R8G8B8A8_UNORM;

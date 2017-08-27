@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/types.h"
+#include "core/array.h"
 #include "job/dll.h"
 
 namespace Job
@@ -28,7 +29,9 @@ namespace Job
 
 		/// Internal use. Do not use.
 		struct Counter* counter_ = nullptr;
-		/// Should counter be freed by the last that's using it?
+		/// Internal use. Do not use.
+		i32 idx_ = -1;
+		/// Internal use. Do not use.
 		bool freeCounter_ = false;
 	};
 
@@ -36,6 +39,19 @@ namespace Job
 	 * Counter used for waiting on jobs.
 	 */
 	struct Counter;
+
+	/**
+	 * Profiler entry data.
+	 */
+	struct ProfilerEntry
+	{
+		Core::Array<char, 64> name_;
+		i32 param_ = 0;
+		i32 workerIdx_ = -1;
+		i32 jobIdx_ = -1;
+		f64 startTime_ = 0.0;
+		f64 endTime_ = 0.0;
+	};
 
 } // namespace Job
 
