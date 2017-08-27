@@ -39,6 +39,8 @@ namespace Graphics
 		GPU::Handle handle_;
 		RenderGraphBufferDesc bufferDesc_;
 		RenderGraphTextureDesc textureDesc_;
+
+		i32 inUse_ = 0;
 	};
 
 	struct RenderGraphImpl
@@ -47,7 +49,8 @@ namespace Graphics
 		Core::Vector<RenderPassEntry> renderPassEntries_;
 		Core::Vector<ResourceDesc> resourceDescs_;
 		Core::Set<i32> resourcesNeeded_;
-		Core::Vector<GPU::Handle> transientResources_;
+
+		Core::Vector<ResourceDesc> transientResources_;
 
 		// Built during execute.
 		Core::Vector<RenderPassEntry*> executeRenderPasses_;
@@ -121,20 +124,61 @@ namespace Graphics
 			for(i32 idx : resourcesNeeded_)
 			{
 				auto& resDesc = resourceDescs_[idx];
-				if(!resDesc.handle_)
-				{
-					if(resDesc.resType_ == GPU::ResourceType::BUFFER)
-					{
-						resDesc.handle_ =
-						    GPU::Manager::CreateBuffer(resDesc.bufferDesc_, nullptr, resDesc.name_.c_str());
-					}
-					else if(resDesc.resType_ == GPU::ResourceType::TEXTURE)
-					{
-						resDesc.handle_ =
-						    GPU::Manager::CreateTexture(resDesc.textureDesc_, nullptr, resDesc.name_.c_str());
-					}
 
-					transientResources_.push_back(resDesc.handle_);
+				auto foundIt = std::find_if(transientResources_.begin(), transientResources_.end(),
+					[&resDesc](const ResourceDesc& transientDesc)
+				{
+					if(transientDesc.handle_ && transientDesc.inUse_ == 0 && resDesc.resType_ == transientDesc.resType_)
+					{
+						if(resDesc.resType_ == GPU::ResourceType::BUFFER)
+						{
+							return memcmp(&resDesc.bufferDesc_, &transientDesc.bufferDesc_, sizeof(transientDesc.bufferDesc_)) == 0;
+						}
+						else if(resDesc.resType_ == GPU::ResourceType::TEXTURE)
+						{
+							return memcmp(&resDesc.textureDesc_, &transientDesc.textureDesc_, sizeof(transientDesc.textureDesc_)) == 0;
+						}
+					}
+					return false;
+				});
+
+				if(foundIt == transientResources_.end())
+				{
+					if(!resDesc.handle_)
+					{
+						if(resDesc.resType_ == GPU::ResourceType::BUFFER)
+						{
+							resDesc.handle_ =
+								GPU::Manager::CreateBuffer(resDesc.bufferDesc_, nullptr, resDesc.name_.c_str());
+						}
+						else if(resDesc.resType_ == GPU::ResourceType::TEXTURE)
+						{
+							resDesc.handle_ =
+								GPU::Manager::CreateTexture(resDesc.textureDesc_, nullptr, resDesc.name_.c_str());
+						}
+
+						resDesc.inUse_ = 1;
+						transientResources_.push_back(resDesc);
+					}
+				}
+				else
+				{
+					DBG_ASSERT(foundIt->handle_);
+					foundIt->inUse_ = 1;
+					resDesc = *foundIt;
+				}
+			}
+
+			for(auto it = transientResources_.begin(); it != transientResources_.end(); )
+			{
+				if(it->inUse_ == 0)
+				{
+					GPU::Manager::DestroyResource(it->handle_);
+					it = transientResources_.erase(it);
+				}
+				else
+				{
+					++it;
 				}
 			}
 		}
@@ -350,6 +394,9 @@ namespace Graphics
 	RenderGraph::~RenderGraph()
 	{
 		Clear();
+		for(auto resDesc : impl_->transientResources_)
+			GPU::Manager::DestroyResource(resDesc.handle_);
+
 		for(auto cmdHandle : impl_->cmdHandles_)
 			GPU::Manager::DestroyResource(cmdHandle);
 		delete impl_;
@@ -385,18 +432,13 @@ namespace Graphics
 	{
 		rmt_ScopedCPUSample(RenderGraph_Clear, RMTSF_None);
 
-		for(auto& renderPassEntry : impl_->renderPassEntries_)
-		{
-			renderPassEntry.renderPass_->~RenderPass();
-		}
+		for(auto& resDesc : impl_->transientResources_)
+			resDesc.inUse_ = 0;
 
-		for(auto handle : impl_->transientResources_)
-		{
-			GPU::Manager::DestroyResource(handle);
-		}
+		for(auto& renderPassEntry : impl_->renderPassEntries_)
+			renderPassEntry.renderPass_->~RenderPass();
 
 		impl_->resourcesNeeded_.clear();
-		impl_->transientResources_.clear();
 		impl_->renderPassEntries_.clear();
 		impl_->resourceDescs_.clear();
 		impl_->frameAllocator_.Reset();
