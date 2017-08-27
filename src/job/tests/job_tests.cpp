@@ -5,7 +5,9 @@
 #include "core/concurrency.h"
 #include "core/timer.h"
 #include "core/vector.h"
+#include "job/basic_job.h"
 #include "job/concurrency.h"
+#include "job/function_job.h"
 #include "job/manager.h"
 
 using namespace Core;
@@ -274,4 +276,45 @@ TEST_CASE("job-tests-spinlock")
 		CHECK(!try1);
 	}
 	spinLock.Unlock();
+}
+
+TEST_CASE("job-tests-3-jobs")
+{
+	Job::Manager::Scoped manager(8, MAX_FIBERS, FIBER_STACK_SIZE);
+
+	static const double VALUE1 = 13.3;
+	static const int VALUE2 = 42;
+
+	auto add_em_up = [](double x, int y) { return x + y; };
+
+	double result = 0.0;
+
+	Job::FunctionJob task3 = Job::FunctionJob("adder", [&result, &add_em_up](i32) {
+		double value1 = 0.0;
+		int value2 = 0;
+
+		Job::FunctionJob task1_2 = Job::FunctionJob("something", [&value1, &value2](i32 param) {
+			if(param == 0)
+				value1 = VALUE1;
+			else if(param == 1)
+				value2 = VALUE2;
+		});
+
+
+		Job::Counter* counter = nullptr;
+		task1_2.RunMultiple(0, 1, &counter);
+
+		Job::Manager::WaitForCounter(counter, 0);
+
+		result = add_em_up(value1, value2);
+
+	});
+
+	// will wait until completion as no counter has been specified.
+	Job::Counter* counter = nullptr;
+
+	task3.RunSingle(0, &counter);
+	Job::Manager::WaitForCounter(counter, 0);
+
+	REQUIRE(result == (VALUE1 + VALUE2));
 }

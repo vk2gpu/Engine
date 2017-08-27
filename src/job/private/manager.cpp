@@ -1,6 +1,7 @@
 #include "job/manager.h"
 #include "core/concurrency.h"
 #include "core/mpmc_bounded_queue.h"
+#include "core/string.h"
 #include "core/timer.h"
 #include "core/vector.h"
 
@@ -10,6 +11,9 @@
 
 namespace Job
 {
+	// 100ms semaphore timeout.
+	static const i32 WORKER_SEMAPHORE_TIMEOUT = 100;
+
 	/**
 	 * Counter internal details.
 	 */
@@ -52,6 +56,9 @@ namespace Job
 		bool exiting_ = false;
 		/// How many jobs are in flight.
 		volatile i32 jobCount_ = 0;
+
+		/// Semaphore for workers to wait on.
+		Core::Semaphore scheduleSem_ = Core::Semaphore(0, 65535);
 
 		bool GetFiber(Fiber** outFiber);
 		void ReleaseFiber(Fiber* fiber, bool complete);
@@ -135,7 +142,9 @@ namespace Job
 		    : manager_(manager)
 		{
 			// Create thread.
-			thread_ = Core::Thread(ThreadEntryPoint, this, Core::Thread::DEFAULT_STACK_SIZE, "Job Worker Thread");
+			auto debugName = Core::String().Printf("Job Worker Thread %i", idx);
+			thread_ = Core::Thread(ThreadEntryPoint, this, Core::Thread::DEFAULT_STACK_SIZE, debugName.c_str());
+			thread_.SetAffinity(1LL << (u64)idx);
 		}
 
 		~Worker()
@@ -154,9 +163,11 @@ namespace Job
 			Core::Fiber workerFiber(Core::Fiber::THIS_THREAD, "Job Worker Fiber");
 			DBG_ASSERT(workerFiber);
 
+			ManagerImpl* manager = worker->manager_;
+
 			// Grab fiber from manager to execute.
 			Job::Fiber* jobFiber = nullptr;
-			while(worker->manager_->GetFiber(&jobFiber))
+			while(manager->GetFiber(&jobFiber))
 			{
 				if(jobFiber)
 				{
@@ -168,9 +179,12 @@ namespace Job
 					bool complete = !Core::AtomicExchg(&worker->moveToWaiting_, 0);
 					DBG_ASSERT(jobFiber->job_.func_ || complete);
 					complete |= jobFiber->job_.func_ == nullptr;
-					worker->manager_->ReleaseFiber(jobFiber, complete);
+					manager->ReleaseFiber(jobFiber, complete);
 				}
-				Core::SwitchThread();
+				else
+				{
+					manager->scheduleSem_.Wait(WORKER_SEMAPHORE_TIMEOUT);
+				}
 			}
 			while(!worker->exiting_)
 				Core::SwitchThread();
@@ -302,6 +316,7 @@ namespace Job
 				Core::SwitchThread();
 			}
 #ifdef DEBUG
+			impl_->scheduleSem_.Signal(1);
 			Core::AtomicInc(&numWaitingFibers_);
 #endif
 		}
@@ -340,6 +355,8 @@ namespace Job
 		DBG_ASSERT(impl_);
 
 		impl_->exiting_ = true;
+		Core::Barrier();
+		impl_->scheduleSem_.Signal(impl_->workers_.size());
 
 		// Wait for jobs to complete, and exit all fibers.
 		{
@@ -419,6 +436,7 @@ namespace Job
 #endif
 				YieldCPU();
 			}
+			impl_->scheduleSem_.Signal(1);
 
 #ifdef DEBUG
 			Core::AtomicInc(&impl_->numPendingJobs_);

@@ -30,7 +30,6 @@ namespace Job
 		struct Counter* counter_ = nullptr;
 		/// Should counter be freed by the last that's using it?
 		bool freeCounter_ = false;
-
 	};
 
 	/**
