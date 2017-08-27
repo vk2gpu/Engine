@@ -279,6 +279,12 @@ namespace Core
 		delete impl_;
 	}
 
+	Semaphore::Semaphore(Semaphore&& other)
+	{
+		using std::swap;
+		swap(impl_, other.impl_);
+	}
+
 	bool Semaphore::Wait(i32 timeout)
 	{
 		DBG_ASSERT(impl_);

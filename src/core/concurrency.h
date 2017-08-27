@@ -219,7 +219,7 @@ namespace Core
 		 */
 		Semaphore(i32 initialCount, i32 maximumCount, const char* debugName = nullptr);
 		~Semaphore();
-
+		Semaphore(Semaphore&&);
 		/**
 		 * Wait for semaphore to be signalled, and decrease count by one if so.
 		 * @param timeout Timeout in milliseconds.
@@ -236,7 +236,6 @@ namespace Core
 
 	private:
 		Semaphore(const Semaphore&) = delete;
-		Semaphore(Semaphore&&) = delete;
 
 		struct SemaphoreImpl* impl_;
 	};
