@@ -55,6 +55,8 @@ namespace GPU
 
 		ErrorCode SubmitCommandList(D3D12CommandList& commandList);
 
+		ErrorCode ResizeSwapChain(D3D12SwapChain& swapChain, i32 width, i32 height);
+
 
 		operator bool() const { return !!d3dDevice_; }
 

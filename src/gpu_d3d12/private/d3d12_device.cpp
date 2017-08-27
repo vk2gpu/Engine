@@ -279,9 +279,9 @@ namespace GPU
 	{
 		if(d3dFrameFence_)
 		{
+			d3dFrameFence_->SetEventOnCompletion(frameIdx_ - MAX_GPU_FRAMES, frameFenceEvent_);
 			if((frameIdx_ - d3dFrameFence_->GetCompletedValue()) >= MAX_GPU_FRAMES)
 			{
-				d3dFrameFence_->SetEventOnCompletion(frameIdx_ - MAX_GPU_FRAMES, frameFenceEvent_);
 				::WaitForSingleObject(frameFenceEvent_, INFINITE);
 			}
 
@@ -720,6 +720,53 @@ namespace GPU
 	{
 		d3dDirectQueue_->Wait(d3dUploadFence_.Get(), uploadFenceIdx_);
 		return commandList.Submit(d3dDirectQueue_.Get());
+	}
+
+	ErrorCode D3D12Device::ResizeSwapChain(D3D12SwapChain& swapChain, i32 width, i32 height)
+	{
+		// Wait until GPU has finished with the swap chain.
+		d3dFrameFence_->SetEventOnCompletion(frameIdx_, frameFenceEvent_);
+		if((i64)d3dFrameFence_->GetCompletedValue() != frameIdx_)
+		{
+			::WaitForSingleObject(frameFenceEvent_, INFINITE);
+		}
+
+		// Grab texture desc.
+		TextureDesc texDesc = swapChain.textures_[0].desc_;
+		texDesc.width_ = width;
+		texDesc.height_ = height;
+		
+		// Release referenced textures.
+		for(i32 i = 0; i < swapChain.textures_.size(); ++i)
+		{
+			auto& texResource = swapChain.textures_[i];
+			texResource.resource_.Reset();
+		}
+
+		// Do the resize.	
+		HRESULT hr;
+		CHECK_D3D(hr = swapChain.swapChain_->ResizeBuffers(swapChain.textures_.size(), width, height, GetFormat(texDesc.format_), 0));
+		if(FAILED(hr))
+			return ErrorCode::FAIL;
+
+		// Setup swapchain resources.
+		for(i32 i = 0; i < swapChain.textures_.size(); ++i)
+		{
+			auto& texResource = swapChain.textures_[i];
+
+			// Get buffer from swapchain.
+			CHECK_D3D(hr = swapChain.swapChain_->GetBuffer(
+			              i, IID_ID3D12Resource, (void**)texResource.resource_.ReleaseAndGetAddressOf()));
+
+			// Setup states.
+			texResource.supportedStates_ = GetResourceStates(texDesc.bindFlags_);
+			texResource.defaultState_ = GetDefaultResourceState(texDesc.bindFlags_);
+
+			// Setup texture desc.
+			texResource.desc_ = texDesc;
+		}		
+
+		return ErrorCode::OK;
 	}
 
 } // namespace GPU

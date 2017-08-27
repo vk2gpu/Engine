@@ -1115,7 +1115,18 @@ namespace GPU
 		return ErrorCode::OK;
 	}
 
-	ErrorCode D3D12Backend::ResizeSwapChain(Handle handle, i32 width, i32 height) { return ErrorCode::UNIMPLEMENTED; }
+	ErrorCode D3D12Backend::ResizeSwapChain(Handle handle, i32 width, i32 height)
+	{ 
+		Core::ScopedWriteLock lock(resLock_);
+		DBG_ASSERT(handle.GetIndex() < swapchainResources_.size());
+		D3D12SwapChain& swapChain = swapchainResources_[handle.GetIndex()];
+
+		ErrorCode retVal = device_->ResizeSwapChain(swapChain, width, height);
+		if(retVal != ErrorCode::OK)
+			return retVal;
+		swapChain.bbIdx_ = swapChain.swapChain_->GetCurrentBackBufferIndex();
+		return ErrorCode::OK;
+	}
 
 	void D3D12Backend::NextFrame()
 	{
