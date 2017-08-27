@@ -17,6 +17,13 @@ namespace GPU
 		return data;
 	}
 
+	INLINE void* CommandList::Push(const void* data, i32 bytes)
+	{
+		void* dest = Alloc(bytes);
+		memcpy(dest, data, bytes);
+		return dest;
+	}
+
 	INLINE CommandDraw* CommandList::Draw(Handle pipelineBinding, Handle drawBinding, Handle frameBinding,
 	    const DrawState& drawState, PrimitiveTopology primitive, i32 indexOffset, i32 vertexOffset, i32 noofVertices,
 	    i32 firstInstance, i32 noofInstances)

@@ -50,6 +50,27 @@ namespace GPU
 		}
 
 		/**
+		 * Push data into command list.
+		 * @param bytes Number of bytes to allocate.
+		 * @param data Pointer to data to copy.
+		 * @return Allocated memory. Only valid until submission.
+		 * @pre @a bytes > 0.
+		 */
+		GPU_DLL void* Push(const void* data, i32 bytes);
+
+		/**
+		 * Templated push. See above.
+		 */
+		template<typename TYPE>
+		TYPE* Push(const TYPE* data, i32 num = 1)
+		{
+			void* dest = Alloc(sizeof(TYPE) * num);
+			for(i32 idx = 0; idx < num; ++idx)
+				new(dest) TYPE(data[idx]);
+			return dest;
+		}
+
+		/**
 		 * Reset command list.
 		 */
 		GPU_DLL void Reset();
