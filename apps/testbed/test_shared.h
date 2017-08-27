@@ -23,7 +23,7 @@ namespace
 	GPU::SetupParams GetDefaultSetupParams()
 	{
 		GPU::SetupParams setupParams;
-		setupParams.debuggerIntegration_ = GPU::DebuggerIntegrationFlags::RENDERDOC;
+		setupParams.debuggerIntegration_ = GPU::DebuggerIntegrationFlags::NONE;
 		return setupParams;
 	}
 
@@ -63,7 +63,7 @@ namespace
 
 
 		ScopedEngine(const char* name)
-		    : window(name, 100, 100, 1024, 768, true)
+		    : window(name, 100, 100, 1280, 720, true, true)
 		{
 				
 
@@ -76,9 +76,12 @@ namespace
 			DBG_ASSERT(numAdapters > 0);
 			DBG_ASSERT(GPU::Manager::CreateAdapter(0) == GPU::ErrorCode::OK);
 
+			i32 w, h;
+			window.GetSize(w, h);
+
 			// Create swap chain.
-			scDesc.width_ = 1024;
-			scDesc.height_ = 768;
+			scDesc.width_ = w;
+			scDesc.height_ = h;
 			scDesc.format_ = GPU::Format::R8G8B8A8_UNORM;
 			scDesc.bufferCount_ = 2;
 			scDesc.outputWindow_ = window.GetPlatformData().handle_;

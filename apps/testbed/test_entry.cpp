@@ -201,6 +201,7 @@ namespace
 	
 	Core::Vector<RenderPacketBase*> packets_;
 	Core::Vector<ShaderTechniques> shaderTechniques_;
+	i32 w_, h_;
 
 	void DrawRenderPackets(GPU::CommandList& cmdList, const char* passName, const GPU::DrawState& drawState, GPU::Handle fbs, GPU::Handle viewCBHandle, GPU::Handle objectCBHandle)
 	{
@@ -457,8 +458,8 @@ namespace
 		
 		void Setup(Graphics::RenderGraph& renderGraph) override
 		{
-			i32 w = 1024;
-			i32 h = 768;
+			i32 w = w_;
+			i32 h = h_;
 						
 			auto& renderPassDepthPrepass = renderGraph.AddRenderPass<RenderPassDepthPrepass>("Depth Prepass", GetDepthTextureDesc(w, h), resources_[1], view_);
 
@@ -553,9 +554,6 @@ void Loop()
 		f64 frame_ = 0.0;		
 	} times_;
 
-	i32 w, h;
-	engine.window.GetSize(w, h);
-
 	Job::Counter* frameSubmitCounter = nullptr;
 
 	Job::FunctionJob frameSubmitJob("Frame Submit", 
@@ -604,6 +602,20 @@ void Loop()
 			times_.waitForFrameSubmit_ = Core::Timer::GetAbsoluteTime() - times_.waitForFrameSubmit_;
 		}
 
+		i32 w = w_;
+		i32 h = h_;
+		engine.window.GetSize(w_, h_);
+
+		if(w != w_ || h != h_)
+		{
+			// Resize swapchain.
+			GPU::Manager::ResizeSwapChain(engine.scHandle, w_, h_);
+
+			engine.scDesc.width_ = w_;
+			engine.scDesc.height_ = h_;
+
+		}
+
 		// Wait for reloading to occur. No important jobs should be running at this point.
 		Resource::Manager::WaitOnReload();
 
@@ -619,7 +631,7 @@ void Loop()
 		Graphics::RenderGraphResource scRes;
 		Graphics::RenderGraphResource dsRes;
 
-		ImGui::Manager::BeginFrame(input, w, h);
+		ImGui::Manager::BeginFrame(input, w_, h_);
 
 		times_.profilerUI_ = Core::Timer::GetAbsoluteTime();
 		if(ImGui::Begin("Job Profiler"))
@@ -829,7 +841,7 @@ void Loop()
 		Math::Mat44 view;
 		Math::Mat44 proj;
 		view.LookAt(Math::Vec3(0.0f, 5.0f, 10.0f), Math::Vec3(0.0f, 1.0f, 0.0f), Math::Vec3(0.0f, 1.0f, 0.0f));
-		proj.PerspProjectionVertical(Core::F32_PIDIV4, (f32)h / (f32)w, 0.01f, 300.0f);
+		proj.PerspProjectionVertical(Core::F32_PIDIV4, (f32)h_ / (f32)w_, 0.01f, 300.0f);
 		forwardPipeline.SetCamera(view, proj);
 
 		// Clear graph prior to beginning work.
