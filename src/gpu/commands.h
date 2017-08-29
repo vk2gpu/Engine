@@ -30,6 +30,10 @@ namespace GPU
 		// Transfers.
 		COPY_BUFFER,
 		COPY_TEXTURE_SUBRESOURCE,
+
+		// Debug.
+		BEGIN_EVENT,
+		END_EVENT,
 	};
 
 	/**
@@ -268,6 +272,25 @@ namespace GPU
 		i16 srcSubResourceIdx_ = 0;
 		/// Source box.
 		Box srcBox_;
+	};
+
+	/**
+	 * Begin event (only for debugging).
+	 */
+	struct GPU_DLL CommandBeginEvent : CommandTyped<CommandType::BEGIN_EVENT>
+	{
+		static const CommandQueueType QUEUE_TYPE = CommandQueueType::NONE;
+
+		u32 metaData_ = 0;
+		const char* text_ = nullptr;
+	};
+
+	/**
+	 * End event (only for debugging).
+	 */
+	struct GPU_DLL CommandEndEvent : CommandTyped<CommandType::END_EVENT>
+	{
+		static const CommandQueueType QUEUE_TYPE = CommandQueueType::NONE;
 	};
 
 } // namespace GPU

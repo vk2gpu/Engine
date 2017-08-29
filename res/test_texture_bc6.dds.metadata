@@ -1,8 +1,8 @@
 {
-   "format" : "BC6H_UF16",
-   "generateMipLevels" : false,
-   "internal" : {
+   "$internal" : {
       "dependencies" : [ "test_texture_bc6.dds" ],
       "outputs" : [ "converter_output/test_texture_bc6.dds.converted" ]
-   }
+   },
+   "format" : "BC6H_UF16",
+   "generateMipLevels" : false
 }

@@ -533,22 +533,19 @@ namespace Graphics
 			auto& cmdHandle = impl->cmdHandles_[idx];
 
 			cmdList.Reset();
-			entry->renderPass_->Execute(resources, cmdList);
-			if(cmdList.NumCommands() > 0)
+			if(auto event = cmdList.Event(0x00000000, entry->name_.c_str()))
 			{
-				GPU::Manager::CompileCommandList(cmdHandle, cmdList);
+				entry->renderPass_->Execute(resources, cmdList);
 			}
 
-			Core::AtomicAdd(&completed, -1);
+			if(cmdList.GetType() != GPU::CommandQueueType::NONE)
+				GPU::Manager::CompileCommandList(cmdHandle, cmdList);
 		});
 
-		completed = numPasses;
 		// Wait for all render pass execution to complete.
 		Job::Counter* counter = nullptr;
 		executeJob.RunMultiple(0, numPasses - 1, &counter);
 		Job::Manager::WaitForCounter(counter, 0);
-
-		DBG_ASSERT(completed == 0);
 #endif
 
 		//Core::Log("Execute done\n");

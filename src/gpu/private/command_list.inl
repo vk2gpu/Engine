@@ -299,5 +299,15 @@ namespace GPU
 		return command;
 	}
 
+	INLINE CommandBeginEvent* CommandList::InternalBeginEvent(i32 metaData, const char* text)
+	{
+		DBG_ASSERT(eventLabelDepth_++ >= 0);
+		queueType_ |= CommandBeginEvent::QUEUE_TYPE;
+		auto* command = Alloc<CommandBeginEvent>();
+		command->metaData_ = metaData;
+		command->text_ = text;
+		commands_.push_back(command);
+		return command;
+	}
 
 } // namespace GPU

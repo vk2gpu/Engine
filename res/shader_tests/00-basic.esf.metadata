@@ -1,5 +1,5 @@
 {
-   "internal" : {
+   "$internal" : {
       "dependencies" : [ "shader_tests/00-basic.esf", "../../../../res/shader_tests/lib.esh" ],
       "outputs" : [ "converter_output/shader_tests/00-basic.esf.converted" ]
    }

@@ -1,8 +1,8 @@
 {
-   "format" : "BC3_UNORM",
-   "generateMipLevels" : true,
-   "internal" : {
+   "$internal" : {
       "dependencies" : [ "test_texture_jpg.jpg" ],
       "outputs" : [ "converter_output/test_texture_jpg.jpg.converted" ]
-   }
+   },
+   "format" : "BC3_UNORM",
+   "generateMipLevels" : true
 }

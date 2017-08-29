@@ -1,8 +1,8 @@
 {
-   "format" : "BC3_UNORM",
-   "generateMipLevels" : false,
-   "internal" : {
+   "$internal" : {
       "dependencies" : [ "test_texture_bc3.dds" ],
       "outputs" : [ "converter_output/test_texture_bc3.dds.converted" ]
-   }
+   },
+   "format" : "BC3_UNORM",
+   "generateMipLevels" : false
 }

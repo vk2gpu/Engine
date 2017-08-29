@@ -1,8 +1,8 @@
 {
-   "format" : "BC7_UNORM_SRGB",
-   "generateMipLevels" : false,
-   "internal" : {
+   "$internal" : {
       "dependencies" : [ "test_texture_bc7.dds" ],
       "outputs" : [ "converter_output/test_texture_bc7.dds.converted" ]
-   }
+   },
+   "format" : "BC7_UNORM_SRGB",
+   "generateMipLevels" : false
 }

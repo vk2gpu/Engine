@@ -210,10 +210,61 @@ namespace GPU
 		GPU_DLL CommandCopyTextureSubResource* CopyTextureSubResource(Handle dstTexture, i32 dstSubResourceIdx,
 		    const Point& dstPoint, Handle srcTexture, i32 srcSubResourceIdx, const Box& srcBox);
 
+
+		/**
+		 * Scoped event for debugging purposes.
+		 */
+		class ScopedEvent
+		{
+		public:
+			ScopedEvent(ScopedEvent&&) = default;
+			~ScopedEvent()
+			{
+				if(cmdList_)
+					cmdList_->InternalEndEvent();
+			}
+
+			operator bool() const { return !!cmdList_; }
+
+		private:
+			friend class CommandList;
+			ScopedEvent(const ScopedEvent&) = delete;
+			ScopedEvent(CommandList* cmdList)
+				: cmdList_(cmdList)
+			{
+			}
+
+			CommandList* cmdList_ = nullptr;
+		};
+
+		/**
+		 * Push a text event into the command list for debugging.
+		 * @param metaData User metadata.
+		 * @param text Event text.
+		 * @return ScopedEvent instance to pop the event upon destruction.
+		 * @pre text != nullptr.
+		 */
+		GPU_DLL ScopedEvent Event(i32 metaData, const char* text);
+
+		/**
+		 * Push a formatted string event into the command list for debugging.
+		 * @param metaData User metadata.
+		 * @param format Format string.
+		 * @return ScopedEvent instance to pop the event upon destruction.
+		 * @pre format != nullptr.
+		 * @pre format is a valid sprintf string.
+		 */
+		GPU_DLL ScopedEvent Eventf(i32 metaData, const char* format, ...);
+
 		/**
 		 * @return number of commands currently in command list.
  		 */
 		i32 NumCommands() const { return commands_.size(); }
+
+		/**
+		 * Get command queue type required.
+		 */
+		CommandQueueType GetType() const { return queueType_; }
 
 		/// for iterator support.
 		typedef Core::Vector<Command*> CommandVector;
@@ -228,6 +279,9 @@ namespace GPU
 	private:
 		CommandList(const CommandList&) = delete;
 
+		GPU_DLL CommandBeginEvent* InternalBeginEvent(i32 metaData, const char* text);
+		GPU_DLL CommandEndEvent* InternalEndEvent();
+
 		/// Used to validate handles.
 		const Core::HandleAllocator& handleAllocator_;
 
@@ -238,6 +292,8 @@ namespace GPU
 
 		DrawState drawState_;
 		DrawState* cachedDrawState_;
+
+		i32 eventLabelDepth_ = 0;
 	};
 } // namespace GPU
 

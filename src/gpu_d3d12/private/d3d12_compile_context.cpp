@@ -6,6 +6,8 @@
 #include "gpu/command_list.h"
 #include "gpu/commands.h"
 
+#include <pix_win.h>
+
 namespace GPU
 {
 	D3D12CompileContext::D3D12CompileContext(D3D12Backend& backend)
@@ -40,6 +42,19 @@ namespace GPU
 					CASE_COMMAND(CommandUpdateTextureSubResource);
 					CASE_COMMAND(CommandCopyBuffer);
 					CASE_COMMAND(CommandCopyTextureSubResource);
+					break;
+
+				// Debug events.
+				case CommandBeginEvent::TYPE:
+					{
+						const auto* eventCommand = static_cast<const CommandBeginEvent*>(command);
+						PIXBeginEvent(d3dCommandList_, eventCommand->metaData_, eventCommand->text_);
+					}
+					break;
+				case CommandEndEvent::TYPE:
+					{
+						PIXEndEvent(d3dCommandList_);
+					}
 					break;
 				default:
 					DBG_BREAK;

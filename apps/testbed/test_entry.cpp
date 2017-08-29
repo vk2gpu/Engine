@@ -206,28 +206,30 @@ namespace
 	void DrawRenderPackets(GPU::CommandList& cmdList, const char* passName, const GPU::DrawState& drawState, GPU::Handle fbs, GPU::Handle viewCBHandle, GPU::Handle objectCBHandle)
 	{
 		rmt_ScopedCPUSample(DrawRenderPackets, RMTSF_None);
-
-		// Draw all packets.
-		for(auto& packet : packets_)
+		if(auto event = cmdList.Eventf(0, "DrawRenderPackets(\"%s\")", passName))
 		{
-			if(packet->type_ == MeshRenderPacket::TYPE)
+			// Draw all packets.
+			for(auto& packet : packets_)
 			{
-				auto* meshPacket = static_cast<MeshRenderPacket*>(packet);
-				auto passIdxIt = meshPacket->techs_->passIndices_.find(passName);
-				if(passIdxIt != meshPacket->techs_->passIndices_.end() && passIdxIt->second < meshPacket->techs_->passTechniques_.size())
+				if(packet->type_ == MeshRenderPacket::TYPE)
 				{
-					auto& tech = meshPacket->techs_->passTechniques_[passIdxIt->second];
-
-					i32 viewIdx = meshPacket->shader_->GetBindingIndex("ViewCBuffer");
-					i32 objectIdx = meshPacket->shader_->GetBindingIndex("ObjectCBuffer");
-					tech.SetCBV(viewIdx, viewCBHandle, 0, sizeof(ViewConstants));
-					tech.SetCBV(objectIdx, objectCBHandle, 0, sizeof(ObjectConstants));
-					if(auto pbs = tech.GetBinding())
+					auto* meshPacket = static_cast<MeshRenderPacket*>(packet);
+					auto passIdxIt = meshPacket->techs_->passIndices_.find(passName);
+					if(passIdxIt != meshPacket->techs_->passIndices_.end() && passIdxIt->second < meshPacket->techs_->passTechniques_.size())
 					{
-						cmdList.UpdateBuffer(objectCBHandle, 0, sizeof(meshPacket->object_), &meshPacket->object_);
-						cmdList.Draw(pbs, meshPacket->db_, fbs, drawState,
-							GPU::PrimitiveTopology::TRIANGLE_LIST, meshPacket->draw_.indexOffset_, meshPacket->draw_.vertexOffset_,
-							meshPacket->draw_.noofIndices_, 0, 1);
+						auto& tech = meshPacket->techs_->passTechniques_[passIdxIt->second];
+
+						i32 viewIdx = meshPacket->shader_->GetBindingIndex("ViewCBuffer");
+						i32 objectIdx = meshPacket->shader_->GetBindingIndex("ObjectCBuffer");
+						tech.SetCBV(viewIdx, viewCBHandle, 0, sizeof(ViewConstants));
+						tech.SetCBV(objectIdx, objectCBHandle, 0, sizeof(ObjectConstants));
+						if(auto pbs = tech.GetBinding())
+						{
+							cmdList.UpdateBuffer(objectCBHandle, 0, sizeof(meshPacket->object_), &meshPacket->object_);
+							cmdList.Draw(pbs, meshPacket->db_, fbs, drawState,
+								GPU::PrimitiveTopology::TRIANGLE_LIST, meshPacket->draw_.indexOffset_, meshPacket->draw_.vertexOffset_,
+								meshPacket->draw_.noofIndices_, 0, 1);
+						}
 					}
 				}
 			}
@@ -292,7 +294,10 @@ namespace
 			GPU::Handle objectCBHandle = res.GetBuffer(objectCB_);
 
 			// Update view constants.
-			cmdList.UpdateBuffer(viewCBHandle, 0, sizeof(view_), &view_);
+			if(auto event = cmdList.Event(0, "Update Constants"))
+			{
+				cmdList.UpdateBuffer(viewCBHandle, 0, sizeof(view_), &view_);
+			}
 
 			// Clear depth buffer.
 			cmdList.ClearDSV(fbs_, 1.0f, 0);

@@ -1,0 +1,113 @@
+#include "stdlib.esh"
+
+///////////////////////////////////////////////////////////////////////
+// Shared datatypes.
+struct Particle
+{
+	float3 position;
+	float3 velocity;
+};
+
+cbuffer ParticleConfig
+{
+	float4 time;
+	float4 tick;
+	int maxWidth;
+};
+
+float noise(float x)
+{
+	return sin(x) +
+	 sin(x * 0.61423) * 0.5 +
+	 sin(x * 0.3123) * 0.25 + 
+	 sin(x * 0.142) * 0.125;
+}
+
+///////////////////////////////////////////////////////////////////////
+// Particle update compute.
+RWStructuredBuffer<Particle> inout_particles;
+
+[numthreads(1,1,1)]
+void cs_main(int3 id : SV_DispatchThreadID)
+{
+	const uint idx = id.x + id.y * maxWidth;
+	Particle particle = inout_particles[idx];
+
+	particle.position = particle.position + particle.velocity * tick.x;
+	particle.velocity += float3(0.0, -9.8, 0.0) * tick.x;
+
+	float offset = (float)idx / 1024.0;
+	particle.velocity.y += noise(time.x + offset) * 0.01;
+
+	if(particle.position.y < 0.0)
+	{
+		particle.velocity = reflect(particle.velocity, float3(0.0, 1.0, 0.0)) * 0.5;
+
+		// fudge y.
+		particle.position.y = 0.0;
+	}
+
+	inout_particles[idx] = particle;
+}
+
+Technique TECH_PARTICLE_UPDATE =
+{
+	.ComputeShader = cs_main,
+};
+
+///////////////////////////////////////////////////////////////////////
+// Particle draw.
+StructuredBuffer<Particle> in_particles;
+
+cbuffer Camera
+{
+	float4x4 view;
+	float4x4 viewProj;
+};
+
+struct VS_IN
+{
+	float4 position : POSITION;
+};
+
+struct VS_OUT
+{
+	float4 position : SV_POSITION;
+	uint idx : SV_INSTANCEID;
+};
+
+VS_OUT vs_main(in VS_IN _in, uint idx : SV_INSTANCEID)
+{
+	Particle particle = in_particles[idx];
+
+	VS_OUT _out = (VS_OUT)0;
+	_out.position = mul(viewProj, float4(_in.position.xyz + particle.position.xyz, 1.0));
+	_out.idx = idx;
+	return _out;
+}
+
+float4 ps_main(in VS_OUT _in) : SV_TARGET0
+{
+	float offset = (float)_in.idx / 1024.0;
+	return float4(noise(time.x + offset), noise(time.y + offset), noise(time.z + offset), 0.05);
+}
+
+RenderState RS_PARTICLE =
+{
+	.BlendStates = {
+		.Enable = 1,
+		.SrcBlend = SRC_ALPHA,
+		.DestBlend = INV_SRC_ALPHA,
+	},
+
+	.DepthEnable = 1,
+	.FillMode = SOLID,
+};
+
+Technique TECH_PARTICLE_DRAW =
+{
+	.RenderState = RS_PARTICLE,
+	.VertexShader = vs_main,
+	.PixelShader = ps_main,
+};
+

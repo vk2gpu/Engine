@@ -1,11 +1,8 @@
 {
+   "$internal" : {
+      "dependencies" : [ "test_texture_png.png" ],
+      "outputs" : [ "converter_output/test_texture_png.png.converted" ]
+   },
    "format" : "BC3_UNORM",
-   "generateMipLevels" : true,
-   "internal" : {
-      "dependencies" : [
-         "test_texture_png.png",
-         "..\\..\\..\\..\\res\\test_texture_png.png.metadata"
-      ],
-      "outputs" : [ "converter_output\\test_texture_png.png.converted" ]
-   }
+   "generateMipLevels" : true
 }
