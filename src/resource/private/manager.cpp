@@ -142,6 +142,8 @@ namespace Resource
 		/// Thread to use for blocking reads.
 		Core::Thread writeThread_;
 
+		/// Signalled to kick off timestamp checking.
+		Core::Semaphore timestampJobSem_;
 		/// Timestamp thread.
 		Core::Thread timestampThread_;
 
@@ -288,12 +290,13 @@ namespace Resource
 		ManagerImpl()
 		    : isActive_(true)
 		    , readJobs_(MAX_READ_JOBS)
-		    , readJobSem_(0, MAX_READ_JOBS, "Resource Manager Read Semamphore")
-		    , readThread_(ReadIOThread, this, 65536, "Resource Manager Read Thread")
+		    , readJobSem_(0, MAX_READ_JOBS, "Resmgr Read Sem")
+		    , readThread_(ReadIOThread, this, 65536, "Resmgr Read Thread")
 		    , writeJobs_(MAX_WRITE_JOBS)
-		    , writeJobSem_(0, MAX_WRITE_JOBS, "Resource Manager Write Semaphore")
-		    , writeThread_(WriteIOThread, this, 65536, "Resource Manager Write Thread")
-		    , timestampThread_(TimestampThread, this, 65536, "Resource Manager Timestamp Thread")
+		    , writeJobSem_(0, MAX_WRITE_JOBS, "Resmgr Write Sem")
+		    , writeThread_(WriteIOThread, this, 65536, "Resmgr Write Thread")
+			, timestampJobSem_(0, 1, "Resmgr Timestamp Sem")
+		    , timestampThread_(TimestampThread, this, 65536, "Resmgr Timestamp Thread")
 		{
 			// Get converter plugins.
 			i32 found = Plugin::Manager::GetPlugins<ConverterPlugin>(nullptr, 0);
@@ -311,12 +314,16 @@ namespace Resource
 
 			pathResolver_.AddPath(".");
 			pathResolver_.AddPath(currRelativePath.c_str());
+
+			// Start timestamp checking job.
+			timestampJobSem_.Signal(1);
 		}
 
 		~ManagerImpl()
 		{
 			// No longer active. Any pending jobs will complete.
 			isActive_ = false;
+			Core::Barrier();
 
 			// Wait for pending resource jobs to complete.
 			while(pendingResourceJobs_ > 0)
@@ -337,6 +344,7 @@ namespace Resource
 			writeJobSem_.Signal(1);
 			writeThread_.Join();
 
+			timestampJobSem_.Signal(1);
 			timestampThread_.Join();
 		}
 
@@ -347,6 +355,7 @@ namespace Resource
 			FileIOJob ioJob;
 			for(;;)
 			{
+				impl->readJobSem_.Wait();
 				rmt_ScopedCPUSample(ResourceReadIO, RMTSF_None);
 
 				if(impl->readJobs_.Dequeue(ioJob))
@@ -356,7 +365,6 @@ namespace Resource
 					else
 						return 0;
 				}
-				impl->readJobSem_.Wait();
 			}
 		}
 
@@ -367,6 +375,7 @@ namespace Resource
 			FileIOJob ioJob;
 			for(;;)
 			{
+				impl->writeJobSem_.Wait();
 				rmt_ScopedCPUSample(ResourceWriteIO, RMTSF_None);
 
 				if(impl->writeJobs_.Dequeue(ioJob))
@@ -376,7 +385,6 @@ namespace Resource
 					else
 						return 0;
 				}
-				impl->writeJobSem_.Wait();
 			}
 		}
 
@@ -388,6 +396,9 @@ namespace Resource
 			Core::Vector<ResourceEntry*> convertList;
 			Core::Timer convertTimer;
 			const f64 CONVERT_WAIT_TIME = 0.01f;
+
+			// Wait until signalled to start.
+			impl->timestampJobSem_.Wait();
 
 			while(impl->isActive_)
 			{
@@ -441,9 +452,9 @@ namespace Resource
 					}
 				}
 
-				// Sleep for a bit once all have been checked.
+				// Wait on a semaphore for around 100ms once all files are checked.
 				if(idx == 0)
-					Core::Sleep(0.1f);
+					impl->timestampJobSem_.Wait(100);
 			}
 
 			for(auto* entry : convertList)
