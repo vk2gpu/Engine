@@ -12,6 +12,7 @@ namespace Graphics
 	class Buffer;
 	class Texture;
 	struct RenderGraphImpl;
+	struct RenderPassImpl;
 
 	using RenderGraphExecFn = Core::Function<void(RenderGraph&, void*), 256>;
 
@@ -20,33 +21,57 @@ namespace Graphics
 	public:
 		/**
 		 * Create buffer from descriptor.
+		 * @param name Debug name for buffer.
+		 * @param desc Descriptor for buffer.
+		 * @return Resource reference.
 		 */
 		RenderGraphResource CreateBuffer(const char* name, const RenderGraphBufferDesc& desc);
 
 		/**
 		 * Create texture from descriptor.
+		 * @param name Debug name for texture.
+		 * @param desc Descriptor for texture.
+		 * @return Resource reference.
 		 */
 		RenderGraphResource CreateTexture(const char* name, const RenderGraphTextureDesc& desc);
 
 		/**
 		 * Use resource as CBV.
+		 * @param res Input resource.
+		 * @return Resource that subsequent passes should reference.
 		 */
-		RenderGraphResource UseCBV(RenderPass* renderPass, RenderGraphResource res, bool update);
+		RenderGraphResource UseCBV(RenderGraphResource res, bool update);
 
 		/**
 		 * Use resource as SRV.
+		 * @param res Input resource.
+		 * @return Resource that subsequent passes should reference.
 		 */
-		RenderGraphResource UseSRV(RenderPass* renderPass, RenderGraphResource res);
+		RenderGraphResource UseSRV(RenderGraphResource res);
 
 		/**
-		 * Use resource as RTV.
+		 * Use resource as UAV.
+		 * @param res Input resource.
+		 * @return Resource that subsequent passes should reference.
 		 */
-		RenderGraphResource UseRTV(RenderPass* renderPass, RenderGraphResource res);
+		RenderGraphResource UseUAV(RenderGraphResource res);
 
 		/**
-		 * Use resource as DSV.
+		 * Set resource as for use a an RTV.
+		 * @param idx RTV index to bind to.
+		 * @param res Resource.
+		 * @param binding Binding info for RTV.
+		 * @return Resource that subsequent passes should reference.
 		 */
-		RenderGraphResource UseDSV(RenderPass* renderPass, RenderGraphResource res, GPU::DSVFlags flags);
+		RenderGraphResource SetRTV(i32 idx, RenderGraphResource res, GPU::BindingRTV binding = GPU::BindingRTV());
+
+		/**
+		 * Set resource for use as a DSV.
+		 * @param res Resource to bind as DSV.
+		 * @param binding Binding info for DSV.
+		 * @return Resource that subsequent passes should reference.
+		 */
+		RenderGraphResource SetDSV(RenderGraphResource res, GPU::BindingDSV binding = GPU::BindingDSV());
 
 		/**
 		 * @return Buffer desc from render graph.
@@ -65,6 +90,7 @@ namespace Graphics
 
 		/**
 		 * Allocate objects that exists for the life time of a single execute phase.
+		 * Does not construct object, this is the user's responsibility.
 		 */
 		template<typename TYPE>
 		TYPE* Alloc(i32 num = 1)
@@ -75,10 +101,11 @@ namespace Graphics
 	private:
 		friend class RenderGraph;
 
-		RenderGraphBuilder(RenderGraphImpl* impl);
+		RenderGraphBuilder(RenderGraphImpl* impl, RenderPass* renderPass);
 		~RenderGraphBuilder();
 
 		RenderGraphImpl* impl_ = nullptr;
+		RenderPass* renderPass_ = nullptr;
 	};
 
 	class GRAPHICS_DLL RenderGraphResources final
@@ -94,14 +121,58 @@ namespace Graphics
 		 */
 		GPU::Handle GetTexture(RenderGraphResource res, RenderGraphTextureDesc* outDesc = nullptr) const;
 
+		/**
+		 * @return Concrete frame binding set.
+		 */
+		GPU::Handle GetFrameBindingSet(GPU::FrameBindingSetDesc* outDesc = nullptr) const;
+
+		/**
+		 * Binding helpers.
+		 */
+		GPU::BindingCBV CBuffer(RenderGraphResource res, i32 offset, i32 size) const;
+		GPU::BindingSRV Buffer(RenderGraphResource res, GPU::Format format = GPU::Format::INVALID, i32 firstElement = 0,
+		    i32 numElements = 0, i32 structureByteStride = 0) const;
+		GPU::BindingSRV Texture1D(RenderGraphResource res, GPU::Format format = GPU::Format::INVALID,
+		    i32 mostDetailedMip = 0, i32 mipLevels = 0, f32 resourceMinLODClamp = 0.0f) const;
+		GPU::BindingSRV Texture1DArray(RenderGraphResource res, GPU::Format format = GPU::Format::INVALID,
+		    i32 mostDetailedMip = 0, i32 mipLevels = 0, i32 firstArraySlice = 0, i32 arraySize = 0,
+		    f32 resourceMinLODClamp = 0.0f) const;
+		GPU::BindingSRV Texture2D(RenderGraphResource res, GPU::Format format = GPU::Format::INVALID,
+		    i32 mostDetailedMip = 0, i32 mipLevels = 0, i32 planeSlice = 0, f32 resourceMinLODClamp = 0.0f) const;
+		GPU::BindingSRV Texture2DArray(RenderGraphResource res, GPU::Format format = GPU::Format::INVALID,
+		    i32 mostDetailedMip = 0, i32 mipLevels = 0, i32 firstArraySlice = 0, i32 arraySize = 0, i32 planeSlice = 0,
+		    f32 resourceMinLODClamp = 0.0f) const;
+		GPU::BindingSRV Texture3D(RenderGraphResource res, GPU::Format format = GPU::Format::INVALID,
+		    i32 mostDetailedMip = 0, i32 mipLevels = 0, f32 resourceMinLODClamp = 0.0f) const;
+		GPU::BindingSRV TextureCube(RenderGraphResource res, GPU::Format format = GPU::Format::INVALID,
+		    i32 mostDetailedMip = 0, i32 mipLevels = 0, f32 resourceMinLODClamp = 0.0f) const;
+		GPU::BindingSRV TextureCubeArray(RenderGraphResource res, GPU::Format format = GPU::Format::INVALID,
+		    i32 mostDetailedMip = 0, i32 mipLevels = 0, i32 first2DArrayFace = 0, i32 numCubes = 0,
+		    f32 resourceMinLODClamp = 0.0f) const;
+		GPU::BindingUAV RWBuffer(RenderGraphResource res, GPU::Format format = GPU::Format::INVALID,
+		    i32 firstElement = 0, i32 numElements = 0, i32 structureByteStride = 0) const;
+		GPU::BindingUAV RWTexture1D(
+		    RenderGraphResource res, GPU::Format format = GPU::Format::INVALID, i32 mipSlice = 0) const;
+		GPU::BindingUAV RWTexture1DArray(RenderGraphResource res, GPU::Format format = GPU::Format::INVALID,
+		    i32 mipSlice = 0, i32 firstArraySlice = 0, i32 arraySize = 0) const;
+		GPU::BindingUAV RWTexture2D(RenderGraphResource res, GPU::Format format = GPU::Format::INVALID,
+		    i32 mipSlice = 0, i32 planeSlice = 0) const;
+		GPU::BindingUAV RWTexture2DArray(RenderGraphResource res, GPU::Format format = GPU::Format::INVALID,
+		    i32 mipSlice = 0, i32 planeSlice = 0, i32 firstArraySlice = 0, i32 arraySize = 0) const;
+		GPU::BindingUAV RWTexture3D(RenderGraphResource res, GPU::Format format = GPU::Format::INVALID,
+		    i32 mipSlice = 0, i32 firstWSlice = 0, i32 wSize = 0) const;
+
 	private:
 		friend class RenderGraph;
 
-		RenderGraphResources(RenderGraphImpl* impl);
+		RenderGraphResources(RenderGraphImpl* impl, RenderPassImpl* renderPass);
 		~RenderGraphResources();
+		RenderGraphResources(const RenderGraphResources&) = delete;
 
-		struct RenderGraphImpl* impl_ = nullptr;
+		RenderGraphImpl* impl_ = nullptr;
+		RenderPassImpl* renderPass_ = nullptr;
 	};
+
 
 	class GRAPHICS_DLL RenderGraph final
 	{
@@ -112,8 +183,9 @@ namespace Graphics
 		template<typename RENDER_PASS, typename... ARGS>
 		RENDER_PASS& AddRenderPass(const char* name, ARGS&&... args)
 		{
-			RenderGraphBuilder builder(impl_);
-			auto* renderPass = new(builder.Alloc<RENDER_PASS>(1)) RENDER_PASS(builder, std::forward<ARGS>(args)...);
+			auto* renderPassMem = InternalAlloc<RENDER_PASS>(1);
+			RenderGraphBuilder builder(impl_, renderPassMem);
+			auto* renderPass = new(renderPassMem) RENDER_PASS(builder, std::forward<ARGS>(args)...);
 			InternalAddRenderPass(name, renderPass);
 			return *renderPass;
 		}
@@ -170,11 +242,17 @@ namespace Graphics
 		 */
 		bool GetTexture(RenderGraphResource res, RenderGraphTextureDesc* outDesc = nullptr) const;
 
-
 	private:
 		void InternalPushPass();
 		void InternalPopPass();
 		void InternalAddRenderPass(const char* name, RenderPass* renderPass);
+		void* InternalAlloc(i32 size);
+
+		template<typename TYPE>
+		TYPE* InternalAlloc(i32 num = 1)
+		{
+			return reinterpret_cast<TYPE*>(InternalAlloc(num * sizeof(TYPE)));
+		}
 
 		RenderGraphImpl* impl_ = nullptr;
 	};

@@ -17,4 +17,6 @@ namespace Graphics
 
 	Core::ArrayView<const RenderGraphResource> RenderPass::GetOutputs() const { return impl_->GetOutputs(); }
 
+	const GPU::FrameBindingSetDesc& RenderPass::GetFrameBindingDesc() const { return impl_->fbsDesc_; }
+
 } // namespace Graphics

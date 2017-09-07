@@ -46,16 +46,16 @@ namespace GPU
 
 				// Debug events.
 				case CommandBeginEvent::TYPE:
-					{
-						const auto* eventCommand = static_cast<const CommandBeginEvent*>(command);
-						PIXBeginEvent(d3dCommandList_, eventCommand->metaData_, eventCommand->text_);
-					}
-					break;
+				{
+					const auto* eventCommand = static_cast<const CommandBeginEvent*>(command);
+					PIXBeginEvent(d3dCommandList_, eventCommand->metaData_, eventCommand->text_);
+				}
+				break;
 				case CommandEndEvent::TYPE:
-					{
-						PIXEndEvent(d3dCommandList_);
-					}
-					break;
+				{
+					PIXEndEvent(d3dCommandList_);
+				}
+				break;
 				default:
 					DBG_BREAK;
 				}
@@ -71,23 +71,35 @@ namespace GPU
 
 	ErrorCode D3D12CompileContext::CompileCommand(const CommandDraw* command)
 	{
-		const auto& dbs = backend_.drawBindingSets_[command->drawBinding_.GetIndex()];
-
 		SetPipelineBinding(command->pipelineBinding_);
 		SetFrameBinding(command->frameBinding_);
-		SetDrawBinding(command->drawBinding_, command->primitive_);
 		SetDrawState(command->drawState_);
 
-		FlushTransitions();
-		if(dbs.ib_.BufferLocation == 0)
+		if(command->drawBinding_ != GPU::Handle())
 		{
-			d3dCommandList_->DrawInstanced(
-			    command->noofVertices_, command->noofInstances_, command->vertexOffset_, command->firstInstance_);
+			const auto& dbs = backend_.drawBindingSets_[command->drawBinding_.GetIndex()];
+
+			SetDrawBinding(command->drawBinding_, command->primitive_);
+
+			FlushTransitions();
+			if(dbs.ib_.BufferLocation == 0)
+			{
+				d3dCommandList_->DrawInstanced(
+				    command->noofVertices_, command->noofInstances_, command->vertexOffset_, command->firstInstance_);
+			}
+			else
+			{
+				d3dCommandList_->DrawIndexedInstanced(command->noofVertices_, command->noofInstances_,
+				    command->indexOffset_, command->vertexOffset_, command->firstInstance_);
+			}
 		}
 		else
 		{
-			d3dCommandList_->DrawIndexedInstanced(command->noofVertices_, command->noofInstances_,
-			    command->indexOffset_, command->vertexOffset_, command->firstInstance_);
+			d3dCommandList_->IASetPrimitiveTopology(GetPrimitiveTopology(command->primitive_));
+
+			FlushTransitions();
+			d3dCommandList_->DrawInstanced(
+			    command->noofVertices_, command->noofInstances_, command->vertexOffset_, command->firstInstance_);
 		}
 		return ErrorCode::OK;
 	}
@@ -305,7 +317,10 @@ namespace GPU
 
 		for(i32 i = 0; i < pbs.uavTransitions_.size(); ++i)
 			if(pbs.uavTransitions_[i])
+			{
 				AddTransition(pbs.uavTransitions_[i], D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+				AddUAVBarrier(pbs.uavTransitions_[i]);
+			}
 
 		d3dCommandList_->SetDescriptorHeaps(2, heaps);
 		d3dCommandList_->SetPipelineState(pbs.pipelineState_.Get());
@@ -443,6 +458,22 @@ namespace GPU
 			pendingBarriers_.insert(resource, barrier);
 			stateEntry->second = state;
 		}
+	}
+
+	void D3D12CompileContext::AddUAVBarrier(const D3D12Resource* resource)
+	{
+		DBG_ASSERT(resource);
+		DBG_ASSERT(resource->resource_);
+
+		AddTransition(resource, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
+#if 0
+		D3D12_RESOURCE_BARRIER barrier;
+		barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
+		barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+		barrier.UAV.pResource = resource->resource_.Get();
+		pendingBarriers_.insert(resource, barrier);
+#endif
 	}
 
 	void D3D12CompileContext::FlushTransitions()

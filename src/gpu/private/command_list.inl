@@ -28,12 +28,11 @@ namespace GPU
 	    const DrawState& drawState, PrimitiveTopology primitive, i32 indexOffset, i32 vertexOffset, i32 noofVertices,
 	    i32 firstInstance, i32 noofInstances)
 	{
-		DBG_ASSERT(handleAllocator_.IsValid(pipelineBinding));
-		DBG_ASSERT(pipelineBinding.GetType() == ResourceType::PIPELINE_BINDING_SET);
-		DBG_ASSERT(handleAllocator_.IsValid(drawBinding));
-		DBG_ASSERT(drawBinding.GetType() == ResourceType::DRAW_BINDING_SET);
-		DBG_ASSERT(handleAllocator_.IsValid(frameBinding));
-		DBG_ASSERT(frameBinding.GetType() == ResourceType::FRAME_BINDING_SET);
+		DBG_ASSERT(handleAllocator_.IsValid(pipelineBinding) &&
+		           pipelineBinding.GetType() == ResourceType::PIPELINE_BINDING_SET);
+		DBG_ASSERT(!drawBinding ||
+		           (drawBinding.GetType() == ResourceType::DRAW_BINDING_SET && handleAllocator_.IsValid(drawBinding)));
+		DBG_ASSERT(handleAllocator_.IsValid(frameBinding) && frameBinding.GetType() == ResourceType::FRAME_BINDING_SET);
 		DBG_ASSERT(primitive != PrimitiveTopology::INVALID);
 		DBG_ASSERT(indexOffset >= 0);
 		DBG_ASSERT(vertexOffset >= 0);
@@ -72,14 +71,12 @@ namespace GPU
 	INLINE CommandDrawIndirect* CommandList::DrawIndirect(Handle pipelineBinding, Handle drawBinding,
 	    Handle frameBinding, const DrawState& drawState, Handle indirectBuffer, i32 argByteOffset)
 	{
-		DBG_ASSERT(handleAllocator_.IsValid(pipelineBinding));
-		DBG_ASSERT(pipelineBinding.GetType() == ResourceType::PIPELINE_BINDING_SET);
-		DBG_ASSERT(handleAllocator_.IsValid(drawBinding));
-		DBG_ASSERT(drawBinding.GetType() == ResourceType::DRAW_BINDING_SET);
-		DBG_ASSERT(handleAllocator_.IsValid(frameBinding));
-		DBG_ASSERT(frameBinding.GetType() == ResourceType::FRAME_BINDING_SET);
-		DBG_ASSERT(handleAllocator_.IsValid(indirectBuffer));
-		DBG_ASSERT(indirectBuffer.GetType() == ResourceType::BUFFER);
+		DBG_ASSERT(handleAllocator_.IsValid(pipelineBinding) &&
+		           pipelineBinding.GetType() == ResourceType::PIPELINE_BINDING_SET);
+		DBG_ASSERT(!drawBinding ||
+		           (drawBinding.GetType() == ResourceType::DRAW_BINDING_SET && handleAllocator_.IsValid(drawBinding)));
+		DBG_ASSERT(handleAllocator_.IsValid(frameBinding) && frameBinding.GetType() == ResourceType::FRAME_BINDING_SET);
+		DBG_ASSERT(handleAllocator_.IsValid(indirectBuffer) && indirectBuffer.GetType() == ResourceType::BUFFER);
 		DBG_ASSERT(argByteOffset >= 0);
 
 		queueType_ |= CommandDraw::QUEUE_TYPE;

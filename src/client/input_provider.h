@@ -5,6 +5,9 @@
 
 namespace Client
 {
+	enum class KeyCode : i32;
+	enum class ScanCode : i32;
+
 	class IInputProvider
 	{
 	public:
@@ -87,15 +90,15 @@ namespace Client
 		}
 
 		template<typename TYPE>
-		bool IsKeyPressed(TYPE keyCode) const
+		bool WasKeyPressed(TYPE keyCode) const
 		{
-			return IsKeyPressed((i32)keyCode);
+			return WasKeyPressed((i32)keyCode);
 		}
 
 		template<typename TYPE>
-		bool IsKeyReleased(TYPE keyCode) const
+		bool WasKeyReleased(TYPE keyCode) const
 		{
-			return IsKeyReleased((i32)keyCode);
+			return WasKeyReleased((i32)keyCode);
 		}
 	};
 

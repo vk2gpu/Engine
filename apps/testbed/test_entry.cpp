@@ -1,3 +1,5 @@
+#include "client/input_provider.h"
+#include "client/key_input.h"
 #include "client/manager.h"
 #include "core/file.h"
 #include "core/map.h"
@@ -11,59 +13,207 @@
 #include "job/function_job.h"
 #include "test_shared.h"
 #include "math/mat44.h"
+#include "math/plane.h"
+
+#include <cmath>
+
+#define LOAD_SPONZA (0)
 
 namespace
 {
-	class RenderPassImGui : public Graphics::RenderPass
+	using namespace Graphics;
+
+	class Camera
+	{
+	public:
+		enum class CameraState
+		{
+			IDLE = 0,
+			ROTATE,
+			PAN
+		};
+
+		Camera()
+		{
+			cameraDistance_ = 1.0f;
+			cameraZoom_ = 0.0f;
+			moveFast_ = false;
+			cameraRotation_ = Math::Vec3(0.0f, 0.0f, 0.0f);
+			cameraWalk_ = Math::Vec3(0.0f, 0.0f, 0.0f );
+			cameraTarget_ = Math::Vec3(0.0f, 5.0f, 5.0f );
+		}
+
+		void Update(const Client::IInputProvider& input, f32 tick)
+		{
+			if(input.WasMouseButtonPressed(0))
+			{
+				initialMousePos_ = input.GetMousePosition();
+			}
+
+			if(input.WasKeyReleased(Client::KeyCode::LEFT) || input.WasKeyReleased(Client::KeyCode::RIGHT))
+				cameraRotationDelta_.y = 0.0f;
+
+			if(input.WasKeyReleased(Client::KeyCode::UP) || input.WasKeyReleased(Client::KeyCode::DOWN))
+				cameraRotationDelta_.x = 0.0f;
+
+			if(input.WasKeyReleased('W') || input.WasKeyReleased('w') ||
+				input.WasKeyReleased('S') || input.WasKeyReleased('s'))
+				cameraWalk_.z = 0.0f;
+
+			if(input.WasKeyReleased('A') || input.WasKeyReleased('a') ||
+				input.WasKeyReleased('D') || input.WasKeyReleased('d'))
+				cameraWalk_.x = 0.0f;
+
+			if(input.WasKeyReleased(Client::KeyCode::LSHIFT))
+				moveFast_ = false;
+
+
+			if(input.WasKeyPressed(Client::KeyCode::LEFT))
+				cameraRotationDelta_.y = 1.0f;
+			if(input.WasKeyPressed(Client::KeyCode::RIGHT))
+				cameraRotationDelta_.y = -1.0f;
+
+			if(input.WasKeyPressed(Client::KeyCode::UP))
+				cameraRotationDelta_.x = -1.0f;
+			if(input.WasKeyPressed(Client::KeyCode::DOWN))
+				cameraRotationDelta_.x = 1.0f;
+
+			if(input.WasKeyPressed('W') || input.WasKeyPressed('w'))
+				cameraWalk_.z = 1.0f;
+				
+			if(input.WasKeyPressed('S') || input.WasKeyPressed('s'))
+				cameraWalk_.z = -1.0f;
+
+			if(input.WasKeyPressed('A') || input.WasKeyPressed('a'))
+				cameraWalk_.x = -1.0f;
+
+			if(input.WasKeyPressed('D') || input.WasKeyPressed('d'))
+				cameraWalk_.x = 1.0f;
+
+			if(input.WasKeyPressed(Client::KeyCode::LSHIFT))
+				moveFast_ = true;
+
+			Math::Vec2 mousePos = input.GetMousePosition();
+			Math::Vec2 mouseDelta = oldMousePos_ - mousePos;
+			oldMousePos_ = mousePos;
+			switch( cameraState_ )
+			{
+			case CameraState::IDLE:
+				{
+				}
+				break;
+
+			case CameraState::ROTATE:
+				{
+					f32 rotateSpeed = 1.0f / 200.0f;
+					Math::Vec3 cameraRotateAmount = Math::Vec3( 
+						mousePos.y - initialMousePos_.y, 
+						-( mousePos.x - initialMousePos_.x), 0.0f ) * rotateSpeed;
+					cameraRotation_ = baseCameraRotation_ + cameraRotateAmount;
+				}
+				break;
+
+			case CameraState::PAN:
+				{
+					f32 panSpeed = 4.0f;
+					Math::Mat44 cameraRotationMatrix = GetCameraRotationMatrix();
+					Math::Vec3 offsetVector = Math::Vec3( mouseDelta.x, mouseDelta.y, 0.0f ) * cameraRotationMatrix;
+					cameraTarget_ += offsetVector * tick * panSpeed;
+				}
+				break;
+			}
+
+			// Rotation.
+			cameraRotation_ += cameraRotationDelta_ * tick;
+
+			cameraDistance_ += cameraZoom_ * tick;
+			cameraDistance_ = Core::Clamp(cameraDistance_, 1.0f, 4096.0f);
+			cameraZoom_ = 0.0f;
+
+			f32 walkSpeed = moveFast_ ? 32.0f : 8.0f;
+			Math::Mat44 cameraRotationMatrix = GetCameraRotationMatrix();
+			Math::Vec3 offsetVector = -cameraWalk_ * cameraRotationMatrix;
+			cameraTarget_ += offsetVector * tick * walkSpeed;
+
+
+			Math::Vec3 viewDistance = Math::Vec3( 0.0f, 0.0f, cameraDistance_ );
+			viewDistance = viewDistance * cameraRotationMatrix;
+			Math::Vec3 viewFromPosition = cameraTarget_ + viewDistance;
+
+			matrix_.Identity();
+			matrix_.LookAt(viewFromPosition, cameraTarget_, Math::Vec3(cameraRotationMatrix.Row1().x, cameraRotationMatrix.Row1().y, cameraRotationMatrix.Row1().z));
+		}
+
+		Math::Mat44 GetCameraRotationMatrix() const
+		{
+			Math::Mat44 cameraPitchMatrix;
+			Math::Mat44 cameraYawMatrix;
+			Math::Mat44 cameraRollMatrix;
+			cameraPitchMatrix.Rotation(Math::Vec3(cameraRotation_.x, 0.0f, 0.0f));
+			cameraYawMatrix.Rotation(Math::Vec3(0.0f, cameraRotation_.y, 0.0f));
+			cameraRollMatrix.Rotation(Math::Vec3(0.0f, 0.0f, cameraRotation_.z));
+			return cameraRollMatrix * cameraPitchMatrix * cameraYawMatrix;
+		}
+
+		CameraState cameraState_ = CameraState::IDLE;
+		Math::Vec3 baseCameraRotation_;
+		Math::Vec3 cameraTarget_;
+		Math::Vec3 cameraRotation_;
+		Math::Vec3 cameraWalk_;
+		Math::Vec3 cameraRotationDelta_;
+		f32 cameraDistance_;
+		f32 cameraZoom_;
+		bool moveFast_ = false;
+
+		Math::Vec2 initialMousePos_;
+		Math::Vec2 oldMousePos_;
+
+		Math::Mat44 matrix_;
+	};
+
+	Camera camera_;
+
+	class RenderPassImGui : public RenderPass
 	{
 	public:
 		static const char* StaticGetName() { return "RenderPassImGui"; }
 
-		RenderPassImGui(Graphics::RenderGraphBuilder& builder, Graphics::RenderGraphResource rt)
-			: Graphics::RenderPass(builder)
+		RenderPassImGui(RenderGraphBuilder& builder, RenderGraphResource rt)
+			: RenderPass(builder)
 		{
 			rmt_ScopedCPUSample(RenderPassImGui_Setup, RMTSF_None);
-			rt_ = builder.UseRTV(this, rt);
+
+			rt_ = builder.SetRTV(0, rt);
 		};
 
 		virtual ~RenderPassImGui()
 		{
-			/// TODO: Should be managed by frame graph.
-			GPU::Manager::DestroyResource(fbs_);
 		}
 
-		void Execute(Graphics::RenderGraphResources& res, GPU::CommandList& cmdList) override
+		void Execute(RenderGraphResources& res, GPU::CommandList& cmdList) override
 		{
 			rmt_ScopedCPUSample(RenderPassImGui_Execute, RMTSF_None);
 
-			Graphics::RenderGraphTextureDesc rtTexDesc;
-			auto rtTex = res.GetTexture(rt_, &rtTexDesc);
-			GPU::FrameBindingSetDesc fbsDesc;
-			fbsDesc.rtvs_[0].resource_ = rtTex;
-			fbsDesc.rtvs_[0].format_ = rtTexDesc.format_;
-			fbsDesc.rtvs_[0].dimension_ = GPU::ViewDimension::TEX2D;
-			fbs_ = GPU::Manager::CreateFrameBindingSet(fbsDesc, StaticGetName());
-
-			ImGui::Manager::Render(fbs_, cmdList);
+			auto fbs = res.GetFrameBindingSet();
+			ImGui::Manager::Render(fbs, cmdList);
 		}
 
-		Graphics::RenderGraphResource rt_;
-		GPU::Handle fbs_;
+		RenderGraphResource rt_;
 	};
 
 	static const char* IMGUI_RESOURCE_NAMES[] = {"in_color", "out_color", nullptr};
 
-	class ImGuiPipeline : public Graphics::Pipeline
+	class ImGuiPipeline : public Pipeline
 	{
 	public:
 		ImGuiPipeline() 
-			: Graphics::Pipeline(IMGUI_RESOURCE_NAMES)
+			: Pipeline(IMGUI_RESOURCE_NAMES)
 		{
 		}
 
 		virtual ~ImGuiPipeline() {}
 
-		void Setup(Graphics::RenderGraph& renderGraph) override
+		void Setup(RenderGraph& renderGraph) override
 		{
 			auto& renderPassImGui = renderGraph.AddRenderPass<RenderPassImGui>("ImGui", resources_[0]);
 			resources_[1] = renderPassImGui.rt_;
@@ -73,7 +223,7 @@ namespace
 	};
 
 
-	void DrawRenderGraphUI(Graphics::RenderGraph& renderGraph)
+	void DrawRenderGraphUI(RenderGraph& renderGraph)
 	{
 		if(i32 numRenderPasses = renderGraph.GetNumExecutedRenderPasses())
 		{
@@ -81,7 +231,7 @@ namespace
 			{
 				ImGui::Separator();
 
-				Core::Vector<const Graphics::RenderPass*> renderPasses(numRenderPasses);
+				Core::Vector<const RenderPass*> renderPasses(numRenderPasses);
 				Core::Vector<const char*> renderPassNames(numRenderPasses);
 
 				renderGraph.GetExecutedRenderPasses(renderPasses.data(), renderPassNames.data());
@@ -140,10 +290,194 @@ namespace
 		}
 	}
 
+	void DrawUIJobProfiler(bool& profilingEnabled, Core::Vector<Job::ProfilerEntry>& profilerEntries, i32 numProfilerEntries)
+	{
+		if(ImGui::Begin("Job Profiler"))
+		{
+			bool oldProfilingEnabled = profilingEnabled;
+			ImGui::Checkbox("Enable Profiling", &profilingEnabled);
+			static f32 totalTimeMS = 16.0f;
+			ImGui::SliderFloat("Total Time", &totalTimeMS, 1.0f, 100.0f);
+			if(oldProfilingEnabled != profilingEnabled)
+			{
+				if(profilingEnabled)
+					Job::Manager::BeginProfiling();
+				else
+					Job::Manager::EndProfiling(nullptr, 0);
+			}
+
+			Core::Array<ImColor, 12> colors = 
+			{
+				ImColor(0.8f, 0.0f, 0.0f, 1.0f),
+				ImColor(0.0f, 0.8f, 0.0f, 1.0f),
+				ImColor(0.0f, 0.0f, 0.8f, 1.0f),
+				ImColor(0.0f, 0.8f, 0.8f, 1.0f),
+				ImColor(0.8f, 0.0f, 0.8f, 1.0f),
+				ImColor(0.8f, 0.8f, 0.0f, 1.0f),
+				ImColor(0.4f, 0.0f, 0.0f, 1.0f),
+				ImColor(0.0f, 0.4f, 0.0f, 1.0f),
+				ImColor(0.0f, 0.0f, 0.4f, 1.0f),
+				ImColor(0.0f, 0.4f, 0.4f, 1.0f),
+				ImColor(0.4f, 0.0f, 0.4f, 1.0f),
+				ImColor(0.4f, 0.4f, 0.0f, 1.0f),
+			};
+
+			i32 numJobs = 0;
+			i32 numWorkers = 0;
+			f64 minTime = Core::Timer::GetAbsoluteTime();
+			f64 maxTime = 0.0;
+
+			for(i32 idx = 0; idx < numProfilerEntries; ++idx)
+			{
+				const auto& profilerEntry = profilerEntries[idx];
+				numJobs = Core::Max(numJobs, profilerEntry.jobIdx_ + 1);
+				numWorkers = Core::Max(numWorkers, profilerEntry.workerIdx_ + 1);
+				minTime = Core::Min(minTime, profilerEntry.startTime_);
+				maxTime = Core::Max(maxTime, profilerEntry.endTime_);
+			}
+			numWorkers = Core::Max(8, numWorkers);
+
+			ImGui::Text("Number of jobs: %i", numJobs);
+			ImGui::Text("Number of entries: %i", numProfilerEntries);
+			ImGui::Separator();
+			ImGui::BeginChildFrame(0, Math::Vec2(ImGui::GetWindowWidth(), numWorkers * 50.0f));
+
+			f32 profileDrawOffsetX = 0.0f;
+			f32 profileDrawOffsetY = ImGui::GetCursorPosY();
+			f32 profileDrawAdvanceY = 0.0f;
+			for(i32 idx = 0; idx < numWorkers; ++idx)
+			{
+				auto text = Core::String().Printf("Worker %i", idx);
+				auto size = ImGui::CalcTextSize(text.c_str(), nullptr);
+				ImGui::Text(text.c_str());
+				ImGui::Separator();
+
+				profileDrawOffsetX = Core::Max(profileDrawOffsetX, size.x);
+
+				if(profileDrawAdvanceY == 0.0f)
+				{
+					profileDrawAdvanceY = ImGui::GetCursorPosY() - profileDrawOffsetY;
+				}
+			}
+
+			if(numProfilerEntries > 0)
+			{
+				const f64 timeRange = totalTimeMS / 1000.0f;//maxTime - minTime;
+
+				f32 totalWidth = ImGui::GetWindowWidth() - profileDrawOffsetX; 
+
+				profileDrawOffsetX += 8.0f;
+
+				auto GetEntryPosition = [&](const Job::ProfilerEntry& entry, Math::Vec2& a, Math::Vec2& b)
+				{
+					f32 x = profileDrawOffsetX;
+					f32 y = profileDrawOffsetY + (entry.workerIdx_ * profileDrawAdvanceY);
+
+					a.x = x;
+					a.y = y;
+					b = a;
+
+					f64 normalizedStart = (entry.startTime_ - minTime) / timeRange;
+					f64 normalizedEnd = (entry.endTime_ - minTime) / timeRange;
+					normalizedStart *= totalWidth;
+					normalizedEnd *= totalWidth;
+
+					a.x += (f32)normalizedStart;
+					b.x += (f32)normalizedEnd;
+					b.y += profileDrawAdvanceY;
+
+					a += ImGui::GetWindowPos();
+					b += ImGui::GetWindowPos();
+				};
+
+				// Draw bars for each worker.
+				i32 hoverEntry = -1;
+				auto* drawList = ImGui::GetWindowDrawList();
+				for(i32 idx = 0; idx < numProfilerEntries; ++idx)
+				{
+					const auto& entry = profilerEntries[idx];
+					const f64 entryTimeMS = (entry.endTime_ - entry.startTime_) * 1000.0;
+
+					// Only draw > 1us.
+					if(entryTimeMS > (1.0 / 1000.0) && entry.jobIdx_ >= 0)
+					{
+						Math::Vec2 a, b;
+						GetEntryPosition(entry, a, b);
+						drawList->AddRectFilled(a, b, colors[entry.jobIdx_ % colors.size()]);
+						if(ImGui::IsMouseHoveringRect(a, b))
+						{
+							hoverEntry = idx;
+						}
+
+						if((i32)(b.x - a.x) > 8)
+						{
+							auto name = Core::String().Printf("%s (%.2f ms)", entry.name_.data(), entryTimeMS);
+							drawList->PushClipRect(a, b, true);
+							drawList->AddText(a, 0xffffffff, name.c_str());
+							drawList->PopClipRect();
+						}
+					}
+				}
+
+				const f32 lineHeight = numWorkers * profileDrawAdvanceY;
+				for(f64 time = 0.0; time < timeRange; time += 0.001)
+				{
+					Math::Vec2 a(profileDrawOffsetX, profileDrawOffsetY);
+					Math::Vec2 b(profileDrawOffsetX, profileDrawOffsetY + lineHeight);
+
+					f64 x = time / timeRange;
+					x *= totalWidth;
+
+					a.x += (f32)x;
+					b.x += (f32)x;
+
+					a += ImGui::GetWindowPos();
+					b += ImGui::GetWindowPos();
+
+					drawList->AddLine(a, b, ImColor(1.0f, 1.0f, 1.0f, 0.2f));
+				}
+
+				for(f64 time = 0.0; time < timeRange; time += 0.0001)
+				{
+					Math::Vec2 a(profileDrawOffsetX, profileDrawOffsetY);
+					Math::Vec2 b(profileDrawOffsetX, profileDrawOffsetY + lineHeight);
+
+					f64 x = time / timeRange;
+					x *= totalWidth;
+
+					a.x += (f32)x;
+					b.x += (f32)x;
+
+					a += ImGui::GetWindowPos();
+					b += ImGui::GetWindowPos();
+
+					drawList->AddLine(a, b, ImColor(1.0f, 1.0f, 1.0f, 0.1f));
+				}
+
+				if(hoverEntry >= 0)
+				{
+					const Math::Vec2 pos(ImGui::GetMousePos());
+					const Math::Vec2 borderSize(4.0f, 4.0f);
+					const auto& entry = profilerEntries[hoverEntry];
+
+					auto name = Core::String().Printf("%s (%.4f ms)", entry.name_.data(), (entry.endTime_ - entry.startTime_) * 1000.0);
+
+					Math::Vec2 size = ImGui::CalcTextSize(name.c_str(), nullptr);
+				
+					drawList->AddRectFilled(pos - borderSize, pos + size + borderSize, ImColor(0.0f, 0.0f, 0.0f, 0.8f));
+					drawList->AddText(ImGui::GetMousePos(), 0xffffffff, name.c_str());
+								
+				}
+			}			
+			ImGui::EndChildFrame();
+		}
+		ImGui::End();
+	}
+
 	struct ShaderTechniques
 	{
 		Core::Map<Core::String, i32> passIndices_;
-		Core::Vector<Graphics::ShaderTechnique> passTechniques_;
+		Core::Vector<ShaderTechnique> passTechniques_;
 	};
 
 	struct ObjectConstants
@@ -154,7 +488,10 @@ namespace
 	struct ViewConstants
 	{
 		Math::Mat44 view_;
+		Math::Mat44 proj_;
 		Math::Mat44 viewProj_;
+		Math::Mat44 invProj_;
+		Math::Vec2 screenDimensions_;
 	};
 
 	enum class RenderPacketType : i16
@@ -188,10 +525,10 @@ namespace
 		static const RenderPacketType TYPE = RenderPacketType::MESH;
 
 		GPU::Handle db_;
-		Graphics::ModelMeshDraw draw_;
+		ModelMeshDraw draw_;
 		ObjectConstants object_;
-		Graphics::ShaderTechniqueDesc techDesc_;
-		Graphics::Shader* shader_ = nullptr;
+		ShaderTechniqueDesc techDesc_;
+		Shader* shader_ = nullptr;
 		ShaderTechniques* techs_ = nullptr;
 
 		// tmp object state data.
@@ -203,8 +540,12 @@ namespace
 	Core::Vector<ShaderTechniques> shaderTechniques_;
 	i32 w_, h_;
 
-	void DrawRenderPackets(GPU::CommandList& cmdList, const char* passName, const GPU::DrawState& drawState, GPU::Handle fbs, GPU::Handle viewCBHandle, GPU::Handle objectCBHandle)
+	using CustomBindFn = Core::Function<bool(Shader*, ShaderTechnique&)>;
+	void DrawRenderPackets(GPU::CommandList& cmdList, const char* passName, const GPU::DrawState& drawState, 
+		GPU::Handle fbs, GPU::Handle viewCBHandle, GPU::Handle objectCBHandle, CustomBindFn customBindFn)
 	{
+		namespace Binding = GPU::Binding;
+
 		rmt_ScopedCPUSample(DrawRenderPackets, RMTSF_None);
 		if(auto event = cmdList.Eventf(0, "DrawRenderPackets(\"%s\")", passName))
 		{
@@ -218,17 +559,21 @@ namespace
 					if(passIdxIt != meshPacket->techs_->passIndices_.end() && passIdxIt->second < meshPacket->techs_->passTechniques_.size())
 					{
 						auto& tech = meshPacket->techs_->passTechniques_[passIdxIt->second];
+						bool doDraw = true;
+						if(customBindFn)
+							doDraw = customBindFn(meshPacket->shader_, tech);
 
-						i32 viewIdx = meshPacket->shader_->GetBindingIndex("ViewCBuffer");
-						i32 objectIdx = meshPacket->shader_->GetBindingIndex("ObjectCBuffer");
-						tech.SetCBV(viewIdx, viewCBHandle, 0, sizeof(ViewConstants));
-						tech.SetCBV(objectIdx, objectCBHandle, 0, sizeof(ObjectConstants));
-						if(auto pbs = tech.GetBinding())
+						if(doDraw)
 						{
-							cmdList.UpdateBuffer(objectCBHandle, 0, sizeof(meshPacket->object_), &meshPacket->object_);
-							cmdList.Draw(pbs, meshPacket->db_, fbs, drawState,
-								GPU::PrimitiveTopology::TRIANGLE_LIST, meshPacket->draw_.indexOffset_, meshPacket->draw_.vertexOffset_,
-								meshPacket->draw_.noofIndices_, 0, 1);
+							tech.Set("ViewCBuffer", Binding::CBuffer(viewCBHandle, 0, sizeof(ViewConstants)));
+							tech.Set("ObjectCBuffer", Binding::CBuffer(objectCBHandle, 0, sizeof(ObjectConstants)));
+							if(auto pbs = tech.GetBinding())
+							{
+								cmdList.UpdateBuffer(objectCBHandle, 0, sizeof(meshPacket->object_), &meshPacket->object_);
+								cmdList.Draw(pbs, meshPacket->db_, fbs, drawState,
+									GPU::PrimitiveTopology::TRIANGLE_LIST, meshPacket->draw_.indexOffset_, meshPacket->draw_.vertexOffset_,
+									meshPacket->draw_.noofIndices_, 0, 1);
+							}
 						}
 					}
 				}
@@ -236,58 +581,110 @@ namespace
 		}
 	}
 
-	class RenderPassDepthPrepass : public Graphics::RenderPass
+
+	class ComputePass : public RenderPass
+	{
+	public:
+		ComputePass(RenderGraphBuilder& builder, Shader* shader, ShaderTechnique& tech)
+			: RenderPass(builder)
+			, shader_(shader)
+			, tech_(tech)
+		{
+		}
+
+		~ComputePass()
+		{
+		}
+
+	protected:
+		void Set(const char* name, RenderGraphResource res, const GPU::BindingCBV& binding)
+		{
+			cbvs_.emplace_back(name, res, binding);
+		}
+
+		void Set(const char* name, RenderGraphResource res, const GPU::BindingSRV& binding)
+		{
+			srvs_.emplace_back(name, res, binding);
+		}
+
+		void Set(const char* name, RenderGraphResource res, const GPU::BindingUAV& binding)
+		{
+			uavs_.emplace_back(name, res, binding);
+		}
+
+		private:
+		template<typename TYPE>
+		struct BindingInfo
+		{
+			using Binding = TYPE;
+			BindingInfo() = default;
+			BindingInfo(const char* name, RenderGraphResource res, TYPE binding)
+				: name_(name)
+				, res_(res)
+				, binding_(binding)
+			{
+			}
+
+			const char* name_ = nullptr;
+			RenderGraphResource res_;
+			TYPE binding_;
+		};
+
+		using BindingInfoCBV = BindingInfo<GPU::BindingBuffer>;
+		using BindingInfoSRV = BindingInfo<GPU::BindingSRV>;
+		using BindingInfoUAV = BindingInfo<GPU::BindingUAV>;
+
+		Core::Vector<BindingInfoCBV> cbvs_;
+		Core::Vector<BindingInfoSRV> srvs_;
+		Core::Vector<BindingInfoUAV> uavs_;
+
+		Shader* shader_ = nullptr;
+		ShaderTechnique& tech_;
+	};
+
+
+	class RenderPassDepthPrepass : public RenderPass
 	{
 	public:
 		static const char* StaticGetName() { return "RenderPassDepthPrepass"; }
 
-		Graphics::RenderGraphResource ds_;
-		Graphics::RenderGraphResource viewCB_;
-		Graphics::RenderGraphResource objectCB_;
-		GPU::FrameBindingSetDesc fbsDesc_;
-		GPU::Handle fbs_;
+		RenderGraphResource ds_;
+		RenderGraphResource viewCB_;
+		RenderGraphResource objectCB_;
 		ViewConstants view_;
+		GPU::DrawState drawState_;
 
-		RenderPassDepthPrepass(Graphics::RenderGraphBuilder& builder, const Graphics::RenderGraphTextureDesc& dsDesc, Graphics::RenderGraphResource ds, const ViewConstants& view)
-			: Graphics::RenderPass(builder)
+		RenderPassDepthPrepass(RenderGraphBuilder& builder, const RenderGraphTextureDesc& dsDesc, RenderGraphResource ds, const ViewConstants& view)
+			: RenderPass(builder)
 		{
 			rmt_ScopedCPUSample(RenderPassDepthPrePass_Setup, RMTSF_None);
 
 			if(!ds)
 				ds = builder.CreateTexture("Depth", dsDesc);
-			ds_ = builder.UseDSV(this, ds, GPU::DSVFlags::NONE);
+			ds_ = builder.SetDSV(ds);
 
-			Graphics::RenderGraphTextureDesc dsTexDesc;
-			if(builder.GetTexture(ds_, &dsTexDesc))
-			{
-				fbsDesc_.dsv_.format_ = dsTexDesc.format_;
-				fbsDesc_.dsv_.dimension_ = GPU::ViewDimension::TEX2D;
-			}
-
-			Graphics::RenderGraphBufferDesc viewCBDesc;
-			viewCBDesc.size_ = sizeof(ViewConstants);
-			viewCB_ = builder.UseCBV(this, builder.CreateBuffer("DPP View Constants", viewCBDesc), true);
-
-			Graphics::RenderGraphBufferDesc objectCBDesc;
-			objectCBDesc.size_ = sizeof(ObjectConstants);
-			objectCB_ = builder.UseCBV(this, builder.CreateBuffer("DPP Object Constants", objectCBDesc), true);
+			viewCB_ = builder.UseCBV(builder.CreateBuffer("DPP View Constants", RenderGraphBufferDesc(sizeof(ViewConstants))), true);
+			objectCB_ = builder.UseCBV(builder.CreateBuffer("DPP Object Constants", RenderGraphBufferDesc(sizeof(ObjectConstants))), true);
 
 			view_ = view;
+
+			drawState_.scissorRect_.w_ = dsDesc.width_;
+			drawState_.scissorRect_.h_ = dsDesc.height_;
+			drawState_.viewport_.w_ = (f32)dsDesc.width_;
+			drawState_.viewport_.h_ = (f32)dsDesc.height_;
 		};
 
 		virtual ~RenderPassDepthPrepass()
 		{
-			/// TODO: Should be managed by frame graph.
-			GPU::Manager::DestroyResource(fbs_);
 		}
 
-		void Execute(Graphics::RenderGraphResources& res, GPU::CommandList& cmdList) override
+		void Execute(RenderGraphResources& res, GPU::CommandList& cmdList) override
 		{
+			namespace Binding = GPU::Binding;
+
 			rmt_ScopedCPUSample(RenderPassDepthPrePass_Execute, RMTSF_None);
 
-			Graphics::RenderGraphTextureDesc dsTexDesc;
-			fbsDesc_.dsv_.resource_ = res.GetTexture(ds_, &dsTexDesc);
-			fbs_ = GPU::Manager::CreateFrameBindingSet(fbsDesc_, StaticGetName());
+			auto fbs = res.GetFrameBindingSet();
 
 			// Grab constant buffers.
 			GPU::Handle viewCBHandle = res.GetBuffer(viewCB_);
@@ -300,116 +697,372 @@ namespace
 			}
 
 			// Clear depth buffer.
-			cmdList.ClearDSV(fbs_, 1.0f, 0);
+			cmdList.ClearDSV(fbs, 1.0f, 0);
 
-			GPU::DrawState drawState;
-			drawState.scissorRect_.w_ = dsTexDesc.width_;
-			drawState.scissorRect_.h_ = dsTexDesc.height_;
-			drawState.viewport_.w_ = (f32)dsTexDesc.width_;
-			drawState.viewport_.h_ = (f32)dsTexDesc.height_;
-
-			DrawRenderPackets(cmdList, StaticGetName(), drawState, fbs_, viewCBHandle, objectCBHandle);
+			// Draw all render packets that are valid for this pass.
+			DrawRenderPackets(cmdList, StaticGetName(), drawState_, fbs, viewCBHandle, objectCBHandle, nullptr);
 		}
 	};
 
-	class RenderPassForward : public Graphics::RenderPass
+	struct Light
+	{
+		u32 enabled_ = 0;
+		Math::Vec3 position_ = Math::Vec3(0.0f, 0.0f, 0.0f);
+		Math::Vec3 color_ = Math::Vec3(0.0f, 0.0f, 0.0f);
+		Math::Vec3 attenuation_ = Math::Vec3(1.0f, 0.2f, 0.1f);
+		float intensity_ = 0.0f;
+	};
+
+	struct LightLink
+	{
+		i32 lightIdx_;
+		i32 next_;
+	};
+
+	struct LightConstants
+	{
+		u32 tileSizeX_;
+		u32 tileSizeY_;
+		u32 numTilesX_;
+		u32 numTilesY_;
+		u32 numLights_;
+	};
+
+	Core::Vector<Light> lights_;
+	i32 lightBufferSize_ = 64 * 1024;
+
+	class RenderPassLightCulling : public RenderPass
+	{
+	public:
+		static const char* StaticGetName() { return "RenderPassLightCulling"; }
+
+		RenderGraphResource depthTex_;
+		RenderGraphResource tileInfo_;
+		RenderGraphResource viewCB_;
+		RenderGraphResource lightCB_;
+
+		RenderGraphResource tileInfoSB_;
+		RenderGraphResource lightSB_;
+
+		RenderGraphResource lightLinkIndexSB_;
+		RenderGraphResource lightLinkSB_;
+
+		RenderGraphResource debugTileInfo_;
+
+		struct TileInfo
+		{
+			Math::Plane planes_[4];
+			Math::Vec4 depthMinMax_;
+		};
+
+		u32 baseLightLinkIdx_;
+
+		ViewConstants view_;
+		LightConstants light_;
+
+		Shader* shader_;
+		ShaderTechnique& techComputeTileInfo_;
+		ShaderTechnique& techComputeLightLists_;
+		ShaderTechnique& techDebugTileInfo_;
+
+		RenderPassLightCulling(RenderGraphBuilder& builder, Shader* shader, ShaderTechnique& techComputeTileInfo, ShaderTechnique& techComputeLightLists, ShaderTechnique& techDebugTileInfo, const RenderGraphTextureDesc& dsDesc, RenderGraphResource ds, const ViewConstants& view)
+			: RenderPass(builder)
+			, shader_(shader)
+			, techComputeTileInfo_(techComputeTileInfo)
+			, techComputeLightLists_(techComputeLightLists)
+			, techDebugTileInfo_(techDebugTileInfo)
+		{
+			rmt_ScopedCPUSample(RenderPassLightCulling_Setup, RMTSF_None);
+
+			depthTex_ = builder.UseSRV(ds);
+
+			RenderGraphBufferDesc viewCBDesc;
+			viewCBDesc.size_ = sizeof(ViewConstants);
+			viewCB_ = builder.UseCBV(builder.CreateBuffer("LC View Constants", viewCBDesc), true);
+
+			light_.numLights_ = lights_.size();
+			light_.tileSizeX_ = 16;
+			light_.tileSizeY_ = 16;
+			light_.numTilesX_ = dsDesc.width_ / light_.tileSizeX_;
+			light_.numTilesY_ = dsDesc.height_ / light_.tileSizeY_;
+
+			baseLightLinkIdx_ = light_.numTilesX_ * light_.numTilesY_;
+
+			tileInfoSB_ = builder.UseUAV(builder.CreateBuffer("LC Tile Info SB", RenderGraphBufferDesc(sizeof(TileInfo) * light_.numTilesX_ * light_.numTilesY_)));
+			lightSB_ = builder.UseSRV(builder.CreateBuffer("LC LightSB", RenderGraphBufferDesc(sizeof(Light) * light_.numLights_)));
+			lightCB_ = builder.UseCBV(builder.CreateBuffer("LC Params Constants", RenderGraphBufferDesc(sizeof(LightConstants))), true);
+			lightLinkIndexSB_ = builder.UseUAV(builder.CreateBuffer("LC Light Link Index SB", RenderGraphBufferDesc(sizeof(u32))));
+			lightLinkSB_ = builder.UseUAV(builder.CreateBuffer("LC Light Link SB", RenderGraphBufferDesc(sizeof(LightLink) * lightBufferSize_)));
+			debugTileInfo_ = builder.UseUAV(builder.CreateTexture("LC Debug Tile Info", RenderGraphTextureDesc(GPU::TextureType::TEX2D, GPU::Format::R32G32B32A32_FLOAT, light_.numTilesX_, light_.numTilesY_)));
+
+			view_ = view;
+		};
+
+		virtual ~RenderPassLightCulling()
+		{
+		}
+
+		void Execute(RenderGraphResources& res, GPU::CommandList& cmdList) override
+		{
+			namespace Binding = GPU::Binding;
+
+			rmt_ScopedCPUSample(RenderPassLightCulling_Execute, RMTSF_None);
+
+			// Update constants.
+			if(auto event = cmdList.Event(0, "Update Constants"))
+			{
+				cmdList.UpdateBuffer(res.GetBuffer(viewCB_), 0, sizeof(view_), &view_);
+				cmdList.UpdateBuffer(res.GetBuffer(lightCB_), 0, sizeof(light_), &light_);
+			}
+
+			// Update lights.
+			if(auto event = cmdList.Event(0, "Update Lights"))
+			{
+				cmdList.UpdateBuffer(res.GetBuffer(lightSB_), 0, sizeof(Light) * light_.numLights_, lights_.data());
+
+				// Initialize light link index to first element after number of tiles.
+				cmdList.UpdateBuffer(res.GetBuffer(lightLinkIndexSB_), 0, sizeof(u32), &baseLightLinkIdx_);
+			}
+
+			// Grab binding indices.
+			auto view = shader_->GetBindingIndex("ViewCBuffer");
+			auto light = shader_->GetBindingIndex("LightCBuffer");
+			auto inTileInfo = shader_->GetBindingIndex("inTileInfo");
+			auto outTileInfo = shader_->GetBindingIndex("outTileInfo");
+			auto inLights = shader_->GetBindingIndex("inLights");
+			auto debug = shader_->GetBindingIndex("outDebug");
+			auto lightLinkIndex = shader_->GetBindingIndex("lightLinkIndex");
+			auto outLightLinks = shader_->GetBindingIndex("outLightLinks");
+			auto inLightLinks = shader_->GetBindingIndex("inLightLinks");
+			auto depthTex = shader_->GetBindingIndex("depthTex");
+
+			if(auto event = cmdList.Event(0, "Compute tile info"))
+			{
+				techComputeTileInfo_.Set(view, res.CBuffer(viewCB_, 0, sizeof(ViewConstants)));
+				techComputeTileInfo_.Set(light, res.CBuffer(lightCB_, 0, sizeof(LightConstants)));
+				techComputeTileInfo_.Set(outTileInfo, res.RWBuffer(tileInfoSB_, GPU::Format::INVALID, 0, light_.numTilesX_ * light_.numTilesY_, sizeof(TileInfo)));
+				techComputeTileInfo_.Set(depthTex, res.Texture2D(depthTex_, GPU::Format::R24_UNORM_X8_TYPELESS, 0, 1));
+				if(auto binding = techComputeTileInfo_.GetBinding())
+				{
+					cmdList.Dispatch(binding, light_.numTilesX_, light_.numTilesY_, 1);
+				}
+			}
+
+			if(auto event = cmdList.Event(0, "Compute light lists"))
+			{
+				techComputeLightLists_.Set(view, res.CBuffer(viewCB_, 0, sizeof(ViewConstants)));
+				techComputeLightLists_.Set(light, res.CBuffer(lightCB_, 0, sizeof(LightConstants)));
+				techComputeLightLists_.Set(inTileInfo, res.Buffer(tileInfoSB_, GPU::Format::INVALID, 0, light_.numTilesX_ * light_.numTilesY_, sizeof(TileInfo)));
+				techComputeLightLists_.Set(inLights, res.Buffer(lightSB_, GPU::Format::INVALID, 0, light_.numLights_, sizeof(Light)));
+				techComputeLightLists_.Set(lightLinkIndex, res.RWBuffer(lightLinkIndexSB_, GPU::Format::R32_TYPELESS, 0, sizeof(u32), 0));
+				techComputeLightLists_.Set(outLightLinks, res.RWBuffer(lightLinkSB_, GPU::Format::INVALID, 0, lightBufferSize_, sizeof(LightLink)));
+
+				if(auto binding = techComputeLightLists_.GetBinding())
+				{
+					cmdList.Dispatch(binding, light_.numTilesX_, light_.numTilesY_, 1);
+				}
+			}
+
+			if(auto event = cmdList.Event(0, "Debug tile info"))
+			{
+				techDebugTileInfo_.Set(view, res.CBuffer(viewCB_, 0, sizeof(ViewConstants)));
+				techDebugTileInfo_.Set(light, res.CBuffer(lightCB_, 0, sizeof(LightConstants)));
+				techDebugTileInfo_.Set(inTileInfo, res.Buffer(tileInfoSB_, GPU::Format::INVALID, 0, light_.numTilesX_ * light_.numTilesY_, sizeof(TileInfo)));
+				techDebugTileInfo_.Set(inLights, res.Buffer(lightSB_, GPU::Format::INVALID, 0, light_.numLights_, sizeof(Light)));
+				techDebugTileInfo_.Set(inLightLinks, res.Buffer(lightLinkSB_, GPU::Format::INVALID, 0, lightBufferSize_, sizeof(LightLink)));
+				techDebugTileInfo_.Set(debug, res.RWTexture2D(debugTileInfo_, GPU::Format::R32G32B32A32_FLOAT));
+	
+				if(auto binding = techDebugTileInfo_.GetBinding())
+				{
+					cmdList.Dispatch(binding, light_.numTilesX_, light_.numTilesY_, 1);
+				}
+			}
+		}
+	};
+
+	class RenderPassForward : public RenderPass
 	{
 	public:
 		static const char* StaticGetName() { return "RenderPassForward"; }
 
-		Graphics::RenderGraphResource color_;
-		Graphics::RenderGraphResource ds_;
-		Graphics::RenderGraphResource viewCB_;
-		Graphics::RenderGraphResource objectCB_;
-		GPU::FrameBindingSetDesc fbsDesc_;
-		GPU::Handle fbs_;
+		RenderGraphResource color_;
+		RenderGraphResource ds_;
+		RenderGraphResource viewCB_;
+		RenderGraphResource objectCB_;
+
+		RenderGraphResource lightCB_;
+		RenderGraphResource lightSB_;
+		RenderGraphResource lightLinkSB_;
+
 		ViewConstants view_;
 
-		RenderPassForward(Graphics::RenderGraphBuilder& builder, const Graphics::RenderGraphTextureDesc& colorDesc, Graphics::RenderGraphResource color,
-			const Graphics::RenderGraphTextureDesc& dsDesc, Graphics::RenderGraphResource ds, const ViewConstants& view)
-			: Graphics::RenderPass(builder)
+		RenderPassForward(RenderGraphBuilder& builder, RenderGraphResource lightCB, RenderGraphResource lightSB, RenderGraphResource lightLinkSB, const RenderGraphTextureDesc& colorDesc, RenderGraphResource color,
+			const RenderGraphTextureDesc& dsDesc, RenderGraphResource ds, const ViewConstants& view)
+			: RenderPass(builder)
 		{
 			rmt_ScopedCPUSample(RenderPassForward_Setup, RMTSF_None);
 
-			color_ = builder.UseRTV(this, color);
+			lightCB_ = builder.UseCBV(lightCB, false);
+			lightSB_ = builder.UseSRV(lightSB);
+			lightLinkSB_ = builder.UseSRV(lightLinkSB);
+
+			if(!color)
+				color = builder.CreateTexture("Color", colorDesc);
+			color_ = builder.SetRTV(0, color);
 			if(!ds)
 				ds = builder.CreateTexture("Depth", dsDesc);
-			ds_ = builder.UseDSV(this, ds, GPU::DSVFlags::NONE);
+			ds_ = builder.SetDSV(ds);
 
-			Graphics::RenderGraphTextureDesc rtTexDesc;
-			Graphics::RenderGraphTextureDesc dsTexDesc;
-			if(builder.GetTexture(color_, &rtTexDesc) && builder.GetTexture(ds_, &dsTexDesc))
-			{
-				fbsDesc_.rtvs_[0].format_ = rtTexDesc.format_;
-				fbsDesc_.rtvs_[0].dimension_ = GPU::ViewDimension::TEX2D;
-				fbsDesc_.dsv_.format_ = dsTexDesc.format_;
-				fbsDesc_.dsv_.dimension_ = GPU::ViewDimension::TEX2D;
-			}
-
-			Graphics::RenderGraphBufferDesc viewCBDesc;
+			RenderGraphBufferDesc viewCBDesc;
 			viewCBDesc.size_ = sizeof(ViewConstants);
-			viewCB_ = builder.UseCBV(this, builder.CreateBuffer("FWD View Constants", viewCBDesc), true);
+			viewCB_ = builder.UseCBV(builder.CreateBuffer("FWD View Constants", viewCBDesc), true);
 
-			Graphics::RenderGraphBufferDesc objectCBDesc;
+			RenderGraphBufferDesc objectCBDesc;
 			objectCBDesc.size_ = sizeof(ObjectConstants);
-			objectCB_ = builder.UseCBV(this, builder.CreateBuffer("FWD Object Constants", objectCBDesc), true);
+			objectCB_ = builder.UseCBV(builder.CreateBuffer("FWD Object Constants", objectCBDesc), true);
 
 			view_ = view;
 		};
 
 		virtual ~RenderPassForward()
 		{
-			/// TODO: Should be managed by frame graph.
-			GPU::Manager::DestroyResource(fbs_);
 		}
 
-		void Execute(Graphics::RenderGraphResources& res, GPU::CommandList& cmdList) override
+		void Execute(RenderGraphResources& res, GPU::CommandList& cmdList) override
 		{
+			namespace Binding = GPU::Binding;
+
 			rmt_ScopedCPUSample(RenderPassForward_Execute, RMTSF_None);
 
-			Graphics::RenderGraphTextureDesc rtTexDesc;
-			Graphics::RenderGraphTextureDesc dsTexDesc;
-			fbsDesc_.rtvs_[0].resource_ = res.GetTexture(color_, &rtTexDesc);
-			fbsDesc_.dsv_.resource_ = res.GetTexture(ds_, &dsTexDesc);
-			fbs_ = GPU::Manager::CreateFrameBindingSet(fbsDesc_, StaticGetName());
-
-			// Grab constant buffers.
-			GPU::Handle viewCBHandle = res.GetBuffer(viewCB_);
-			GPU::Handle objectCBHandle = res.GetBuffer(objectCB_);
+			auto fbs = res.GetFrameBindingSet();
 
 			// Update view constants.
-			cmdList.UpdateBuffer(viewCBHandle, 0, sizeof(view_), &view_);
+			cmdList.UpdateBuffer(res.GetBuffer(viewCB_), 0, sizeof(view_), &view_);
 
 			// Clear color buffer.
 			f32 color[] = {0.1f, 0.1f, 0.2f, 1.0f};
-			cmdList.ClearRTV(fbs_, 0, color);
+			cmdList.ClearRTV(fbs, 0, color);
+
+			RenderGraphTextureDesc texDesc;
+			res.GetTexture(this->color_, &texDesc);
 
 			GPU::DrawState drawState;
-			drawState.scissorRect_.w_ = rtTexDesc.width_;
-			drawState.scissorRect_.h_ = rtTexDesc.height_;
-			drawState.viewport_.w_ = (f32)rtTexDesc.width_;
-			drawState.viewport_.h_ = (f32)rtTexDesc.height_;
+			drawState.scissorRect_.w_ = texDesc.width_;
+			drawState.scissorRect_.h_ = texDesc.height_;
+			drawState.viewport_.w_ = (f32)texDesc.width_;
+			drawState.viewport_.h_ = (f32)texDesc.height_;
 
-			DrawRenderPackets(cmdList, StaticGetName(), drawState, fbs_, viewCBHandle, objectCBHandle);
+			DrawRenderPackets(cmdList, StaticGetName(), drawState, fbs, res.GetBuffer(viewCB_), res.GetBuffer(objectCB_), 
+				[&](Shader* shader, ShaderTechnique& tech)
+			{
+				tech.Set("LightCBuffer", res.CBuffer(lightCB_, 0, sizeof(LightConstants)));
+				tech.Set("inLights", res.Buffer(lightSB_, GPU::Format::INVALID, 0, lights_.size(), sizeof(Light)));
+				tech.Set("inLightLinks", res.Buffer(lightLinkSB_, GPU::Format::INVALID, 0, lightBufferSize_, sizeof(LightLink)));
+				return true;
+			});
+		}
+	};
+
+	class RenderPassFullscreen : public RenderPass
+	{
+	public:
+		static const char* StaticGetName() { return "RenderPassFullscreen"; }
+
+		RenderGraphResource color_;
+		RenderGraphResource input_;
+
+		Shader* shader_; 
+		ShaderTechnique tech_;
+
+		RenderPassFullscreen(RenderGraphBuilder& builder, Shader* shader, RenderGraphResource color, RenderGraphResource input)
+			: RenderPass(builder)
+			, shader_(shader)
+		{
+			rmt_ScopedCPUSample(RenderPassFullscreen_Setup, RMTSF_None);
+
+			color_ = builder.SetRTV(0, color);
+			input_ = builder.UseSRV(input);
+		};
+
+		virtual ~RenderPassFullscreen()
+		{
+		}
+
+		void Execute(RenderGraphResources& res, GPU::CommandList& cmdList) override
+		{
+			namespace Binding = GPU::Binding;
+
+			rmt_ScopedCPUSample(RenderPassFullscreen_Execute, RMTSF_None);
+			GPU::FrameBindingSetDesc fbsDesc;
+			auto fbs = res.GetFrameBindingSet(&fbsDesc);
+
+			ShaderTechniqueDesc techDesc;
+			techDesc.SetFrameBindingSet(fbsDesc);
+			techDesc.SetTopology(GPU::TopologyType::TRIANGLE);
+			auto tech = shader_->CreateTechnique("TECH_FULLSCREEN", techDesc);
+
+			RenderGraphTextureDesc texDesc;
+			res.GetTexture(this->color_, &texDesc);
+
+			GPU::DrawState drawState;
+			drawState.scissorRect_.w_ = texDesc.width_;
+			drawState.scissorRect_.h_ = texDesc.height_;
+			drawState.viewport_.w_ = (f32)texDesc.width_;
+			drawState.viewport_.h_ = (f32)texDesc.height_;
+
+			tech.Set("debugTex", res.Texture2D(input_, GPU::Format::INVALID, 0, -1));
+			if(auto binding = tech.GetBinding())
+			{
+				cmdList.Draw(binding, GPU::Handle(), fbs, drawState, GPU::PrimitiveTopology::TRIANGLE_LIST, 0, 0, 3, 0, 1);
+			}
+
 		}
 	};
 
 
 	static const char* FORWARD_RESOURCE_NAMES[] = {"in_color", "in_depth", "out_color", "out_depth"};
 
-	class ForwardPipeline : public Graphics::Pipeline
+	class ForwardPipeline : public Pipeline
 	{
 	public:
-		ForwardPipeline()
-			: Graphics::Pipeline(FORWARD_RESOURCE_NAMES)
+		enum class DebugMode
 		{
+			OFF,
+			LIGHT_CULLING,
+
+			MAX,
+		};
+
+		DebugMode debugMode_ = DebugMode::OFF;
+
+		Shader* shader_ = nullptr;
+		ShaderTechnique techComputeTileInfo_;
+		ShaderTechnique techComputeLightLists_;
+		ShaderTechnique techDebugTileInfo_;
+
+		ForwardPipeline()
+			: Pipeline(FORWARD_RESOURCE_NAMES)
+		{
+			Resource::Manager::RequestResource(shader_, "shader_tests/forward_pipeline.esf");
+			Resource::Manager::WaitForResource(shader_);
+
+			ShaderTechniqueDesc desc;
+			techComputeTileInfo_ = shader_->CreateTechnique("TECH_COMPUTE_TILE_INFO", desc);
+			techComputeLightLists_ = shader_->CreateTechnique("TECH_COMPUTE_LIGHT_LISTS", desc);
+			techDebugTileInfo_ = shader_->CreateTechnique("TECH_DEBUG_TILE_INFO", desc);
 		}
 
-		virtual ~ForwardPipeline() {}
-		
-		Graphics::RenderGraphTextureDesc GetDefaultTextureDesc(i32 w, i32 h)
+		virtual ~ForwardPipeline()
 		{
-			Graphics::RenderGraphTextureDesc desc;
+			techComputeTileInfo_ = ShaderTechnique();
+			techComputeLightLists_ = ShaderTechnique();
+			techDebugTileInfo_ = ShaderTechnique();
+			Resource::Manager::ReleaseResource(shader_);
+		}
+		
+		RenderGraphTextureDesc GetDefaultTextureDesc(i32 w, i32 h)
+		{
+			RenderGraphTextureDesc desc;
 			desc.type_ = GPU::TextureType::TEX2D;
 			desc.width_ = w;
 			desc.height_ = h;
@@ -417,18 +1070,18 @@ namespace
 			return desc;
 		}
 
-		Graphics::RenderGraphTextureDesc GetDepthTextureDesc(i32 w, i32 h)
+		RenderGraphTextureDesc GetDepthTextureDesc(i32 w, i32 h)
 		{
-			Graphics::RenderGraphTextureDesc desc;
+			RenderGraphTextureDesc desc;
 			desc.type_ = GPU::TextureType::TEX2D;
 			desc.width_ = w;
 			desc.height_ = h;
-			desc.format_ = GPU::Format::D24_UNORM_S8_UINT;
+			desc.format_ = GPU::Format::R24G8_TYPELESS;
 			return desc;
 		}
 
 		/// Create appropriate shader technique for pipeline.
-		void CreateTechniques(Graphics::Shader* shader, Graphics::ShaderTechniqueDesc desc, ShaderTechniques& outTechniques)
+		void CreateTechniques(Shader* shader, ShaderTechniqueDesc desc, ShaderTechniques& outTechniques)
 		{
 			auto AddTechnique = [&](const char* name)
 			{
@@ -442,7 +1095,8 @@ namespace
 				auto idxIt = outTechniques.passIndices_.find(name);
 				if(idxIt != outTechniques.passIndices_.end())
 				{
-					outTechniques.passTechniques_[idxIt->second] = shader->CreateTechnique(name, desc);
+					if(!outTechniques.passTechniques_[idxIt->second])
+						outTechniques.passTechniques_[idxIt->second] = shader->CreateTechnique(name, desc);
 				}
 				else
 				{
@@ -455,25 +1109,41 @@ namespace
 			AddTechnique(RenderPassForward::StaticGetName());
 		}
 
-		void SetCamera(const Math::Mat44& view, const Math::Mat44& proj)
+		void SetCamera(const Math::Mat44& view, const Math::Mat44& proj, Math::Vec2 screenDimensions)
 		{
 			view_.view_ = view;
+			view_.proj_ = proj;
 			view_.viewProj_ = view * proj;
+			view_.invProj_ = proj;
+			view_.invProj_.Inverse();
+			view_.screenDimensions_ = screenDimensions;
 		}
 		
-		void Setup(Graphics::RenderGraph& renderGraph) override
+		void Setup(RenderGraph& renderGraph) override
 		{
 			i32 w = w_;
 			i32 h = h_;
-						
+
 			auto& renderPassDepthPrepass = renderGraph.AddRenderPass<RenderPassDepthPrepass>("Depth Prepass", GetDepthTextureDesc(w, h), resources_[1], view_);
+			fbsDescs_.insert(RenderPassDepthPrepass::StaticGetName(), renderPassDepthPrepass.GetFrameBindingDesc());
 
-			auto& renderPassForward = renderGraph.AddRenderPass<RenderPassForward>("Forward", GetDefaultTextureDesc(w, h), resources_[0], GetDepthTextureDesc(w, h), renderPassDepthPrepass.ds_, view_);
-			resources_[2] = renderPassForward.color_;
-			resources_[3] = renderPassForward.ds_;
+			auto& renderPassLightCulling = renderGraph.AddRenderPass<RenderPassLightCulling>("Light Culling", shader_, techComputeTileInfo_, techComputeLightLists_, techDebugTileInfo_, GetDepthTextureDesc(w, h), renderPassDepthPrepass.ds_, view_);
 
-			fbsDescs_.insert(RenderPassDepthPrepass::StaticGetName(), renderPassDepthPrepass.fbsDesc_);
-			fbsDescs_.insert(RenderPassForward::StaticGetName(), renderPassForward.fbsDesc_);
+			if(debugMode_ == DebugMode::LIGHT_CULLING)
+			{
+				auto& renderPassFullscreen = renderGraph.AddRenderPass<RenderPassFullscreen>("Fullscreen", shader_, resources_[0], renderPassLightCulling.debugTileInfo_);
+				resources_[2] = renderPassFullscreen.color_;
+			}
+			else
+			{
+				auto& renderPassForward = renderGraph.AddRenderPass<RenderPassForward>("Forward", 
+					renderPassLightCulling.lightCB_, renderPassLightCulling.lightSB_, renderPassLightCulling.lightLinkSB_,
+					GetDefaultTextureDesc(w, h), resources_[0], 
+					GetDepthTextureDesc(w, h), renderPassDepthPrepass.ds_, view_);
+				resources_[2] = renderPassForward.color_;
+				resources_[3] = renderPassForward.ds_;
+				fbsDescs_.insert(RenderPassForward::StaticGetName(), renderPassForward.GetFrameBindingDesc());
+			}
 		}
 
 		bool HaveExecuteErrors() const override { return false; }
@@ -490,16 +1160,22 @@ void Loop()
 	ImGui::Manager::Scoped imgui;
 	ImGuiPipeline imguiPipeline;
 	ForwardPipeline forwardPipeline;
-	Graphics::RenderGraph graph;
+	RenderGraph graph;
 
 	// Load shader + teapot model.
-	Graphics::Shader* shader = nullptr;
-	DBG_ASSERT(Resource::Manager::RequestResource(shader, "shader_tests/simple-mesh.esf"));
+	Shader* shader = nullptr;
+	Resource::Manager::RequestResource(shader, "shader_tests/simple-mesh.esf");
 	Resource::Manager::WaitForResource(shader);
 
-	Graphics::Model* model = nullptr;
-	DBG_ASSERT(Resource::Manager::RequestResource(model, "model_tests/teapot.obj"));
+	Model* model = nullptr;
+	Resource::Manager::RequestResource(model, "model_tests/teapot.obj");
 	Resource::Manager::WaitForResource(model);
+
+	Model* sponzaModel = nullptr;
+#if LOAD_SPONZA
+	Resource::Manager::RequestResource(sponzaModel, "model_tests/crytek-sponza/sponza.obj");
+	Resource::Manager::WaitForResource(sponzaModel);
+#endif
 
 	// Create some render packets.
 	// For now, they can be permenent.
@@ -517,31 +1193,79 @@ void Loop()
 		Math::Vec3(  5.0f,  0.0f,   5.0f),
 		Math::Vec3( 10.0f,  0.0f,   5.0f),	
 	};
-	shaderTechniques_.reserve(model->GetNumMeshes() * 100);
-	for(const auto& position : positions)
+
+	Light light = {};
+	light.enabled_ = 1;
+	light.position_ = Math::Vec3(1000.0f, 1000.0f, 1000.0f);
+	light.color_.x = 1.0f;
+	light.color_.y = 1.0f;
+	light.color_.z = 1.0f;
+	light.attenuation_ = Math::Vec3(10.0f, 0.0f, 0.0f);
+	lights_.push_back(light);
+
+	shaderTechniques_.reserve(model->GetNumMeshes() * 1000);
 	{
-		for(i32 idx = 0; idx < model->GetNumMeshes(); ++idx)
+		f32 r = 0.0f, g = 0.0f, b = 0.0f, h = 0.0f, s = 1.0f, v = 1.0f;
+		for(const auto& position : positions)
+		{
+			ImGui::ColorConvertHSVtoRGB(h, s, v, r, g, b);
+			h += 0.1f;
+			light.enabled_ = 1;
+			light.position_ = position + Math::Vec3(0.0f, 5.0f, 0.0f);
+			light.color_.x = r;
+			light.color_.y = g;
+			light.color_.z = b;
+			light.attenuation_ = Math::Vec3(1.0f, 0.5f, 0.1f);
+			lights_.push_back(light);
+			for(i32 idx = 0; idx < model->GetNumMeshes(); ++idx)
+			{
+				ShaderTechniques techniques;
+				ShaderTechniqueDesc techDesc;
+				techDesc.SetVertexElements(model->GetMeshVertexElements(idx));				
+				techDesc.SetTopology(GPU::TopologyType::TRIANGLE);
+		
+				MeshRenderPacket packet;
+				packet.db_ = model->GetMeshDrawBinding(idx);
+				packet.draw_ = model->GetMeshDraw(idx);
+				packet.techDesc_ = techDesc;
+				packet.shader_ = shader;
+				packet.techs_ = &*shaderTechniques_.emplace_back(std::move(techniques));
+
+				packet.angle_ = angle;
+				packet.position_ = position;
+
+				angle += 0.5f;
+
+				packets_.emplace_back(new MeshRenderPacket(packet));
+			}
+		}
+	}
+
+	if(sponzaModel)
+	{
+		for(i32 idx = 0; idx < sponzaModel->GetNumMeshes(); ++idx)
 		{
 			ShaderTechniques techniques;
-			Graphics::ShaderTechniqueDesc techDesc;
-			techDesc.SetVertexElements(model->GetMeshVertexElements(idx));				
+			ShaderTechniqueDesc techDesc;
+			techDesc.SetVertexElements(sponzaModel->GetMeshVertexElements(idx));				
 			techDesc.SetTopology(GPU::TopologyType::TRIANGLE);
 		
 			MeshRenderPacket packet;
-			packet.db_ = model->GetMeshDrawBinding(idx);
-			packet.draw_ = model->GetMeshDraw(idx);
+			packet.db_ = sponzaModel->GetMeshDrawBinding(idx);
+			packet.draw_ = sponzaModel->GetMeshDraw(idx);
 			packet.techDesc_ = techDesc;
 			packet.shader_ = shader;
 			packet.techs_ = &*shaderTechniques_.emplace_back(std::move(techniques));
 
 			packet.angle_ = angle;
-			packet.position_ = position;
+			packet.position_ = Math::Vec3(0.0f, 0.0f, 0.0f);
 
 			angle += 0.5f;
 
 			packets_.emplace_back(new MeshRenderPacket(packet));
 		}
 	}
+	
 
 	const Client::IInputProvider& input = engine.window.GetInputProvider();
 
@@ -601,12 +1325,14 @@ void Loop()
 				times_.waitForFrameSubmit_ = Core::Timer::GetAbsoluteTime();
 				while(Job::Manager::GetCounterValue(frameSubmitCounter) > 0)
 				{
-					Client::Manager::Update();
+					//Client::Manager::PumpMessages();
 					Job::Manager::YieldCPU();
 				}
 				Job::Manager::WaitForCounter(frameSubmitCounter, 0);
 				times_.waitForFrameSubmit_ = Core::Timer::GetAbsoluteTime() - times_.waitForFrameSubmit_;
 			}
+
+			camera_.Update(input, (f32)times_.frame_);
 
 			i32 w = w_;
 			i32 h = h_;
@@ -634,192 +1360,13 @@ void Loop()
 			}
 			times_.getProfileData_ = Core::Timer::GetAbsoluteTime() - times_.getProfileData_;
 
-			Graphics::RenderGraphResource scRes;
-			Graphics::RenderGraphResource dsRes;
+			RenderGraphResource scRes;
+			RenderGraphResource dsRes;
 
 			ImGui::Manager::BeginFrame(input, w_, h_);
 
 			times_.profilerUI_ = Core::Timer::GetAbsoluteTime();
-			if(ImGui::Begin("Job Profiler"))
-			{
-				bool oldProfilingEnabled = profilingEnabled;
-				ImGui::Checkbox("Enable Profiling", &profilingEnabled);
-				static f32 totalTimeMS = 16.0f;
-				ImGui::SliderFloat("Total Time", &totalTimeMS, 1.0f, 100.0f);
-				if(oldProfilingEnabled != profilingEnabled)
-				{
-					if(profilingEnabled)
-						Job::Manager::BeginProfiling();
-					else
-						Job::Manager::EndProfiling(nullptr, 0);
-				}
-
-				Core::Array<ImColor, 12> colors = 
-				{
-					ImColor(0.8f, 0.0f, 0.0f, 1.0f),
-					ImColor(0.0f, 0.8f, 0.0f, 1.0f),
-					ImColor(0.0f, 0.0f, 0.8f, 1.0f),
-					ImColor(0.0f, 0.8f, 0.8f, 1.0f),
-					ImColor(0.8f, 0.0f, 0.8f, 1.0f),
-					ImColor(0.8f, 0.8f, 0.0f, 1.0f),
-					ImColor(0.4f, 0.0f, 0.0f, 1.0f),
-					ImColor(0.0f, 0.4f, 0.0f, 1.0f),
-					ImColor(0.0f, 0.0f, 0.4f, 1.0f),
-					ImColor(0.0f, 0.4f, 0.4f, 1.0f),
-					ImColor(0.4f, 0.0f, 0.4f, 1.0f),
-					ImColor(0.4f, 0.4f, 0.0f, 1.0f),
-				};
-
-				i32 numJobs = 0;
-				i32 numWorkers = 0;
-				f64 minTime = Core::Timer::GetAbsoluteTime();
-				f64 maxTime = 0.0;
-
-				for(i32 idx = 0; idx < numProfilerEntries; ++idx)
-				{
-					const auto& profilerEntry = profilerEntries[idx];
-					numJobs = Core::Max(numJobs, profilerEntry.jobIdx_ + 1);
-					numWorkers = Core::Max(numWorkers, profilerEntry.workerIdx_ + 1);
-					minTime = Core::Min(minTime, profilerEntry.startTime_);
-					maxTime = Core::Max(maxTime, profilerEntry.endTime_);
-				}
-				numWorkers = Core::Max(8, numWorkers);
-
-				ImGui::Text("Number of jobs: %i", numJobs);
-				ImGui::Text("Number of entries: %i", numProfilerEntries);
-				ImGui::Separator();
-				ImGui::BeginChildFrame(0, Math::Vec2(ImGui::GetWindowWidth(), numWorkers * 50.0f));
-
-				f32 profileDrawOffsetX = 0.0f;
-				f32 profileDrawOffsetY = ImGui::GetCursorPosY();
-				f32 profileDrawAdvanceY = 0.0f;
-				for(i32 idx = 0; idx < numWorkers; ++idx)
-				{
-					auto text = Core::String().Printf("Worker %i", idx);
-					auto size = ImGui::CalcTextSize(text.c_str(), nullptr);
-					ImGui::Text(text.c_str());
-					ImGui::Separator();
-
-					profileDrawOffsetX = Core::Max(profileDrawOffsetX, size.x);
-
-					if(profileDrawAdvanceY == 0.0f)
-					{
-						profileDrawAdvanceY = ImGui::GetCursorPosY() - profileDrawOffsetY;
-					}
-				}
-
-				if(numProfilerEntries > 0)
-				{
-					const f64 timeRange = totalTimeMS / 1000.0f;//maxTime - minTime;
-
-					f32 totalWidth = ImGui::GetWindowWidth() - profileDrawOffsetX; 
-
-					profileDrawOffsetX += 8.0f;
-
-					auto GetEntryPosition = [&](const Job::ProfilerEntry& entry, Math::Vec2& a, Math::Vec2& b)
-					{
-						f32 x = profileDrawOffsetX;
-						f32 y = profileDrawOffsetY + (entry.workerIdx_ * profileDrawAdvanceY);
-
-						a.x = x;
-						a.y = y;
-						b = a;
-
-						f64 normalizedStart = (entry.startTime_ - minTime) / timeRange;
-						f64 normalizedEnd = (entry.endTime_ - minTime) / timeRange;
-						normalizedStart *= totalWidth;
-						normalizedEnd *= totalWidth;
-
-						a.x += (f32)normalizedStart;
-						b.x += (f32)normalizedEnd;
-						b.y += profileDrawAdvanceY;
-
-						a += ImGui::GetWindowPos();
-						b += ImGui::GetWindowPos();
-					};
-
-					// Draw bars for each worker.
-					i32 hoverEntry = -1;
-					auto* drawList = ImGui::GetWindowDrawList();
-					for(i32 idx = 0; idx < numProfilerEntries; ++idx)
-					{
-						const auto& entry = profilerEntries[idx];
-						const f64 entryTimeMS = (entry.endTime_ - entry.startTime_) * 1000.0;
-
-						// Only draw > 1us.
-						if(entryTimeMS > (1.0 / 1000.0) && entry.jobIdx_ >= 0)
-						{
-							Math::Vec2 a, b;
-							GetEntryPosition(entry, a, b);
-							drawList->AddRectFilled(a, b, colors[entry.jobIdx_ % colors.size()]);
-							if(ImGui::IsMouseHoveringRect(a, b))
-							{
-								hoverEntry = idx;
-							}
-
-							if((i32)(b.x - a.x) > 8)
-							{
-								auto name = Core::String().Printf("%s (%.2f ms)", entry.name_.data(), entryTimeMS);
-								drawList->PushClipRect(a, b, true);
-								drawList->AddText(a, 0xffffffff, name.c_str());
-								drawList->PopClipRect();
-							}
-						}
-					}
-
-					const f32 lineHeight = numWorkers * profileDrawAdvanceY;
-					for(f64 time = 0.0; time < timeRange; time += 0.001)
-					{
-						Math::Vec2 a(profileDrawOffsetX, profileDrawOffsetY);
-						Math::Vec2 b(profileDrawOffsetX, profileDrawOffsetY + lineHeight);
-
-						f64 x = time / timeRange;
-						x *= totalWidth;
-
-						a.x += (f32)x;
-						b.x += (f32)x;
-
-						a += ImGui::GetWindowPos();
-						b += ImGui::GetWindowPos();
-
-						drawList->AddLine(a, b, ImColor(1.0f, 1.0f, 1.0f, 0.2f));
-					}
-
-					for(f64 time = 0.0; time < timeRange; time += 0.0001)
-					{
-						Math::Vec2 a(profileDrawOffsetX, profileDrawOffsetY);
-						Math::Vec2 b(profileDrawOffsetX, profileDrawOffsetY + lineHeight);
-
-						f64 x = time / timeRange;
-						x *= totalWidth;
-
-						a.x += (f32)x;
-						b.x += (f32)x;
-
-						a += ImGui::GetWindowPos();
-						b += ImGui::GetWindowPos();
-
-						drawList->AddLine(a, b, ImColor(1.0f, 1.0f, 1.0f, 0.1f));
-					}
-
-					if(hoverEntry >= 0)
-					{
-						const Math::Vec2 pos(ImGui::GetMousePos());
-						const Math::Vec2 borderSize(4.0f, 4.0f);
-						const auto& entry = profilerEntries[hoverEntry];
-
-						auto name = Core::String().Printf("%s (%.4f ms)", entry.name_.data(), (entry.endTime_ - entry.startTime_) * 1000.0);
-
-						Math::Vec2 size = ImGui::CalcTextSize(name.c_str(), nullptr);
-				
-						drawList->AddRectFilled(pos - borderSize, pos + size + borderSize, ImColor(0.0f, 0.0f, 0.0f, 0.8f));
-						drawList->AddText(ImGui::GetMousePos(), 0xffffffff, name.c_str());
-								
-					}
-				}			
-				ImGui::EndChildFrame();
-			}
-			ImGui::End();
+			DrawUIJobProfiler(profilingEnabled, profilerEntries, numProfilerEntries);
 			times_.profilerUI_ = Core::Timer::GetAbsoluteTime() - times_.profilerUI_;
 
 			if(ImGui::Begin("Timers"))
@@ -849,7 +1396,7 @@ void Loop()
 					{
 						auto* meshPacket = static_cast<MeshRenderPacket*>(packet);
 	
-						meshPacket->angle_ += (f32)targetFrameTime;
+						//meshPacket->angle_ += (f32)targetFrameTime;
 						meshPacket->object_.world_.Rotation(Math::Vec3(0.0f, meshPacket->angle_, 0.0f));
 						meshPacket->object_.world_.Translation(meshPacket->position_);
 					}
@@ -863,9 +1410,9 @@ void Loop()
 			// Setup pipeline camera.
 			Math::Mat44 view;
 			Math::Mat44 proj;
-			view.LookAt(Math::Vec3(0.0f, 5.0f, 10.0f), Math::Vec3(0.0f, 1.0f, 0.0f), Math::Vec3(0.0f, 1.0f, 0.0f));
-			proj.PerspProjectionVertical(Core::F32_PIDIV4, (f32)h_ / (f32)w_, 0.01f, 300.0f);
-			forwardPipeline.SetCamera(view, proj);
+			view.LookAt(Math::Vec3(0.0f, 5.0f, -15.0f), Math::Vec3(0.0f, 1.0f, 0.0f), Math::Vec3(0.0f, 1.0f, 0.0f));
+			proj.PerspProjectionVertical(Core::F32_PIDIV4, (f32)h_ / (f32)w_, 0.1f, 2000.0f);
+			forwardPipeline.SetCamera(camera_.matrix_, proj, Math::Vec2((f32)w_, (f32)h_));
 
 			// Clear graph prior to beginning work.
 			graph.Clear();
@@ -875,7 +1422,7 @@ void Loop()
 				rmt_ScopedCPUSample(Setup_Graph, RMTSF_None);
 
 				// Import back buffer.
-				Graphics::RenderGraphTextureDesc scDesc;
+				RenderGraphTextureDesc scDesc;
 				scDesc.type_ = GPU::TextureType::TEX2D;
 				scDesc.width_ = engine.scDesc.width_;
 				scDesc.height_ = engine.scDesc.height_;
@@ -948,6 +1495,9 @@ void Loop()
 	shaderTechniques_.clear();
 	Resource::Manager::ReleaseResource(shader);
 	Resource::Manager::ReleaseResource(model);
+#if LOAD_SPONZA
+	Resource::Manager::ReleaseResource(sponzaModel);
+#endif
 }
 
 int main(int argc, char* const argv[])

@@ -87,7 +87,7 @@ namespace GPU
 		/**
 		 * See @a CommandDraw.
 		 * @pre @a pipelineBinding is valid.
-		 * @pre @a drawBinding is valid.
+		 * @pre @a drawBinding is a DRAW_BINDING_SET, or invalid.
 		 * @pre @a frameBinding is valid.
 		 * @pre @a primitive is valid.
 		 * @pre @a indexOffset >= 0.
@@ -104,7 +104,7 @@ namespace GPU
 		/**
 		 * See @a CommandDrawIndirect.
 		 * @pre @a pipelineBinding is valid.
-		 * @pre @a drawBinding is valid.
+		 * @pre @a drawBinding is a DRAW_BINDING_SET, or invalid.
 		 * @pre @a frameBinding is valid.
 		 * @pre @a indirectBuffer is valid.
 		 * @pre @a argByteOffset >= 0.
@@ -230,7 +230,7 @@ namespace GPU
 			friend class CommandList;
 			ScopedEvent(const ScopedEvent&) = delete;
 			ScopedEvent(CommandList* cmdList)
-				: cmdList_(cmdList)
+			    : cmdList_(cmdList)
 			{
 			}
 

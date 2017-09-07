@@ -1,0 +1,80 @@
+#ifndef LIGHT_ESH
+#define LIGHT_ESH
+
+#include "stdlib.esh"
+
+#define MAX_LIGHTS_PER_TILE 1024
+
+struct LightParams
+{
+	uint2 tileSize_;
+	uint2 numTiles_;
+	uint numLights_;
+};
+
+struct TileInfo
+{
+	Plane planes_[4];
+	float4 depthMinMax_;
+};
+
+struct Light
+{
+	uint enabled_;
+	float3 position_;
+	float3 color_;
+	float3 attenuation_;
+	float intensity_;
+};
+
+struct LightLink
+{
+	int idx;
+	int next;
+};
+
+uint GetTileIdx(LightParams l, uint2 tileCoord)
+{
+	return tileCoord.x + tileCoord.y * l.numTiles_.x;
+}
+
+float CalculateAttn(float dist, float3 attnParams)
+{
+	float inv = ((attnParams.x + (dist * attnParams.y) + (dist * dist * attnParams.z)));
+	return 1.0 / inv;
+}
+
+float CalulateDist(float attn, float3 attnParams)
+{
+	const float MIN_ATTN = 0.01;
+	const float MAX_DIST = 1000000.0;
+	if(attn < MIN_ATTN)
+	{
+		attn = MIN_ATTN;
+	}
+
+	float a = attnParams.z;
+	float b = attnParams.y;
+	float c = attnParams.x - ( 1.0 / attn );
+
+	// 0 = Ax2 + Bx + C
+	if(a > 0.0)
+	{
+		float disc  = ((b * b) - (4.0 * a * c));
+		{
+		if(disc < 0.0)
+			return MAX_DIST;
+		}
+		return abs((-b + sqrt(disc)) / (2.0 * a));
+	}
+	// 0 = Bx + C
+	else if(b > 0.0)
+	{
+		return abs(-c / b);
+	}
+	return MAX_DIST;
+}
+
+
+
+#endif // LIGHT_ESH

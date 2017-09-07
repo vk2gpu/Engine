@@ -2,6 +2,7 @@
 
 #include "core/array.h"
 #include "core/array_view.h"
+#include "gpu/manager.h"
 #include "graphics/render_resources.h"
 
 namespace Graphics
@@ -16,6 +17,18 @@ namespace Graphics
 
 		i32 numInputs_ = 0;
 		i32 numOutputs_ = 0;
+
+		// Frame buffer binding info for pass.
+		GPU::FrameBindingSetDesc fbsDesc_;
+		Core::Array<RenderGraphResource, GPU::MAX_BOUND_RTVS> rtvs_;
+		RenderGraphResource dsv_;
+		GPU::Handle fbs_;
+
+		~RenderPassImpl()
+		{
+			if(fbs_)
+				GPU::Manager::DestroyResource(fbs_);
+		}
 
 		void AddInput(RenderGraphResource res)
 		{

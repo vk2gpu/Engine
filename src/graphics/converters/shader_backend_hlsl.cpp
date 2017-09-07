@@ -252,7 +252,6 @@ namespace Graphics
 				if(auto attr = node->type_->baseType_->struct_->FindAttribute("internal"))
 					if(attr->HasParameter(0) && attr->GetParameter(0) == "SamplerState")
 						reg.Printf("register(s%i)", samplerReg_++);
-
 			if(inCBuffer_ == 0)
 			{
 				if(node->semantic_.size() > 0)

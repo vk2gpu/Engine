@@ -33,8 +33,14 @@ namespace Graphics
 		 */
 		Core::ArrayView<const RenderGraphResource> GetOutputs() const;
 
+		/**
+		 * @return Get frame binding descriptor. Valid after construction.
+		 */
+		const GPU::FrameBindingSetDesc& GetFrameBindingDesc() const;
+
 	private:
 		friend class RenderGraph;
+		friend struct RenderGraphImpl;
 		friend class RenderGraphBuilder;
 		struct RenderPassImpl* impl_ = nullptr;
 	};

@@ -295,7 +295,7 @@ namespace Resource
 		    , writeJobs_(MAX_WRITE_JOBS)
 		    , writeJobSem_(0, MAX_WRITE_JOBS, "Resmgr Write Sem")
 		    , writeThread_(WriteIOThread, this, 65536, "Resmgr Write Thread")
-			, timestampJobSem_(0, 1, "Resmgr Timestamp Sem")
+		    , timestampJobSem_(0, 1, "Resmgr Timestamp Sem")
 		    , timestampThread_(TimestampThread, this, 65536, "Resmgr Timestamp Thread")
 		{
 			// Get converter plugins.
@@ -435,13 +435,13 @@ namespace Resource
 
 								// Setup convert job.
 								auto* convertJob = new ResourceConvertJob(
-									entry, entry->type_, entry->sourceFile_.c_str(), entry->convertedFile_.c_str());
+								    entry, entry->type_, entry->sourceFile_.c_str(), entry->convertedFile_.c_str());
 
 								// Setup load job to chain.
 								if(auto factory = impl->GetFactory(entry->type_))
 								{
 									convertJob->loadJob_ = new ResourceLoadJob(
-										factory, entry, entry->type_, entry->sourceFile_.c_str(), Core::File());
+									    factory, entry, entry->type_, entry->sourceFile_.c_str(), Core::File());
 									convertJob->RunSingle(0);
 								}
 							}
@@ -536,6 +536,13 @@ namespace Resource
 
 	void ResourceConvertJob::OnCompleted()
 	{
+		// If conversion was a failure, we need to try again.
+		if(!success_)
+		{
+			RunSingle(0);
+			return;
+		}
+
 		// If conversion was successful and there is a load job to chain, run it but block untll completion.
 		if(success_ && loadJob_)
 		{
@@ -665,7 +672,6 @@ namespace Resource
 					}
 					else
 					{
-
 						auto* jobData = new ResourceLoadJob(factory, entry, type, fileName.data(),
 						    Core::File(convertedPath.data(), Core::FileFlags::READ));
 

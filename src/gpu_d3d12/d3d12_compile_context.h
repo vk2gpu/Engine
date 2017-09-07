@@ -57,6 +57,12 @@ namespace GPU
 		void AddTransition(const D3D12Resource* resource, D3D12_RESOURCE_STATES state);
 
 		/**
+		 * Add UAV barrier.
+		 * @param resource Resource to insert barrier for.
+		 */
+		void AddUAVBarrier(const D3D12Resource* resource);
+
+		/**
 		 * Flush resource transitions.
 		 */
 		void FlushTransitions();

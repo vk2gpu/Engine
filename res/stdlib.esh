@@ -1,14 +1,69 @@
-#pragma once
+#ifndef STDLIB_ESH
+#define STDLIB_ESH
 
-float3x3 buildTBN(float3 inTangent, float3 inBinormal, float3 inNormal)
+///////////////////////////////////////////////////////////////////////
+// Plane
+struct Plane
+{
+	float3 normal_;
+	float d_;
+};
+
+Plane CalculatePlane(float3 a, float3 b, float3 c)
+{
+	Plane plane;
+	plane.normal_.xyz = normalize(cross(b - a, c - a));
+	plane.d_ = dot(a, plane.normal_.xyz);
+	return plane;
+}
+
+float PlaneDistance(Plane plane, float3 pos)
+{
+	return dot(plane.normal_, pos) - plane.d_;
+}
+
+///////////////////////////////////////////////////////////////////////
+// Common view parameters.
+struct ViewParams
+{
+    float4x4 view_;
+    float4x4 proj_;
+    float4x4 viewProj_;
+    float4x4 invProj_;
+    float2 screenDimensions_;
+};
+
+float4 ClipToView(in ViewParams v, float4 clipPos)
+{
+    float4 view = mul(v.invProj_, clipPos);
+    return view / view.w;
+}
+ 
+float4 ScreenToClip(in ViewParams v, float4 screenPos)
+{
+    float2 ndc = screenPos.xy / v.screenDimensions_;
+    float4 clipPos = float4(float2(ndc.x, 1.0f - ndc.y) * 2.0f - 1.0f, screenPos.z, screenPos.w);
+    return clipPos;
+}
+
+float4 ScreenToView(in ViewParams v, float4 screenPos)
+{
+    return ClipToView(v, ScreenToClip(v, screenPos));
+}
+
+///////////////////////////////////////////////////////////////////////
+// TBN
+float3x3 BuildTBN(float3 inTangent, float3 inBinormal, float3 inNormal)
 {
 	return float3x3(normalize(inTangent), normalize(inBinormal), normalize(inNormal));
 }
 
+///////////////////////////////////////////////////////////////////////
+// Gamma/Linear conversion.
 #define FAST_GAMMA_CONVERSION ( 0 )
 #define ACCURATE_GAMMA_CONVERSION ( 1 )
 
-float3 gammaToLinear(float3 inRGBA)
+float3 GammaToLinear(float3 inRGBA)
 {
 #if FAST_GAMMA_CONVERSION
 	return inRGBA.rgb * inRGBA.rgb;
@@ -26,12 +81,12 @@ float3 gammaToLinear(float3 inRGBA)
 #endif
 }
 
-float4 gammaToLinear(float4 inRGBA)
+float4 GammaToLinear(float4 inRGBA)
 {
-	return float4(gammaToLinear(inRGBA.rgb), inRGBA.a);
+	return float4(GammaToLinear(inRGBA.rgb), inRGBA.a);
 }
 
-float3 linearToGamma(float3 inRGBA)
+float3 LinearToGamma(float3 inRGBA)
 {
 #if FAST_GAMMA_CONVERSION
 	return sqrt(inRGBA.rgb);
@@ -44,41 +99,87 @@ float3 linearToGamma(float3 inRGBA)
 		(inRGBA.y <= 0.0031308) ? sRGBLo.y : sRGBHi.y,
 		(inRGBA.z <= 0.0031308) ? sRGBLo.z : sRGBHi.z);
 #else	
-	float   = 1.0 / 2.2;
+	float invGamma = 1.0 / 2.2;
 	return pow(max(float3(0.0, 0.0, 0.0), inRGBA.rgb), float3(invGamma, invGamma, invGamma));
 #endif
 }
 
-float4 linearToGamma(float4 inRGBA)
+float4 LinearToGamma(float4 inRGBA)
 {
-	return float4(linearToGamma(inRGBA.rgb), inRGBA.a);
+	return float4(LinearToGamma(inRGBA.rgb), inRGBA.a);
 }
 
-float3 encodeNormal(float3 nrm)
+///////////////////////////////////////////////////////////////////////
+// Normals
+float3 EncodeNormal(float3 nrm)
 {
 	const float3 scale = float3(0.5, 0.5, 0.5);
 	return nrm * scale + scale;
 }
 
-float3 decodeNormal(float3 nrm)
+float3 DecodeNormal(float3 nrm)
 {
 	const float3 scale = float3(2.0, 2.0, 2.0);
 	return nrm * scale - float3(1.0, 1.0, 1.0);
 }
 
-float3 reconstructNormal(float3 nrm)
+float3 ReconstructNormal(float3 nrm)
 {
 	return float3(nrm.xy, sqrt(1.0 - dot(nrm.xy, nrm.xy)));
 }
 
-float linearDepth(float depth, float near, float far)
+///////////////////////////////////////////////////////////////////////
+// Depth
+float LinearDepth(float depth, float near, float far)
 {
 	depth = 2.0 * depth - 1.0;
 	return (2.0 * (near * far)) / ((near + far) - depth * (far - near));
 }
 
-float luminance(float3 inRGB)
+///////////////////////////////////////////////////////////////////////
+// Luminance
+float Luminance(float3 inRGB)
 {
 	return dot(inRGB, float3(0.2126, 0.7152, 0.0722));
 }
 
+///////////////////////////////////////////////////////////////////////
+// RGB/HSV conversion.
+// http://ploobs.com.br/arquivos/1499
+float3 Hue(float H)
+{
+    float R = abs(H * 6 - 3) - 1;
+    float G = 2 - abs(H * 6 - 2);
+    float B = 2 - abs(H * 6 - 4);
+    return saturate(float3(R,G,B));
+}
+
+float4 HSVtoRGB(in float3 HSV)
+{
+    return float4(((Hue(HSV.x) - 1) * HSV.y + 1) * HSV.z,1);
+}
+
+float4 RGBtoHSV(in float3 RGB)
+{
+    float3 HSV = 0;
+    HSV.z = max(RGB.r, max(RGB.g, RGB.b));
+    float M = min(RGB.r, min(RGB.g, RGB.b));
+    float C = HSV.z - M;
+    if (C != 0)
+    {
+        HSV.y = C / HSV.z;
+        float3 Delta = (HSV.z - RGB) / C;
+        Delta.rgb -= Delta.brg;
+        Delta.rg += float2(2,4);
+        if (RGB.r >= HSV.z)
+            HSV.x = Delta.b;
+        else if (RGB.g >= HSV.z)
+            HSV.x = Delta.r;
+        else
+            HSV.x = Delta.g;
+        HSV.x = frac(HSV.x / 6);
+    }
+    return float4(HSV,1);
+}
+
+#endif // STDLIB_ESH

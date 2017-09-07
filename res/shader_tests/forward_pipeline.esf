@@ -1,0 +1,273 @@
+#include "stdlib.esh"
+#include "lights.esh"
+
+///////////////////////////////////////////////////////////////////////
+// Compute light tiles.
+cbuffer ViewCBuffer
+{
+	ViewParams v_;
+};
+
+cbuffer LightCBuffer
+{
+	LightParams l_;
+};
+
+struct CS_INPUT
+{
+	int3 groupID : SV_GroupID;
+	int3 groupThreadID : SV_GroupThreadID;
+	int3 dispatchID : SV_DispatchThreadID;
+};
+
+///////////////////////////////////////////////////////////////////////
+// Compute light tiles.
+StructuredBuffer<Light> inLights;
+
+RWBuffer<uint> lightLinkIndex;
+RWStructuredBuffer<LightLink> outLightLinks;
+
+RWStructuredBuffer<TileInfo> outTileInfo;
+StructuredBuffer<TileInfo> inTileInfo;
+
+Texture2D<float> depthTex;
+
+#define MAX_INT_VAL 0x7fffffff
+
+groupshared uint gDepthMin = MAX_INT_VAL;
+groupshared uint gDepthMax = 0;
+
+[numthreads(16,16,1)]
+void cs_compute_tile_info(CS_INPUT _in)
+{
+	// Why is this needed!?
+	GroupMemoryBarrierWithGroupSync();
+
+	float depth = depthTex.Load(int3(_in.dispatchID.xy, 0));
+	uint depthInt = depth * MAX_INT_VAL;
+	uint outTemp;
+	InterlockedMin(gDepthMin, depthInt, outTemp);
+	InterlockedMax(gDepthMax, depthInt, outTemp);
+
+	//
+	const float3 eyePos = float3(0.0, 0.0, 0.0);
+
+	// Calculate corners offsets.
+	const uint2 id = _in.groupID;
+	const uint4 corners = uint4(id.x, id.y, id.x + 1, id.y + 1) * l_.tileSize_.xyxy;
+
+	// Screen space tile corners:
+	// TL, TR, BR, BL
+	float4 ssCorners[4];
+	ssCorners[0] = float4(corners.xy, 1.0, 1.0);
+	ssCorners[1] = float4(corners.zy, 1.0, 1.0);
+	ssCorners[2] = float4(corners.zw, 1.0, 1.0);
+	ssCorners[3] = float4(corners.xw, 1.0, 1.0);
+
+	// Convert to view space.
+	float3 vsCorners[4];
+	for(int i = 0; i < 4; ++i)
+		vsCorners[i] = ScreenToView(v_, ssCorners[i]).xyz;
+
+	// Calculate planes in view space.
+	TileInfo tileInfo = (TileInfo)0;
+	tileInfo.planes_[0] = CalculatePlane(eyePos, vsCorners[0], vsCorners[3]);
+	tileInfo.planes_[1] = CalculatePlane(eyePos, vsCorners[1], vsCorners[0]);
+	tileInfo.planes_[2] = CalculatePlane(eyePos, vsCorners[2], vsCorners[1]);
+	tileInfo.planes_[3] = CalculatePlane(eyePos, vsCorners[3], vsCorners[2]);
+
+	// Min/max depth.
+	tileInfo.depthMinMax_.x = (float)gDepthMin / (float)MAX_INT_VAL;
+	tileInfo.depthMinMax_.y = (float)gDepthMax / (float)MAX_INT_VAL;
+	tileInfo.depthMinMax_.zw = float2(0.0, 0.0);
+
+	// Only one thread should write.
+	if(_in.groupThreadID.x == 0 && _in.groupThreadID.y == 0)
+	{
+		const uint tileIdx = GetTileIdx(l_, id);
+		outTileInfo[tileIdx] = tileInfo;
+	}
+}
+
+Technique TECH_COMPUTE_TILE_INFO =
+{
+	.ComputeShader = cs_compute_tile_info,
+};
+
+groupshared uint gNumLights = 0;
+groupshared LightLink gLightLinks[MAX_LIGHTS_PER_TILE];
+
+[numthreads(1,1,1)]
+void cs_compute_light_lists(CS_INPUT _in)
+{
+	// Grab tile info.
+	const uint tileIdx = GetTileIdx(l_, _in.dispatchID.xy);
+	const TileInfo tileInfo = inTileInfo[tileIdx];
+
+	float depthMin = ClipToView(v_, float4(0.0, 0.0, tileInfo.depthMinMax_.x, 1)).z;
+	float depthMax = ClipToView(v_, float4(0.0, 0.0, tileInfo.depthMinMax_.y, 1)).z;
+
+	// Build up local list first.
+	uint localLightLinkIdx = 0;
+	for(uint idx = 0; idx < l_.numLights_ && localLightLinkIdx < MAX_LIGHTS_PER_TILE; ++idx)
+	{
+		Light light = inLights[idx];
+		if(light.enabled_)
+		{
+			float4 vsLightPos = mul(v_.view_, float4(light.position_.xyz, 1.0));
+			float radius = CalulateDist(0.01, light.attenuation_);
+
+			// Reject any fully outside of any planes.
+			bool inTile = true;
+			if((vsLightPos.z + radius) < depthMin || (vsLightPos.z - radius) > depthMax)
+			{
+				inTile = false;
+			}
+			else
+			{
+				for(int i = 0; i < 4 && inTile; ++i)
+				{
+					float dist = PlaneDistance(tileInfo.planes_[i], vsLightPos.xyz);
+					if(dist < -radius)
+						inTile = false;
+				}
+			}
+
+			if(inTile)
+			{
+				InterlockedAdd(gNumLights, 1, localLightLinkIdx);
+				gLightLinks[localLightLinkIdx].idx = idx;
+			}
+		}
+	}
+
+	// Wait for other threads in groups.
+	GroupMemoryBarrierWithGroupSync();
+
+	// Put lights found into global list.
+	uint globalLightLinkIdx = 0;
+	InterlockedAdd(lightLinkIndex[0], gNumLights, globalLightLinkIdx);
+
+	uint maxLights;
+	uint stride;
+	outLightLinks.GetDimensions(maxLights, stride);
+
+	// Add first link.
+	// TODO: Not dummy light.
+	LightLink firstLink;
+	firstLink.idx = -1;
+	firstLink.next = gNumLights > 0 ? globalLightLinkIdx : 0;
+	outLightLinks[tileIdx] = firstLink;
+
+	// Write links to UAV.
+	for(uint idx = 0; idx < gNumLights; ++idx)
+	{
+		LightLink lightLink = gLightLinks[idx];
+		uint outIdx = globalLightLinkIdx + idx;
+		if(idx < (gNumLights - 1) && outIdx < (maxLights - 1))
+			lightLink.next = globalLightLinkIdx + idx + 1;
+		else
+			lightLink.next = 0;
+		if(outIdx < maxLights)
+			outLightLinks[outIdx] = lightLink;
+	}
+}
+
+Technique TECH_COMPUTE_LIGHT_LISTS =
+{
+	.ComputeShader = cs_compute_light_lists,
+};
+
+
+StructuredBuffer<LightLink> inLightLinks;
+RWTexture2D<float4> outDebug;
+
+[numthreads(1,1,1)]
+void cs_debug_tile_info(CS_INPUT _in)
+{
+	const uint2 id = _in.dispatchID.xy;
+	const uint tileIdx = GetTileIdx(l_, id);
+	const TileInfo tileInfo = inTileInfo[tileIdx];
+
+#if 0
+	float depthMin = (tileInfo.depthMinMax_.x - 0.9) * 10.0;
+	float depthMax = (tileInfo.depthMinMax_.y - 0.9) * 10.0;
+	outDebug[id] = float4(depthMin, depthMax, 0.0, 1.0);
+
+#else
+	float lightCount = 0.0;
+
+	// Iterate over lights.
+	LightLink lightLink = inLightLinks[tileIdx];
+	for(int idx = 0; idx < MAX_LIGHTS_PER_TILE; ++idx)
+	{	
+		if(lightLink.idx >= 0)
+			lightCount += 0.025;
+
+		if(lightLink.next == 0)
+			break;
+		lightLink = inLightLinks[lightLink.next];
+	}
+	outDebug[id] = HSVtoRGB(float3(lightCount, 1.0, 1.0));
+#endif
+}
+
+Technique TECH_DEBUG_TILE_INFO =
+{
+	.ComputeShader = cs_debug_tile_info,
+};
+
+///////////////////////////////////////////////////////////////////////
+// Fullscreen shader.
+struct VS_FULLSCREEN_OUTPUT
+{
+	float4 position_ : SV_POSITION;
+	float2 texcoord_ : TEXCOORD0;
+};
+
+VS_FULLSCREEN_OUTPUT vs_fullscreen(uint id : SV_VertexID)
+{
+	VS_FULLSCREEN_OUTPUT output = (VS_FULLSCREEN_OUTPUT)0;
+	output.position_.x = (float)(id / 2) * 4.0 - 1.0;
+	output.position_.y = (float)(id % 2) * 4.0 - 1.0;
+	output.position_.z = 0.0;
+	output.position_.w = 1.0;
+	output.texcoord_.x = (float)(id / 2) * 2.0;
+	output.texcoord_.y = 1.0 - (float)(id % 2) * 2.0;
+	return output;
+}
+
+Texture2D<float4> debugTex;
+SamplerState SS_FULLSCREEN = 
+{
+	.AddressU = CLAMP,
+	.AddressV = CLAMP,
+	.AddressW = CLAMP,
+	.MinFilter = NEAREST,
+	.MagFilter = NEAREST,
+};
+
+float4 ps_fullscreen(VS_FULLSCREEN_OUTPUT _in) : SV_TARGET0
+{
+	return debugTex.Sample(SS_FULLSCREEN, _in.texcoord_);
+}
+
+RenderState RS_FULLSCREEN =
+{
+	.BlendStates = {
+		.Enable = 1,
+		.SrcBlend = ONE,
+		.DestBlend = ZERO,
+	},
+
+	.DepthEnable = 0,
+	.FillMode = SOLID,
+	.CullMode = NONE,
+};
+
+Technique TECH_FULLSCREEN =
+{
+	.RenderState = RS_FULLSCREEN,
+	.VertexShader = vs_fullscreen,
+	.PixelShader = ps_fullscreen,
+};

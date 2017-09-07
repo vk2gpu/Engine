@@ -5,6 +5,7 @@
 #include "core/array.h"
 #include "gpu/fwd_decls.h"
 #include "gpu/types.h"
+#include "gpu/resources.h"
 #include "resource/resource.h"
 
 namespace Graphics
@@ -69,40 +70,18 @@ namespace Graphics
 		ShaderTechnique(ShaderTechnique&&);
 		ShaderTechnique& operator=(ShaderTechnique&&);
 
-		// CBV
-		void SetCBV(i32 idx, GPU::Handle res, i32 offset, i32 size);
-
 		// Sampler
 		void SetSampler(i32 idx, GPU::Handle res);
 
-		// SRV
-		void SetBuffer(
-		    i32 idx, GPU::Handle res, i32 firstElement = 0, i32 numElements = 0, i32 structureByteStride = 0);
-		void SetTexture1D(
-		    i32 idx, GPU::Handle res, i32 mostDetailedMip = 0, i32 mipLevels = 0, f32 resourceMinLODClamp = 0.0f);
-		void SetTexture1DArray(i32 idx, GPU::Handle res, i32 mostDetailedMip = 0, i32 mipLevels = 0,
-		    i32 firstArraySlice = 0, i32 arraySize = 0, f32 resourceMinLODClamp = 0.0f);
-		void SetTexture2D(i32 idx, GPU::Handle res, i32 mostDetailedMip = 0, i32 mipLevels = 0, i32 planeSlice = 0,
-		    f32 resourceMinLODClamp = 0.0f);
-		void SetTexture2DArray(i32 idx, GPU::Handle res, i32 mostDetailedMip = 0, i32 mipLevels = 0,
-		    i32 firstArraySlice = 0, i32 arraySize = 0, i32 planeSlice = 0, f32 resourceMinLODClamp = 0.0f);
-		void SetTexture3D(
-		    i32 idx, GPU::Handle res, i32 mostDetailedMip = 0, i32 mipLevels = 0, f32 resourceMinLODClamp = 0.0f);
-		void SetTextureCube(
-		    i32 idx, GPU::Handle res, i32 mostDetailedMip = 0, i32 mipLevels = 0, f32 resourceMinLODClamp = 0.0f);
-		void SetTextureCubeArray(i32 idx, GPU::Handle res, i32 mostDetailedMip = 0, i32 mipLevels = 0,
-		    i32 first2DArrayFace = 0, i32 numCubes = 0, f32 resourceMinLODClamp = 0.0f);
+		// Set.
+		bool Set(i32 idx, const GPU::BindingCBV& binding);
+		bool Set(i32 idx, const GPU::BindingSRV& binding);
+		bool Set(i32 idx, const GPU::BindingUAV& binding);
 
-		// UAV
-		void SetRWBuffer(
-		    i32 idx, GPU::Handle res, i32 firstElement = 0, i32 numElements = 0, i32 structureByteStride = 0);
-		void SetRWTexture1D(i32 idx, GPU::Handle res, i32 mipSlice = 0);
-		void SetRWTexture1DArray(
-		    i32 idx, GPU::Handle res, i32 mipSlice = 0, i32 firstArraySlice = 0, i32 arraySize = 0);
-		void SetRWTexture2D(i32 idx, GPU::Handle res, i32 mipSlice = 0, i32 planeSlice = 0);
-		void SetRWTexture2DArray(
-		    i32 idx, GPU::Handle res, i32 mipSlice = 0, i32 planeSlice = 0, i32 firstArraySlice = 0, i32 arraySize = 0);
-		void SetRWTexture3D(i32 idx, GPU::Handle res, i32 mipSlice = 0, i32 firstWSlice = 0, i32 wSize = 0);
+		// Convenience setters for development.
+		bool Set(const char* name, const GPU::BindingCBV& binding);
+		bool Set(const char* name, const GPU::BindingSRV& binding);
+		bool Set(const char* name, const GPU::BindingUAV& binding);
 
 		/**
 		 * Get binding for the current technique setup.

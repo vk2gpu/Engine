@@ -79,6 +79,12 @@ namespace Core
 		return *this;
 	}
 
+	String& String::Append(const char* str)
+	{
+		internalAppend(str);
+		return *this;
+	}
+
 	String& String::internalRemoveNullTerminator(bool forceRemove)
 	{
 		if(data_.size() > (forceRemove ? 0 : 1))

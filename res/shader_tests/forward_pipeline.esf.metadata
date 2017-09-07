@@ -1,0 +1,10 @@
+{
+   "$internal" : {
+      "dependencies" : [
+         "shader_tests/forward_pipeline.esf",
+         "../../../../res/stdlib.esh",
+         "../../../../res/shader_tests/lights.esh"
+      ],
+      "outputs" : [ "converter_output/shader_tests/forward_pipeline.esf.converted" ]
+   }
+}

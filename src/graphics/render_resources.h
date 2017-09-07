@@ -6,15 +6,20 @@
 
 namespace Graphics
 {
-	struct RenderGraphTextureDesc : public GPU::TextureDesc
+	struct GRAPHICS_DLL RenderGraphTextureDesc : public GPU::TextureDesc
 	{
+		RenderGraphTextureDesc() = default;
+		RenderGraphTextureDesc(GPU::TextureType type, GPU::Format format, i32 width, i32 height = 1, i16 depth = 1,
+		    i16 levels = 1, i16 elements = 1);
 	};
 
-	struct RenderGraphBufferDesc : public GPU::BufferDesc
+	struct GRAPHICS_DLL RenderGraphBufferDesc : public GPU::BufferDesc
 	{
+		RenderGraphBufferDesc() = default;
+		RenderGraphBufferDesc(i32 size);
 	};
 
-	struct RenderGraphResource
+	struct GRAPHICS_DLL RenderGraphResource
 	{
 		RenderGraphResource() = default;
 		RenderGraphResource(i32 idx, i32 version)

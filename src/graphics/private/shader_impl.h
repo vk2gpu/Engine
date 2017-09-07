@@ -90,6 +90,9 @@ namespace Graphics
 		ShaderImpl();
 		~ShaderImpl();
 
+		/// Get binding index from name.
+		i32 GetBindingIndex(const char* name) const;
+
 		/// Create technique to match @a name and @a desc.
 		ShaderTechniqueImpl* CreateTechnique(const char* name, const ShaderTechniqueDesc& desc);
 

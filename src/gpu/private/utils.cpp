@@ -430,5 +430,39 @@ namespace GPU
 		return size;
 	}
 
+	GPU_DLL ViewDimension GetViewDimension(TextureType type)
+	{
+		switch(type)
+		{
+		case TextureType::TEX1D:
+			return ViewDimension::TEX1D;
+		case TextureType::TEX2D:
+			return ViewDimension::TEX2D;
+		case TextureType::TEX3D:
+			return ViewDimension::TEX3D;
+		case TextureType::TEXCUBE:
+			return ViewDimension::TEXCUBE;
+		}
+		return ViewDimension::INVALID;
+	}
+
+	GPU_DLL Format GetDSVFormat(Format format)
+	{
+		switch(format)
+		{
+		case Format::R24G8_TYPELESS:
+			return Format::D24_UNORM_S8_UINT;
+		case Format::R32_FLOAT:
+		case Format::R32_UINT:
+		case Format::R32_SINT:
+		case Format::R32_TYPELESS:
+			return Format::D32_FLOAT;
+		case Format::R32G8X24_TYPELESS:
+		case Format::X32_TYPELESS_G8X24_UINT:
+		case Format::R32_FLOAT_X8X24_TYPELESS:
+			return Format::D32_FLOAT_S8X24_UINT;
+		}
+		return Format::INVALID;
+	}
 
 } // namespace GPU

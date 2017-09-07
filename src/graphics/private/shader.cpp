@@ -12,6 +12,17 @@
 
 #include <algorithm>
 
+namespace GPU
+{
+	bool operator!=(const BindingSRV& a, const BindingSRV& b) { return memcmp(&a, &b, sizeof(a)) != 0; }
+
+	bool operator!=(const BindingUAV& a, const BindingUAV& b) { return memcmp(&a, &b, sizeof(a)) != 0; }
+
+	bool operator!=(const BindingBuffer& a, const BindingBuffer& b) { return memcmp(&a, &b, sizeof(a)) != 0; }
+
+	bool operator!=(const BindingSampler& a, const BindingSampler& b) { return a.resource_ != a.resource_; }
+}
+
 namespace Graphics
 {
 	class ShaderFactory : public Resource::IFactory
@@ -210,16 +221,7 @@ namespace Graphics
 		delete impl_;
 	}
 
-	i32 Shader::GetBindingIndex(const char* name) const
-	{
-		for(i32 idx = 0; idx < impl_->bindingHeaders_.size(); ++idx)
-		{
-			const auto& binding = impl_->bindingHeaders_[idx];
-			if(strcmp(binding.name_, name) == 0)
-				return idx;
-		}
-		return -1;
-	}
+	i32 Shader::GetBindingIndex(const char* name) const { return impl_->GetBindingIndex(name); }
 
 	ShaderTechnique Shader::CreateTechnique(const char* name, const ShaderTechniqueDesc& desc)
 	{
@@ -260,238 +262,77 @@ namespace Graphics
 		return *this;
 	}
 
-	void ShaderTechnique::SetCBV(i32 idx, GPU::Handle res, i32 offset, i32 size)
-	{
-		DBG_ASSERT(idx >= 0 && idx < impl_->cbvs_.size());
-		DBG_ASSERT(GPU::Manager::GetHandleAllocator().IsValid(res));
-		auto& binding = impl_->cbvs_[idx];
-		binding.resource_ = res;
-		binding.offset_ = offset;
-		binding.size_ = size;
-		impl_->bsDirty_ = true;
-	}
-
 	void ShaderTechnique::SetSampler(i32 idx, GPU::Handle res)
 	{
 		idx -= impl_->samplerOffset_;
 		DBG_ASSERT(idx >= 0 && idx < impl_->samplers_.size());
 		DBG_ASSERT(GPU::Manager::GetHandleAllocator().IsValid(res));
-		auto& binding = impl_->samplers_[idx];
+		GPU::BindingSampler binding;
 		binding.resource_ = res;
-		impl_->bsDirty_ = true;
+		if(binding != impl_->samplers_[idx])
+		{
+			impl_->samplers_[idx] = binding;
+			impl_->bsDirty_ = true;
+		}
 	}
 
-	void ShaderTechnique::SetBuffer(
-	    i32 idx, GPU::Handle res, i32 firstElement, i32 numElements, i32 structureByteStride)
+	bool ShaderTechnique::Set(i32 idx, const GPU::BindingCBV& binding)
+	{
+		if(idx >= 0 && idx < impl_->cbvs_.size())
+		{
+			if(binding != impl_->cbvs_[idx])
+			{
+				impl_->cbvs_[idx] = binding;
+				impl_->bsDirty_ = true;
+			}
+			return true;
+		}
+		return false;
+	}
+
+	bool ShaderTechnique::Set(i32 idx, const GPU::BindingSRV& binding)
 	{
 		idx -= impl_->srvOffset_;
-		DBG_ASSERT(idx >= 0 && idx < impl_->srvs_.size());
-		DBG_ASSERT(GPU::Manager::GetHandleAllocator().IsValid(res));
-		auto& binding = impl_->srvs_[idx];
-		binding.resource_ = res;
-		binding.dimension_ = GPU::ViewDimension::BUFFER;
-		binding.mostDetailedMip_FirstElement_ = firstElement;
-		binding.mipLevels_NumElements_ = numElements;
-		binding.structureByteStride_ = structureByteStride;
-		impl_->bsDirty_ = true;
+		if(idx >= 0 && idx < impl_->srvs_.size())
+		{
+			if(binding != impl_->srvs_[idx])
+			{
+				impl_->srvs_[idx] = binding;
+				impl_->bsDirty_ = true;
+			}
+			return true;
+		}
+		return false;
 	}
 
-	void ShaderTechnique::SetTexture1D(
-	    i32 idx, GPU::Handle res, i32 mostDetailedMip, i32 mipLevels, f32 resourceMinLODClamp)
-	{
-		idx -= impl_->srvOffset_;
-		DBG_ASSERT(idx >= 0 && idx < impl_->srvs_.size());
-		DBG_ASSERT(GPU::Manager::GetHandleAllocator().IsValid(res));
-		auto& binding = impl_->srvs_[idx];
-		binding.resource_ = res;
-		binding.dimension_ = GPU::ViewDimension::TEX1D;
-		binding.mostDetailedMip_FirstElement_ = mostDetailedMip;
-		binding.mipLevels_NumElements_ = mipLevels;
-		binding.resourceMinLODClamp_ = resourceMinLODClamp;
-		impl_->bsDirty_ = true;
-	}
-
-	void ShaderTechnique::SetTexture1DArray(i32 idx, GPU::Handle res, i32 mostDetailedMip, i32 mipLevels,
-	    i32 firstArraySlice, i32 arraySize, f32 resourceMinLODClamp)
-	{
-		idx -= impl_->srvOffset_;
-		DBG_ASSERT(idx >= 0 && idx < impl_->srvs_.size());
-		DBG_ASSERT(GPU::Manager::GetHandleAllocator().IsValid(res));
-		auto& binding = impl_->srvs_[idx];
-		binding.resource_ = res;
-		binding.dimension_ = GPU::ViewDimension::TEX1D_ARRAY;
-		binding.mostDetailedMip_FirstElement_ = mostDetailedMip;
-		binding.mipLevels_NumElements_ = mipLevels;
-		binding.firstArraySlice_ = firstArraySlice;
-		binding.arraySize_ = arraySize;
-		binding.resourceMinLODClamp_ = resourceMinLODClamp;
-		impl_->bsDirty_ = true;
-	}
-
-	void ShaderTechnique::SetTexture2D(
-	    i32 idx, GPU::Handle res, i32 mostDetailedMip, i32 mipLevels, i32 planeSlice, f32 resourceMinLODClamp)
-	{
-		idx -= impl_->srvOffset_;
-		DBG_ASSERT(idx >= 0 && idx < impl_->srvs_.size());
-		DBG_ASSERT(GPU::Manager::GetHandleAllocator().IsValid(res));
-		auto& binding = impl_->srvs_[idx];
-		binding.resource_ = res;
-		binding.dimension_ = GPU::ViewDimension::TEX2D;
-		binding.mostDetailedMip_FirstElement_ = mostDetailedMip;
-		binding.mipLevels_NumElements_ = mipLevels;
-		binding.planeSlice_ = planeSlice;
-		binding.resourceMinLODClamp_ = resourceMinLODClamp;
-		impl_->bsDirty_ = true;
-	}
-
-	void ShaderTechnique::SetTexture2DArray(i32 idx, GPU::Handle res, i32 mostDetailedMip, i32 mipLevels,
-	    i32 firstArraySlice, i32 arraySize, i32 planeSlice, f32 resourceMinLODClamp)
-	{
-		idx -= impl_->srvOffset_;
-		DBG_ASSERT(idx >= 0 && idx < impl_->srvs_.size());
-		DBG_ASSERT(GPU::Manager::GetHandleAllocator().IsValid(res));
-		auto& binding = impl_->srvs_[idx];
-		binding.resource_ = res;
-		binding.dimension_ = GPU::ViewDimension::TEX2D_ARRAY;
-		binding.mostDetailedMip_FirstElement_ = mostDetailedMip;
-		binding.mipLevels_NumElements_ = mipLevels;
-		binding.firstArraySlice_ = firstArraySlice;
-		binding.arraySize_ = arraySize;
-		binding.planeSlice_ = planeSlice;
-		binding.resourceMinLODClamp_ = resourceMinLODClamp;
-		impl_->bsDirty_ = true;
-	}
-
-	void ShaderTechnique::SetTexture3D(
-	    i32 idx, GPU::Handle res, i32 mostDetailedMip, i32 mipLevels, f32 resourceMinLODClamp)
-	{
-		idx -= impl_->srvOffset_;
-		DBG_ASSERT(idx >= 0 && idx < impl_->srvs_.size());
-		DBG_ASSERT(GPU::Manager::GetHandleAllocator().IsValid(res));
-		auto& binding = impl_->srvs_[idx];
-		binding.resource_ = res;
-		binding.dimension_ = GPU::ViewDimension::TEX3D;
-		binding.mostDetailedMip_FirstElement_ = mostDetailedMip;
-		binding.mipLevels_NumElements_ = mipLevels;
-		binding.resourceMinLODClamp_ = resourceMinLODClamp;
-		impl_->bsDirty_ = true;
-	}
-
-	void ShaderTechnique::SetTextureCube(
-	    i32 idx, GPU::Handle res, i32 mostDetailedMip, i32 mipLevels, f32 resourceMinLODClamp)
-	{
-		idx -= impl_->srvOffset_;
-		DBG_ASSERT(idx >= 0 && idx < impl_->srvs_.size());
-		DBG_ASSERT(GPU::Manager::GetHandleAllocator().IsValid(res));
-		auto& binding = impl_->srvs_[idx];
-		binding.resource_ = res;
-		binding.dimension_ = GPU::ViewDimension::TEXCUBE;
-		binding.mostDetailedMip_FirstElement_ = mostDetailedMip;
-		binding.mipLevels_NumElements_ = mipLevels;
-		binding.resourceMinLODClamp_ = resourceMinLODClamp;
-		impl_->bsDirty_ = true;
-	}
-
-	void ShaderTechnique::SetTextureCubeArray(i32 idx, GPU::Handle res, i32 mostDetailedMip, i32 mipLevels,
-	    i32 first2DArrayFace, i32 numCubes, f32 resourceMinLODClamp)
-	{
-		idx -= impl_->srvOffset_;
-		DBG_ASSERT(idx >= 0 && idx < impl_->srvs_.size());
-		DBG_ASSERT(GPU::Manager::GetHandleAllocator().IsValid(res));
-		auto& binding = impl_->srvs_[idx];
-		binding.resource_ = res;
-		binding.dimension_ = GPU::ViewDimension::TEXCUBE_ARRAY;
-		binding.mostDetailedMip_FirstElement_ = mostDetailedMip;
-		binding.mipLevels_NumElements_ = mipLevels;
-		binding.firstArraySlice_ = first2DArrayFace;
-		binding.arraySize_ = numCubes;
-		binding.resourceMinLODClamp_ = resourceMinLODClamp;
-		impl_->bsDirty_ = true;
-	}
-
-	void ShaderTechnique::SetRWBuffer(
-	    i32 idx, GPU::Handle res, i32 firstElement, i32 numElements, i32 structureByteStride)
+	bool ShaderTechnique::Set(i32 idx, const GPU::BindingUAV& binding)
 	{
 		idx -= impl_->uavOffset_;
-		DBG_ASSERT(idx >= 0 && idx < impl_->uavs_.size());
-		DBG_ASSERT(GPU::Manager::GetHandleAllocator().IsValid(res));
-		auto& binding = impl_->uavs_[idx];
-		binding.resource_ = res;
-		binding.dimension_ = GPU::ViewDimension::BUFFER;
-		binding.mipSlice_FirstElement_ = firstElement;
-		binding.firstArraySlice_FirstWSlice_NumElements_ = numElements;
-		binding.structureByteStride_ = structureByteStride;
-		impl_->bsDirty_ = true;
+		if(idx >= 0 && idx < impl_->uavs_.size())
+		{
+			if(binding != impl_->uavs_[idx])
+			{
+				impl_->uavs_[idx] = binding;
+				impl_->bsDirty_ = true;
+			}
+			return true;
+		}
+		return false;
 	}
 
-	void ShaderTechnique::SetRWTexture1D(i32 idx, GPU::Handle res, i32 mipSlice)
+	bool ShaderTechnique::Set(const char* name, const GPU::BindingCBV& binding)
 	{
-		idx -= impl_->uavOffset_;
-		DBG_ASSERT(idx >= 0 && idx < impl_->uavs_.size());
-		DBG_ASSERT(GPU::Manager::GetHandleAllocator().IsValid(res));
-		auto& binding = impl_->uavs_[idx];
-		binding.resource_ = res;
-		binding.dimension_ = GPU::ViewDimension::TEX1D;
-		binding.mipSlice_FirstElement_ = mipSlice;
-		impl_->bsDirty_ = true;
+		return Set(impl_->shader_->GetBindingIndex(name), binding);
 	}
 
-	void ShaderTechnique::SetRWTexture1DArray(
-	    i32 idx, GPU::Handle res, i32 mipSlice, i32 firstArraySlice, i32 arraySize)
+	bool ShaderTechnique::Set(const char* name, const GPU::BindingSRV& binding)
 	{
-		idx -= impl_->uavOffset_;
-		DBG_ASSERT(idx >= 0 && idx < impl_->uavs_.size());
-		DBG_ASSERT(GPU::Manager::GetHandleAllocator().IsValid(res));
-		auto& binding = impl_->uavs_[idx];
-		binding.resource_ = res;
-		binding.dimension_ = GPU::ViewDimension::TEX1D_ARRAY;
-		binding.mipSlice_FirstElement_ = mipSlice;
-		binding.firstArraySlice_FirstWSlice_NumElements_ = firstArraySlice;
-		binding.arraySize_PlaneSlice_WSize_ = arraySize;
-		impl_->bsDirty_ = true;
+		return Set(impl_->shader_->GetBindingIndex(name), binding);
 	}
 
-	void ShaderTechnique::SetRWTexture2D(i32 idx, GPU::Handle res, i32 mipSlice, i32 planeSlice)
+	bool ShaderTechnique::Set(const char* name, const GPU::BindingUAV& binding)
 	{
-		idx -= impl_->uavOffset_;
-		DBG_ASSERT(idx >= 0 && idx < impl_->uavs_.size());
-		DBG_ASSERT(GPU::Manager::GetHandleAllocator().IsValid(res));
-		auto& binding = impl_->uavs_[idx];
-		binding.resource_ = res;
-		binding.dimension_ = GPU::ViewDimension::TEX2D;
-		binding.mipSlice_FirstElement_ = mipSlice;
-		binding.arraySize_PlaneSlice_WSize_ = planeSlice;
-		impl_->bsDirty_ = true;
-	}
-
-	void ShaderTechnique::SetRWTexture2DArray(
-	    i32 idx, GPU::Handle res, i32 mipSlice, i32 planeSlice, i32 firstArraySlice, i32 arraySize)
-	{
-		idx -= impl_->uavOffset_;
-		DBG_ASSERT(idx >= 0 && idx < impl_->uavs_.size());
-		DBG_ASSERT(GPU::Manager::GetHandleAllocator().IsValid(res));
-		auto& binding = impl_->uavs_[idx];
-		binding.resource_ = res;
-		binding.dimension_ = GPU::ViewDimension::TEX2D_ARRAY;
-		binding.mipSlice_FirstElement_ = mipSlice;
-		binding.arraySize_PlaneSlice_WSize_ = planeSlice;
-		binding.firstArraySlice_FirstWSlice_NumElements_ = firstArraySlice;
-		binding.arraySize_PlaneSlice_WSize_ = arraySize;
-		impl_->bsDirty_ = true;
-	}
-
-	void ShaderTechnique::SetRWTexture3D(i32 idx, GPU::Handle res, i32 mipSlice, i32 firstWSlice, i32 wSize)
-	{
-		idx -= impl_->uavOffset_;
-		DBG_ASSERT(idx >= 0 && idx < impl_->uavs_.size());
-		DBG_ASSERT(GPU::Manager::GetHandleAllocator().IsValid(res));
-		auto& binding = impl_->uavs_[idx];
-		binding.resource_ = res;
-		binding.dimension_ = GPU::ViewDimension::TEX3D;
-		binding.mipSlice_FirstElement_ = mipSlice;
-		binding.firstArraySlice_FirstWSlice_NumElements_ = firstWSlice;
-		binding.arraySize_PlaneSlice_WSize_ = wSize;
-		impl_->bsDirty_ = true;
+		return Set(impl_->shader_->GetBindingIndex(name), binding);
 	}
 
 	GPU::Handle ShaderTechnique::GetBinding()
@@ -681,6 +522,17 @@ namespace Graphics
 			for(auto s : shaders_)
 				GPU::Manager::DestroyResource(s);
 		}
+	}
+
+	i32 ShaderImpl::GetBindingIndex(const char* name) const
+	{
+		for(i32 idx = 0; idx < bindingHeaders_.size(); ++idx)
+		{
+			const auto& binding = bindingHeaders_[idx];
+			if(strcmp(binding.name_, name) == 0)
+				return idx;
+		}
+		return -1;
 	}
 
 	ShaderTechniqueImpl* ShaderImpl::CreateTechnique(const char* name, const ShaderTechniqueDesc& desc)

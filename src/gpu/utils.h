@@ -84,4 +84,14 @@ namespace GPU
 	 */
 	GPU_DLL i64 GetTextureSize(Format format, i32 width, i32 height, i32 depth, i32 levels, i32 elements);
 
+	/**
+	 * Get view dimension from texture type.
+	 */
+	GPU_DLL ViewDimension GetViewDimension(TextureType type);
+
+	/**
+	 * Get valid DSV format from @a format.
+	 */
+	GPU_DLL Format GetDSVFormat(Format format);
+
 } // namespace GPU

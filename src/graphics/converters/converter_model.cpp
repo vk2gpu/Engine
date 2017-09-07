@@ -372,7 +372,7 @@ namespace
 				Graphics::ModelData modelData;
 				modelData.numNodes_ = nodes_.size();
 				modelData.numMeshNodes_ = meshNodes_.size();
-				modelData.numMeshes_ = meshIdx;
+				modelData.numMeshes_ = meshDatas_.size();
 				modelData.numAABBs_ = meshNodeAABBDatas_.size();
 				modelData.numBonePalettes_ = meshNodeBonePaletteDatas_.size();
 				modelData.numInverseBindPoses_ = meshNodeInverseBindposeDatas_.size();

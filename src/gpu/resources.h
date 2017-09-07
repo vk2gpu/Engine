@@ -282,6 +282,11 @@ namespace GPU
 	};
 
 	/**
+	 * Binding for a CBV.
+	 */
+	using BindingCBV = BindingBuffer;
+
+	/**
 	 * Binding for a sampler.
 	 */
 	struct GPU_DLL BindingSampler
@@ -303,7 +308,7 @@ namespace GPU
 		i32 numSamplers_ = 0;
 		BindingSRV srvs_[MAX_SRV_BINDINGS];
 		BindingUAV uavs_[MAX_UAV_BINDINGS];
-		BindingBuffer cbvs_[MAX_CBV_BINDINGS];
+		BindingCBV cbvs_[MAX_CBV_BINDINGS];
 		BindingSampler samplers_[MAX_SAMPLER_BINDINGS];
 	};
 
@@ -325,4 +330,49 @@ namespace GPU
 		BindingDSV dsv_;
 	};
 
+	/**
+	 * Utility functions for creating binding types.
+	 */
+	namespace Binding
+	{
+		GPU_DLL_INLINE BindingCBV CBuffer(GPU::Handle res, i32 offset, i32 size);
+
+		GPU_DLL_INLINE BindingSRV Buffer(GPU::Handle res, GPU::Format format = GPU::Format::INVALID,
+		    i32 firstElement = 0, i32 numElements = 0, i32 structureByteStride = 0);
+		GPU_DLL_INLINE BindingSRV Texture1D(GPU::Handle res, GPU::Format format = GPU::Format::INVALID,
+		    i32 mostDetailedMip = 0, i32 mipLevels = 0, f32 resourceMinLODClamp = 0.0f);
+		GPU_DLL_INLINE BindingSRV Texture1DArray(GPU::Handle res, GPU::Format format = GPU::Format::INVALID,
+		    i32 mostDetailedMip = 0, i32 mipLevels = 0, i32 firstArraySlice = 0, i32 arraySize = 0,
+		    f32 resourceMinLODClamp = 0.0f);
+		GPU_DLL_INLINE BindingSRV Texture2D(GPU::Handle res, GPU::Format format = GPU::Format::INVALID,
+		    i32 mostDetailedMip = 0, i32 mipLevels = 0, i32 planeSlice = 0, f32 resourceMinLODClamp = 0.0f);
+		GPU_DLL_INLINE BindingSRV Texture2DArray(GPU::Handle res, GPU::Format format = GPU::Format::INVALID,
+		    i32 mostDetailedMip = 0, i32 mipLevels = 0, i32 firstArraySlice = 0, i32 arraySize = 0, i32 planeSlice = 0,
+		    f32 resourceMinLODClamp = 0.0f);
+		GPU_DLL_INLINE BindingSRV Texture3D(GPU::Handle res, GPU::Format format = GPU::Format::INVALID,
+		    i32 mostDetailedMip = 0, i32 mipLevels = 0, f32 resourceMinLODClamp = 0.0f);
+		GPU_DLL_INLINE BindingSRV TextureCube(GPU::Handle res, GPU::Format format = GPU::Format::INVALID,
+		    i32 mostDetailedMip = 0, i32 mipLevels = 0, f32 resourceMinLODClamp = 0.0f);
+		GPU_DLL_INLINE BindingSRV TextureCubeArray(GPU::Handle res, GPU::Format format = GPU::Format::INVALID,
+		    i32 mostDetailedMip = 0, i32 mipLevels = 0, i32 first2DArrayFace = 0, i32 numCubes = 0,
+		    f32 resourceMinLODClamp = 0.0f);
+
+		GPU_DLL_INLINE BindingUAV RWBuffer(GPU::Handle res, GPU::Format format = GPU::Format::INVALID,
+		    i32 firstElement = 0, i32 numElements = 0, i32 structureByteStride = 0);
+		GPU_DLL_INLINE BindingUAV RWTexture1D(
+		    GPU::Handle res, GPU::Format format = GPU::Format::INVALID, i32 mipSlice = 0);
+		GPU_DLL_INLINE BindingUAV RWTexture1DArray(GPU::Handle res, GPU::Format format = GPU::Format::INVALID,
+		    i32 mipSlice = 0, i32 firstArraySlice = 0, i32 arraySize = 0);
+		GPU_DLL_INLINE BindingUAV RWTexture2D(
+		    GPU::Handle res, GPU::Format format = GPU::Format::INVALID, i32 mipSlice = 0, i32 planeSlice = 0);
+		GPU_DLL_INLINE BindingUAV RWTexture2DArray(GPU::Handle res, GPU::Format format = GPU::Format::INVALID,
+		    i32 mipSlice = 0, i32 planeSlice = 0, i32 firstArraySlice = 0, i32 arraySize = 0);
+		GPU_DLL_INLINE BindingUAV RWTexture3D(GPU::Handle res, GPU::Format format = GPU::Format::INVALID,
+		    i32 mipSlice = 0, i32 firstWSlice = 0, i32 wSize = 0);
+	} // namespace Binding
+
 } // namespace GPU
+
+#if CODE_INLINE
+#include "gpu/private/resources.inl"
+#endif

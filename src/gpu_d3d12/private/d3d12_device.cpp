@@ -4,6 +4,7 @@
 #include "gpu_d3d12/d3d12_descriptor_heap_allocator.h"
 #include "gpu_d3d12/private/shaders/default_cs.h"
 #include "gpu_d3d12/private/shaders/default_vs.h"
+#include "gpu/utils.h"
 
 #include "core/debug.h"
 
@@ -440,17 +441,21 @@ namespace GPU
 		memset(&clearValue, 0, sizeof(clearValue));
 
 		// Setup initial bind type to be whatever is likely what it will be used as first.
-		if(Core::ContainsAllFlags(desc.bindFlags_, BindFlags::RENDER_TARGET))
+		const auto formatInfo = GetFormatInfo(desc.format_);
+		if(formatInfo.rgbaFormat_ != FormatType::TYPELESS)
 		{
-			clearValue.Format = GetFormat(desc.format_);
-			setClearValue = &clearValue;
-		}
-		else if(Core::ContainsAllFlags(desc.bindFlags_, BindFlags::DEPTH_STENCIL))
-		{
-			clearValue.Format = GetFormat(desc.format_);
-			clearValue.DepthStencil.Depth = 1.0f;
-			clearValue.DepthStencil.Stencil = 0;
-			setClearValue = &clearValue;
+			if(Core::ContainsAllFlags(desc.bindFlags_, BindFlags::RENDER_TARGET))
+			{
+				clearValue.Format = GetFormat(desc.format_);
+				setClearValue = &clearValue;
+			}
+			else if(Core::ContainsAllFlags(desc.bindFlags_, BindFlags::DEPTH_STENCIL))
+			{
+				clearValue.Format = GetFormat(desc.format_);
+				clearValue.DepthStencil.Depth = 1.0f;
+				clearValue.DepthStencil.Stencil = 0;
+				setClearValue = &clearValue;
+			}
 		}
 
 		ComPtr<ID3D12Resource> d3dResource;
@@ -636,8 +641,11 @@ namespace GPU
 		handle.ptr += first * incr;
 		for(i32 i = 0; i < num; ++i)
 		{
-			d3dDevice_->CreateShaderResourceView(resources[i]->resource_.Get(), &descs[i], handle);
-			pbs.srvTransitions_[first + i] = resources[i];
+			if(resources[i])
+			{
+				d3dDevice_->CreateShaderResourceView(resources[i]->resource_.Get(), &descs[i], handle);
+				pbs.srvTransitions_[first + i] = resources[i];
+			}
 			handle.ptr += incr;
 		}
 		return ErrorCode::OK;
@@ -651,8 +659,11 @@ namespace GPU
 		handle.ptr += first * incr;
 		for(i32 i = 0; i < num; ++i)
 		{
-			d3dDevice_->CreateUnorderedAccessView(resources[i]->resource_.Get(), nullptr, &descs[i], handle);
-			pbs.uavTransitions_[first + i] = resources[i];
+			if(resources[i])
+			{
+				d3dDevice_->CreateUnorderedAccessView(resources[i]->resource_.Get(), nullptr, &descs[i], handle);
+				pbs.uavTransitions_[first + i] = resources[i];
+			}
 			handle.ptr += incr;
 		}
 		return ErrorCode::OK;
@@ -735,7 +746,7 @@ namespace GPU
 		TextureDesc texDesc = swapChain.textures_[0].desc_;
 		texDesc.width_ = width;
 		texDesc.height_ = height;
-		
+
 		// Release referenced textures.
 		for(i32 i = 0; i < swapChain.textures_.size(); ++i)
 		{
@@ -743,9 +754,10 @@ namespace GPU
 			texResource.resource_.Reset();
 		}
 
-		// Do the resize.	
+		// Do the resize.
 		HRESULT hr;
-		CHECK_D3D(hr = swapChain.swapChain_->ResizeBuffers(swapChain.textures_.size(), width, height, GetFormat(texDesc.format_), 0));
+		CHECK_D3D(hr = swapChain.swapChain_->ResizeBuffers(
+		              swapChain.textures_.size(), width, height, GetFormat(texDesc.format_), 0));
 		if(FAILED(hr))
 			return ErrorCode::FAIL;
 
@@ -764,7 +776,7 @@ namespace GPU
 
 			// Setup texture desc.
 			texResource.desc_ = texDesc;
-		}		
+		}
 
 		return ErrorCode::OK;
 	}

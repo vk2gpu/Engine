@@ -79,11 +79,11 @@ namespace
 		{
 			if(!inColor)
 				inColor = builder.CreateTexture("Color", GetDefaultTextureDesc());
-			color_ = builder.UseRTV(this, inColor);
+			color_ = builder.SetRTV(0, inColor);
 
 			if(!inDepth)
 				inDepth = builder.CreateTexture("Depth", GetDepthTextureDesc());
-			depth_ = builder.UseDSV(this, inDepth, GPU::DSVFlags::NONE);
+			depth_ = builder.SetDSV(inDepth);
 		}
 
 		virtual ~RenderPassMain() { GPU::Manager::DestroyResource(fbs_); }
@@ -128,7 +128,7 @@ namespace
 		{
 			if(!inColor)
 				inColor = builder.CreateTexture("Color", GetDefaultTextureDesc());
-			color_ = builder.UseRTV(this, inColor);
+			color_ = builder.SetRTV(0, inColor);
 		}
 
 		virtual ~RenderPassHUD() {}
@@ -153,7 +153,7 @@ namespace
 		{
 			if(!inColor)
 				inColor = builder.CreateTexture("Color", GetDefaultTextureDesc());
-			color_ = builder.UseRTV(this, inColor);
+			color_ = builder.SetRTV(0, inColor);
 		}
 
 		virtual ~RenderPassFinal() {}
@@ -177,7 +177,7 @@ namespace
 		{
 			if(!inDepth)
 				inDepth = builder.CreateTexture("Depth", GetDepthTextureDesc());
-			depth_ = builder.UseDSV(this, inDepth, GPU::DSVFlags::NONE);
+			depth_ = builder.SetDSV(inDepth);
 		}
 
 		virtual ~RenderPassDepthPrepass() {}
@@ -202,10 +202,12 @@ namespace
 		{
 			if(!inDepth)
 				inDepth = builder.CreateTexture("Depth", GetDepthTextureDesc());
-			depth_ = builder.UseDSV(this, inDepth, GPU::DSVFlags::READ_ONLY_DEPTH | GPU::DSVFlags::READ_ONLY_STENCIL);
-			albedo_ = builder.UseRTV(this, builder.CreateTexture("Albedo", GetDefaultTextureDesc()));
-			material_ = builder.UseRTV(this, builder.CreateTexture("Material", GetDefaultTextureDesc()));
-			normal_ = builder.UseRTV(this, builder.CreateTexture("Normal", GetDefaultTextureDesc()));
+			GPU::BindingDSV bindingDSV;
+			bindingDSV.flags_ = GPU::DSVFlags::READ_ONLY_DEPTH | GPU::DSVFlags::READ_ONLY_STENCIL;
+			depth_ = builder.SetDSV(inDepth, bindingDSV);
+			albedo_ = builder.SetRTV(0, builder.CreateTexture("Albedo", GetDefaultTextureDesc()));
+			material_ = builder.SetRTV(1, builder.CreateTexture("Material", GetDefaultTextureDesc()));
+			normal_ = builder.SetRTV(2, builder.CreateTexture("Normal", GetDefaultTextureDesc()));
 		}
 
 		virtual ~RenderPassSolid() {}
@@ -231,8 +233,8 @@ namespace
 		    : Graphics::RenderPass(builder)
 		    , debugData_(debugData)
 		{
-			depth_ = builder.UseSRV(this, inDepth);
-			ssao_ = builder.UseRTV(this, builder.CreateTexture("SSAO", GetSSAOTextureDesc()));
+			depth_ = builder.UseSRV(inDepth);
+			ssao_ = builder.SetRTV(0, builder.CreateTexture("SSAO", GetSSAOTextureDesc()));
 		};
 
 		virtual ~RenderPassSSAO() {}
@@ -258,13 +260,13 @@ namespace
 		    : Graphics::RenderPass(builder)
 		    , debugData_(debugData)
 		{
-			depth_ = builder.UseSRV(this, inDepth);
-			albedo_ = builder.UseSRV(this, inAlbedo);
-			material_ = builder.UseSRV(this, inMaterial);
-			normal_ = builder.UseSRV(this, inNormal);
-			ssao_ = builder.UseSRV(this, inSSAO);
+			depth_ = builder.UseSRV(inDepth);
+			albedo_ = builder.UseSRV(inAlbedo);
+			material_ = builder.UseSRV(inMaterial);
+			normal_ = builder.UseSRV(inNormal);
+			ssao_ = builder.UseSRV(inSSAO);
 
-			hdr_ = builder.UseRTV(this, builder.CreateTexture("HDR", GetHDRTextureDesc()));
+			hdr_ = builder.SetRTV(0, builder.CreateTexture("HDR", GetHDRTextureDesc()));
 		}
 
 		virtual ~RenderPassLighting() {}
@@ -292,8 +294,8 @@ namespace
 		    : Graphics::RenderPass(builder)
 		    , debugData_(debugData)
 		{
-			hdr_ = builder.UseSRV(this, inHDR);
-			color_ = builder.UseRTV(this, inoutColor);
+			hdr_ = builder.UseSRV(inHDR);
+			color_ = builder.SetRTV(0, inoutColor);
 		}
 
 		virtual ~RenderPassToneMap() { GPU::Manager::DestroyResource(fbs_); }

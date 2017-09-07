@@ -1,14 +1,9 @@
 #include "lib.esh"
+#include "lights.esh"
 
 struct Object
 {
 	float4x4 world_;
-};
-
-struct View
-{
-	float4x4 view_;
-	float4x4 viewProj_;
 };
 
 cbuffer ObjectCBuffer
@@ -18,7 +13,12 @@ cbuffer ObjectCBuffer
 
 cbuffer ViewCBuffer
 {
-	View v_;
+	ViewParams v_;
+};
+
+cbuffer LightCBuffer
+{
+	LightParams l_;
 };
 
 struct VS_IN
@@ -30,6 +30,7 @@ struct VS_IN
 struct VS_OUT
 {
 	float4 position : SV_POSITION;
+	float3 w_position : TEXCOORD15;
 	float3 normal : NORMAL;
 };
 
@@ -38,7 +39,8 @@ VS_OUT vs_main(in VS_IN _in)
 	VS_OUT _out = (VS_OUT)0;
 	float4 position = mul(o_.world_, float4(_in.position, 1.0));
 	_out.position = mul(v_.viewProj_, position);
-	_out.normal = mul((float3x3)o_.world_, float4(_in.normal, 0.0));
+	_out.w_position = position.xyz;
+	_out.normal = mul((float3x3)o_.world_, _in.normal);
 	return _out;
 }
 
@@ -47,15 +49,39 @@ void ps_depthprepass(in VS_OUT _in)
 	
 }
 
+StructuredBuffer<Light> inLights;
+StructuredBuffer<LightLink> inLightLinks;
+
 float4 ps_forward(in VS_OUT _in) : SV_TARGET0
 {
-	const float3 sunDirection = normalize(float3(-0.707, -0.707, -0.707));
 	const float3 normal = normalize(_in.normal.xyz);
-	const float3 sunColor = float3(1.0, 1.0, 1.0);
-	const float3 ambient = float3(0.0, 0.0, 0.0);
+	const float3 ambient = float3(0.1, 0.1, 0.1);
 
-	float3 lightColor = sunColor * saturate(-dot(normal, sunDirection));
+	float3 lightColor = float3(0.0, 0.0, 0.0);
 	lightColor += ambient;
+
+	float2 viewCoord = _in.position.xy / v_.screenDimensions_;
+	const uint tileIdx = GetTileIdx(l_, viewCoord * l_.numTiles_);
+
+	// Iterate over lights.
+	LightLink lightLink = inLightLinks[tileIdx];
+	for(int idx = 0; idx < MAX_LIGHTS_PER_TILE; ++idx)
+	{	
+		if(lightLink.idx >= 0)
+		{
+			const Light light = inLights[lightLink.idx];
+			const float3 lightVec = light.position_ - _in.w_position;
+			const float dist = sqrt(dot(lightVec, lightVec));
+			const float3 lightDir = lightVec / dist; 
+			const float attn = CalculateAttn(dist, light.attenuation_);
+
+			lightColor += light.color_ * max(0.0, dot(normal, lightDir) * attn);
+		}
+
+		if(lightLink.next == 0)
+			break;
+		lightLink = inLightLinks[lightLink.next];
+	}
 
 	return float4(lightColor, 1.0);
 }

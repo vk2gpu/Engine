@@ -252,7 +252,8 @@ namespace Graphics
 		stringStore.resize(1024 * 1024);
 
 		Core::String patchedShaderCode = BASE_LIBRARY;
-		patchedShaderCode.Appendf("\n%s", shaderCode);
+		patchedShaderCode.Append("\n");
+		patchedShaderCode.Append(shaderCode);
 
 		stb_c_lexer_init(
 		    &lexCtx_, patchedShaderCode.begin(), patchedShaderCode.end(), stringStore.data(), stringStore.size());
@@ -935,6 +936,11 @@ namespace Graphics
 			else if(lexCtx_.token == CLEX_dqstring)
 			{
 				token_.type_ = AST::TokenType::STRING;
+				token_.value_ = lexCtx_.string;
+			}
+			else
+			{
+				token_.type_ = AST::TokenType::CHAR;
 				token_.value_ = lexCtx_.string;
 			}
 			token_ = token_;

@@ -2,7 +2,9 @@
    "$internal" : {
       "dependencies" : [
          "shader_tests/simple-mesh.esf",
-         "../../../../res/shader_tests/lib.esh"
+         "../../../../res/shader_tests/lib.esh",
+         "../../../../res/shader_tests/lights.esh",
+         "../../../../res/stdlib.esh"
       ],
       "outputs" : [ "converter_output/shader_tests/simple-mesh.esf.converted" ]
    }

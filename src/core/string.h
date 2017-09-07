@@ -62,6 +62,7 @@ namespace Core
 		String& Printfv(const char* fmt, va_list argList);
 		String& Appendf(const char* fmt, ...);
 		String& Appendfv(const char* fmt, va_list argList);
+		String& Append(const char* str);
 
 		// STL compatible interfaces.
 		void clear() { data_.clear(); }

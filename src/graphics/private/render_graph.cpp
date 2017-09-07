@@ -11,6 +11,7 @@
 
 #include "gpu/command_list.h"
 #include "gpu/manager.h"
+#include "gpu/utils.h"
 
 #include "job/function_job.h"
 #include "job/manager.h"
@@ -18,6 +19,19 @@
 #include "Remotery.h"
 
 #include <algorithm>
+
+namespace
+{
+	bool operator==(const Graphics::RenderGraphBufferDesc& a, const Graphics::RenderGraphBufferDesc& b)
+	{
+		return memcmp(&a, &b, sizeof(a)) == 0;
+	}
+
+	bool operator==(const Graphics::RenderGraphTextureDesc& a, const Graphics::RenderGraphTextureDesc& b)
+	{
+		return memcmp(&a, &b, sizeof(a)) == 0;
+	}
+}
 
 namespace Graphics
 {
@@ -39,7 +53,6 @@ namespace Graphics
 		GPU::Handle handle_;
 		RenderGraphBufferDesc bufferDesc_;
 		RenderGraphTextureDesc textureDesc_;
-
 		i32 inUse_ = 0;
 	};
 
@@ -126,21 +139,22 @@ namespace Graphics
 				auto& resDesc = resourceDescs_[idx];
 
 				auto foundIt = std::find_if(transientResources_.begin(), transientResources_.end(),
-					[&resDesc](const ResourceDesc& transientDesc)
-				{
-					if(transientDesc.handle_ && transientDesc.inUse_ == 0 && resDesc.resType_ == transientDesc.resType_)
-					{
-						if(resDesc.resType_ == GPU::ResourceType::BUFFER)
-						{
-							return memcmp(&resDesc.bufferDesc_, &transientDesc.bufferDesc_, sizeof(transientDesc.bufferDesc_)) == 0;
-						}
-						else if(resDesc.resType_ == GPU::ResourceType::TEXTURE)
-						{
-							return memcmp(&resDesc.textureDesc_, &transientDesc.textureDesc_, sizeof(transientDesc.textureDesc_)) == 0;
-						}
-					}
-					return false;
-				});
+				    [&resDesc](const ResourceDesc& transientDesc) {
+					    if(transientDesc.handle_ && transientDesc.inUse_ == 0 &&
+					        resDesc.resType_ == transientDesc.resType_)
+					    {
+						    if(resDesc.resType_ == GPU::ResourceType::BUFFER)
+						    {
+							    return resDesc.bufferDesc_ == transientDesc.bufferDesc_;
+						    }
+						    else if(resDesc.resType_ == GPU::ResourceType::TEXTURE)
+						    {
+							    return resDesc.textureDesc_ == transientDesc.textureDesc_;
+							    ;
+						    }
+					    }
+					    return false;
+					});
 
 				if(foundIt == transientResources_.end())
 				{
@@ -149,12 +163,12 @@ namespace Graphics
 						if(resDesc.resType_ == GPU::ResourceType::BUFFER)
 						{
 							resDesc.handle_ =
-								GPU::Manager::CreateBuffer(resDesc.bufferDesc_, nullptr, resDesc.name_.c_str());
+							    GPU::Manager::CreateBuffer(resDesc.bufferDesc_, nullptr, resDesc.name_.c_str());
 						}
 						else if(resDesc.resType_ == GPU::ResourceType::TEXTURE)
 						{
 							resDesc.handle_ =
-								GPU::Manager::CreateTexture(resDesc.textureDesc_, nullptr, resDesc.name_.c_str());
+							    GPU::Manager::CreateTexture(resDesc.textureDesc_, nullptr, resDesc.name_.c_str());
 						}
 
 						resDesc.inUse_ = 1;
@@ -169,7 +183,7 @@ namespace Graphics
 				}
 			}
 
-			for(auto it = transientResources_.begin(); it != transientResources_.end(); )
+			for(auto it = transientResources_.begin(); it != transientResources_.end();)
 			{
 				if(it->inUse_ == 0)
 				{
@@ -182,11 +196,59 @@ namespace Graphics
 				}
 			}
 		}
+
+		void CreateFrameBindingSets()
+		{
+			for(auto& entry : renderPassEntries_)
+			{
+				auto* renderPass = entry.renderPass_->impl_;
+				if(renderPass->dsv_ || renderPass->rtvs_[0])
+				{
+					auto dsvRes = renderPass->dsv_;
+					if(dsvRes)
+						renderPass->fbsDesc_.dsv_.resource_ = GetTexture(dsvRes, nullptr);
+					for(i32 idx = 0; idx < renderPass->rtvs_.size(); ++idx)
+					{
+						auto rtvRes = renderPass->rtvs_[idx];
+						if(rtvRes)
+							renderPass->fbsDesc_.rtvs_[idx].resource_ = GetTexture(rtvRes, nullptr);
+					}
+
+					renderPass->fbs_ = GPU::Manager::CreateFrameBindingSet(renderPass->fbsDesc_, entry.name_.c_str());
+				}
+			}
+		}
+
+		GPU::Handle GetHandle(RenderGraphResource res) const
+		{
+			const auto& resDesc = resourceDescs_[res.idx_];
+			return resDesc.handle_;
+		}
+
+		GPU::Handle GetBuffer(RenderGraphResource res, RenderGraphBufferDesc* outDesc) const
+		{
+			const auto& resDesc = resourceDescs_[res.idx_];
+			DBG_ASSERT(resDesc.resType_ == GPU::ResourceType::BUFFER);
+			if(outDesc)
+				*outDesc = resDesc.bufferDesc_;
+			return resDesc.handle_;
+		}
+
+		GPU::Handle GetTexture(RenderGraphResource res, RenderGraphTextureDesc* outDesc) const
+		{
+			const auto& resDesc = resourceDescs_[res.idx_];
+			DBG_ASSERT(
+			    resDesc.resType_ == GPU::ResourceType::TEXTURE || resDesc.resType_ == GPU::ResourceType::SWAP_CHAIN);
+			if(outDesc)
+				*outDesc = resDesc.textureDesc_;
+			return resDesc.handle_;
+		}
 	};
 
 
-	RenderGraphBuilder::RenderGraphBuilder(RenderGraphImpl* impl)
+	RenderGraphBuilder::RenderGraphBuilder(RenderGraphImpl* impl, RenderPass* renderPass)
 	    : impl_(impl)
+	    , renderPass_(renderPass)
 	{
 	}
 
@@ -214,7 +276,7 @@ namespace Graphics
 		return RenderGraphResource(resDesc.id_, 0);
 	}
 
-	RenderGraphResource RenderGraphBuilder::UseCBV(RenderPass* renderPass, RenderGraphResource res, bool update)
+	RenderGraphResource RenderGraphBuilder::UseCBV(RenderGraphResource res, bool update)
 	{
 		DBG_ASSERT(res);
 		if(!res)
@@ -233,16 +295,16 @@ namespace Graphics
 			break;
 		}
 
-		renderPass->impl_->AddInput(res);
+		renderPass_->impl_->AddInput(res);
 		if(update)
 		{
 			res.version_++;
-			renderPass->impl_->AddOutput(res);
+			renderPass_->impl_->AddOutput(res);
 		}
 		return res;
 	}
 
-	RenderGraphResource RenderGraphBuilder::UseSRV(RenderPass* renderPass, RenderGraphResource res)
+	RenderGraphResource RenderGraphBuilder::UseSRV(RenderGraphResource res)
 	{
 		DBG_ASSERT(res);
 		if(!res)
@@ -265,12 +327,41 @@ namespace Graphics
 			break;
 		}
 
-		renderPass->impl_->AddInput(res);
+		renderPass_->impl_->AddInput(res);
 
 		return res;
 	}
 
-	RenderGraphResource RenderGraphBuilder::UseRTV(RenderPass* renderPass, RenderGraphResource res)
+	RenderGraphResource RenderGraphBuilder::UseUAV(RenderGraphResource res)
+	{
+		DBG_ASSERT(res);
+		if(!res)
+			return res;
+
+		// Patch up required bind flags.
+		auto& resource = impl_->resourceDescs_[res.idx_];
+		switch(resource.resType_)
+		{
+		case GPU::ResourceType::BUFFER:
+			resource.bufferDesc_.bindFlags_ |= GPU::BindFlags::UNORDERED_ACCESS;
+			break;
+		case GPU::ResourceType::TEXTURE:
+		case GPU::ResourceType::SWAP_CHAIN:
+			resource.textureDesc_.bindFlags_ |= GPU::BindFlags::UNORDERED_ACCESS;
+			break;
+
+		default:
+			DBG_BREAK;
+			break;
+		}
+
+		renderPass_->impl_->AddInput(res);
+		res.version_++;
+		renderPass_->impl_->AddOutput(res);
+		return res;
+	}
+
+	RenderGraphResource RenderGraphBuilder::SetRTV(i32 idx, RenderGraphResource res, GPU::BindingRTV binding)
 	{
 		DBG_ASSERT(res);
 		if(!res)
@@ -290,13 +381,25 @@ namespace Graphics
 			break;
 		}
 
-		renderPass->impl_->AddInput(res);
+		// Invalid dimension specified, setup default.
+		if(binding.dimension_ == GPU::ViewDimension::INVALID)
+		{
+			binding.dimension_ = GPU::GetViewDimension(resource.textureDesc_.type_);
+			binding.format_ = resource.textureDesc_.format_;
+		}
+
+		// Set framebuffer binding desc on render pass.
+		renderPass_->impl_->rtvs_[idx] = res;
+		renderPass_->impl_->fbsDesc_.rtvs_[idx] = binding;
+
+		// Add inputs & outputs for dependency tracking.
+		renderPass_->impl_->AddInput(res);
 		res.version_++;
-		renderPass->impl_->AddOutput(res);
+		renderPass_->impl_->AddOutput(res);
 		return res;
 	}
 
-	RenderGraphResource RenderGraphBuilder::UseDSV(RenderPass* renderPass, RenderGraphResource res, GPU::DSVFlags flags)
+	RenderGraphResource RenderGraphBuilder::SetDSV(RenderGraphResource res, GPU::BindingDSV binding)
 	{
 		DBG_ASSERT(res);
 		if(!res)
@@ -307,7 +410,6 @@ namespace Graphics
 		switch(resource.resType_)
 		{
 		case GPU::ResourceType::TEXTURE:
-		case GPU::ResourceType::SWAP_CHAIN:
 			resource.textureDesc_.bindFlags_ |= GPU::BindFlags::DEPTH_STENCIL;
 			break;
 
@@ -316,13 +418,25 @@ namespace Graphics
 			break;
 		}
 
-		renderPass->impl_->AddInput(res);
+		// Invalid dimension specified, setup default.
+		if(binding.dimension_ == GPU::ViewDimension::INVALID)
+		{
+			binding.dimension_ = GPU::GetViewDimension(resource.textureDesc_.type_);
+			binding.format_ = GPU::GetDSVFormat(resource.textureDesc_.format_);
+		}
+
+		// Set framebuffer binding desc on render pass.
+		renderPass_->impl_->dsv_ = res;
+		renderPass_->impl_->fbsDesc_.dsv_ = binding;
+
+		// Add inputs & outputs for dependency tracking.
+		renderPass_->impl_->AddInput(res);
 
 		// If not read only, then it's also an output.
-		if(!Core::ContainsAllFlags(flags, GPU::DSVFlags::READ_ONLY_DEPTH | GPU::DSVFlags::READ_ONLY_STENCIL))
+		if(!Core::ContainsAllFlags(binding.flags_, GPU::DSVFlags::READ_ONLY_DEPTH | GPU::DSVFlags::READ_ONLY_STENCIL))
 		{
 			res.version_++;
-			renderPass->impl_->AddOutput(res);
+			renderPass_->impl_->AddOutput(res);
 		}
 
 		return res;
@@ -364,8 +478,9 @@ namespace Graphics
 
 	void* RenderGraphBuilder::Alloc(i32 size) { return impl_->frameAllocator_.Allocate(size); }
 
-	RenderGraphResources::RenderGraphResources(RenderGraphImpl* impl)
+	RenderGraphResources::RenderGraphResources(RenderGraphImpl* impl, RenderPassImpl* renderPass)
 	    : impl_(impl)
+	    , renderPass_(renderPass)
 	{
 	}
 
@@ -373,21 +488,102 @@ namespace Graphics
 
 	GPU::Handle RenderGraphResources::GetBuffer(RenderGraphResource res, RenderGraphBufferDesc* outDesc) const
 	{
-		const auto& resDesc = impl_->resourceDescs_[res.idx_];
-		DBG_ASSERT(resDesc.resType_ == GPU::ResourceType::BUFFER);
-		if(outDesc)
-			*outDesc = resDesc.bufferDesc_;
-		return resDesc.handle_;
+		return impl_->GetBuffer(res, outDesc);
 	}
 
 	GPU::Handle RenderGraphResources::GetTexture(RenderGraphResource res, RenderGraphTextureDesc* outDesc) const
 	{
-		const auto& resDesc = impl_->resourceDescs_[res.idx_];
-		DBG_ASSERT(resDesc.resType_ == GPU::ResourceType::TEXTURE || resDesc.resType_ == GPU::ResourceType::SWAP_CHAIN);
-		if(outDesc)
-			*outDesc = resDesc.textureDesc_;
-		return resDesc.handle_;
+		return impl_->GetTexture(res, outDesc);
 	}
+
+	GPU::Handle RenderGraphResources::GetFrameBindingSet(GPU::FrameBindingSetDesc* outDesc) const
+	{
+		if(outDesc)
+			*outDesc = renderPass_->fbsDesc_;
+		return renderPass_->fbs_;
+	}
+
+	GPU::BindingCBV RenderGraphResources::CBuffer(RenderGraphResource res, i32 offset, i32 size) const
+	{
+		return GPU::Binding::CBuffer(impl_->GetHandle(res), offset, size);
+	}
+	GPU::BindingSRV RenderGraphResources::Buffer(
+	    RenderGraphResource res, GPU::Format format, i32 firstElement, i32 numElements, i32 structureByteStride) const
+	{
+		return GPU::Binding::Buffer(impl_->GetHandle(res), format, firstElement, numElements, structureByteStride);
+	}
+	GPU::BindingSRV RenderGraphResources::Texture1D(
+	    RenderGraphResource res, GPU::Format format, i32 mostDetailedMip, i32 mipLevels, f32 resourceMinLODClamp) const
+	{
+		return GPU::Binding::Texture1D(impl_->GetHandle(res), format, mostDetailedMip, mipLevels, resourceMinLODClamp);
+	}
+	GPU::BindingSRV RenderGraphResources::Texture1DArray(RenderGraphResource res, GPU::Format format,
+	    i32 mostDetailedMip, i32 mipLevels, i32 firstArraySlice, i32 arraySize, f32 resourceMinLODClamp) const
+	{
+		return GPU::Binding::Texture1DArray(
+		    impl_->GetHandle(res), format, mostDetailedMip, mipLevels, firstArraySlice, arraySize, resourceMinLODClamp);
+	}
+	GPU::BindingSRV RenderGraphResources::Texture2D(RenderGraphResource res, GPU::Format format, i32 mostDetailedMip,
+	    i32 mipLevels, i32 planeSlice, f32 resourceMinLODClamp) const
+	{
+		return GPU::Binding::Texture2D(
+		    impl_->GetHandle(res), format, mostDetailedMip, mipLevels, planeSlice, resourceMinLODClamp);
+	}
+	GPU::BindingSRV RenderGraphResources::Texture2DArray(RenderGraphResource res, GPU::Format format,
+	    i32 mostDetailedMip, i32 mipLevels, i32 firstArraySlice, i32 arraySize, i32 planeSlice,
+	    f32 resourceMinLODClamp) const
+	{
+		return GPU::Binding::Texture2DArray(impl_->GetHandle(res), format, mostDetailedMip, mipLevels, firstArraySlice,
+		    arraySize, planeSlice, resourceMinLODClamp);
+	}
+	GPU::BindingSRV RenderGraphResources::Texture3D(
+	    RenderGraphResource res, GPU::Format format, i32 mostDetailedMip, i32 mipLevels, f32 resourceMinLODClamp) const
+	{
+		return GPU::Binding::Texture3D(impl_->GetHandle(res), format, mostDetailedMip, mipLevels, resourceMinLODClamp);
+	}
+	GPU::BindingSRV RenderGraphResources::TextureCube(
+	    RenderGraphResource res, GPU::Format format, i32 mostDetailedMip, i32 mipLevels, f32 resourceMinLODClamp) const
+	{
+		return GPU::Binding::TextureCube(
+		    impl_->GetHandle(res), format, mostDetailedMip, mipLevels, resourceMinLODClamp);
+	}
+	GPU::BindingSRV RenderGraphResources::TextureCubeArray(RenderGraphResource res, GPU::Format format,
+	    i32 mostDetailedMip, i32 mipLevels, i32 first2DArrayFace, i32 numCubes, f32 resourceMinLODClamp) const
+	{
+		return GPU::Binding::TextureCubeArray(
+		    impl_->GetHandle(res), format, mostDetailedMip, mipLevels, first2DArrayFace, numCubes, resourceMinLODClamp);
+	}
+	GPU::BindingUAV RenderGraphResources::RWBuffer(
+	    RenderGraphResource res, GPU::Format format, i32 firstElement, i32 numElements, i32 structureByteStride) const
+	{
+		return GPU::Binding::RWBuffer(impl_->GetHandle(res), format, firstElement, numElements, structureByteStride);
+	}
+	GPU::BindingUAV RenderGraphResources::RWTexture1D(RenderGraphResource res, GPU::Format format, i32 mipSlice) const
+	{
+		return GPU::Binding::RWTexture1D(impl_->GetHandle(res), format, mipSlice);
+	}
+	GPU::BindingUAV RenderGraphResources::RWTexture1DArray(
+	    RenderGraphResource res, GPU::Format format, i32 mipSlice, i32 firstArraySlice, i32 arraySize) const
+	{
+		return GPU::Binding::RWTexture1DArray(impl_->GetHandle(res), format, mipSlice, firstArraySlice, arraySize);
+	}
+	GPU::BindingUAV RenderGraphResources::RWTexture2D(
+	    RenderGraphResource res, GPU::Format format, i32 mipSlice, i32 planeSlice) const
+	{
+		return GPU::Binding::RWTexture2D(impl_->GetHandle(res), format, mipSlice, planeSlice);
+	}
+	GPU::BindingUAV RenderGraphResources::RWTexture2DArray(RenderGraphResource res, GPU::Format format, i32 mipSlice,
+	    i32 planeSlice, i32 firstArraySlice, i32 arraySize) const
+	{
+		return GPU::Binding::RWTexture2DArray(
+		    impl_->GetHandle(res), format, mipSlice, planeSlice, firstArraySlice, arraySize);
+	}
+	GPU::BindingUAV RenderGraphResources::RWTexture3D(
+	    RenderGraphResource res, GPU::Format format, i32 mipSlice, i32 firstWSlice, i32 wSize) const
+	{
+		return GPU::Binding::RWTexture3D(impl_->GetHandle(res), format, mipSlice, firstWSlice, wSize);
+	}
+
 
 	RenderGraph::RenderGraph() { impl_ = new RenderGraphImpl(MAX_FRAME_DATA); }
 
@@ -492,7 +688,12 @@ namespace Graphics
 			rmt_ScopedCPUSample(RenderGraph_CreateResources, RMTSF_None);
 			impl_->CreateResources();
 		}
-		
+
+		{
+			rmt_ScopedCPUSample(RenderGraph_CreateFrameBindingSets, RMTSF_None);
+			impl_->CreateFrameBindingSets();
+		}
+
 
 		// Create more command lists as required.
 		const i32 numPasses = impl_->executeRenderPasses_.size();
@@ -526,17 +727,15 @@ namespace Graphics
 		// Setup job to execute & compile all command lists.
 		volatile i32 completed = 0;
 		Job::FunctionJob executeJob("RenderGraph::Execute", [impl = this->impl_, &completed](i32 idx) {
-			RenderGraphResources resources(impl);
-
 			auto& entry = impl->executeRenderPasses_[idx];
 			auto& cmdList = impl->cmdLists_[idx];
 			auto& cmdHandle = impl->cmdHandles_[idx];
 
+			RenderGraphResources resources(impl, entry->renderPass_->impl_);
+
 			cmdList.Reset();
 			if(auto event = cmdList.Event(0x00000000, entry->name_.c_str()))
-			{
 				entry->renderPass_->Execute(resources, cmdList);
-			}
 
 			if(cmdList.GetType() != GPU::CommandQueueType::NONE)
 				GPU::Manager::CompileCommandList(cmdHandle, cmdList);
@@ -556,9 +755,7 @@ namespace Graphics
 			const auto& cmdList = impl_->cmdLists_[idx];
 			auto cmdHandle = impl_->cmdHandles_[idx];
 			if(cmdList.NumCommands() > 0)
-			{
 				GPU::Manager::SubmitCommandList(cmdHandle);
-			}
 		}
 	}
 
@@ -592,6 +789,8 @@ namespace Graphics
 		impl_->renderPassEntries_.push_back(entry);
 	}
 
+	void* RenderGraph::InternalAlloc(i32 size) { return impl_->frameAllocator_.Allocate(size); }
+
 	bool RenderGraph::GetBuffer(RenderGraphResource res, RenderGraphBufferDesc* outDesc) const
 	{
 		if(res.idx_ < impl_->resourceDescs_.size())
@@ -600,9 +799,7 @@ namespace Graphics
 			if(resDesc.resType_ == GPU::ResourceType::BUFFER)
 			{
 				if(outDesc)
-				{
 					*outDesc = resDesc.bufferDesc_;
-				}
 				return true;
 			}
 		}
@@ -617,9 +814,7 @@ namespace Graphics
 			if(resDesc.resType_ == GPU::ResourceType::TEXTURE || resDesc.resType_ == GPU::ResourceType::SWAP_CHAIN)
 			{
 				if(outDesc)
-				{
 					*outDesc = resDesc.textureDesc_;
-				}
 				return true;
 			}
 		}

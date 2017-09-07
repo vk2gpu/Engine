@@ -622,13 +622,21 @@ namespace GPU
 		memset(cbvs.data(), 0, sizeof(cbvs));
 		memset(samplers.data(), 0, sizeof(samplers));
 
+		const D3D12_SAMPLER_DESC defaultSampler = {
+		    D3D12_FILTER_MIN_MAG_MIP_POINT, D3D12_TEXTURE_ADDRESS_MODE_WRAP, D3D12_TEXTURE_ADDRESS_MODE_WRAP,
+		    D3D12_TEXTURE_ADDRESS_MODE_WRAP, 0.0f, 1, D3D12_COMPARISON_FUNC_NEVER, {0.0f, 0.0f, 0.0f, 0.0f}, 0.0f,
+		    Core::F32_MAX,
+		};
+		samplers.fill(defaultSampler);
+
 		{
 			Core::ScopedReadLock lock(resLock_);
 			for(i32 i = 0; i < desc.numSRVs_; ++i)
 			{
 				auto srvHandle = desc.srvs_[i].resource_;
+				if(!srvHandle)
+					continue;
 				DBG_ASSERT(srvHandle.GetType() == ResourceType::BUFFER || srvHandle.GetType() == ResourceType::TEXTURE);
-				DBG_ASSERT(srvHandle);
 
 				D3D12Resource* resource = GetD3D12Resource(srvHandle);
 				DBG_ASSERT(resource);
@@ -706,8 +714,9 @@ namespace GPU
 			for(i32 i = 0; i < desc.numUAVs_; ++i)
 			{
 				auto uavHandle = desc.uavs_[i].resource_;
+				if(!uavHandle)
+					continue;
 				DBG_ASSERT(uavHandle.GetType() == ResourceType::BUFFER || uavHandle.GetType() == ResourceType::TEXTURE);
-				DBG_ASSERT(uavHandle);
 
 				D3D12Resource* resource = GetD3D12Resource(uavHandle);
 				DBG_ASSERT(resource);
@@ -722,7 +731,7 @@ namespace GPU
 					uavs[i].Buffer.FirstElement = uav.mipSlice_FirstElement_;
 					uavs[i].Buffer.NumElements = uav.firstArraySlice_FirstWSlice_NumElements_;
 					uavs[i].Buffer.StructureByteStride = uav.structureByteStride_;
-					if(uav.structureByteStride_ == 0)
+					if(uavs[i].Format == DXGI_FORMAT_R32_TYPELESS && uav.structureByteStride_ == 0)
 						uavs[i].Buffer.Flags = D3D12_BUFFER_UAV_FLAG_RAW;
 					else
 						uavs[i].Buffer.Flags = D3D12_BUFFER_UAV_FLAG_NONE;
@@ -760,27 +769,22 @@ namespace GPU
 			for(i32 i = 0; i < desc.numCBVs_; ++i)
 			{
 				auto cbvHandle = desc.cbvs_[i].resource_;
-				if(cbvHandle)
-				{
-					DBG_ASSERT(cbvHandle.GetType() == ResourceType::BUFFER);
-					DBG_ASSERT(cbvHandle);
+				if(!cbvHandle)
+					continue;
+				DBG_ASSERT(cbvHandle.GetType() == ResourceType::BUFFER);
 
-					const auto& cbv = desc.cbvs_[i];
+				const auto& cbv = desc.cbvs_[i];
 
-					cbvs[i].BufferLocation =
-					    bufferResources_[cbvHandle.GetIndex()].resource_->GetGPUVirtualAddress() + cbv.offset_;
-					cbvs[i].SizeInBytes = Core::PotRoundUp(cbv.size_, D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT);
-				}
-				else
-				{
-					cbvs[i].BufferLocation = 0;
-					cbvs[i].SizeInBytes = 0;
-				}
+				cbvs[i].BufferLocation =
+				    bufferResources_[cbvHandle.GetIndex()].resource_->GetGPUVirtualAddress() + cbv.offset_;
+				cbvs[i].SizeInBytes = Core::PotRoundUp(cbv.size_, D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT);
 			}
 
 			for(i32 i = 0; i < desc.numSamplers_; ++i)
 			{
 				auto samplerHandle = desc.samplers_[i].resource_;
+				if(!samplerHandle)
+					continue;
 				DBG_ASSERT(samplerHandle);
 				samplers[i] = samplerStates_[samplerHandle.GetIndex()].desc_;
 			}
@@ -1116,7 +1120,7 @@ namespace GPU
 	}
 
 	ErrorCode D3D12Backend::ResizeSwapChain(Handle handle, i32 width, i32 height)
-	{ 
+	{
 		Core::ScopedWriteLock lock(resLock_);
 		DBG_ASSERT(handle.GetIndex() < swapchainResources_.size());
 		D3D12SwapChain& swapChain = swapchainResources_[handle.GetIndex()];

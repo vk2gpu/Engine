@@ -20,6 +20,8 @@ SET(SOURCES_PRIVATE
 	"private/command_list.inl"
 	"private/enum.cpp"
 	"private/manager.cpp"
+	"private/resources.cpp"
+	"private/resources.inl"
 	"private/utils.cpp"
 )
 
