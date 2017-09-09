@@ -178,6 +178,12 @@ namespace GPU
 		static void EndDebugCapture();
 
 		/**
+		 * Open debug capture.
+		 * Where supported, this will open the appropriate debug tool.
+		 */
+		static void OpenDebugCapture();
+
+		/**
 		 * Scoped Debug capture.
 		 */
 		class ScopedDebugCapture

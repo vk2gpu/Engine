@@ -318,7 +318,10 @@ namespace ImGui
 
 		// Allocate some vertices + indices from the command list.
 		auto* baseVertices = (ImDrawVert*)cmdList.Alloc(vbUpdateSize * sizeof(ImDrawVert));
+		DBG_ASSERT(baseVertices);
 		auto* baseIndices = (ImDrawIdx*)cmdList.Alloc(ibUpdateSize * sizeof(ImDrawIdx));
+		DBG_ASSERT(baseIndices);
+
 		auto* vertices = baseVertices;
 		auto* indices = baseIndices;
 

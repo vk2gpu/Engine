@@ -513,6 +513,13 @@ namespace
 		// tmp object state data.
 		f32 angle_ = 0.0f;
 		Math::Vec3 position_;
+
+		bool IsInstancableWith(const MeshRenderPacket& other)
+		{
+			return db_ == other.db_ && memcmp(&draw_, &other.draw_, sizeof(draw_)) == 0 && 
+				memcmp(&techDesc_, &other.techDesc_, sizeof(techDesc_)) == 0 && 
+				shader_ == other.shader_ && techs_ == other.techs_;
+		}
 	};
 
 	Core::Vector<RenderPacketBase*> packets_;
@@ -528,81 +535,74 @@ namespace
 		rmt_ScopedCPUSample(DrawRenderPackets, RMTSF_None);
 		if(auto event = cmdList.Eventf(0, "DrawRenderPackets(\"%s\")", passName))
 		{
-			i32 totalObjects = 0;
-
-			// Count up packets.
+			// Gather mesh packets for this pass.
+			Core::Vector<MeshRenderPacket*> meshPackets;
+			Core::Vector<i32> passTechIndices;
+			meshPackets.reserve(packets_.size());
+			passTechIndices.reserve(packets_.size());
+			for(auto& packet : packets_)
 			{
-				for(auto& packet : packets_)
+				if(packet->type_ == MeshRenderPacket::TYPE)
 				{
-					if(packet->type_ == MeshRenderPacket::TYPE)
+					auto* meshPacket = static_cast<MeshRenderPacket*>(packet);
+					auto passIdxIt = meshPacket->techs_->passIndices_.find(passName);
+					if(passIdxIt != meshPacket->techs_->passIndices_.end() &&
+						passIdxIt->second < meshPacket->techs_->passTechniques_.size())
 					{
-						auto* meshPacket = static_cast<MeshRenderPacket*>(packet);
-						auto passIdxIt = meshPacket->techs_->passIndices_.find(passName);
-						if(passIdxIt != meshPacket->techs_->passIndices_.end() &&
-						    passIdxIt->second < meshPacket->techs_->passTechniques_.size())
-						{
-							totalObjects++;
-						}
+						meshPackets.push_back(meshPacket);
+						passTechIndices.push_back(passIdxIt->second);
 					}
 				}
 			}
 
-			// Allocate command list memory.
-			auto* objects = cmdList.Alloc<ObjectConstants>(totalObjects);
-
-			// Update all render packet uniforms.
+			// Mesh packets
 			{
-				i32 objectSBOffset = 0;
-				for(auto& packet : packets_)
+				// Allocate command list memory.
+				auto* objects = cmdList.Alloc<ObjectConstants>(meshPackets.size());
+
+				// Update all render packet uniforms.
+				for(i32 idx = 0; idx < meshPackets.size(); ++idx)
+					objects[idx] = meshPackets[idx]->object_;
+				cmdList.UpdateBuffer(objectSBHandle, 0, sizeof(ObjectConstants) * meshPackets.size(), objects);
+
+
+				i32 baseInstanceIdx = 0;
+				i32 numInstances = 0;
+
+				// Draw all packets, instanced where possible.
+				MeshRenderPacket* nextMeshPacket = nullptr;
+				const i32 objectDataSize = sizeof(ObjectConstants);
+				for(i32 idx = 0; idx < meshPackets.size(); ++idx)
 				{
-					if(packet->type_ == MeshRenderPacket::TYPE)
+					auto* meshPacket = meshPackets[idx];
+					i32 passTechIdx = passTechIndices[idx];
+
+					auto& tech = meshPacket->techs_->passTechniques_[passTechIdx];
+					bool doDraw = true;
+					if(customBindFn)
+						doDraw = customBindFn(meshPacket->shader_, tech);
+					
+					if(doDraw)
+						++numInstances;
+
+					// If not instancable with the next mesh packet, on the last one, then draw last batch and start over.
+					nextMeshPacket = ((idx + 1) < meshPackets.size()) ? meshPackets[idx + 1] : nullptr;
+					if(nextMeshPacket == nullptr || !meshPacket->IsInstancableWith(*nextMeshPacket))
 					{
-						auto* meshPacket = static_cast<MeshRenderPacket*>(packet);
-						auto passIdxIt = meshPacket->techs_->passIndices_.find(passName);
-						if(passIdxIt != meshPacket->techs_->passIndices_.end() &&
-						    passIdxIt->second < meshPacket->techs_->passTechniques_.size())
+						if(numInstances > 0)
 						{
-							objects[objectSBOffset++] = meshPacket->object_;
-						}
-					}
-				}
-				cmdList.UpdateBuffer(objectSBHandle, 0, sizeof(ObjectConstants) * totalObjects, objects);
-			}
-
-			// Draw all packets.
-			{
-				i32 objectSBOffset = 0;
-				for(auto& packet : packets_)
-				{
-					if(packet->type_ == MeshRenderPacket::TYPE)
-					{
-						auto* meshPacket = static_cast<MeshRenderPacket*>(packet);
-						auto passIdxIt = meshPacket->techs_->passIndices_.find(passName);
-						if(passIdxIt != meshPacket->techs_->passIndices_.end() &&
-						    passIdxIt->second < meshPacket->techs_->passTechniques_.size())
-						{
-							auto& tech = meshPacket->techs_->passTechniques_[passIdxIt->second];
-							const i32 objectDataSize = sizeof(meshPacket->object_);
-							tech.Set("inObject", Binding::Buffer(objectSBHandle, GPU::Format::INVALID, objectSBOffset,
-							                         1, objectDataSize));
-
-							bool doDraw = true;
-							if(customBindFn)
-								doDraw = customBindFn(meshPacket->shader_, tech);
-
-							if(doDraw)
+							tech.Set("ViewCBuffer", Binding::CBuffer(viewCBHandle, 0, sizeof(ViewConstants)));
+							tech.Set("inObject", Binding::Buffer(objectSBHandle, GPU::Format::INVALID, baseInstanceIdx, numInstances, objectDataSize));
+							if(auto pbs = tech.GetBinding())
 							{
-								tech.Set("ViewCBuffer", Binding::CBuffer(viewCBHandle, 0, sizeof(ViewConstants)));
-								if(auto pbs = tech.GetBinding())
-								{
-									cmdList.Draw(pbs, meshPacket->db_, fbs, drawState,
-									    GPU::PrimitiveTopology::TRIANGLE_LIST, meshPacket->draw_.indexOffset_,
-									    meshPacket->draw_.vertexOffset_, meshPacket->draw_.noofIndices_, 0, 1);
-								}
+								cmdList.Draw(pbs, meshPacket->db_, fbs, drawState,
+									GPU::PrimitiveTopology::TRIANGLE_LIST, meshPacket->draw_.indexOffset_,
+									meshPacket->draw_.vertexOffset_, meshPacket->draw_.noofIndices_, 0, numInstances);
 							}
-
-							++objectSBOffset;
 						}
+
+						baseInstanceIdx = idx;
+						numInstances = 0;
 					}
 				}
 			}
@@ -620,12 +620,6 @@ namespace
 		float intensity_ = 0.0f;
 	};
 
-	struct LightLink
-	{
-		i32 lightIdx_;
-		i32 next_;
-	};
-
 	struct LightConstants
 	{
 		u32 tileSizeX_;
@@ -637,12 +631,12 @@ namespace
 
 	struct TileInfo
 	{
-		Math::Plane planes_[4];
-		Math::Vec4 depthMinMax_;
+		Math::Vec3 planes_[4];
+		Math::Vec2 depthMinMax_;
 	};
 
 	Core::Vector<Light> lights_;
-	i32 lightBufferSize_ = 64 * 1024;
+	i32 lightBufferSize_ = 1024 * 1024;
 
 	struct CommonBuffers
 	{
@@ -654,13 +648,16 @@ namespace
 	{
 		RenderGraphResource outLightCB_;
 		RenderGraphResource outLightSB_;
-		RenderGraphResource outLightLinkSB_;
+		RenderGraphResource outLightTex_;
+		RenderGraphResource outLightIndicesSB_;
 		RenderGraphResource outDebug_;
 	};
 
 	LightCullingData AddLightCullingPasses(
 	    RenderGraph& renderGraph, const CommonBuffers& cbs, RenderGraphResource depth, Shader* shader)
 	{
+		GPU::Format lightTexFormat = GPU::Format::R32_UINT;
+
 		// Grab depth stencil descriptor.
 		RenderGraphTextureDesc dsDesc;
 		renderGraph.GetTexture(depth, &dsDesc);
@@ -679,7 +676,7 @@ namespace
 			LightConstants light_;
 			Light* lights_ = nullptr;
 
-			RenderGraphResource outLightCB_, outLightSB_, outLightLinkIndexSB_;
+			RenderGraphResource outLightCB_, outLightSB_, outLightIndex_;
 		};
 
 		struct ComputeTileInfoPassData
@@ -698,7 +695,7 @@ namespace
 			LightConstants light_;
 
 			RenderGraphResource inViewCB_, inLightCB_, inLightSB_, inTileInfoSB_;
-			RenderGraphResource outLightLinkSB_, outLightLinkIndexSB_;
+			RenderGraphResource outLightTex_, outLightIndicesSB_, outLightIndex_;
 
 			mutable ShaderTechnique tech_;
 		};
@@ -707,7 +704,7 @@ namespace
 		{
 			LightConstants light_;
 
-			RenderGraphResource inViewCB_, inLightCB_, inLightSB_, inTileInfoSB_, inLightLinkSB_;
+			RenderGraphResource inViewCB_, inLightCB_, inLightSB_, inTileInfoSB_, inLightTex_, inLightIndicesSB_;
 			RenderGraphResource outDebug_;
 
 			mutable ShaderTechnique tech_;
@@ -780,20 +777,24 @@ namespace
 			            data.inTileInfoSB_ =
 			                builder.Read(computeTileInfoPassData.outTileInfoSB_, GPU::BindFlags::SHADER_RESOURCE);
 
-			            data.outLightLinkIndexSB_ =
+			            data.outLightIndex_ =
 			                builder.Write(builder.Create("LC Light Link Index SB", RenderGraphBufferDesc(sizeof(u32))),
 			                    GPU::BindFlags::UNORDERED_ACCESS);
-			            data.outLightLinkSB_ =
-			                builder.Write(builder.Create("LC Light Link SB",
-			                                  RenderGraphBufferDesc(sizeof(LightLink) * lightBufferSize_)),
+			            data.outLightTex_ =
+			                builder.Write(builder.Create("LC Light Tex",
+			                                  RenderGraphTextureDesc(GPU::TextureType::TEX2D, lightTexFormat, light.numTilesX_, light.numTilesY_)),
+			                    GPU::BindFlags::UNORDERED_ACCESS);
+			            data.outLightIndicesSB_ =
+			                builder.Write(builder.Create("LC Light Indices SB",
+			                                  RenderGraphBufferDesc(sizeof(i32) * lightBufferSize_)),
 			                    GPU::BindFlags::UNORDERED_ACCESS);
 
 			            data.tech_ = shader->CreateTechnique("TECH_COMPUTE_LIGHT_LISTS", ShaderTechniqueDesc());
 			        },
-		            [](RenderGraphResources& res, GPU::CommandList& cmdList, const ComputeLightListsPassData& data) {
-			            i32 baseLightIndex = data.light_.numTilesX_ * data.light_.numTilesY_;
+		            [lightTexFormat](RenderGraphResources& res, GPU::CommandList& cmdList, const ComputeLightListsPassData& data) {
+			            i32 baseLightIndex = 0;
 			            cmdList.UpdateBuffer(
-			                res.GetBuffer(data.outLightLinkIndexSB_), 0, sizeof(u32), cmdList.Push(&baseLightIndex));
+			                res.GetBuffer(data.outLightIndex_), 0, sizeof(u32), cmdList.Push(&baseLightIndex));
 
 			            data.tech_.Set("ViewCBuffer", res.CBuffer(data.inViewCB_, 0, sizeof(ViewConstants)));
 			            data.tech_.Set("LightCBuffer", res.CBuffer(data.inLightCB_, 0, sizeof(LightConstants)));
@@ -803,11 +804,13 @@ namespace
 			            data.tech_.Set("inLights",
 			                res.Buffer(
 			                    data.inLightSB_, GPU::Format::INVALID, 0, data.light_.numLights_, sizeof(Light)));
-			            data.tech_.Set("lightLinkIndex",
-			                res.RWBuffer(data.outLightLinkIndexSB_, GPU::Format::R32_TYPELESS, 0, sizeof(u32), 0));
-			            data.tech_.Set("outLightLinks",
-			                res.RWBuffer(
-			                    data.outLightLinkSB_, GPU::Format::INVALID, 0, lightBufferSize_, sizeof(LightLink)));
+			            data.tech_.Set("lightIndex",
+			                res.RWBuffer(data.outLightIndex_, GPU::Format::R32_TYPELESS, 0, sizeof(u32), 0));
+			            data.tech_.Set("outLightTex",
+			                res.RWTexture2D(
+			                    data.outLightTex_, lightTexFormat));
+			            data.tech_.Set("outLightIndices",
+			                res.RWBuffer(data.outLightIndicesSB_, GPU::Format::INVALID, 0, lightBufferSize_, sizeof(i32)));
 
 			            if(auto binding = data.tech_.GetBinding())
 			            {
@@ -829,8 +832,10 @@ namespace
 			                builder.Read(updateLightsPassData.outLightSB_, GPU::BindFlags::SHADER_RESOURCE);
 			            data.inTileInfoSB_ =
 			                builder.Read(computeTileInfoPassData.outTileInfoSB_, GPU::BindFlags::SHADER_RESOURCE);
-			            data.inLightLinkSB_ =
-			                builder.Read(computeLightListsPassData.outLightLinkSB_, GPU::BindFlags::SHADER_RESOURCE);
+			            data.inLightTex_ =
+			                builder.Read(computeLightListsPassData.outLightTex_, GPU::BindFlags::SHADER_RESOURCE);
+			            data.inLightIndicesSB_ =
+			                builder.Read(computeLightListsPassData.outLightIndicesSB_, GPU::BindFlags::SHADER_RESOURCE);
 
 			            data.outDebug_ =
 			                builder.Write(builder.Create("LC Debug Tile Info",
@@ -840,7 +845,7 @@ namespace
 
 			            data.tech_ = shader->CreateTechnique("TECH_DEBUG_TILE_INFO", ShaderTechniqueDesc());
 			        },
-		            [](RenderGraphResources& res, GPU::CommandList& cmdList, const DebugOutputPassData& data) {
+		            [lightTexFormat](RenderGraphResources& res, GPU::CommandList& cmdList, const DebugOutputPassData& data) {
 			            data.tech_.Set("ViewCBuffer", res.CBuffer(data.inViewCB_, 0, sizeof(ViewConstants)));
 			            data.tech_.Set("LightCBuffer", res.CBuffer(data.inLightCB_, 0, sizeof(LightConstants)));
 			            data.tech_.Set("inTileInfo",
@@ -849,9 +854,12 @@ namespace
 			            data.tech_.Set("inLights",
 			                res.Buffer(
 			                    data.inLightSB_, GPU::Format::INVALID, 0, data.light_.numLights_, sizeof(Light)));
-			            data.tech_.Set("inLightLinks",
+			            data.tech_.Set("inLightTex",
+			                res.Texture2D(
+			                    data.inLightTex_, lightTexFormat, 0, 1));
+			            data.tech_.Set("inLightIndices",
 			                res.Buffer(
-			                    data.inLightLinkSB_, GPU::Format::INVALID, 0, lightBufferSize_, sizeof(LightLink)));
+			                    data.inLightIndicesSB_, GPU::Format::INVALID, 0, lightBufferSize_, sizeof(i32)));
 			            data.tech_.Set("outDebug", res.RWTexture2D(data.outDebug_, GPU::Format::R32G32B32A32_FLOAT));
 
 			            if(auto binding = data.tech_.GetBinding())
@@ -865,7 +873,8 @@ namespace
 		LightCullingData output;
 		output.outLightCB_ = updateLightsPassData.outLightCB_;
 		output.outLightSB_ = updateLightsPassData.outLightSB_;
-		output.outLightLinkSB_ = computeLightListsPassData.outLightLinkSB_;
+		output.outLightTex_ = computeLightListsPassData.outLightTex_;
+		output.outLightIndicesSB_ = computeLightListsPassData.outLightIndicesSB_;
 		output.outDebug_ = debugOutputPassData.outDebug_;
 		return output;
 	}
@@ -881,7 +890,7 @@ namespace
 	DepthData AddDepthPasses(RenderGraph& renderGraph, const CommonBuffers& cbs,
 	    const RenderGraphTextureDesc& depthDesc, RenderGraphResource depth, RenderGraphResource objectSB)
 	{
-		struct ForwardPassData
+		struct DepthPassData
 		{
 			GPU::DrawState drawState_;
 
@@ -891,8 +900,8 @@ namespace
 			RenderGraphResource outObjectSB_;
 		};
 
-		auto& pass = renderGraph.AddCallbackRenderPass<ForwardPassData>("Depth Pass",
-		    [&](RenderGraphBuilder& builder, ForwardPassData& data) {
+		auto& pass = renderGraph.AddCallbackRenderPass<DepthPassData>("Depth Pass",
+		    [&](RenderGraphBuilder& builder, DepthPassData& data) {
 
 			    data.drawState_.scissorRect_.w_ = depthDesc.width_;
 			    data.drawState_.scissorRect_.h_ = depthDesc.height_;
@@ -913,7 +922,7 @@ namespace
 			    data.outDepth_ = builder.SetDSV(depth);
 			},
 
-		    [](RenderGraphResources& res, GPU::CommandList& cmdList, const ForwardPassData& data) {
+		    [](RenderGraphResources& res, GPU::CommandList& cmdList, const DepthPassData& data) {
 			    auto fbs = res.GetFrameBindingSet();
 
 			    // Clear depth buffer.
@@ -940,8 +949,7 @@ namespace
 		GPU::FrameBindingSetDesc fbsDesc_;
 	};
 
-	ForwardData AddForwardPasses(RenderGraph& renderGraph, const CommonBuffers& cbs, RenderGraphResource lightCB,
-	    RenderGraphResource lightSB, RenderGraphResource lightLinkSB, const RenderGraphTextureDesc& colorDesc,
+	ForwardData AddForwardPasses(RenderGraph& renderGraph, const CommonBuffers& cbs, const LightCullingData& lightCulling, const RenderGraphTextureDesc& colorDesc,
 	    RenderGraphResource color, const RenderGraphTextureDesc& depthDesc, RenderGraphResource depth,
 	    RenderGraphResource objectSB)
 	{
@@ -952,7 +960,8 @@ namespace
 			RenderGraphResource inViewCB_;
 			RenderGraphResource inLightCB_;
 			RenderGraphResource inLightSB_;
-			RenderGraphResource inLightLinkSB_;
+			RenderGraphResource inLightTex_;
+			RenderGraphResource inLightIndicesSB_;
 
 			RenderGraphResource outColor_;
 			RenderGraphResource outDepth_;
@@ -974,11 +983,12 @@ namespace
 				    depth = builder.Create("Depth", depthDesc);
 
 			    data.inViewCB_ = builder.Read(cbs.viewCB_, GPU::BindFlags::CONSTANT_BUFFER);
-			    data.inLightCB_ = builder.Read(lightCB, GPU::BindFlags::CONSTANT_BUFFER);
-			    data.inLightSB_ = builder.Read(lightSB, GPU::BindFlags::SHADER_RESOURCE);
-			    data.inLightLinkSB_ = builder.Read(lightLinkSB, GPU::BindFlags::SHADER_RESOURCE);
+			    data.inLightCB_ = builder.Read(lightCulling.outLightCB_, GPU::BindFlags::CONSTANT_BUFFER);
+			    data.inLightSB_ = builder.Read(lightCulling.outLightSB_, GPU::BindFlags::SHADER_RESOURCE);
+			    data.inLightTex_ = builder.Read(lightCulling.outLightTex_, GPU::BindFlags::SHADER_RESOURCE);
+				data.inLightIndicesSB_ = builder.Read(lightCulling.outLightIndicesSB_, GPU::BindFlags::SHADER_RESOURCE);
 
-			    // Object buffer.
+				// Object buffer.
 			    DBG_ASSERT(objectSB);
 			    data.outObjectSB_ = builder.Write(objectSB, GPU::BindFlags::SHADER_RESOURCE);
 
@@ -994,14 +1004,20 @@ namespace
 			    cmdList.ClearRTV(fbs, 0, color);
 
 			    // Draw all render packets.
+				RenderGraphTextureDesc lightTexDesc;
+				res.GetTexture(data.inLightTex_, &lightTexDesc);
+
 			    DrawRenderPackets(cmdList, "RenderPassForward", data.drawState_, fbs, res.GetBuffer(data.inViewCB_),
 			        res.GetBuffer(data.outObjectSB_), [&](Shader* shader, ShaderTechnique& tech) {
 				        tech.Set("LightCBuffer", res.CBuffer(data.inLightCB_, 0, sizeof(LightConstants)));
 				        tech.Set("inLights",
 				            res.Buffer(data.inLightSB_, GPU::Format::INVALID, 0, lights_.size(), sizeof(Light)));
-				        tech.Set("inLightLinks",
+				        tech.Set("inLightTex",
+				            res.Texture2D(
+				                data.inLightTex_, lightTexDesc.format_, 0, 1));
+				        tech.Set("inLightIndices",
 				            res.Buffer(
-				                data.inLightLinkSB_, GPU::Format::INVALID, 0, lightBufferSize_, sizeof(LightLink)));
+				                data.inLightIndicesSB_, GPU::Format::INVALID, 0, lightBufferSize_, sizeof(i32)));
 				        return true;
 				    });
 			});
@@ -1038,7 +1054,7 @@ namespace
 			RenderGraphResource outColor_;
 		};
 
-		auto& pass = renderGraph.AddCallbackRenderPass<FullscreenPassData>("Depth Pass",
+		auto& pass = renderGraph.AddCallbackRenderPass<FullscreenPassData>("Fullscreen Pass",
 		    [&](RenderGraphBuilder& builder, FullscreenPassData& data) {
 			    data.bindFn_ = bindFn;
 			    data.shader_ = shader;
@@ -1095,7 +1111,7 @@ namespace
 			MAX,
 		};
 
-		DebugMode debugMode_ = DebugMode::OFF;
+		DebugMode debugMode_ = DebugMode::LIGHT_CULLING;
 
 		Shader* shader_ = nullptr;
 		ShaderTechnique techComputeTileInfo_;
@@ -1225,8 +1241,8 @@ namespace
 			}
 			else
 			{
-				auto renderPassForward = AddForwardPasses(renderGraph, cbs, lightCulling.outLightCB_,
-				    lightCulling.outLightSB_, lightCulling.outLightLinkSB_, GetDefaultTextureDesc(w, h), resources_[0],
+				auto renderPassForward = AddForwardPasses(renderGraph, cbs, lightCulling,
+					GetDefaultTextureDesc(w, h), resources_[0],
 				    GetDepthTextureDesc(w, h), renderPassDepth.outDepth_, renderPassDepth.outObjectSB_);
 
 				resources_[2] = renderPassForward.outColor_;
@@ -1241,6 +1257,24 @@ namespace
 
 		ViewConstants view_;
 	};
+
+	void DrawUIGraphicsDebug(ForwardPipeline& forwardPipeline)
+	{
+		if(ImGui::Begin("Graphics Debug"))
+		{
+			if(ImGui::Button("Launch RenderDoc"))
+				GPU::Manager::OpenDebugCapture();
+
+			static int debugMode = 0;
+			ImGui::Text("Debug Modes:");
+			ImGui::RadioButton("Off", &debugMode, 0);
+			ImGui::RadioButton("Light Culling", &debugMode, 1);
+			
+			forwardPipeline.debugMode_ = (ForwardPipeline::DebugMode)debugMode;
+		}
+		ImGui::End();
+	}
+
 }
 
 void Loop()
@@ -1276,6 +1310,8 @@ void Loop()
 	    Math::Vec3(10.0f, 0.0f, 5.0f),
 	};
 
+	Core::Random rng;
+
 	Light light = {};
 	light.enabled_ = 1;
 	light.position_ = Math::Vec3(1000.0f, 1000.0f, 1000.0f);
@@ -1285,7 +1321,27 @@ void Loop()
 	light.attenuation_ = Math::Vec3(10.0f, 0.0f, 0.0f);
 	lights_.push_back(light);
 
-	shaderTechniques_.reserve(model->GetNumMeshes() * 1000);
+	auto randF32 =[&rng](f32 min, f32 max)
+	{
+		const u32 large = 65536;
+		auto val = (f32)(((u32)rng.Generate()) % large);
+		val /= (f32)large;
+		return min + val * (max - min);
+	};
+	for(i32 idx = 0; idx < 2000; ++idx)
+	{
+		light.position_.x = randF32(-500.0f, 500.0f);
+		light.position_.y = randF32(0.0f, 100.0f);
+		light.position_.z = randF32(-500.0f, 500.0f);
+		light.color_.x = randF32(0.0f, 1.0f);
+		light.color_.y = randF32(0.0f, 1.0f);
+		light.color_.z = randF32(0.0f, 1.0f);
+		light.attenuation_ = Math::Vec3(1.0f, 0.25f, 0.05f);
+		lights_.push_back(light);
+	}
+
+	shaderTechniques_.reserve(10000);
+	ShaderTechniques* techniques = &*shaderTechniques_.emplace_back();
 	{
 		f32 r = 0.0f, g = 0.0f, b = 0.0f, h = 0.0f, s = 1.0f, v = 1.0f;
 		for(const auto& position : positions)
@@ -1301,7 +1357,6 @@ void Loop()
 			lights_.push_back(light);
 			for(i32 idx = 0; idx < model->GetNumMeshes(); ++idx)
 			{
-				ShaderTechniques techniques;
 				ShaderTechniqueDesc techDesc;
 				techDesc.SetVertexElements(model->GetMeshVertexElements(idx));
 				techDesc.SetTopology(GPU::TopologyType::TRIANGLE);
@@ -1311,7 +1366,7 @@ void Loop()
 				packet.draw_ = model->GetMeshDraw(idx);
 				packet.techDesc_ = techDesc;
 				packet.shader_ = shader;
-				packet.techs_ = &*shaderTechniques_.emplace_back(std::move(techniques));
+				packet.techs_ = techniques;
 
 				packet.angle_ = angle;
 				packet.position_ = position;
@@ -1327,7 +1382,6 @@ void Loop()
 	{
 		for(i32 idx = 0; idx < sponzaModel->GetNumMeshes(); ++idx)
 		{
-			ShaderTechniques techniques;
 			ShaderTechniqueDesc techDesc;
 			techDesc.SetVertexElements(sponzaModel->GetMeshVertexElements(idx));
 			techDesc.SetTopology(GPU::TopologyType::TRIANGLE);
@@ -1337,7 +1391,7 @@ void Loop()
 			packet.draw_ = sponzaModel->GetMeshDraw(idx);
 			packet.techDesc_ = techDesc;
 			packet.shader_ = shader;
-			packet.techs_ = &*shaderTechniques_.emplace_back(std::move(techniques));
+			packet.techs_ = techniques;
 
 			packet.angle_ = angle;
 			packet.position_ = Math::Vec3(0.0f, 0.0f, 0.0f);
@@ -1412,7 +1466,7 @@ void Loop()
 				times_.waitForFrameSubmit_ = Core::Timer::GetAbsoluteTime() - times_.waitForFrameSubmit_;
 			}
 
-			camera_.Update(input, (f32)times_.frame_);
+			camera_.Update(input, (f32)targetFrameTime);
 
 			i32 w = w_;
 			i32 h = h_;
@@ -1445,6 +1499,7 @@ void Loop()
 			ImGui::Manager::BeginFrame(input, w_, h_);
 
 			times_.profilerUI_ = Core::Timer::GetAbsoluteTime();
+			DrawUIGraphicsDebug(forwardPipeline);
 			DrawUIJobProfiler(profilingEnabled, profilerEntries, numProfilerEntries);
 			times_.profilerUI_ = Core::Timer::GetAbsoluteTime() - times_.profilerUI_;
 

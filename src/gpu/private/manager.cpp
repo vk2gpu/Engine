@@ -85,6 +85,17 @@ namespace RenderDoc
 			}
 		}
 	}
+
+	void Open()
+	{
+		if(!renderDocAPI_)
+			return;
+
+		if(!renderDocAPI_->IsTargetControlConnected())
+		{
+			renderDocAPI_->LaunchReplayUI(1, nullptr);
+		}
+	}
 }
 
 namespace GPU
@@ -422,6 +433,15 @@ namespace GPU
 		if(Core::ContainsAllFlags(impl_->debugFlags_, DebugFlags::RENDERDOC))
 		{
 			RenderDoc::EndCapture();
+		}
+	}
+
+	void Manager::OpenDebugCapture()
+	{
+		DBG_ASSERT(IsInitialized());
+		if(Core::ContainsAllFlags(impl_->debugFlags_, DebugFlags::RENDERDOC))
+		{
+			RenderDoc::Open();
 		}
 	}
 

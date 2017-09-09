@@ -23,7 +23,7 @@ namespace
 	GPU::SetupParams GetDefaultSetupParams()
 	{
 		GPU::SetupParams setupParams;
-		setupParams.debugFlags_ = GPU::DebugFlags::NONE;
+		setupParams.debugFlags_ = /*GPU::DebugFlags::RENDERDOC;// |*/ GPU::DebugFlags::RENDERDOC;
 		return setupParams;
 	}
 

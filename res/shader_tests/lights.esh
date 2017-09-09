@@ -3,7 +3,7 @@
 
 #include "stdlib.esh"
 
-#define MAX_LIGHTS_PER_TILE 1024
+#define MAX_LIGHTS_PER_TILE 256
 
 struct LightParams
 {
@@ -14,8 +14,8 @@ struct LightParams
 
 struct TileInfo
 {
-	Plane planes_[4];
-	float4 depthMinMax_;
+	float3 planes_[4];
+	float2 depthMinMax_;
 };
 
 struct Light
@@ -27,11 +27,16 @@ struct Light
 	float intensity_;
 };
 
-struct LightLink
+uint EncodeLight(in uint2 l)
 {
-	int idx;
-	int next;
-};
+	return (l.x & 0xffffff) | (l.y << 24);
+}
+
+uint2 DecodeLight(in uint idx)
+{
+	return uint2(idx & 0xffffff, idx >> 24);
+}
+
 
 uint GetTileIdx(LightParams l, uint2 tileCoord)
 {
@@ -44,18 +49,13 @@ float CalculateAttn(float dist, float3 attnParams)
 	return 1.0 / inv;
 }
 
-float CalulateDist(float attn, float3 attnParams)
+float CalulateDist(float attn, Light light)
 {
-	const float MIN_ATTN = 0.01;
 	const float MAX_DIST = 1000000.0;
-	if(attn < MIN_ATTN)
-	{
-		attn = MIN_ATTN;
-	}
 
-	float a = attnParams.z;
-	float b = attnParams.y;
-	float c = attnParams.x - ( 1.0 / attn );
+	float a = light.attenuation_.z;
+	float b = light.attenuation_.y;
+	float c = light.attenuation_.x - ( 1.0 / attn );
 
 	// 0 = Ax2 + Bx + C
 	if(a > 0.0)
