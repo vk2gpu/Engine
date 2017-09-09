@@ -97,19 +97,25 @@ Technique TECH_COMPUTE_TILE_INFO =
 groupshared uint gNumLights = 0;
 groupshared LightLink gLightLinks[MAX_LIGHTS_PER_TILE];
 
-[numthreads(1,1,1)]
+#define LIGHT_LIST_GROUP_SIZE 16
+#define MAX_LIGHTS_PER_THREAD (MAX_LIGHTS_PER_TILE / LIGHT_LIST_GROUP_SIZE)
+
+[numthreads(LIGHT_LIST_GROUP_SIZE,LIGHT_LIST_GROUP_SIZE,1)]
 void cs_compute_light_lists(CS_INPUT _in)
 {
 	// Grab tile info.
-	const uint tileIdx = GetTileIdx(l_, _in.dispatchID.xy);
+	const uint tileIdx = GetTileIdx(l_, _in.groupID.xy);
 	const TileInfo tileInfo = inTileInfo[tileIdx];
 
 	float depthMin = ClipToView(v_, float4(0.0, 0.0, tileInfo.depthMinMax_.x, 1)).z;
 	float depthMax = ClipToView(v_, float4(0.0, 0.0, tileInfo.depthMinMax_.y, 1)).z;
 
-	// Build up local list first.
+	// Build up local light list with multiple threads within the same group,
 	uint localLightLinkIdx = 0;
-	for(uint idx = 0; idx < l_.numLights_ && localLightLinkIdx < MAX_LIGHTS_PER_TILE; ++idx)
+	uint advanceRate = LIGHT_LIST_GROUP_SIZE * LIGHT_LIST_GROUP_SIZE;
+	uint startLightIdx = _in.groupThreadID.x + _in.groupThreadID.y * LIGHT_LIST_GROUP_SIZE;
+
+	for(uint idx = startLightIdx; idx < l_.numLights_ && localLightLinkIdx < MAX_LIGHTS_PER_TILE; idx += advanceRate)
 	{
 		Light light = inLights[idx];
 		if(light.enabled_)
@@ -144,32 +150,36 @@ void cs_compute_light_lists(CS_INPUT _in)
 	// Wait for other threads in groups.
 	GroupMemoryBarrierWithGroupSync();
 
-	// Put lights found into global list.
-	uint globalLightLinkIdx = 0;
-	InterlockedAdd(lightLinkIndex[0], gNumLights, globalLightLinkIdx);
-
-	uint maxLights;
-	uint stride;
-	outLightLinks.GetDimensions(maxLights, stride);
-
-	// Add first link.
-	// TODO: Not dummy light.
-	LightLink firstLink;
-	firstLink.idx = -1;
-	firstLink.next = gNumLights > 0 ? globalLightLinkIdx : 0;
-	outLightLinks[tileIdx] = firstLink;
-
-	// Write links to UAV.
-	for(uint idx = 0; idx < gNumLights; ++idx)
+	// Only one thread within the group should do the final write.
+	if(_in.groupThreadID.x == 0 && _in.groupThreadID.y == 0)
 	{
-		LightLink lightLink = gLightLinks[idx];
-		uint outIdx = globalLightLinkIdx + idx;
-		if(idx < (gNumLights - 1) && outIdx < (maxLights - 1))
-			lightLink.next = globalLightLinkIdx + idx + 1;
-		else
-			lightLink.next = 0;
-		if(outIdx < maxLights)
-			outLightLinks[outIdx] = lightLink;
+		// Put lights found into global list.
+		uint globalLightLinkIdx = 0;
+		InterlockedAdd(lightLinkIndex[0], gNumLights, globalLightLinkIdx);
+
+		uint maxLights;
+		uint stride;
+		outLightLinks.GetDimensions(maxLights, stride);
+
+		// Add first link.
+		// TODO: Not dummy light.
+		LightLink firstLink;
+		firstLink.idx = -1;
+		firstLink.next = gNumLights > 0 ? globalLightLinkIdx : 0;
+		outLightLinks[tileIdx] = firstLink;
+
+		// Write links to UAV.
+		for(uint idx = 0; idx < gNumLights; ++idx)
+		{
+			LightLink lightLink = gLightLinks[idx];
+			uint outIdx = globalLightLinkIdx + idx;
+			if(idx < (gNumLights - 1) && outIdx < (maxLights - 1))
+				lightLink.next = globalLightLinkIdx + idx + 1;
+			else
+				lightLink.next = 0;
+			if(outIdx < maxLights)
+				outLightLinks[outIdx] = lightLink;
+		}
 	}
 }
 

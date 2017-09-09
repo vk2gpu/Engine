@@ -1,16 +1,6 @@
 #include "lib.esh"
 #include "lights.esh"
 
-struct Object
-{
-	float4x4 world_;
-};
-
-cbuffer ObjectCBuffer
-{
-	Object o_;
-};
-
 cbuffer ViewCBuffer
 {
 	ViewParams v_;
@@ -20,6 +10,14 @@ cbuffer LightCBuffer
 {
 	LightParams l_;
 };
+
+struct Object
+{
+	float4x4 world_;
+};
+
+StructuredBuffer<Object> inObject;
+
 
 struct VS_IN
 {
@@ -34,13 +32,15 @@ struct VS_OUT
 	float3 normal : NORMAL;
 };
 
-VS_OUT vs_main(in VS_IN _in)
+VS_OUT vs_main(in VS_IN _in, uint _id : SV_INSTANCEID)
 {
+	Object o = inObject[0];
+
 	VS_OUT _out = (VS_OUT)0;
-	float4 position = mul(o_.world_, float4(_in.position, 1.0));
+	float4 position = mul(o.world_, float4(_in.position, 1.0));
 	_out.position = mul(v_.viewProj_, position);
 	_out.w_position = position.xyz;
-	_out.normal = mul((float3x3)o_.world_, _in.normal);
+	_out.normal = mul((float3x3)o.world_, _in.normal);
 	return _out;
 }
 
