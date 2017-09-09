@@ -22,6 +22,7 @@ def findClangFormat():
 
 def autoformat():
 	foundSource = findSource("src")
+	foundSource += findSource("apps")
 
 	filteredSource = []
 	# filter out folders with "_clang_fornat_ignore"
