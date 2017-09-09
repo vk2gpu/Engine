@@ -642,6 +642,40 @@ namespace
 		ShaderTechnique& tech_;
 	};
 
+	template<typename DATA>
+	class CallbackRenderPass : public RenderPass
+	{
+	public:
+		using ExecuteFn = Core::Function<void(RenderGraphResources& res, GPU::CommandList& cmdList, const DATA& data)>;
+
+		template<typename SETUPFN>
+		CallbackRenderPass(RenderGraphBuilder& builder, SETUPFN&& setupFn, ExecuteFn&& executeFn)
+			: RenderPass(builder)
+			, executeFn_(executeFn)
+		{
+			setupFn(builder, data_);
+		}
+
+		~CallbackRenderPass()
+		{
+		}
+
+		void Execute(RenderGraphResources& res, GPU::CommandList& cmdList) override
+		{
+			executeFn_(res, cmdList, data_);
+		}
+
+		DATA data_;
+		ExecuteFn executeFn_;
+	};
+
+
+	template<typename DATA, typename SETUPFN>
+	const DATA& AddCallbackRenderPass(RenderGraph& renderGraph, const char* name, SETUPFN&& setupFn, typename CallbackRenderPass<DATA>::ExecuteFn&& executeFn)
+	{
+		auto& renderPass = renderGraph.AddRenderPass<CallbackRenderPass<DATA>>(name, std::move(setupFn), std::move(executeFn));
+		return renderPass.data_;
+	}
 
 	class RenderPassDepthPrepass : public RenderPass
 	{
@@ -879,6 +913,27 @@ namespace
 			}
 		}
 	};
+
+	void AddLightCullingPasses(RenderGraph& renderGraph, RenderGraphResource ds, Shader* shader)
+	{
+		struct GenerateTileInfoData
+		{
+
+		};
+
+		auto& generateTileInfoData = AddCallbackRenderPass<GenerateTileInfoData>(renderGraph, 
+			"Generate Tile Info", 
+			[&](RenderGraphBuilder& builder, GenerateTileInfoData& data)
+			{
+				
+			},
+			[=](RenderGraphResources& res, GPU::CommandList& cmdList, const GenerateTileInfoData& data)
+			{
+
+			});
+		(void)generateTileInfoData;
+
+	}
 
 	class RenderPassForward : public RenderPass
 	{
