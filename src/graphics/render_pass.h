@@ -4,6 +4,7 @@
 #include "graphics/render_resources.h"
 #include "core/array.h"
 #include "core/array_view.h"
+#include "core/function.h"
 #include "gpu/fwd_decls.h"
 
 namespace Graphics
@@ -12,6 +13,9 @@ namespace Graphics
 	class RenderGraphResources;
 	class RenderGraph;
 
+	/**
+	 * Base render pass.
+	 */
 	class GRAPHICS_DLL RenderPass
 	{
 	public:
@@ -43,6 +47,38 @@ namespace Graphics
 		friend struct RenderGraphImpl;
 		friend class RenderGraphBuilder;
 		struct RenderPassImpl* impl_ = nullptr;
+	};
+
+
+	/**
+	 * Callback render pass for setting up render passes inline.
+	 */
+	template<typename DATA>
+	class CallbackRenderPass : public RenderPass
+	{
+	public:
+		using ExecuteFn = Core::Function<void(RenderGraphResources& res, GPU::CommandList& cmdList, const DATA& data)>;
+
+		template<typename SETUPFN>
+		CallbackRenderPass(RenderGraphBuilder& builder, SETUPFN&& setupFn, ExecuteFn&& executeFn)
+		    : RenderPass(builder)
+		    , executeFn_(executeFn)
+		{
+			setupFn(builder, data_);
+		}
+
+		~CallbackRenderPass() {}
+
+		void Execute(RenderGraphResources& res, GPU::CommandList& cmdList) override { executeFn_(res, cmdList, data_); }
+
+		/**
+		 * @return Render pass data that's setup when added.
+		 */
+		const DATA& GetData() const { return data_; }
+
+	private:
+		DATA data_;
+		ExecuteFn executeFn_;
 	};
 
 } // namespace Graphics

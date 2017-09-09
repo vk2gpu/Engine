@@ -2,13 +2,13 @@
 
 #include "graphics/dll.h"
 #include "graphics/render_resources.h"
+#include "graphics/render_pass.h"
 #include "core/function.h"
 
 namespace Graphics
 {
 	class RenderGraphBuilder;
 	class RenderGraph;
-	class RenderPass;
 	class Buffer;
 	class Texture;
 	struct RenderGraphImpl;
@@ -25,7 +25,7 @@ namespace Graphics
 		 * @param desc Descriptor for buffer.
 		 * @return Resource reference.
 		 */
-		RenderGraphResource CreateBuffer(const char* name, const RenderGraphBufferDesc& desc);
+		RenderGraphResource Create(const char* name, const RenderGraphBufferDesc& desc);
 
 		/**
 		 * Create texture from descriptor.
@@ -33,28 +33,23 @@ namespace Graphics
 		 * @param desc Descriptor for texture.
 		 * @return Resource reference.
 		 */
-		RenderGraphResource CreateTexture(const char* name, const RenderGraphTextureDesc& desc);
+		RenderGraphResource Create(const char* name, const RenderGraphTextureDesc& desc);
 
 		/**
-		 * Use resource as CBV.
+		 * Read from resource.
 		 * @param res Input resource.
+		 * @param bindFlags Bind flags required for read.
 		 * @return Resource that subsequent passes should reference.
 		 */
-		RenderGraphResource UseCBV(RenderGraphResource res, bool update);
+		RenderGraphResource Read(RenderGraphResource res, GPU::BindFlags bindFlags = GPU::BindFlags::NONE);
 
 		/**
-		 * Use resource as SRV.
+		 * Write to resource.
 		 * @param res Input resource.
+		 * @param bindFlags Bind flags required for write.
 		 * @return Resource that subsequent passes should reference.
 		 */
-		RenderGraphResource UseSRV(RenderGraphResource res);
-
-		/**
-		 * Use resource as UAV.
-		 * @param res Input resource.
-		 * @return Resource that subsequent passes should reference.
-		 */
-		RenderGraphResource UseUAV(RenderGraphResource res);
+		RenderGraphResource Write(RenderGraphResource res, GPU::BindFlags bindFlags = GPU::BindFlags::NONE);
 
 		/**
 		 * Set resource as for use a an RTV.
@@ -96,6 +91,28 @@ namespace Graphics
 		TYPE* Alloc(i32 num = 1)
 		{
 			return reinterpret_cast<TYPE*>(Alloc(num * sizeof(TYPE)));
+		}
+
+		/**
+		 * Push data into render graph.
+		 * @param bytes Number of bytes to allocate.
+		 * @param data Pointer to data to copy.
+		 * @return Allocated memory. Only valid until submission.
+		 * @pre @a bytes > 0.
+		 */
+		void* Push(const void* data, i32 bytes);
+
+		/**
+		 * Templated push. See above.
+		 */
+		template<typename TYPE>
+		TYPE* Push(const TYPE* data, i32 num = 1)
+		{
+			TYPE* dest = reinterpret_cast<TYPE*>(Alloc(sizeof(TYPE) * num));
+			if(dest)
+				for(i32 idx = 0; idx < num; ++idx)
+					new(dest + idx) TYPE(data[idx]);
+			return dest;
 		}
 
 	private:
@@ -180,6 +197,11 @@ namespace Graphics
 		RenderGraph();
 		~RenderGraph();
 
+		/**
+		 * Add render pass to the graph.
+		 * @param name Name of pass.
+		 * @param args Argument list to pass to @a RENDER_PASS constructor.
+		 */
 		template<typename RENDER_PASS, typename... ARGS>
 		RENDER_PASS& AddRenderPass(const char* name, ARGS&&... args)
 		{
@@ -188,6 +210,20 @@ namespace Graphics
 			auto* renderPass = new(renderPassMem) RENDER_PASS(builder, std::forward<ARGS>(args)...);
 			InternalAddRenderPass(name, renderPass);
 			return *renderPass;
+		}
+
+		/**
+		 * Add callback render pass to the graph.
+		 * @param name Name of pass.
+		 * @param setupFn Setup function to call into now.
+		 * @param executeFn Execute function to call during the execute phase later.
+		 */
+		template<typename DATA, typename SETUPFN>
+		const CallbackRenderPass<DATA>& AddCallbackRenderPass(
+		    const char* name, SETUPFN&& setupFn, typename CallbackRenderPass<DATA>::ExecuteFn&& executeFn)
+		{
+			auto& renderPass = AddRenderPass<CallbackRenderPass<DATA>>(name, std::move(setupFn), std::move(executeFn));
+			return renderPass;
 		}
 
 		/**

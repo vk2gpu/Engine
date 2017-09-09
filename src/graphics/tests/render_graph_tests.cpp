@@ -75,11 +75,11 @@ namespace
 			    : Graphics::RenderPass(builder)
 			    , debugData_(debugData)
 			{
-				color_ = builder.SetRTV(0, builder.CreateTexture("Color", GetDefaultTextureDesc()));
+				color_ = builder.SetRTV(0, builder.Create("Color", GetDefaultTextureDesc()));
 
 				if(!depth)
 				{
-					depth = builder.CreateTexture("Depth", GetDepthTextureDesc());
+					depth = builder.Create("Depth", GetDepthTextureDesc());
 				}
 				depth_ = builder.SetDSV(depth);
 			}
@@ -105,8 +105,8 @@ namespace
 			    : Graphics::RenderPass(builder)
 			    , debugData_(debugData)
 			{
-				input_ = builder.UseSRV(input);
-				output_ = builder.SetRTV(0, builder.CreateTexture("FrameBuffer", GetDefaultTextureDesc()));
+				input_ = builder.Read(input, GPU::BindFlags::SHADER_RESOURCE);
+				output_ = builder.SetRTV(0, builder.Create("FrameBuffer", GetDefaultTextureDesc()));
 			}
 
 			virtual ~RenderPassHUD() {}
@@ -131,9 +131,9 @@ namespace
 			    : Graphics::RenderPass(builder)
 			    , debugData_(debugData)
 			{
-				inputA_ = builder.UseSRV(inputA);
-				inputB_ = builder.UseSRV(inputB);
-				output_ = builder.SetRTV(0, builder.CreateTexture("FrameBuffer", GetDefaultTextureDesc()));
+				inputA_ = builder.Read(inputA, GPU::BindFlags::SHADER_RESOURCE);
+				inputB_ = builder.Read(inputB, GPU::BindFlags::SHADER_RESOURCE);
+				output_ = builder.SetRTV(0, builder.Create("FrameBuffer", GetDefaultTextureDesc()));
 			}
 
 			virtual ~RenderPassFinal() {}
@@ -157,7 +157,7 @@ namespace
 			    : Graphics::RenderPass(builder)
 			    , debugData_(debugData)
 			{
-				depth_ = builder.SetDSV(builder.CreateTexture("Depth", GetDepthTextureDesc()));
+				depth_ = builder.SetDSV(builder.Create("Depth", GetDepthTextureDesc()));
 			}
 
 			virtual ~RenderPassDepthPrepass() {}
@@ -184,9 +184,9 @@ namespace
 				bindingDSV.flags_ = GPU::DSVFlags::READ_ONLY_DEPTH | GPU::DSVFlags::READ_ONLY_STENCIL;
 
 				depth_ = builder.SetDSV(depth, bindingDSV);
-				albedo_ = builder.SetRTV(0, builder.CreateTexture("Albedo", GetDefaultTextureDesc()));
-				material_ = builder.SetRTV(1, builder.CreateTexture("Material", GetDefaultTextureDesc()));
-				normal_ = builder.SetRTV(2, builder.CreateTexture("Normal", GetDefaultTextureDesc()));
+				albedo_ = builder.SetRTV(0, builder.Create("Albedo", GetDefaultTextureDesc()));
+				material_ = builder.SetRTV(1, builder.Create("Material", GetDefaultTextureDesc()));
+				normal_ = builder.SetRTV(2, builder.Create("Normal", GetDefaultTextureDesc()));
 			}
 
 			virtual ~RenderPassSolid() {}
@@ -213,8 +213,8 @@ namespace
 			    : Graphics::RenderPass(builder)
 			    , debugData_(debugData)
 			{
-				depth_ = builder.UseSRV(depth);
-				ssao_ = builder.SetRTV(0, builder.CreateTexture("SSAO", GetSSAOTextureDesc()));
+				depth_ = builder.Read(depth, GPU::BindFlags::SHADER_RESOURCE);
+				ssao_ = builder.SetRTV(0, builder.Create("SSAO", GetSSAOTextureDesc()));
 			};
 
 			virtual ~RenderPassSSAO() {}
@@ -241,13 +241,13 @@ namespace
 			    : Graphics::RenderPass(builder)
 			    , debugData_(debugData)
 			{
-				depth_ = builder.UseSRV(depth);
-				albedo_ = builder.UseSRV(albedo);
-				material_ = builder.UseSRV(material);
-				normal_ = builder.UseSRV(normal);
-				ssao_ = builder.UseSRV(ssao);
+				depth_ = builder.Read(depth, GPU::BindFlags::SHADER_RESOURCE);
+				albedo_ = builder.Read(albedo, GPU::BindFlags::SHADER_RESOURCE);
+				material_ = builder.Read(material, GPU::BindFlags::SHADER_RESOURCE);
+				normal_ = builder.Read(normal, GPU::BindFlags::SHADER_RESOURCE);
+				ssao_ = builder.Read(ssao, GPU::BindFlags::SHADER_RESOURCE);
 
-				hdr_ = builder.SetRTV(0, builder.CreateTexture("HDR", GetHDRTextureDesc()));
+				hdr_ = builder.SetRTV(0, builder.Create("HDR", GetHDRTextureDesc()));
 			}
 
 			virtual ~RenderPassLighting() {}
@@ -312,7 +312,7 @@ namespace
 			RenderPassDepthPrepass(Graphics::RenderGraphBuilder& builder)
 			    : Graphics::RenderPass(builder)
 			{
-				ds_ = builder.SetDSV(builder.CreateTexture("Depth", GetDepthTextureDesc()));
+				ds_ = builder.SetDSV(builder.Create("Depth", GetDepthTextureDesc()));
 			};
 
 			virtual ~RenderPassDepthPrepass()

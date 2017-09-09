@@ -254,7 +254,7 @@ namespace Graphics
 
 	RenderGraphBuilder::~RenderGraphBuilder() {}
 
-	RenderGraphResource RenderGraphBuilder::CreateBuffer(const char* name, const RenderGraphBufferDesc& desc)
+	RenderGraphResource RenderGraphBuilder::Create(const char* name, const RenderGraphBufferDesc& desc)
 	{
 		ResourceDesc resDesc;
 		resDesc.id_ = impl_->resourceDescs_.size();
@@ -265,7 +265,7 @@ namespace Graphics
 		return RenderGraphResource(resDesc.id_, 0);
 	}
 
-	RenderGraphResource RenderGraphBuilder::CreateTexture(const char* name, const RenderGraphTextureDesc& desc)
+	RenderGraphResource RenderGraphBuilder::Create(const char* name, const RenderGraphTextureDesc& desc)
 	{
 		ResourceDesc resDesc;
 		resDesc.id_ = impl_->resourceDescs_.size();
@@ -276,7 +276,7 @@ namespace Graphics
 		return RenderGraphResource(resDesc.id_, 0);
 	}
 
-	RenderGraphResource RenderGraphBuilder::UseCBV(RenderGraphResource res, bool update)
+	RenderGraphResource RenderGraphBuilder::Read(RenderGraphResource res, GPU::BindFlags bindFlags)
 	{
 		DBG_ASSERT(res);
 		if(!res)
@@ -287,39 +287,11 @@ namespace Graphics
 		switch(resource.resType_)
 		{
 		case GPU::ResourceType::BUFFER:
-			resource.bufferDesc_.bindFlags_ |= GPU::BindFlags::CONSTANT_BUFFER;
-			break;
-
-		default:
-			DBG_BREAK;
-			break;
-		}
-
-		renderPass_->impl_->AddInput(res);
-		if(update)
-		{
-			res.version_++;
-			renderPass_->impl_->AddOutput(res);
-		}
-		return res;
-	}
-
-	RenderGraphResource RenderGraphBuilder::UseSRV(RenderGraphResource res)
-	{
-		DBG_ASSERT(res);
-		if(!res)
-			return res;
-
-		// Patch up required bind flags.
-		auto& resource = impl_->resourceDescs_[res.idx_];
-		switch(resource.resType_)
-		{
-		case GPU::ResourceType::BUFFER:
-			resource.bufferDesc_.bindFlags_ |= GPU::BindFlags::SHADER_RESOURCE;
+			resource.bufferDesc_.bindFlags_ |= bindFlags;
 			break;
 		case GPU::ResourceType::TEXTURE:
 		case GPU::ResourceType::SWAP_CHAIN:
-			resource.textureDesc_.bindFlags_ |= GPU::BindFlags::SHADER_RESOURCE;
+			resource.textureDesc_.bindFlags_ |= bindFlags;
 			break;
 
 		default:
@@ -332,7 +304,7 @@ namespace Graphics
 		return res;
 	}
 
-	RenderGraphResource RenderGraphBuilder::UseUAV(RenderGraphResource res)
+	RenderGraphResource RenderGraphBuilder::Write(RenderGraphResource res, GPU::BindFlags bindFlags)
 	{
 		DBG_ASSERT(res);
 		if(!res)
@@ -343,11 +315,11 @@ namespace Graphics
 		switch(resource.resType_)
 		{
 		case GPU::ResourceType::BUFFER:
-			resource.bufferDesc_.bindFlags_ |= GPU::BindFlags::UNORDERED_ACCESS;
+			resource.bufferDesc_.bindFlags_ |= bindFlags;
 			break;
 		case GPU::ResourceType::TEXTURE:
 		case GPU::ResourceType::SWAP_CHAIN:
-			resource.textureDesc_.bindFlags_ |= GPU::BindFlags::UNORDERED_ACCESS;
+			resource.textureDesc_.bindFlags_ |= bindFlags;
 			break;
 
 		default:
@@ -725,25 +697,37 @@ namespace Graphics
 
 #else
 		// Setup job to execute & compile all command lists.
-		volatile i32 completed = 0;
-		Job::FunctionJob executeJob("RenderGraph::Execute", [impl = this->impl_, &completed](i32 idx) {
-			auto& entry = impl->executeRenderPasses_[idx];
-			auto& cmdList = impl->cmdLists_[idx];
-			auto& cmdHandle = impl->cmdHandles_[idx];
+		Core::Vector<Job::JobDesc> jobDescs;
+		jobDescs.resize(numPasses);
 
-			RenderGraphResources resources(impl, entry->renderPass_->impl_);
+		for(i32 idx = 0; idx < numPasses; ++idx)
+		{
+			auto& jobDesc = jobDescs[idx];
 
-			cmdList.Reset();
-			if(auto event = cmdList.Event(0x00000000, entry->name_.c_str()))
-				entry->renderPass_->Execute(resources, cmdList);
+			jobDesc.func_ = [](i32 idx, void* userData) {
+				auto* impl = reinterpret_cast<RenderGraphImpl*>(userData);
+				auto& entry = impl->executeRenderPasses_[idx];
+				auto& cmdList = impl->cmdLists_[idx];
+				auto& cmdHandle = impl->cmdHandles_[idx];
 
-			if(cmdList.GetType() != GPU::CommandQueueType::NONE)
-				GPU::Manager::CompileCommandList(cmdHandle, cmdList);
-		});
+				RenderGraphResources resources(impl, entry->renderPass_->impl_);
+
+				cmdList.Reset();
+				if(auto event = cmdList.Event(0x00000000, entry->name_.c_str()))
+					entry->renderPass_->Execute(resources, cmdList);
+
+				if(cmdList.GetType() != GPU::CommandQueueType::NONE)
+					GPU::Manager::CompileCommandList(cmdHandle, cmdList);
+			};
+
+			jobDesc.param_ = idx;
+			jobDesc.data_ = impl_;
+			jobDesc.name_ = impl_->executeRenderPasses_[idx]->name_.c_str();
+		}
 
 		// Wait for all render pass execution to complete.
 		Job::Counter* counter = nullptr;
-		executeJob.RunMultiple(0, numPasses - 1, &counter);
+		Job::Manager::RunJobs(jobDescs.data(), jobDescs.size(), &counter);
 		Job::Manager::WaitForCounter(counter, 0);
 #endif
 
