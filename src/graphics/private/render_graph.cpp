@@ -36,7 +36,7 @@ namespace
 namespace Graphics
 {
 	// Memory for to be allocated from the render graph at runtime.
-	static constexpr i32 MAX_FRAME_DATA = 64 * 1024;
+	static constexpr i32 MAX_FRAME_DATA = 1024 * 1024;
 
 	struct RenderPassEntry
 	{
@@ -681,19 +681,42 @@ namespace Graphics
 		}
 
 #if 0
+		bool useSingleCommandList = true;
+
+		auto& singleCmdList = impl_->cmdLists_[0];
+		auto& singleCmdHandle = impl_->cmdHandles_[0];
+		if(useSingleCommandList)
+			singleCmdList.Reset();
+
 		// Execute render passes sequentially.
 		for(i32 idx = 0; idx < numPasses; ++idx)
 		{
-			RenderGraphResources resources(impl_);
 			auto& entry = impl_->executeRenderPasses_[idx];
 			auto& cmdList = impl_->cmdLists_[idx];
 			auto& cmdHandle = impl_->cmdHandles_[idx];
 
-			cmdList.Reset();
-			entry->renderPass_->Execute(resources, cmdList);
-			if(cmdList.NumCommands() > 0)
-				GPU::Manager::CompileCommandList(cmdHandle, cmdList);
+			RenderGraphResources resources(impl_, entry->renderPass_->impl_);
+			if(useSingleCommandList == false)
+			{
+				cmdList.Reset();
+				if(auto event = cmdList.Event(0, entry->name_.c_str()))
+				{
+					entry->renderPass_->Execute(resources, cmdList);
+					if(cmdList.NumCommands() > 0)
+						GPU::Manager::CompileCommandList(cmdHandle, cmdList);
+				}
+			}
+			else
+			{
+				if(auto event = singleCmdList.Event(0, entry->name_.c_str()))
+				{
+					entry->renderPass_->Execute(resources, singleCmdList);
+				}
+			}
 		}
+
+		if(useSingleCommandList && singleCmdList.NumCommands() > 0)
+			GPU::Manager::CompileCommandList(singleCmdHandle, singleCmdList);
 
 #else
 		// Setup job to execute & compile all command lists.
