@@ -18,7 +18,7 @@
 
 #include <cmath>
 
-#define LOAD_SPONZA (0)
+#define LOAD_SPONZA (1)
 
 namespace
 {
@@ -516,9 +516,9 @@ namespace
 
 		bool IsInstancableWith(const MeshRenderPacket& other)
 		{
-			return db_ == other.db_ && memcmp(&draw_, &other.draw_, sizeof(draw_)) == 0 && 
-				memcmp(&techDesc_, &other.techDesc_, sizeof(techDesc_)) == 0 && 
-				shader_ == other.shader_ && techs_ == other.techs_;
+			return db_ == other.db_ && memcmp(&draw_, &other.draw_, sizeof(draw_)) == 0 &&
+			       memcmp(&techDesc_, &other.techDesc_, sizeof(techDesc_)) == 0 && shader_ == other.shader_ &&
+			       techs_ == other.techs_;
 		}
 	};
 
@@ -547,7 +547,7 @@ namespace
 					auto* meshPacket = static_cast<MeshRenderPacket*>(packet);
 					auto passIdxIt = meshPacket->techs_->passIndices_.find(passName);
 					if(passIdxIt != meshPacket->techs_->passIndices_.end() &&
-						passIdxIt->second < meshPacket->techs_->passTechniques_.size())
+					    passIdxIt->second < meshPacket->techs_->passTechniques_.size())
 					{
 						meshPackets.push_back(meshPacket);
 						passTechIndices.push_back(passIdxIt->second);
@@ -581,7 +581,7 @@ namespace
 					bool doDraw = true;
 					if(customBindFn)
 						doDraw = customBindFn(meshPacket->shader_, tech);
-					
+
 					if(doDraw)
 						++numInstances;
 
@@ -592,12 +592,13 @@ namespace
 						if(numInstances > 0)
 						{
 							tech.Set("ViewCBuffer", Binding::CBuffer(viewCBHandle, 0, sizeof(ViewConstants)));
-							tech.Set("inObject", Binding::Buffer(objectSBHandle, GPU::Format::INVALID, baseInstanceIdx, numInstances, objectDataSize));
+							tech.Set("inObject", Binding::Buffer(objectSBHandle, GPU::Format::INVALID, baseInstanceIdx,
+							                         numInstances, objectDataSize));
 							if(auto pbs = tech.GetBinding())
 							{
 								cmdList.Draw(pbs, meshPacket->db_, fbs, drawState,
-									GPU::PrimitiveTopology::TRIANGLE_LIST, meshPacket->draw_.indexOffset_,
-									meshPacket->draw_.vertexOffset_, meshPacket->draw_.noofIndices_, 0, numInstances);
+								    GPU::PrimitiveTopology::TRIANGLE_LIST, meshPacket->draw_.indexOffset_,
+								    meshPacket->draw_.vertexOffset_, meshPacket->draw_.noofIndices_, 0, numInstances);
 							}
 						}
 
@@ -780,10 +781,10 @@ namespace
 			            data.outLightIndex_ =
 			                builder.Write(builder.Create("LC Light Link Index SB", RenderGraphBufferDesc(sizeof(u32))),
 			                    GPU::BindFlags::UNORDERED_ACCESS);
-			            data.outLightTex_ =
-			                builder.Write(builder.Create("LC Light Tex",
-			                                  RenderGraphTextureDesc(GPU::TextureType::TEX2D, lightTexFormat, light.numTilesX_, light.numTilesY_)),
-			                    GPU::BindFlags::UNORDERED_ACCESS);
+			            data.outLightTex_ = builder.Write(
+			                builder.Create("LC Light Tex", RenderGraphTextureDesc(GPU::TextureType::TEX2D,
+			                                                   lightTexFormat, light.numTilesX_, light.numTilesY_)),
+			                GPU::BindFlags::UNORDERED_ACCESS);
 			            data.outLightIndicesSB_ =
 			                builder.Write(builder.Create("LC Light Indices SB",
 			                                  RenderGraphBufferDesc(sizeof(i32) * lightBufferSize_)),
@@ -791,7 +792,8 @@ namespace
 
 			            data.tech_ = shader->CreateTechnique("TECH_COMPUTE_LIGHT_LISTS", ShaderTechniqueDesc());
 			        },
-		            [lightTexFormat](RenderGraphResources& res, GPU::CommandList& cmdList, const ComputeLightListsPassData& data) {
+		            [lightTexFormat](
+		                RenderGraphResources& res, GPU::CommandList& cmdList, const ComputeLightListsPassData& data) {
 			            i32 baseLightIndex = 0;
 			            cmdList.UpdateBuffer(
 			                res.GetBuffer(data.outLightIndex_), 0, sizeof(u32), cmdList.Push(&baseLightIndex));
@@ -806,11 +808,10 @@ namespace
 			                    data.inLightSB_, GPU::Format::INVALID, 0, data.light_.numLights_, sizeof(Light)));
 			            data.tech_.Set("lightIndex",
 			                res.RWBuffer(data.outLightIndex_, GPU::Format::R32_TYPELESS, 0, sizeof(u32), 0));
-			            data.tech_.Set("outLightTex",
-			                res.RWTexture2D(
-			                    data.outLightTex_, lightTexFormat));
+			            data.tech_.Set("outLightTex", res.RWTexture2D(data.outLightTex_, lightTexFormat));
 			            data.tech_.Set("outLightIndices",
-			                res.RWBuffer(data.outLightIndicesSB_, GPU::Format::INVALID, 0, lightBufferSize_, sizeof(i32)));
+			                res.RWBuffer(
+			                    data.outLightIndicesSB_, GPU::Format::INVALID, 0, lightBufferSize_, sizeof(i32)));
 
 			            if(auto binding = data.tech_.GetBinding())
 			            {
@@ -845,7 +846,8 @@ namespace
 
 			            data.tech_ = shader->CreateTechnique("TECH_DEBUG_TILE_INFO", ShaderTechniqueDesc());
 			        },
-		            [lightTexFormat](RenderGraphResources& res, GPU::CommandList& cmdList, const DebugOutputPassData& data) {
+		            [lightTexFormat](
+		                RenderGraphResources& res, GPU::CommandList& cmdList, const DebugOutputPassData& data) {
 			            data.tech_.Set("ViewCBuffer", res.CBuffer(data.inViewCB_, 0, sizeof(ViewConstants)));
 			            data.tech_.Set("LightCBuffer", res.CBuffer(data.inLightCB_, 0, sizeof(LightConstants)));
 			            data.tech_.Set("inTileInfo",
@@ -854,12 +856,9 @@ namespace
 			            data.tech_.Set("inLights",
 			                res.Buffer(
 			                    data.inLightSB_, GPU::Format::INVALID, 0, data.light_.numLights_, sizeof(Light)));
-			            data.tech_.Set("inLightTex",
-			                res.Texture2D(
-			                    data.inLightTex_, lightTexFormat, 0, 1));
+			            data.tech_.Set("inLightTex", res.Texture2D(data.inLightTex_, lightTexFormat, 0, 1));
 			            data.tech_.Set("inLightIndices",
-			                res.Buffer(
-			                    data.inLightIndicesSB_, GPU::Format::INVALID, 0, lightBufferSize_, sizeof(i32)));
+			                res.Buffer(data.inLightIndicesSB_, GPU::Format::INVALID, 0, lightBufferSize_, sizeof(i32)));
 			            data.tech_.Set("outDebug", res.RWTexture2D(data.outDebug_, GPU::Format::R32G32B32A32_FLOAT));
 
 			            if(auto binding = data.tech_.GetBinding())
@@ -949,9 +948,9 @@ namespace
 		GPU::FrameBindingSetDesc fbsDesc_;
 	};
 
-	ForwardData AddForwardPasses(RenderGraph& renderGraph, const CommonBuffers& cbs, const LightCullingData& lightCulling, const RenderGraphTextureDesc& colorDesc,
-	    RenderGraphResource color, const RenderGraphTextureDesc& depthDesc, RenderGraphResource depth,
-	    RenderGraphResource objectSB)
+	ForwardData AddForwardPasses(RenderGraph& renderGraph, const CommonBuffers& cbs,
+	    const LightCullingData& lightCulling, const RenderGraphTextureDesc& colorDesc, RenderGraphResource color,
+	    const RenderGraphTextureDesc& depthDesc, RenderGraphResource depth, RenderGraphResource objectSB)
 	{
 		struct ForwardPassData
 		{
@@ -986,9 +985,9 @@ namespace
 			    data.inLightCB_ = builder.Read(lightCulling.outLightCB_, GPU::BindFlags::CONSTANT_BUFFER);
 			    data.inLightSB_ = builder.Read(lightCulling.outLightSB_, GPU::BindFlags::SHADER_RESOURCE);
 			    data.inLightTex_ = builder.Read(lightCulling.outLightTex_, GPU::BindFlags::SHADER_RESOURCE);
-				data.inLightIndicesSB_ = builder.Read(lightCulling.outLightIndicesSB_, GPU::BindFlags::SHADER_RESOURCE);
+			    data.inLightIndicesSB_ = builder.Read(lightCulling.outLightIndicesSB_, GPU::BindFlags::SHADER_RESOURCE);
 
-				// Object buffer.
+			    // Object buffer.
 			    DBG_ASSERT(objectSB);
 			    data.outObjectSB_ = builder.Write(objectSB, GPU::BindFlags::SHADER_RESOURCE);
 
@@ -1004,20 +1003,17 @@ namespace
 			    cmdList.ClearRTV(fbs, 0, color);
 
 			    // Draw all render packets.
-				RenderGraphTextureDesc lightTexDesc;
-				res.GetTexture(data.inLightTex_, &lightTexDesc);
+			    RenderGraphTextureDesc lightTexDesc;
+			    res.GetTexture(data.inLightTex_, &lightTexDesc);
 
 			    DrawRenderPackets(cmdList, "RenderPassForward", data.drawState_, fbs, res.GetBuffer(data.inViewCB_),
 			        res.GetBuffer(data.outObjectSB_), [&](Shader* shader, ShaderTechnique& tech) {
 				        tech.Set("LightCBuffer", res.CBuffer(data.inLightCB_, 0, sizeof(LightConstants)));
 				        tech.Set("inLights",
 				            res.Buffer(data.inLightSB_, GPU::Format::INVALID, 0, lights_.size(), sizeof(Light)));
-				        tech.Set("inLightTex",
-				            res.Texture2D(
-				                data.inLightTex_, lightTexDesc.format_, 0, 1));
+				        tech.Set("inLightTex", res.Texture2D(data.inLightTex_, lightTexDesc.format_, 0, 1));
 				        tech.Set("inLightIndices",
-				            res.Buffer(
-				                data.inLightIndicesSB_, GPU::Format::INVALID, 0, lightBufferSize_, sizeof(i32)));
+				            res.Buffer(data.inLightIndicesSB_, GPU::Format::INVALID, 0, lightBufferSize_, sizeof(i32)));
 				        return true;
 				    });
 			});
@@ -1241,9 +1237,8 @@ namespace
 			}
 			else
 			{
-				auto renderPassForward = AddForwardPasses(renderGraph, cbs, lightCulling,
-					GetDefaultTextureDesc(w, h), resources_[0],
-				    GetDepthTextureDesc(w, h), renderPassDepth.outDepth_, renderPassDepth.outObjectSB_);
+				auto renderPassForward = AddForwardPasses(renderGraph, cbs, lightCulling, GetDefaultTextureDesc(w, h),
+				    resources_[0], GetDepthTextureDesc(w, h), renderPassDepth.outDepth_, renderPassDepth.outObjectSB_);
 
 				resources_[2] = renderPassForward.outColor_;
 				resources_[3] = renderPassForward.outDepth_;
@@ -1269,12 +1264,11 @@ namespace
 			ImGui::Text("Debug Modes:");
 			ImGui::RadioButton("Off", &debugMode, 0);
 			ImGui::RadioButton("Light Culling", &debugMode, 1);
-			
+
 			forwardPipeline.debugMode_ = (ForwardPipeline::DebugMode)debugMode;
 		}
 		ImGui::End();
 	}
-
 }
 
 void Loop()
@@ -1321,8 +1315,7 @@ void Loop()
 	light.attenuation_ = Math::Vec3(10.0f, 0.0f, 0.0f);
 	lights_.push_back(light);
 
-	auto randF32 =[&rng](f32 min, f32 max)
-	{
+	auto randF32 = [&rng](f32 min, f32 max) {
 		const u32 large = 65536;
 		auto val = (f32)(((u32)rng.Generate()) % large);
 		val /= (f32)large;
@@ -1336,7 +1329,7 @@ void Loop()
 		light.color_.x = randF32(0.0f, 1.0f);
 		light.color_.y = randF32(0.0f, 1.0f);
 		light.color_.z = randF32(0.0f, 1.0f);
-		light.attenuation_ = Math::Vec3(1.0f, 0.25f, 0.05f);
+		light.attenuation_ = Math::Vec3(1.0f, 0.1f, 0.025f);
 		lights_.push_back(light);
 	}
 
