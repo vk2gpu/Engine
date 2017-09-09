@@ -94,4 +94,14 @@ namespace GPU
 	 */
 	GPU_DLL Format GetDSVFormat(Format format);
 
+	/**
+	 * Get valid SRV format to read depth from @a format.
+	 */
+	GPU_DLL Format GetSRVFormatDepth(Format format);
+
+	/**
+	 * Get valid SRV format to read stencil from @a format.
+	 */
+	GPU_DLL Format GetSRVFormatStencil(Format format);
+
 } // namespace GPU

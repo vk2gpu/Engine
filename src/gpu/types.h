@@ -31,6 +31,8 @@ namespace GPU
 	static const i32 MAX_CBV_BINDINGS = 14;
 	/// Maximum number of sampler bindings.
 	static const i32 MAX_SAMPLER_BINDINGS = 16;
+	/// Resource data alignment.
+	static const i32 RESOURCE_DATA_ALIGNMENT = 256;
 
 	/**
 	 * Error codes.

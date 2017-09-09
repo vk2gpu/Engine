@@ -312,8 +312,7 @@ namespace GPU
 		// Not all resources nessisarily need transitions.
 		for(i32 i = 0; i < pbs.cbvTransitions_.size(); ++i)
 			if(pbs.cbvTransitions_[i])
-				AddTransition(pbs.cbvTransitions_[i],
-				    D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
+				AddTransition(pbs.cbvTransitions_[i], D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
 
 		for(i32 i = 0; i < pbs.srvTransitions_.size(); ++i)
 			if(pbs.srvTransitions_[i])

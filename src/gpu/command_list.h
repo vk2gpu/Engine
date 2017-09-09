@@ -67,10 +67,10 @@ namespace GPU
 		template<typename TYPE>
 		TYPE* Push(const TYPE* data, i32 num = 1)
 		{
-			void* dest = Alloc(sizeof(TYPE) * num);
+			TYPE* dest = reinterpret_cast<TYPE*>(Alloc(sizeof(TYPE) * num));
 			if(dest)
 				for(i32 idx = 0; idx < num; ++idx)
-					new(dest) TYPE(data[idx]);
+					new(dest + idx) TYPE(data[idx]);
 			return dest;
 		}
 

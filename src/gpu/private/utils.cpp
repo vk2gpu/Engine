@@ -450,6 +450,8 @@ namespace GPU
 	{
 		switch(format)
 		{
+		case Format::R16_TYPELESS:
+			return Format::D16_UNORM;
 		case Format::R24G8_TYPELESS:
 			return Format::D24_UNORM_S8_UINT;
 		case Format::R32_FLOAT:
@@ -463,6 +465,40 @@ namespace GPU
 			return Format::D32_FLOAT_S8X24_UINT;
 		}
 		return Format::INVALID;
+	}
+
+	GPU_DLL Format GetSRVFormatDepth(Format format)
+	{
+		switch(format)
+		{
+		case Format::R16_TYPELESS:
+		case Format::D16_UNORM:
+			return Format::R16_UNORM;
+		case Format::R24G8_TYPELESS:
+		case Format::D24_UNORM_S8_UINT:
+			return Format::R24_UNORM_X8_TYPELESS;
+		case Format::R32_TYPELESS:
+		case Format::D32_FLOAT:
+			return Format::R32_FLOAT;
+		case Format::R32G8X24_TYPELESS:
+		case Format::D32_FLOAT_S8X24_UINT:
+			return Format::R32_FLOAT_X8X24_TYPELESS;
+		}
+		return GPU::Format::INVALID;
+	}
+
+	GPU_DLL Format GetSRVFormatStencil(Format format)
+	{
+		switch(format)
+		{
+		case Format::R24G8_TYPELESS:
+		case Format::D24_UNORM_S8_UINT:
+			return Format::X24_TYPELESS_G8_UINT;
+		case Format::R32G8X24_TYPELESS:
+		case Format::D32_FLOAT_S8X24_UINT:
+			return Format::X32_TYPELESS_G8X24_UINT;
+		}
+		return GPU::Format::INVALID;
 	}
 
 } // namespace GPU

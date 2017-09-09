@@ -49,7 +49,7 @@ EXPORT bool GetPlugin(struct Plugin::Plugin* outPlugin, Core::UUID uuid)
 namespace GPU
 {
 	D3D12Backend::D3D12Backend(const SetupParams& setupParams)
-		: setupParams_(setupParams)
+	    : setupParams_(setupParams)
 	{
 		auto retVal = LoadLibraries();
 		DBG_ASSERT(retVal == ErrorCode::OK);
@@ -74,7 +74,6 @@ namespace GPU
 
 				infoQueue->AddApplicationMessage(
 				    DXGI_INFO_QUEUE_MESSAGE_SEVERITY_WARNING, "DXGI error reporting ENABLED.");
-
 			}
 		}
 
@@ -645,11 +644,9 @@ namespace GPU
 		memset(&defaultSRV, 0, sizeof(defaultSRV));
 		defaultSRV.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 		defaultSRV.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-		defaultSRV.Shader4ComponentMapping =
-			    D3D12_ENCODE_SHADER_4_COMPONENT_MAPPING(D3D12_SHADER_COMPONENT_MAPPING_FORCE_VALUE_0,
-			        D3D12_SHADER_COMPONENT_MAPPING_FORCE_VALUE_0,
-			        D3D12_SHADER_COMPONENT_MAPPING_FORCE_VALUE_0,
-			        D3D12_SHADER_COMPONENT_MAPPING_FORCE_VALUE_0);
+		defaultSRV.Shader4ComponentMapping = D3D12_ENCODE_SHADER_4_COMPONENT_MAPPING(
+		    D3D12_SHADER_COMPONENT_MAPPING_FORCE_VALUE_0, D3D12_SHADER_COMPONENT_MAPPING_FORCE_VALUE_0,
+		    D3D12_SHADER_COMPONENT_MAPPING_FORCE_VALUE_0, D3D12_SHADER_COMPONENT_MAPPING_FORCE_VALUE_0);
 		srvs.fill(defaultSRV);
 
 		D3D12_UNORDERED_ACCESS_VIEW_DESC defaultUAV;
@@ -677,10 +674,10 @@ namespace GPU
 				srvs[i].Format = GetFormat(srv.format_);
 				srvs[i].ViewDimension = GetSRVDimension(srv.dimension_);
 				srvs[i].Shader4ComponentMapping =
-					D3D12_ENCODE_SHADER_4_COMPONENT_MAPPING(D3D12_SHADER_COMPONENT_MAPPING_FROM_MEMORY_COMPONENT_0,
-						D3D12_SHADER_COMPONENT_MAPPING_FROM_MEMORY_COMPONENT_1,
-						D3D12_SHADER_COMPONENT_MAPPING_FROM_MEMORY_COMPONENT_2,
-						D3D12_SHADER_COMPONENT_MAPPING_FROM_MEMORY_COMPONENT_3);
+				    D3D12_ENCODE_SHADER_4_COMPONENT_MAPPING(D3D12_SHADER_COMPONENT_MAPPING_FROM_MEMORY_COMPONENT_0,
+				        D3D12_SHADER_COMPONENT_MAPPING_FROM_MEMORY_COMPONENT_1,
+				        D3D12_SHADER_COMPONENT_MAPPING_FROM_MEMORY_COMPONENT_2,
+				        D3D12_SHADER_COMPONENT_MAPPING_FROM_MEMORY_COMPONENT_3);
 				switch(srv.dimension_)
 				{
 				case ViewDimension::BUFFER:
@@ -748,7 +745,7 @@ namespace GPU
 				if(!uavHandle)
 					continue;
 				DBG_ASSERT(uavHandle.GetType() == ResourceType::BUFFER || uavHandle.GetType() == ResourceType::TEXTURE);
-				
+
 				D3D12Resource* resource = GetD3D12Resource(uavHandle);
 				DBG_ASSERT(resource);
 				uavResources[i] = resource;
@@ -812,7 +809,7 @@ namespace GPU
 				const auto& cbv = desc.cbvs_[i];
 
 				cbvs[i].BufferLocation =
-					bufferResources_[cbvHandle.GetIndex()].resource_->GetGPUVirtualAddress() + cbv.offset_;
+				    bufferResources_[cbvHandle.GetIndex()].resource_->GetGPUVirtualAddress() + cbv.offset_;
 				cbvs[i].SizeInBytes = Core::PotRoundUp(cbv.size_, D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT);
 			}
 
@@ -1156,7 +1153,7 @@ namespace GPU
 	}
 
 	ErrorCode D3D12Backend::ResizeSwapChain(Handle handle, i32 width, i32 height)
-	{ 
+	{
 		Core::ScopedWriteLock lock(resLock_);
 		DBG_ASSERT(handle.GetIndex() < swapchainResources_.size());
 		D3D12SwapChain& swapChain = swapchainResources_[handle.GetIndex()];

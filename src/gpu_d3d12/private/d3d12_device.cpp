@@ -43,7 +43,8 @@ namespace GPU
 			if(!Core::ContainsAnyFlags(setupParams.debugFlags_, DebugFlags::ENABLE_ALL_WARNINGS))
 			{
 				D3D12_INFO_QUEUE_FILTER filter = {};
-				D3D12_MESSAGE_ID denyIDs[] = { D3D12_MESSAGE_ID_CLEARRENDERTARGETVIEW_MISMATCHINGCLEARVALUE, D3D12_MESSAGE_ID_CLEARDEPTHSTENCILVIEW_MISMATCHINGCLEARVALUE };
+				D3D12_MESSAGE_ID denyIDs[] = {D3D12_MESSAGE_ID_CLEARRENDERTARGETVIEW_MISMATCHINGCLEARVALUE,
+				    D3D12_MESSAGE_ID_CLEARDEPTHSTENCILVIEW_MISMATCHINGCLEARVALUE};
 				filter.DenyList.NumIDs = 2;
 				filter.DenyList.pIDList = denyIDs;
 				d3dInfoQueue->PushStorageFilter(&filter);
@@ -675,8 +676,8 @@ namespace GPU
 		return ErrorCode::OK;
 	}
 
-	ErrorCode D3D12Device::UpdateCBVs(
-	    D3D12PipelineBindingSet& pbs, i32 first, i32 num, D3D12Resource** resources, const D3D12_CONSTANT_BUFFER_VIEW_DESC* descs)
+	ErrorCode D3D12Device::UpdateCBVs(D3D12PipelineBindingSet& pbs, i32 first, i32 num, D3D12Resource** resources,
+	    const D3D12_CONSTANT_BUFFER_VIEW_DESC* descs)
 	{
 		i32 incr = d3dDevice_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 		D3D12_CPU_DESCRIPTOR_HANDLE handle = pbs.cbvs_.cpuDescHandle_;
@@ -743,9 +744,9 @@ namespace GPU
 	ErrorCode D3D12Device::ResizeSwapChain(D3D12SwapChain& swapChain, i32 width, i32 height)
 	{
 		// Wait until GPU has finished with the swap chain.
-		d3dFrameFence_->SetEventOnCompletion(frameIdx_, frameFenceEvent_);
-		if((i64)d3dFrameFence_->GetCompletedValue() != frameIdx_)
+		if((i64)d3dFrameFence_->GetCompletedValue() < frameIdx_)
 		{
+			d3dFrameFence_->SetEventOnCompletion(frameIdx_, frameFenceEvent_);
 			::WaitForSingleObject(frameFenceEvent_, INFINITE);
 		}
 
