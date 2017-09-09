@@ -23,7 +23,7 @@ namespace
 	GPU::SetupParams GetDefaultSetupParams()
 	{
 		GPU::SetupParams setupParams;
-		setupParams.debugFlags_ = GPU::DebugFlags::RENDERDOC;
+		setupParams.debugFlags_ = GPU::DebugFlags::NONE;
 		return setupParams;
 	}
 
@@ -38,15 +38,12 @@ namespace
 				settings->messageQueueSizeInBytes = 1024 * 1024;
 				settings->maxNbMessagesPerUpdate = 100;
 				settings->msSleepBetweenServerUpdates = 1;
-				
+
 				rmt_CreateGlobalInstance(&rmt_);
 				rmt_SetCurrentThreadName("Main Thread");
 			}
 
-			~ScopedRemotery()
-			{
-				rmt_DestroyGlobalInstance(rmt_);
-			}
+			~ScopedRemotery() { rmt_DestroyGlobalInstance(rmt_); }
 			Remotery* rmt_ = nullptr;
 		};
 		ScopedRemotery remotery;
@@ -65,7 +62,7 @@ namespace
 		ScopedEngine(const char* name)
 		    : window(name, 100, 100, 1280, 720, true, true)
 		{
-				
+
 
 			Graphics::Model::RegisterFactory();
 			Graphics::Shader::RegisterFactory();
