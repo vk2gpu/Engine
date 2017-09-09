@@ -12,7 +12,7 @@ namespace GPU
 	class D3D12Device
 	{
 	public:
-		D3D12Device(IDXGIFactory4* dxgiFactory, IDXGIAdapter1* adapter);
+		D3D12Device(const SetupParams& setupParams, IDXGIFactory4* dxgiFactory, IDXGIAdapter1* adapter);
 		~D3D12Device();
 
 		void CreateCommandQueues();
@@ -46,7 +46,7 @@ namespace GPU
 		    const D3D12_SHADER_RESOURCE_VIEW_DESC* descs);
 		ErrorCode UpdateUAVs(D3D12PipelineBindingSet& pipelineBindingSet, i32 first, i32 num, D3D12Resource** resources,
 		    const D3D12_UNORDERED_ACCESS_VIEW_DESC* descs);
-		ErrorCode UpdateCBVs(D3D12PipelineBindingSet& pipelineBindingSet, i32 first, i32 num,
+		ErrorCode UpdateCBVs(D3D12PipelineBindingSet& pipelineBindingSet, i32 first, i32 num, D3D12Resource** resources,
 		    const D3D12_CONSTANT_BUFFER_VIEW_DESC* descs);
 		ErrorCode UpdateSamplers(
 		    D3D12PipelineBindingSet& pipelineBindingSet, i32 first, i32 num, const D3D12_SAMPLER_DESC* descs);

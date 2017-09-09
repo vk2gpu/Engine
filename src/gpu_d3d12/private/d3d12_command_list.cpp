@@ -44,11 +44,14 @@ namespace GPU
 		DBG_ASSERT(!isOpen_);
 
 		// Check that we've completed uploads from the next allocator.
-		d3dFence_->SetEventOnCompletion(listIdx_ - listCount_, fenceEvent_);
-		if((listIdx_ - d3dFence_->GetCompletedValue()) >= listCount_)
+		i64 completedValue = (i64)d3dFence_->GetCompletedValue();
+		i64 waitValue = (listIdx_ - listCount_) + 1;
+		if(completedValue < waitValue)
 		{
+			d3dFence_->SetEventOnCompletion(waitValue, fenceEvent_);
 			::WaitForSingleObject(fenceEvent_, INFINITE);
 		}
+
 		i32 listIdx = listIdx_ % listCount_;
 		CHECK_D3D(d3dCommandAllocators_[listIdx]->Reset());
 		CHECK_D3D(d3dCommandList_->Reset(d3dCommandAllocators_[listIdx].Get(), nullptr));
@@ -73,12 +76,6 @@ namespace GPU
 		ID3D12CommandList* d3dCommandLists[1] = {d3dCommandList_.Get()};
 		d3dCommandQueue->ExecuteCommandLists(1, d3dCommandLists);
 		CHECK_D3D(d3dCommandQueue->Signal(d3dFence_.Get(), listIdx_));
-
-		d3dFence_->SetEventOnCompletion(listIdx_ - listCount_, fenceEvent_);
-		if((listIdx_ - d3dFence_->GetCompletedValue()) >= listCount_)
-		{
-			::WaitForSingleObject(fenceEvent_, INFINITE);
-		}
 
 		++listIdx_;
 		return ErrorCode::OK;

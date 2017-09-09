@@ -124,7 +124,7 @@ namespace
 			}
 
 			// Rotation.
-			cameraRotation_ += cameraRotationDelta_ * tick;
+			cameraRotation_ += cameraRotationDelta_ * tick * 4.0f;
 
 			cameraDistance_ += cameraZoom_ * tick;
 			cameraDistance_ = Core::Clamp(cameraDistance_, 1.0f, 4096.0f);

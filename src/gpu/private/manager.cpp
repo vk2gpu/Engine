@@ -92,7 +92,7 @@ namespace GPU
 	struct ManagerImpl
 	{
 		void* deviceWindow_ = nullptr;
-		DebuggerIntegrationFlags debuggerIntegration_ = DebuggerIntegrationFlags::NONE;
+		DebugFlags debugFlags_ = DebugFlags::NONE;
 
 		BackendPlugin plugin_;
 		IBackend* backend_ = nullptr;
@@ -104,12 +104,12 @@ namespace GPU
 
 		ManagerImpl(const SetupParams& setupParams)
 		    : deviceWindow_(setupParams.deviceWindow_)
-		    , debuggerIntegration_(setupParams.debuggerIntegration_)
+		    , debugFlags_(setupParams.debugFlags_)
 		{
 			// Create matching backend.
 			Core::Vector<BackendPlugin> plugins;
 
-			if(Core::ContainsAnyFlags(debuggerIntegration_, DebuggerIntegrationFlags::RENDERDOC))
+			if(Core::ContainsAnyFlags(debugFlags_, DebugFlags::RENDERDOC))
 			{
 				RenderDoc::Load();
 			}
@@ -410,7 +410,7 @@ namespace GPU
 	void Manager::BeginDebugCapture(const char* name)
 	{
 		DBG_ASSERT(IsInitialized());
-		if(Core::ContainsAllFlags(impl_->debuggerIntegration_, DebuggerIntegrationFlags::RENDERDOC))
+		if(Core::ContainsAllFlags(impl_->debugFlags_, DebugFlags::RENDERDOC))
 		{
 			RenderDoc::BeginCapture(name);
 		}
@@ -419,7 +419,7 @@ namespace GPU
 	void Manager::EndDebugCapture()
 	{
 		DBG_ASSERT(IsInitialized());
-		if(Core::ContainsAllFlags(impl_->debuggerIntegration_, DebuggerIntegrationFlags::RENDERDOC))
+		if(Core::ContainsAllFlags(impl_->debugFlags_, DebugFlags::RENDERDOC))
 		{
 			RenderDoc::EndCapture();
 		}

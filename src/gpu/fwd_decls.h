@@ -34,7 +34,7 @@ namespace GPU
 
 	// types.h
 	enum class ErrorCode : i32;
-	enum class DebuggerIntegrationFlags : u32;
+	enum class DebugFlags : u32;
 	enum class Format : i32;
 	enum class BindFlags : u32;
 	enum class TextureType : i32;

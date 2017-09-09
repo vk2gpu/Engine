@@ -49,6 +49,7 @@ EXPORT bool GetPlugin(struct Plugin::Plugin* outPlugin, Core::UUID uuid)
 namespace GPU
 {
 	D3D12Backend::D3D12Backend(const SetupParams& setupParams)
+		: setupParams_(setupParams)
 	{
 		auto retVal = LoadLibraries();
 		DBG_ASSERT(retVal == ErrorCode::OK);
@@ -73,6 +74,7 @@ namespace GPU
 
 				infoQueue->AddApplicationMessage(
 				    DXGI_INFO_QUEUE_MESSAGE_SEVERITY_WARNING, "DXGI error reporting ENABLED.");
+
 			}
 		}
 
@@ -82,6 +84,15 @@ namespace GPU
 			if(SUCCEEDED(hr))
 			{
 				d3dDebug_->EnableDebugLayer();
+
+				hr = d3dDebug_->QueryInterface(IID_ID3D12Debug1, (void**)d3dDebug1_.GetAddressOf());
+				if(SUCCEEDED(hr))
+				{
+					if(Core::ContainsAnyFlags(setupParams.debugFlags_, DebugFlags::GPU_BASED_VALIDATION))
+					{
+						d3dDebug1_->SetEnableGPUBasedValidation(TRUE);
+					}
+				}
 			}
 		}
 
@@ -143,7 +154,7 @@ namespace GPU
 
 	ErrorCode D3D12Backend::Initialize(i32 adapterIdx)
 	{
-		device_ = new D3D12Device(dxgiFactory_.Get(), dxgiAdapters_[adapterIdx].Get());
+		device_ = new D3D12Device(setupParams_, dxgiFactory_.Get(), dxgiAdapters_[adapterIdx].Get());
 		if(*device_ == false)
 		{
 			delete device_;
@@ -612,6 +623,7 @@ namespace GPU
 		Core::Array<D3D12_SHADER_RESOURCE_VIEW_DESC, MAX_UAV_BINDINGS> srvs = {};
 		Core::Array<D3D12Resource*, MAX_SRV_BINDINGS> uavResources = {};
 		Core::Array<D3D12_UNORDERED_ACCESS_VIEW_DESC, MAX_UAV_BINDINGS> uavs = {};
+		Core::Array<D3D12Resource*, MAX_CBV_BINDINGS> cbvResources = {};
 		Core::Array<D3D12_CONSTANT_BUFFER_VIEW_DESC, MAX_CBV_BINDINGS> cbvs = {};
 		Core::Array<D3D12_SAMPLER_DESC, MAX_SAMPLER_BINDINGS> samplers = {};
 
@@ -619,6 +631,7 @@ namespace GPU
 		memset(srvs.data(), 0, sizeof(srvs));
 		memset(uavResources.data(), 0, sizeof(uavResources));
 		memset(uavs.data(), 0, sizeof(uavs));
+		memset(cbvResources.data(), 0, sizeof(cbvResources));
 		memset(cbvs.data(), 0, sizeof(cbvs));
 		memset(samplers.data(), 0, sizeof(samplers));
 
@@ -627,6 +640,24 @@ namespace GPU
 		    D3D12_TEXTURE_ADDRESS_MODE_WRAP, 0.0f, 1, D3D12_COMPARISON_FUNC_NEVER, {0.0f, 0.0f, 0.0f, 0.0f}, 0.0f,
 		    Core::F32_MAX,
 		};
+
+		D3D12_SHADER_RESOURCE_VIEW_DESC defaultSRV;
+		memset(&defaultSRV, 0, sizeof(defaultSRV));
+		defaultSRV.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+		defaultSRV.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+		defaultSRV.Shader4ComponentMapping =
+			    D3D12_ENCODE_SHADER_4_COMPONENT_MAPPING(D3D12_SHADER_COMPONENT_MAPPING_FORCE_VALUE_0,
+			        D3D12_SHADER_COMPONENT_MAPPING_FORCE_VALUE_0,
+			        D3D12_SHADER_COMPONENT_MAPPING_FORCE_VALUE_0,
+			        D3D12_SHADER_COMPONENT_MAPPING_FORCE_VALUE_0);
+		srvs.fill(defaultSRV);
+
+		D3D12_UNORDERED_ACCESS_VIEW_DESC defaultUAV;
+		memset(&defaultUAV, 0, sizeof(defaultUAV));
+		defaultUAV.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+		defaultUAV.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
+		uavs.fill(defaultUAV);
+
 		samplers.fill(defaultSampler);
 
 		{
@@ -646,10 +677,10 @@ namespace GPU
 				srvs[i].Format = GetFormat(srv.format_);
 				srvs[i].ViewDimension = GetSRVDimension(srv.dimension_);
 				srvs[i].Shader4ComponentMapping =
-				    D3D12_ENCODE_SHADER_4_COMPONENT_MAPPING(D3D12_SHADER_COMPONENT_MAPPING_FROM_MEMORY_COMPONENT_0,
-				        D3D12_SHADER_COMPONENT_MAPPING_FROM_MEMORY_COMPONENT_1,
-				        D3D12_SHADER_COMPONENT_MAPPING_FROM_MEMORY_COMPONENT_2,
-				        D3D12_SHADER_COMPONENT_MAPPING_FROM_MEMORY_COMPONENT_3);
+					D3D12_ENCODE_SHADER_4_COMPONENT_MAPPING(D3D12_SHADER_COMPONENT_MAPPING_FROM_MEMORY_COMPONENT_0,
+						D3D12_SHADER_COMPONENT_MAPPING_FROM_MEMORY_COMPONENT_1,
+						D3D12_SHADER_COMPONENT_MAPPING_FROM_MEMORY_COMPONENT_2,
+						D3D12_SHADER_COMPONENT_MAPPING_FROM_MEMORY_COMPONENT_3);
 				switch(srv.dimension_)
 				{
 				case ViewDimension::BUFFER:
@@ -717,7 +748,7 @@ namespace GPU
 				if(!uavHandle)
 					continue;
 				DBG_ASSERT(uavHandle.GetType() == ResourceType::BUFFER || uavHandle.GetType() == ResourceType::TEXTURE);
-
+				
 				D3D12Resource* resource = GetD3D12Resource(uavHandle);
 				DBG_ASSERT(resource);
 				uavResources[i] = resource;
@@ -771,12 +802,17 @@ namespace GPU
 				auto cbvHandle = desc.cbvs_[i].resource_;
 				if(!cbvHandle)
 					continue;
+				D3D12Resource* resource = GetD3D12Resource(cbvHandle);
+				DBG_ASSERT(resource);
+				cbvResources[i] = resource;
+
 				DBG_ASSERT(cbvHandle.GetType() == ResourceType::BUFFER);
+				DBG_ASSERT(cbvHandle);
 
 				const auto& cbv = desc.cbvs_[i];
 
 				cbvs[i].BufferLocation =
-				    bufferResources_[cbvHandle.GetIndex()].resource_->GetGPUVirtualAddress() + cbv.offset_;
+					bufferResources_[cbvHandle.GetIndex()].resource_->GetGPUVirtualAddress() + cbv.offset_;
 				cbvs[i].SizeInBytes = Core::PotRoundUp(cbv.size_, D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT);
 			}
 
@@ -809,7 +845,7 @@ namespace GPU
 
 			ErrorCode retVal;
 			RETURN_ON_ERROR(retVal = device_->CreatePipelineBindingSet(pbs, desc, debugName));
-			RETURN_ON_ERROR(retVal = device_->UpdateCBVs(pbs, 0, desc.numCBVs_, cbvs.data()));
+			RETURN_ON_ERROR(retVal = device_->UpdateCBVs(pbs, 0, desc.numCBVs_, cbvResources.data(), cbvs.data()));
 			RETURN_ON_ERROR(retVal = device_->UpdateSRVs(pbs, 0, desc.numSRVs_, srvResources.data(), srvs.data()));
 			RETURN_ON_ERROR(retVal = device_->UpdateUAVs(pbs, 0, desc.numUAVs_, uavResources.data(), uavs.data()));
 			RETURN_ON_ERROR(retVal = device_->UpdateSamplers(pbs, 0, desc.numSamplers_, samplers.data()));
@@ -1120,7 +1156,7 @@ namespace GPU
 	}
 
 	ErrorCode D3D12Backend::ResizeSwapChain(Handle handle, i32 width, i32 height)
-	{
+	{ 
 		Core::ScopedWriteLock lock(resLock_);
 		DBG_ASSERT(handle.GetIndex() < swapchainResources_.size());
 		D3D12SwapChain& swapChain = swapchainResources_[handle.GetIndex()];

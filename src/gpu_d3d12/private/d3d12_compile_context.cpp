@@ -310,6 +310,11 @@ namespace GPU
 		// Lazily setup transitions.
 		// TODO: Some better transition management here.
 		// Not all resources nessisarily need transitions.
+		for(i32 i = 0; i < pbs.cbvTransitions_.size(); ++i)
+			if(pbs.cbvTransitions_[i])
+				AddTransition(pbs.cbvTransitions_[i],
+				    D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
+
 		for(i32 i = 0; i < pbs.srvTransitions_.size(); ++i)
 			if(pbs.srvTransitions_[i])
 				AddTransition(pbs.srvTransitions_[i],
@@ -317,10 +322,7 @@ namespace GPU
 
 		for(i32 i = 0; i < pbs.uavTransitions_.size(); ++i)
 			if(pbs.uavTransitions_[i])
-			{
-				AddTransition(pbs.uavTransitions_[i], D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 				AddUAVBarrier(pbs.uavTransitions_[i]);
-			}
 
 		d3dCommandList_->SetDescriptorHeaps(2, heaps);
 		d3dCommandList_->SetPipelineState(pbs.pipelineState_.Get());
@@ -435,7 +437,7 @@ namespace GPU
 		return ErrorCode::OK;
 	}
 
-	void D3D12CompileContext::AddTransition(const D3D12Resource* resource, D3D12_RESOURCE_STATES state)
+	D3D12_RESOURCE_STATES D3D12CompileContext::AddTransition(const D3D12Resource* resource, D3D12_RESOURCE_STATES state)
 	{
 		DBG_ASSERT(resource);
 		DBG_ASSERT(resource->resource_);
@@ -446,7 +448,8 @@ namespace GPU
 			stateEntry = stateTracker_.insert(resource, resource->defaultState_);
 		}
 
-		if(state != stateEntry->second)
+		auto prevState = stateEntry->second;
+		if(state != prevState)
 		{
 			D3D12_RESOURCE_BARRIER barrier;
 			barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
@@ -458,6 +461,7 @@ namespace GPU
 			pendingBarriers_.insert(resource, barrier);
 			stateEntry->second = state;
 		}
+		return prevState;
 	}
 
 	void D3D12CompileContext::AddUAVBarrier(const D3D12Resource* resource)
@@ -465,15 +469,15 @@ namespace GPU
 		DBG_ASSERT(resource);
 		DBG_ASSERT(resource->resource_);
 
-		AddTransition(resource, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-
-#if 0
-		D3D12_RESOURCE_BARRIER barrier;
-		barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
-		barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-		barrier.UAV.pResource = resource->resource_.Get();
-		pendingBarriers_.insert(resource, barrier);
-#endif
+		// Only need to transition if the previous state was also unordered access.
+		if(AddTransition(resource, D3D12_RESOURCE_STATE_UNORDERED_ACCESS) == D3D12_RESOURCE_STATE_UNORDERED_ACCESS)
+		{
+			D3D12_RESOURCE_BARRIER barrier;
+			barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
+			barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+			barrier.UAV.pResource = resource->resource_.Get();
+			pendingBarriers_.insert(resource, barrier);
+		}
 	}
 
 	void D3D12CompileContext::FlushTransitions()

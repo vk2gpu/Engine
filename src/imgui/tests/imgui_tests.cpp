@@ -13,7 +13,7 @@ namespace
 	GPU::SetupParams GetDefaultSetupParams()
 	{
 		GPU::SetupParams setupParams;
-		setupParams.debuggerIntegration_ = GPU::DebuggerIntegrationFlags::NONE;
+		setupParams.debugFlags_ = GPU::DebugFlags::NONE;
 		return setupParams;
 	}
 }

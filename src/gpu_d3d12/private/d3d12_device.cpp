@@ -10,7 +10,7 @@
 
 namespace GPU
 {
-	D3D12Device::D3D12Device(IDXGIFactory4* dxgiFactory, IDXGIAdapter1* adapter)
+	D3D12Device::D3D12Device(const SetupParams& setupParams, IDXGIFactory4* dxgiFactory, IDXGIAdapter1* adapter)
 	    : dxgiFactory_(dxgiFactory)
 	{
 		HRESULT hr = S_OK;
@@ -38,6 +38,16 @@ namespace GPU
 			CHECK_D3D(d3dInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, TRUE));
 			CHECK_D3D(d3dInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, TRUE));
 			CHECK_D3D(d3dInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, FALSE));
+
+			// Disable some warnings that we don't generally care about, unless all warnings are enabled.
+			if(!Core::ContainsAnyFlags(setupParams.debugFlags_, DebugFlags::ENABLE_ALL_WARNINGS))
+			{
+				D3D12_INFO_QUEUE_FILTER filter = {};
+				D3D12_MESSAGE_ID denyIDs[] = { D3D12_MESSAGE_ID_CLEARRENDERTARGETVIEW_MISMATCHINGCLEARVALUE, D3D12_MESSAGE_ID_CLEARDEPTHSTENCILVIEW_MISMATCHINGCLEARVALUE };
+				filter.DenyList.NumIDs = 2;
+				filter.DenyList.pIDList = denyIDs;
+				d3dInfoQueue->PushStorageFilter(&filter);
+			}
 		}
 #endif
 
@@ -641,11 +651,9 @@ namespace GPU
 		handle.ptr += first * incr;
 		for(i32 i = 0; i < num; ++i)
 		{
-			if(resources[i])
-			{
-				d3dDevice_->CreateShaderResourceView(resources[i]->resource_.Get(), &descs[i], handle);
-				pbs.srvTransitions_[first + i] = resources[i];
-			}
+			auto* resource = resources[i] ? resources[i]->resource_.Get() : nullptr;
+			d3dDevice_->CreateShaderResourceView(resource, &descs[i], handle);
+			pbs.srvTransitions_[first + i] = resources[i];
 			handle.ptr += incr;
 		}
 		return ErrorCode::OK;
@@ -659,18 +667,16 @@ namespace GPU
 		handle.ptr += first * incr;
 		for(i32 i = 0; i < num; ++i)
 		{
-			if(resources[i])
-			{
-				d3dDevice_->CreateUnorderedAccessView(resources[i]->resource_.Get(), nullptr, &descs[i], handle);
-				pbs.uavTransitions_[first + i] = resources[i];
-			}
+			auto* resource = resources[i] ? resources[i]->resource_.Get() : nullptr;
+			d3dDevice_->CreateUnorderedAccessView(resource, nullptr, &descs[i], handle);
+			pbs.uavTransitions_[first + i] = resources[i];
 			handle.ptr += incr;
 		}
 		return ErrorCode::OK;
 	}
 
 	ErrorCode D3D12Device::UpdateCBVs(
-	    D3D12PipelineBindingSet& pbs, i32 first, i32 num, const D3D12_CONSTANT_BUFFER_VIEW_DESC* descs)
+	    D3D12PipelineBindingSet& pbs, i32 first, i32 num, D3D12Resource** resources, const D3D12_CONSTANT_BUFFER_VIEW_DESC* descs)
 	{
 		i32 incr = d3dDevice_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 		D3D12_CPU_DESCRIPTOR_HANDLE handle = pbs.cbvs_.cpuDescHandle_;
@@ -678,6 +684,7 @@ namespace GPU
 		for(i32 i = 0; i < num; ++i)
 		{
 			d3dDevice_->CreateConstantBufferView(&descs[i], handle);
+			pbs.cbvTransitions_[first + i] = resources[i];
 			handle.ptr += incr;
 		}
 		return ErrorCode::OK;

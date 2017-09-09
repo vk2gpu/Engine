@@ -54,19 +54,25 @@ namespace GPU
 	}
 
 	/**
-	 * Debugger integration flags.
+	 * Debug flags.
 	 */
-	enum class DebuggerIntegrationFlags : u32
+	enum class DebugFlags : u32
 	{
 		/// No debugger support.
 		NONE = 0x0,
 
+		/// Enable all warnings that may be disabled by default.
+		ENABLE_ALL_WARNINGS = 0x1,
+
+		/// Enable GPU based validation.
+		GPU_BASED_VALIDATION = 0x2,
+
 		/// Enable RenderDoc integration.
-		RENDERDOC = 0x1,
+		RENDERDOC = 0x4,
 	};
 
-	DEFINE_ENUM_CLASS_FLAG_OPERATOR(DebuggerIntegrationFlags, &);
-	DEFINE_ENUM_CLASS_FLAG_OPERATOR(DebuggerIntegrationFlags, |);
+	DEFINE_ENUM_CLASS_FLAG_OPERATOR(DebugFlags, &);
+	DEFINE_ENUM_CLASS_FLAG_OPERATOR(DebugFlags, |);
 
 	/**
 	 * Supported formats for resources.
@@ -427,7 +433,7 @@ namespace GPU
 		/// Device window to use.
 		void* deviceWindow_ = nullptr;
 		/// Debuggers to natively support integration of.
-		DebuggerIntegrationFlags debuggerIntegration_ = DebuggerIntegrationFlags::NONE;
+		DebugFlags debugFlags_ = DebugFlags::NONE;
 	};
 
 	/**

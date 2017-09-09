@@ -132,6 +132,7 @@ namespace GPU
 
 		Core::Array<D3D12Resource*, MAX_SRV_BINDINGS> srvTransitions_ = {};
 		Core::Array<D3D12Resource*, MAX_UAV_BINDINGS> uavTransitions_ = {};
+		Core::Array<D3D12Resource*, MAX_CBV_BINDINGS> cbvTransitions_ = {};
 	};
 
 	struct D3D12DrawBindingSet

@@ -79,8 +79,11 @@ namespace GPU
 
 		ComPtr<IDXGIDebug> dxgiDebug_;
 		ComPtr<ID3D12Debug> d3dDebug_;
+		ComPtr<ID3D12Debug1> d3dDebug1_;
 
 		ComPtr<IDXGIFactory4> dxgiFactory_;
+
+		const SetupParams& setupParams_;
 
 		/// Cached adapter infos.
 		Core::Vector<ComPtr<IDXGIAdapter1>> dxgiAdapters_;

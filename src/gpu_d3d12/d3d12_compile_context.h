@@ -53,8 +53,9 @@ namespace GPU
 		 * Add resource transition.
 		 * @param resource Resource to transition.
 		 * @param state States to transition.
+		 * @return Previous state.
 		 */
-		void AddTransition(const D3D12Resource* resource, D3D12_RESOURCE_STATES state);
+		D3D12_RESOURCE_STATES AddTransition(const D3D12Resource* resource, D3D12_RESOURCE_STATES state);
 
 		/**
 		 * Add UAV barrier.
