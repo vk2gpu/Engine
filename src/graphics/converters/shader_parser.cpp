@@ -20,6 +20,7 @@ namespace
 		"precise",
 		"shared",
 		"groupshared",
+		"globallycoherent",
 		"static",
 		"uniform",
 		"volatile",

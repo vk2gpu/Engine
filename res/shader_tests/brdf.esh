@@ -1,0 +1,216 @@
+#ifndef BRDF_ESH
+#define BRDF_ESH
+
+#include "lights.esh"
+
+#define LIGHTING_EPSILON  0.000001
+#define DIELECTRIC_F0 0.04
+
+struct Material
+{
+	float3 color_;
+	float roughness_;
+	float metallic_;
+	float f0_;
+};
+
+
+struct Surface
+{
+	float3 diffuseColor_;
+	float3 specularColor_;
+	float roughness_;
+
+	float3 surfacePosition_;
+	float3 normal_;
+
+	float3 viewPosition_;
+	float3 viewVector_;
+	float NdotV_;
+};
+
+
+Surface SetupSurface(Material inMaterial, in float3 viewPosition, in float3 surfacePosition, in float3 normal)
+{
+	Surface outSurface;
+	// Calculate diffuse + spec material colours.
+	float3 dielectricSpecular = float3(inMaterial.f0_, inMaterial.f0_, inMaterial.f0_);
+	outSurface.diffuseColor_ = (inMaterial.color_ - inMaterial.color_ * inMaterial.metallic_);
+	outSurface.specularColor_ = lerp(dielectricSpecular, inMaterial.color_, inMaterial.metallic_);
+
+	outSurface.roughness_ = inMaterial.roughness_;
+	outSurface.normal_ = normal;
+	outSurface.viewVector_ = normalize(viewPosition - surfacePosition);
+	outSurface.NdotV_ = max(LIGHTING_EPSILON, dot(normal, outSurface.viewVector_));
+
+	outSurface.viewPosition_ = viewPosition;
+	outSurface.surfacePosition_ = surfacePosition;
+
+	return outSurface;
+}
+
+float Pow5(float val)
+{
+	return val * val * val * val * val;
+}
+
+float CalculateAttn(float dist, float radiusInner, float radiusOuter)
+{
+	float attn = 1.0 / (dist * dist);
+	if(dist > radiusInner)
+		attn *= smoothstep(radiusOuter, radiusInner, dist);
+	return attn;
+}
+
+float RoughnessToSpecularPower( float roughness)
+{
+	return 1024.0 * Pow5( 1.0 - roughness ) + 1.0;
+}
+
+//////////////////////////////////////////////////////////////////////////
+// Fresnel_SchlickApproximation
+
+float3 Fresnel_SchlickApproximation( float3 f0, float cosA )
+{
+	float pow5OneMinusCosA = Pow5(1.0 - cosA);
+	return f0 + (float3(1.0, 1.0, 1.0) - f0) * pow5OneMinusCosA;
+}
+
+//////////////////////////////////////////////////////////////////////////
+// NDF_BlinnPhongNormalised
+// Equation 19: https://dl.dropboxusercontent.com/u/55891920/papers/mm_brdf.pdf
+float NDF_BlinnPhongNormalised( float NdotH, float N )
+{
+	float normTerm = (N + 2.0) / (PIMUL2);
+	float specTerm = pow(max(0.0, NdotH), N);
+	return normTerm * specTerm;
+}
+//////////////////////////////////////////////////////////////////////////
+// NDF_GGX
+// http://www.filmicworlds.com/2014/04/21/optimizing-ggx-shaders-with-dotlh/
+float NDF_GGX( float NdotH, float roughness )
+{
+	float alpha = roughness * roughness;
+	float alphaSq = alpha * alpha;
+	float den = NdotH * NdotH * (alphaSq - 1.0) + 1.0;
+	return alphaSq / (PI * den * den);
+}
+
+//////////////////////////////////////////////////////////////////////////
+// GeometryVisibility_CookTorrence
+float GeometryVisibility_CookTorrence( float NdotL, float NdotV, float NdotH, float VdotH )
+{
+	float G = 1.0;
+	G = min(G, (2.0 * NdotH * NdotV) / VdotH);
+	G = min(G, (2.0 * NdotH * NdotL) / VdotH);
+	return G;
+}
+
+//////////////////////////////////////////////////////////////////////////
+// GeometryVisibility_SmithGGXApprox
+// http://www.filmicworlds.com/2014/04/21/optimizing-ggx-shaders-with-dotlh/
+float GeometryVisibility_SmithGGXApprox( float LdotH, float roughness )
+{
+	float k = (roughness * roughness) / 2.0;
+	float kSquared = k * k;
+	float invKSquared = 1.0 - kSquared;
+	return 1.0 / (LdotH * LdotH * invKSquared + kSquared);
+}
+
+//////////////////////////////////////////////////////////////////////////
+// EnvBRDFApprox
+// TODO: half.
+// https://www.unrealengine.com/blog/physically-based-shading-on-mobile
+float3 EnvBRDFApprox(float3 specularColor, float roughness, float NoV)
+{
+	const float4 c0 = float4(-1, -0.0275, -0.572, 0.022);
+	const float4 c1 = float4(1, 0.0425, 1.04, -0.04);
+	float4 r = roughness * c0 + c1;
+	float a004 = min(r.x * r.x, exp2(-9.28 * NoV)) * r.x + r.y;
+	float2 AB = float2(-1.04, 1.04) * a004 + r.zw;
+	return specularColor * AB.x + AB.y;
+}
+
+//////////////////////////////////////////////////////////////////////////
+// BRDF_BlinnPhong
+float3 BRDF_BlinnPhong(Light inLight, in Surface inSurface)
+{
+	// Shared utility.
+	float3 lightVector = normalize(inLight.position_.xyz - inSurface.surfacePosition_);
+	float3 halfVector = normalize(lightVector + inSurface.viewVector_);
+	float NdotL = max(LIGHTING_EPSILON, dot(inSurface.normal_, lightVector));
+	float NdotH = max(LIGHTING_EPSILON, dot(inSurface.normal_, halfVector));
+	float LdotH = max(LIGHTING_EPSILON, dot(lightVector, halfVector));
+	float VdotH = max(LIGHTING_EPSILON, dot(inSurface.viewVector_, halfVector));
+
+	// Calculate terms for spec + diffuse.
+	float D = NDF_BlinnPhongNormalised(NdotH, RoughnessToSpecularPower(inSurface.roughness_));
+	float G = GeometryVisibility_CookTorrence(NdotL, inSurface.NdotV_, NdotH, VdotH);
+	float3 Fspec = Fresnel_SchlickApproximation(inSurface.specularColor_, LdotH);
+	float3 specularColour = Fspec * D * G;
+
+	// Diffuse
+	float INV_PI = 1.0 / PI;
+	float3 diffuseColor = float3(INV_PI, INV_PI, INV_PI);
+	diffuseColor *= inSurface.diffuseColor_;
+
+	// total colour.
+	float3 total = diffuseColor + specularColour;
+
+	// Punctual light source.
+	total = total * inLight.color_ * NdotL;
+
+	return total;
+}
+
+//////////////////////////////////////////////////////////////////////////
+// BRDF_GGX
+float3 BRDF_GGX(Light inLight, in Surface inSurface)
+{
+	// Shared utility.
+	float3 lightVector = normalize(inLight.position_.xyz - inSurface.surfacePosition_);
+	float3 halfVector = normalize(lightVector + inSurface.viewVector_);
+	float NdotL = max(LIGHTING_EPSILON, dot(inSurface.normal_, lightVector));
+	float NdotH = max(LIGHTING_EPSILON, dot(inSurface.normal_, halfVector));
+	float LdotH = max(LIGHTING_EPSILON, dot(lightVector, halfVector));
+	float VdotH = max(LIGHTING_EPSILON, dot(inSurface.viewVector_, halfVector));
+
+	// Calculate terms for spec + diffuse.
+	float D = NDF_GGX(NdotH, inSurface.roughness_);
+	float G = GeometryVisibility_SmithGGXApprox(LdotH, inSurface.roughness_);
+	float3 Fspec = Fresnel_SchlickApproximation(inSurface.specularColor_, LdotH);
+	float3 specularColour = Fspec * D * G;
+
+	// Diffuse
+	float INV_PI = 1.0 / PI;
+	float3 diffuseColor = float3(INV_PI, INV_PI, INV_PI);
+	diffuseColor *= inSurface.diffuseColor_;
+
+	// total colour.
+	float3 total = diffuseColor + specularColour;
+
+	// Punctual light source.
+	total = total * inLight.color_ * NdotL;
+
+	// BUG: When using GGX we sometimes end up with a negative value.
+	// Need to investigate this further. For now this max works around the issue.
+	total = max(total, float3(0.0, 0.0, 0.0));
+
+	return total;
+}
+
+//////////////////////////////////////////////////////////////////////////
+// BRDF_Default
+float3 BRDF_Default(Light inLight, in Surface inSurface)
+{
+	return BRDF_GGX(inLight, inSurface);
+}
+
+//////////////////////////////////////////////////////////////////////////
+// ApplyReflection
+float3 ApplyReflection(in Surface inSurface, float3 reflectionColor)
+{
+	return reflectionColor * EnvBRDFApprox( inSurface.specularColor_, inSurface.roughness_, inSurface.NdotV_ );
+}
+
+#endif // __BRDF_ESH__

@@ -267,6 +267,13 @@ namespace Graphics
 		return retVal;
 	}
 
+	Math::Mat44 Model::GetMeshWorldTransform(i32 meshIdx) const
+	{
+		DBG_ASSERT(meshIdx < impl_->data_.numMeshNodes_);
+		const auto& meshNode = impl_->meshNodes_[meshIdx];
+		return impl_->nodeDatas_.world_[meshNode.nodeIdx_];
+	}
+
 	ModelImpl::ModelImpl() {}
 
 	ModelImpl::~ModelImpl()

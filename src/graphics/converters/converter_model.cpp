@@ -484,8 +484,6 @@ namespace
 
 			nodes_.push_back(nodeData);
 
-			parentIdx = nodeIdx++;
-
 			// Setup mesh data.
 			if(node->mNumMeshes > 0)
 			{
@@ -494,6 +492,8 @@ namespace
 					SerialiseMesh(scene_->mMeshes[node->mMeshes[idx]], parentIdx, nodeIdx, meshIdx);
 				}
 			}
+
+			parentIdx = nodeIdx++;
 
 			// Recurse into children.
 			for(size_t idx = 0; idx < node->mNumChildren; ++idx)
@@ -636,6 +636,9 @@ namespace
 
 				// Setup draw for this bit of the mesh.
 				Graphics::ModelMeshDraw draw;
+
+				// Setup node.
+				meshNode.nodeIdx_ = nodeIdx;
 
 				// Export vertices.
 				draw.vertexOffset_ = meshData.noofVertices_;

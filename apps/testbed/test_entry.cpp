@@ -18,7 +18,7 @@
 
 #include <cmath>
 
-#define LOAD_SPONZA (1)
+#define LOAD_SPONZA (0)
 
 namespace
 {
@@ -469,6 +469,7 @@ namespace
 		Math::Mat44 view_;
 		Math::Mat44 proj_;
 		Math::Mat44 viewProj_;
+		Math::Mat44 invView_;
 		Math::Mat44 invProj_;
 		Math::Vec2 screenDimensions_;
 	};
@@ -511,6 +512,7 @@ namespace
 		ShaderTechniques* techs_ = nullptr;
 
 		// tmp object state data.
+		Math::Mat44 world_;
 		f32 angle_ = 0.0f;
 		Math::Vec3 position_;
 
@@ -602,7 +604,7 @@ namespace
 							}
 						}
 
-						baseInstanceIdx = idx;
+						baseInstanceIdx = idx + 1;
 						numInstances = 0;
 					}
 				}
@@ -614,11 +616,10 @@ namespace
 
 	struct Light
 	{
-		u32 enabled_ = 0;
 		Math::Vec3 position_ = Math::Vec3(0.0f, 0.0f, 0.0f);
 		Math::Vec3 color_ = Math::Vec3(0.0f, 0.0f, 0.0f);
-		Math::Vec3 attenuation_ = Math::Vec3(1.0f, 0.2f, 0.1f);
-		float intensity_ = 0.0f;
+		float radiusInner_ = 0.0f;
+		float radiusOuter_ = 0.0f;
 	};
 
 	struct LightConstants
@@ -633,7 +634,6 @@ namespace
 	struct TileInfo
 	{
 		Math::Vec3 planes_[4];
-		Math::Vec2 depthMinMax_;
 	};
 
 	Core::Vector<Light> lights_;
@@ -683,9 +683,8 @@ namespace
 		struct ComputeTileInfoPassData
 		{
 			LightConstants light_;
-			GPU::Format depthFormat_;
 
-			RenderGraphResource inViewCB_, inLightCB_, inDepth_;
+			RenderGraphResource inViewCB_, inLightCB_;
 			RenderGraphResource outTileInfoSB_;
 
 			mutable ShaderTechnique tech_;
@@ -694,8 +693,9 @@ namespace
 		struct ComputeLightListsPassData
 		{
 			LightConstants light_;
+			GPU::Format depthFormat_;
 
-			RenderGraphResource inViewCB_, inLightCB_, inLightSB_, inTileInfoSB_;
+			RenderGraphResource inViewCB_, inLightCB_, inLightSB_, inTileInfoSB_, inDepth_;
 			RenderGraphResource outLightTex_, outLightIndicesSB_, outLightIndex_;
 
 			mutable ShaderTechnique tech_;
@@ -736,12 +736,10 @@ namespace
 		        .AddCallbackRenderPass<ComputeTileInfoPassData>("Compute Tile Info",
 		            [&](RenderGraphBuilder& builder, ComputeTileInfoPassData& data) {
 			            data.light_ = light;
-			            data.depthFormat_ = GPU::GetSRVFormatDepth(dsDesc.format_);
 
 			            data.inViewCB_ = builder.Read(cbs.viewCB_, GPU::BindFlags::CONSTANT_BUFFER);
 			            data.inLightCB_ =
 			                builder.Read(updateLightsPassData.outLightCB_, GPU::BindFlags::CONSTANT_BUFFER);
-			            data.inDepth_ = builder.Read(depth, GPU::BindFlags::SHADER_RESOURCE);
 
 			            data.outTileInfoSB_ = builder.Write(
 			                builder.Create("LC Tile Info SB",
@@ -756,7 +754,6 @@ namespace
 			            data.tech_.Set("outTileInfo",
 			                res.RWBuffer(data.outTileInfoSB_, GPU::Format::INVALID, 0,
 			                    data.light_.numTilesX_ * data.light_.numTilesY_, sizeof(TileInfo)));
-			            data.tech_.Set("depthTex", res.Texture2D(data.inDepth_, data.depthFormat_, 0, 1));
 			            if(auto binding = data.tech_.GetBinding())
 			            {
 				            cmdList.Dispatch(binding, data.light_.numTilesX_, data.light_.numTilesY_, 1);
@@ -769,6 +766,7 @@ namespace
 		        .AddCallbackRenderPass<ComputeLightListsPassData>("Compute Light Lists",
 		            [&](RenderGraphBuilder& builder, ComputeLightListsPassData& data) {
 			            data.light_ = light;
+			            data.depthFormat_ = GPU::GetSRVFormatDepth(dsDesc.format_);
 
 			            data.inViewCB_ = builder.Read(cbs.viewCB_, GPU::BindFlags::CONSTANT_BUFFER);
 			            data.inLightCB_ =
@@ -777,6 +775,7 @@ namespace
 			                builder.Read(updateLightsPassData.outLightSB_, GPU::BindFlags::SHADER_RESOURCE);
 			            data.inTileInfoSB_ =
 			                builder.Read(computeTileInfoPassData.outTileInfoSB_, GPU::BindFlags::SHADER_RESOURCE);
+			            data.inDepth_ = builder.Read(depth, GPU::BindFlags::SHADER_RESOURCE);
 
 			            data.outLightIndex_ =
 			                builder.Write(builder.Create("LC Light Link Index SB", RenderGraphBufferDesc(sizeof(u32))),
@@ -812,6 +811,7 @@ namespace
 			            data.tech_.Set("outLightIndices",
 			                res.RWBuffer(
 			                    data.outLightIndicesSB_, GPU::Format::INVALID, 0, lightBufferSize_, sizeof(i32)));
+			            data.tech_.Set("depthTex", res.Texture2D(data.inDepth_, data.depthFormat_, 0, 1));
 
 			            if(auto binding = data.tech_.GetBinding())
 			            {
@@ -1187,6 +1187,8 @@ namespace
 			view_.view_ = view;
 			view_.proj_ = proj;
 			view_.viewProj_ = view * proj;
+			view_.invView_ = view;
+			view_.invView_.Inverse();
 			view_.invProj_ = proj;
 			view_.invProj_.Inverse();
 			view_.screenDimensions_ = screenDimensions;
@@ -1307,12 +1309,14 @@ void Loop()
 	Core::Random rng;
 
 	Light light = {};
-	light.enabled_ = 1;
+
 	light.position_ = Math::Vec3(1000.0f, 1000.0f, 1000.0f);
 	light.color_.x = 1.0f;
 	light.color_.y = 1.0f;
 	light.color_.z = 1.0f;
-	light.attenuation_ = Math::Vec3(10.0f, 0.0f, 0.0f);
+	light.color_ *= 98000.0f;
+	light.radiusInner_ = 10000.0f;
+	light.radiusOuter_ = 20000.0f;
 	lights_.push_back(light);
 
 	auto randF32 = [&rng](f32 min, f32 max) {
@@ -1321,15 +1325,32 @@ void Loop()
 		val /= (f32)large;
 		return min + val * (max - min);
 	};
-	for(i32 idx = 0; idx < 2000; ++idx)
+
+	for(i32 idx = 0; idx < 1000; ++idx)
 	{
-		light.position_.x = randF32(-500.0f, 500.0f);
-		light.position_.y = randF32(0.0f, 100.0f);
-		light.position_.z = randF32(-500.0f, 500.0f);
+		light.position_.x = randF32(-100.0f, 100.0f);
+		light.position_.y = randF32(0.0f, 50.0f);
+		light.position_.z = randF32(-100.0f, 100.0f);
 		light.color_.x = randF32(0.0f, 1.0f);
 		light.color_.y = randF32(0.0f, 1.0f);
 		light.color_.z = randF32(0.0f, 1.0f);
-		light.attenuation_ = Math::Vec3(1.0f, 0.1f, 0.025f);
+		light.color_ *= 200.0f;
+		light.radiusInner_ = 10.0f;
+		light.radiusOuter_ = 15.0f;
+		lights_.push_back(light);
+	}
+
+	for(i32 idx = 0; idx < 2000; ++idx)
+	{
+		light.position_.x = randF32(-100.0f, 100.0f);
+		light.position_.y = randF32(0.0f, 50.0f);
+		light.position_.z = randF32(-100.0f, 100.0f);
+		light.color_.x = randF32(0.0f, 1.0f);
+		light.color_.y = randF32(0.0f, 1.0f);
+		light.color_.z = randF32(0.0f, 1.0f);
+		light.color_ *= 5.0f;
+		light.radiusInner_ = 1.0f;
+		light.radiusOuter_ = 2.0f;
 		lights_.push_back(light);
 	}
 
@@ -1341,12 +1362,14 @@ void Loop()
 		{
 			ImGui::ColorConvertHSVtoRGB(h, s, v, r, g, b);
 			h += 0.1f;
-			light.enabled_ = 1;
 			light.position_ = position + Math::Vec3(0.0f, 5.0f, 0.0f);
 			light.color_.x = r;
 			light.color_.y = g;
 			light.color_.z = b;
-			light.attenuation_ = Math::Vec3(1.0f, 0.5f, 0.1f);
+			light.color_ *= 10.0f;
+			light.radiusInner_ = 10.0f;
+			light.radiusOuter_ = 20.0f;
+
 			lights_.push_back(light);
 			for(i32 idx = 0; idx < model->GetNumMeshes(); ++idx)
 			{
@@ -1361,6 +1384,7 @@ void Loop()
 				packet.shader_ = shader;
 				packet.techs_ = techniques;
 
+				packet.world_ = model->GetMeshWorldTransform(idx);
 				packet.angle_ = angle;
 				packet.position_ = position;
 
@@ -1386,10 +1410,12 @@ void Loop()
 			packet.shader_ = shader;
 			packet.techs_ = techniques;
 
-			packet.angle_ = angle;
+			packet.world_ = sponzaModel->GetMeshWorldTransform(idx);
+			Math::Mat44 scale;
+			scale.Scale(Math::Vec3(0.1f, 0.1f, 0.1f));
+			packet.world_ = scale * packet.world_;
+			packet.angle_ = 0.0f;
 			packet.position_ = Math::Vec3(0.0f, 0.0f, 0.0f);
-
-			angle += 0.5f;
 
 			packets_.emplace_back(new MeshRenderPacket(packet));
 		}
@@ -1526,6 +1552,7 @@ void Loop()
 						//meshPacket->angle_ += (f32)targetFrameTime;
 						meshPacket->object_.world_.Rotation(Math::Vec3(0.0f, meshPacket->angle_, 0.0f));
 						meshPacket->object_.world_.Translation(meshPacket->position_);
+						meshPacket->object_.world_ = meshPacket->world_ * meshPacket->object_.world_;
 					}
 				}
 			}

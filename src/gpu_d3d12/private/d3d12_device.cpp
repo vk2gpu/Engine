@@ -291,9 +291,11 @@ namespace GPU
 	{
 		if(d3dFrameFence_)
 		{
-			d3dFrameFence_->SetEventOnCompletion(frameIdx_ - MAX_GPU_FRAMES, frameFenceEvent_);
-			if((frameIdx_ - d3dFrameFence_->GetCompletedValue()) >= MAX_GPU_FRAMES)
+			i64 completedValue = (i64)d3dFrameFence_->GetCompletedValue();
+			i64 waitValue = (frameIdx_ - MAX_GPU_FRAMES) + 1;
+			if(completedValue < waitValue)
 			{
+				d3dFrameFence_->SetEventOnCompletion(waitValue, frameFenceEvent_);
 				::WaitForSingleObject(frameFenceEvent_, INFINITE);
 			}
 

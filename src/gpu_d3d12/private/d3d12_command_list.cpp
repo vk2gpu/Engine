@@ -31,9 +31,9 @@ namespace GPU
 
 	D3D12CommandList::~D3D12CommandList()
 	{
-		d3dFence_->SetEventOnCompletion(listIdx_ - 1, fenceEvent_);
 		if(listIdx_ > 0 && d3dFence_->GetCompletedValue() != listIdx_ - 1)
 		{
+			d3dFence_->SetEventOnCompletion(listIdx_ - 1, fenceEvent_);
 			::WaitForSingleObject(fenceEvent_, INFINITE);
 		}
 		::CloseHandle(fenceEvent_);

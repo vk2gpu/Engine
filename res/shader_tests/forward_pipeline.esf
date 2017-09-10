@@ -24,31 +24,16 @@ struct CS_INPUT
 // Compute light tiles.
 StructuredBuffer<Light> inLights;
 
-RWBuffer<uint> lightIndex;
+globallycoherent RWBuffer<uint> lightIndex;
 RWTexture2D<uint> outLightTex;
 RWStructuredBuffer<uint> outLightIndices;
 
 RWStructuredBuffer<TileInfo> outTileInfo;
 StructuredBuffer<TileInfo> inTileInfo;
 
-Texture2D<float> depthTex;
-
-#define MAX_INT_VAL 0x7fffffff
-
-groupshared uint gDepthMin = MAX_INT_VAL;
-groupshared uint gDepthMax = 0;
-
-[numthreads(16,16,1)]
+[numthreads(1,1,1)]
 void cs_compute_tile_info(CS_INPUT _in)
 {
-	// Why is this needed!?
-	GroupMemoryBarrierWithGroupSync();
-
-	float depth = depthTex.Load(int3(_in.dispatchID.xy, 0));
-	uint depthInt = depth * MAX_INT_VAL;
-	uint outTemp;
-	InterlockedMin(gDepthMin, depthInt, outTemp);
-	InterlockedMax(gDepthMax, depthInt, outTemp);
 
 	//
 	const float3 eyePos = float3(0.0, 0.0, 0.0);
@@ -77,10 +62,6 @@ void cs_compute_tile_info(CS_INPUT _in)
 	tileInfo.planes_[2].xyz = CalculatePlaneNormal(eyePos, vsCorners[2], vsCorners[1]);
 	tileInfo.planes_[3].xyz = CalculatePlaneNormal(eyePos, vsCorners[3], vsCorners[2]);
 
-	// Min/max depth.
-	tileInfo.depthMinMax_.x = (float)gDepthMin / (float)MAX_INT_VAL;
-	tileInfo.depthMinMax_.y = (float)gDepthMax / (float)MAX_INT_VAL;
-
 	// Only one thread should write.
 	if(_in.groupThreadID.x == 0 && _in.groupThreadID.y == 0)
 	{
@@ -94,6 +75,10 @@ Technique TECH_COMPUTE_TILE_INFO =
 	.ComputeShader = cs_compute_tile_info,
 };
 
+Texture2D<float> depthTex;
+
+groupshared uint gDepthMin = 0xffffffff;
+groupshared uint gDepthMax = 0;
 groupshared uint gNumLights = 0;
 groupshared int gLightIndices[MAX_LIGHTS_PER_TILE];
 
@@ -103,12 +88,20 @@ groupshared int gLightIndices[MAX_LIGHTS_PER_TILE];
 [numthreads(LIGHT_LIST_GROUP_SIZE,LIGHT_LIST_GROUP_SIZE,1)]
 void cs_compute_light_lists(CS_INPUT _in)
 {
+	float depth = depthTex.Load(uint3(_in.dispatchID.xy, 0));
+	uint depthInt = asuint(depth);
+	uint outTemp;
+	InterlockedMin(gDepthMin, depthInt, outTemp);
+	InterlockedMax(gDepthMax, depthInt, outTemp);
+
+	GroupMemoryBarrierWithGroupSync();
+
+	float depthMin = ClipToView(v_, float4(0.0, 0.0, asfloat(gDepthMin), 1.0)).z;
+	float depthMax = ClipToView(v_, float4(0.0, 0.0, asfloat(gDepthMax), 1.0)).z;
+
 	// Grab tile info.
 	const uint tileIdx = GetTileIdx(l_, _in.groupID.xy);
 	const TileInfo tileInfo = inTileInfo[tileIdx];
-
-	float depthMin = ClipToView(v_, float4(0.0, 0.0, tileInfo.depthMinMax_.x, 1)).z;
-	float depthMax = ClipToView(v_, float4(0.0, 0.0, tileInfo.depthMinMax_.y, 1)).z;
 
 	// Build up local light list with multiple threads within the same group,
 	uint localLightLinkIdx = 0;
@@ -118,33 +111,29 @@ void cs_compute_light_lists(CS_INPUT _in)
 	for(uint idx = startLightIdx; idx < l_.numLights_ && localLightLinkIdx < MAX_LIGHTS_PER_TILE; idx += advanceRate)
 	{
 		Light light = inLights[idx];
-		if(light.enabled_)
+		float4 vsLightPos = mul(v_.view_, float4(light.position_.xyz, 1.0));
+		float radius = light.radiusOuter_;
+
+		// Reject any fully outside of any planes.
+		bool inTile = true;
+		if((vsLightPos.z + radius) < depthMin || (vsLightPos.z - radius) > depthMax)
 		{
-			float4 vsLightPos = mul(v_.view_, float4(light.position_.xyz, 1.0));
-			float radius = CalulateDist(0.01, light);
+			inTile = false;
+		}
+		else
+		{
+			for(int i = 0; i < 4 && inTile; ++i)
+			{
+				float dist = PlaneDistanceNormal(tileInfo.planes_[i].xyz, vsLightPos.xyz);
+				if(dist < -radius)
+					inTile = false;
+			}
+		}
 
-			// Reject any fully outside of any planes.
-			bool inTile = true;
-			if((vsLightPos.z + radius) < depthMin || (vsLightPos.z - radius) > depthMax)
-			{
-				inTile = false;
-			}
-			else
-			{
-				for(int i = 0; i < 4 && inTile; ++i)
-				{
-					float dist = PlaneDistanceNormal(tileInfo.planes_[i].xyz, vsLightPos.xyz);
-					if(dist < -radius)
-						inTile = false;
-				}
-			}
-
-			if(inTile)
-			{
-				InterlockedAdd(gNumLights, 1, localLightLinkIdx);
-				if(localLightLinkIdx < MAX_LIGHTS_PER_TILE)
-					gLightIndices[localLightLinkIdx] = idx;
-			}
+		if(inTile)
+		{
+			InterlockedAdd(gNumLights, 1, localLightLinkIdx);
+			gLightIndices[localLightLinkIdx] = idx;
 		}
 	}
 

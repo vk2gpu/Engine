@@ -15,26 +15,24 @@ struct LightParams
 struct TileInfo
 {
 	float3 planes_[4];
-	float2 depthMinMax_;
 };
 
 struct Light
 {
-	uint enabled_;
 	float3 position_;
 	float3 color_;
-	float3 attenuation_;
-	float intensity_;
+	float radiusInner_;
+	float radiusOuter_;
 };
 
 uint EncodeLight(in uint2 l)
 {
-	return (l.x & 0xffffff) | (l.y << 24);
+	return (l.x & 0x7fffff) | (l.y << 23);
 }
 
 uint2 DecodeLight(in uint idx)
 {
-	return uint2(idx & 0xffffff, idx >> 24);
+	return uint2(idx & 0x7fffff, idx >> 23);
 }
 
 
@@ -42,39 +40,6 @@ uint GetTileIdx(LightParams l, uint2 tileCoord)
 {
 	return tileCoord.x + tileCoord.y * l.numTiles_.x;
 }
-
-float CalculateAttn(float dist, float3 attnParams)
-{
-	float inv = ((attnParams.x + (dist * attnParams.y) + (dist * dist * attnParams.z)));
-	return 1.0 / inv;
-}
-
-float CalulateDist(float attn, Light light)
-{
-	const float MAX_DIST = 1000000.0;
-
-	float a = light.attenuation_.z;
-	float b = light.attenuation_.y;
-	float c = light.attenuation_.x - ( 1.0 / attn );
-
-	// 0 = Ax2 + Bx + C
-	if(a > 0.0)
-	{
-		float disc  = ((b * b) - (4.0 * a * c));
-		{
-		if(disc < 0.0)
-			return MAX_DIST;
-		}
-		return abs((-b + sqrt(disc)) / (2.0 * a));
-	}
-	// 0 = Bx + C
-	else if(b > 0.0)
-	{
-		return abs(-c / b);
-	}
-	return MAX_DIST;
-}
-
 
 
 #endif // LIGHT_ESH

@@ -7,6 +7,7 @@
 #include "gpu/fwd_decls.h"
 #include "gpu/types.h"
 #include "resource/resource.h"
+#include "math/mat44.h"
 
 
 namespace Graphics
@@ -35,6 +36,9 @@ namespace Graphics
 
 		/// @return Draw info for @a meshIdx.
 		ModelMeshDraw GetMeshDraw(i32 meshIdx) const;
+
+		/// @return Mesh world transform.
+		Math::Mat44 GetMeshWorldTransform(i32 meshIdx) const;
 
 		/// @return Is model ready for use?
 		bool IsReady() const { return !!impl_; }

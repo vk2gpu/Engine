@@ -40,6 +40,7 @@ struct ViewParams
     float4x4 view_;
     float4x4 proj_;
     float4x4 viewProj_;
+    float4x4 invView_;
     float4x4 invProj_;
     float2 screenDimensions_;
 };
@@ -192,5 +193,14 @@ float4 RGBtoHSV(in float3 RGB)
     }
     return float4(HSV,1);
 }
+
+///////////////////////////////////////////////////////////////////////
+// Defines
+#define PI 3.14159265358979310
+#define PIMUL2 6.28318530717958620
+#define PIMUL4 12.5663706143591720
+#define PIDIV2 1.57079632679489660
+#define PIDIV4 0.78539816339744828
+
 
 #endif // STDLIB_ESH

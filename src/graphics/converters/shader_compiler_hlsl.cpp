@@ -91,9 +91,9 @@ namespace Graphics
 
 		ComPtr<ID3DBlob> byteCode;
 		ComPtr<ID3DBlob> errors;
-		HRESULT retVal =
-		    impl_->d3dCompile_(shaderSource, strlen(shaderSource), shaderName, nullptr, nullptr, entryPoint, target,
-		        D3DCOMPILE_DEBUG, 0, byteCode.ReleaseAndGetAddressOf(), errors.ReleaseAndGetAddressOf());
+		HRESULT retVal = impl_->d3dCompile_(shaderSource, strlen(shaderSource), shaderName, nullptr, nullptr,
+		    entryPoint, target, D3DCOMPILE_OPTIMIZATION_LEVEL0 | D3DCOMPILE_DEBUG, 0, byteCode.ReleaseAndGetAddressOf(),
+		    errors.ReleaseAndGetAddressOf());
 
 		ShaderCompileOutput output;
 
