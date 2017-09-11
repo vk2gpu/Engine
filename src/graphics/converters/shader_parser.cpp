@@ -532,6 +532,7 @@ namespace Graphics
 		if(token_.value_ == "[")
 		{
 			i32 arrayDim = 0;
+			do
 			{
 				PARSE_TOKEN();
 				CHECK_TOKEN(AST::TokenType::INT, "");
@@ -543,8 +544,7 @@ namespace Graphics
 
 				PARSE_TOKEN();
 			}
-			while(token_.value_ == "[" && arrayDim < 3)
-				;
+			while(token_.value_ == "[" && arrayDim < 3);
 		}
 
 		else if(token_.value_ == "(")
