@@ -84,6 +84,7 @@ namespace Core
 		index_type find(const char* str, index_type subPos = 0) const;
 		index_type find(const String& str, index_type subPos = 0) const { return find(str.c_str(), subPos); }
 
+		String substr(index_type start, index_type len) const;
 		String replace(const char* search, const char* replacement) const;
 
 		iterator begin() { return data_.begin(); }
@@ -91,6 +92,8 @@ namespace Core
 
 		iterator end() { return data_.end() - 1; }
 		const_iterator end() const { return data_.end() - 1; }
+
+		char operator[](index_type idx) const { return data_[idx]; }
 
 		// cstring versions.
 		void append(const char* str) { internalAppend(str); }

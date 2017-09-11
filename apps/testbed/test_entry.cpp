@@ -141,9 +141,9 @@ namespace
 			Math::Vec3 viewFromPosition = cameraTarget_ + viewDistance;
 
 			matrix_.Identity();
-			matrix_.LookAt(
-			    viewFromPosition, cameraTarget_, Math::Vec3(cameraRotationMatrix.Row1().x,
-			                                         cameraRotationMatrix.Row1().y, cameraRotationMatrix.Row1().z));
+			matrix_.LookAt(viewFromPosition, cameraTarget_,
+			    Math::Vec3(
+			        cameraRotationMatrix.Row1().x, cameraRotationMatrix.Row1().y, cameraRotationMatrix.Row1().z));
 		}
 
 		Math::Mat44 GetCameraRotationMatrix() const
@@ -594,8 +594,9 @@ namespace
 						if(numInstances > 0)
 						{
 							tech.Set("ViewCBuffer", Binding::CBuffer(viewCBHandle, 0, sizeof(ViewConstants)));
-							tech.Set("inObject", Binding::Buffer(objectSBHandle, GPU::Format::INVALID, baseInstanceIdx,
-							                         numInstances, objectDataSize));
+							tech.Set("inObject",
+							    Binding::Buffer(objectSBHandle, GPU::Format::INVALID, baseInstanceIdx, numInstances,
+							        objectDataSize));
 							if(auto pbs = tech.GetBinding())
 							{
 								cmdList.Draw(pbs, meshPacket->db_, fbs, drawState,
@@ -780,9 +781,9 @@ namespace
 			            data.outLightIndex_ =
 			                builder.Write(builder.Create("LC Light Link Index SB", RenderGraphBufferDesc(sizeof(u32))),
 			                    GPU::BindFlags::UNORDERED_ACCESS);
-			            data.outLightTex_ = builder.Write(
-			                builder.Create("LC Light Tex", RenderGraphTextureDesc(GPU::TextureType::TEX2D,
-			                                                   lightTexFormat, light.numTilesX_, light.numTilesY_)),
+			            data.outLightTex_ = builder.Write(builder.Create("LC Light Tex",
+			                                                  RenderGraphTextureDesc(GPU::TextureType::TEX2D,
+			                                                      lightTexFormat, light.numTilesX_, light.numTilesY_)),
 			                GPU::BindFlags::UNORDERED_ACCESS);
 			            data.outLightIndicesSB_ =
 			                builder.Write(builder.Create("LC Light Indices SB",
@@ -1273,9 +1274,9 @@ namespace
 	}
 }
 
-void Loop()
+void Loop(const Core::CommandLine& cmdLine)
 {
-	ScopedEngine engine("Test Bed App");
+	ScopedEngine engine("Test Bed App", cmdLine);
 	ImGui::Manager::Scoped imgui;
 	ImGuiPipeline imguiPipeline;
 	ForwardPipeline forwardPipeline;
@@ -1665,7 +1666,8 @@ int main(int argc, char* const argv[])
 		Core::FileChangeDir(path);
 	}
 
-	Loop();
+	Core::CommandLine cmdLine(argc, argv);
+	Loop(cmdLine);
 
 	return 0;
 }

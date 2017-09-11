@@ -1,4 +1,5 @@
 #pragma once
+#include "core/command_line.h"
 #include "core/debug.h"
 #include "core/file.h"
 #include "core/random.h"
@@ -20,10 +21,13 @@
 
 namespace
 {
-	GPU::SetupParams GetDefaultSetupParams()
+	GPU::SetupParams GetDefaultSetupParams(const Core::CommandLine& cmdLine)
 	{
 		GPU::SetupParams setupParams;
-		setupParams.debugFlags_ = /*GPU::DebugFlags::RENDERDOC;// |*/ GPU::DebugFlags::NONE;
+		if(cmdLine.HasArg(0, "renderdoc"))
+			setupParams.debugFlags_ |= GPU::DebugFlags::RENDERDOC;
+		if(cmdLine.HasArg(0, "gpubasedvalidation"))
+			setupParams.debugFlags_ |= GPU::DebugFlags::GPU_BASED_VALIDATION;
 		return setupParams;
 	}
 
@@ -50,7 +54,7 @@ namespace
 
 		Client::Window window;
 		Plugin::Manager::Scoped pluginManager;
-		GPU::Manager::Scoped gpuManager = GPU::Manager::Scoped(GetDefaultSetupParams());
+		GPU::Manager::Scoped gpuManager;
 		Job::Manager::Scoped jobManager = Job::Manager::Scoped(Core::GetNumLogicalCores(), 256, 32 * 1024);
 		Resource::Manager::Scoped resourceManager;
 
@@ -59,11 +63,10 @@ namespace
 		GPU::Handle fbsHandle;
 
 
-		ScopedEngine(const char* name)
+		ScopedEngine(const char* name, const Core::CommandLine& cmdLine)
 		    : window(name, 100, 100, 1280, 720, true, true)
+		    , gpuManager(GetDefaultSetupParams(cmdLine))
 		{
-
-
 			Graphics::Model::RegisterFactory();
 			Graphics::Shader::RegisterFactory();
 			Graphics::Texture::RegisterFactory();
