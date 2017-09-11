@@ -235,6 +235,10 @@ namespace Graphics
 				Write(" : %s", node->semantic_.c_str());
 
 			NextLine();
+
+			if(node->line_ >= 0)
+				Write("#line %i %s\n", node->line_, node->file_.c_str());
+
 			Write("{");
 			node->value_->Visit(this);
 			NextLine();
@@ -308,7 +312,7 @@ namespace Graphics
 				Write("    ");
 		}
 
-#if 1
+#if 0
 		{
 			va_list args;
 			va_start(args, msg);

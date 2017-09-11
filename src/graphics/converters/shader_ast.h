@@ -301,6 +301,10 @@ namespace Graphics
 			Core::Vector<NodeDeclaration*> parameters_;
 			NodeValue* value_ = nullptr;
 			Core::Array<i32, 3> arrayDims_;
+
+			// Used to generate #line directives.
+			i32 line_ = -1;
+			Core::String file_;
 		};
 
 		struct NodeValue : Node

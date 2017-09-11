@@ -71,6 +71,8 @@ namespace Graphics
 		bool NextToken();
 		AST::Token GetToken() const;
 
+		bool GetCurrentLine(i32& outLineNum, i32& outLineOff, const char*& outFile) const;
+
 		void Error(AST::Node*& node, ErrorType errorType, Core::StringView errorStr);
 
 		template<typename NODE_TYPE>
@@ -160,6 +162,18 @@ namespace Graphics
 		NodeMap<AST::NodeModifier> modifierNodes_;
 		NodeMap<AST::NodeType> typeNodes_;
 		NodeMap<AST::NodeStruct> structNodes_;
+
+		struct LineDirective
+		{
+			/// Line in the parsed file.
+			i32 sourceLine_ = 1;
+
+			/// Line in @a file_
+			i32 line_ = 1;
+			Core::String file_;
+		};
+
+		Core::Vector<LineDirective> lineDirectives_;
 
 		AST::NodeShaderFile* shaderFileNode_ = nullptr;
 

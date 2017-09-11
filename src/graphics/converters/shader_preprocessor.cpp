@@ -89,7 +89,7 @@ namespace Graphics
 		tags_.push_back(tag);
 
 		tag.tag = FPPTAG_LINE;
-		tag.data = (void*)0;
+		tag.data = (void*)1;
 		tags_.push_back(tag);
 
 		tag.tag = FPPTAG_KEEPCOMMENTS;
@@ -99,6 +99,10 @@ namespace Graphics
 		tag.tag = FPPTAG_INPUT_NAME;
 		tag.data = (void*)inputFile;
 		tags_.push_back(tag);
+
+		//tag.tag = FPPTAG_OUTPUTLINE;
+		//tag.data = (void*)1;
+		//tags_.push_back(tag);
 
 		tag.tag = FPPTAG_END;
 		tag.data = (void*)0;

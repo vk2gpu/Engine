@@ -109,91 +109,6 @@ namespace
 		{"StencilFunc", GPU::StencilFunc::MAX},
 	};
 
-	const char* BASE_LIBRARY = R"(
-		[internal("SamplerState")]
-		struct SamplerState
-		{
-			AddressingMode AddressU;
-			AddressingMode AddressV;
-			AddressingMode AddressW;
-			FilteringMode MinFilter;
-			FilteringMode MagFilter;
-			float MipLODBias;
-			uint MaxAnisotropy;
-			float BorderColor;//[4];
-			float MinLOD;
-			float MaxLOD;
-		};
-
-		[internal("BlendState")]
-		struct BlendState
-		{
-			uint Enable;
-			BlendType SrcBlend;
-			BlendType DestBlend;
-			BlendFunc BlendOp;
-			BlendType SrcBlendAlpha;
-			BlendType DestBlendAlpha;
-			BlendFunc BlendOpAlpha;
-			uint WriteMask;
-		};
-
-		[internal("StencilFaceState")]
-		struct StencilFaceState
-		{
-			StencilFunc Fail;
-			StencilFunc DepthFail;
-			StencilFunc Pass;
-			CompareMode Func;
-		};
-
-		[internal("RenderState")]
-		struct RenderState
-		{
-			BlendState BlendStates;//[8];
-
-			StencilFaceState StencilFront;
-			StencilFaceState StencilBack;
-			uint DepthEnable;
-			uint DepthWriteMask;
-			CompareMode DepthFunc;
-			uint StencilEnable;
-			uint StencilRef;
-			uint StencilRead;
-			uint StencilWrite;
-
-			FillMode FillMode;
-			CullMode CullMode;
-			float DepthBias;
-			float SlopeScaledDepthBias;
-			uint AntialiasedLineEnable;
-		};
-
-		[internal("Technique")]
-		struct Technique
-		{
-			[fn("VertexShader")]
-			void VertexShader;
-
-			[fn("GeometryShader")]
-			void GeometryShader;
-
-			[fn("HullShader")]
-			void HullShader;
-
-			[fn("DomainShader")]
-			void DomainShader;
-
-			[fn("PixelShader")]
-			void PixelShader;
-
-			[fn("ComputeShader")]
-			void ComputeShader;
-
-			RenderState RenderState;
-		};
-	)";
-
 	// clang-format on
 }
 
@@ -252,12 +167,52 @@ namespace Graphics
 		Core::Vector<char> stringStore;
 		stringStore.resize(1024 * 1024);
 
-		Core::String patchedShaderCode = BASE_LIBRARY;
-		patchedShaderCode.Append("\n");
-		patchedShaderCode.Append(shaderCode);
+		const i32 shaderCodeLen = (i32)strlen(shaderCode);
 
+		// Parse #line directives to patch into the generate shader, and for error handling.
+		auto ParseLine = [&shaderCode, shaderCodeLen](i32& offset, Core::String& line)
+		{
+			line.clear();
+			while(offset < shaderCodeLen)
+			{
+				char ch = shaderCode[offset];
+				++offset;
+				if(ch == '\n')
+					break;
+				else if(ch != '\r')
+					line.Appendf("%c", ch);
+			}
+			return line.size() > 0;
+		};
+
+		i32 offset = 0;
+		Core::String line;
+		LineDirective lineDirective;
+		while(offset < shaderCodeLen)
+		{
+			if(ParseLine(offset, line))
+			{
+				if(strstr(line.c_str(), "#line") == line.c_str())
+				{
+					const char* lineNum = strstr(line.c_str(), " ");
+					if(lineNum != nullptr)
+						lineNum++;
+
+					const char* lineFile = strstr(lineNum, " ");
+					if(lineFile != nullptr)
+						lineDirective.file_ = lineFile  + 1;
+
+					lineDirective.line_ = atoi(lineNum);
+					lineDirectives_.push_back(lineDirective);
+				}
+			}
+
+			lineDirective.sourceLine_++;
+		}
+
+		// Now handle rest with stb_c_lexer.
 		stb_c_lexer_init(
-		    &lexCtx_, patchedShaderCode.begin(), patchedShaderCode.end(), stringStore.data(), stringStore.size());
+		    &lexCtx_, shaderCode, shaderCode + shaderCodeLen, stringStore.data(), stringStore.size());
 
 		fileName_ = shaderFileName;
 		AST::NodeShaderFile* shaderFile = ParseShaderFile();
@@ -641,6 +596,15 @@ namespace Graphics
 			// Capture function body.
 			if(token_.value_ == "{")
 			{
+				i32 lineNum = 0;
+				i32 lineOff = 0;
+				const char* lineFile = nullptr;
+				if(GetCurrentLine(lineNum, lineOff, lineFile))
+				{
+					node->line_ = lineNum;
+					node->file_ = lineFile;
+				}
+
 				const char* beginCode = lexCtx_.parse_point;
 				const char* endCode = nullptr;
 				i32 scopeLevel = 1;
@@ -953,27 +917,51 @@ namespace Graphics
 
 	AST::Token ShaderParser::GetToken() const { return token_; }
 
-	void ShaderParser::Error(AST::Node*& node, ErrorType errorType, Core::StringView errorStr)
+	bool ShaderParser::GetCurrentLine(i32& outLineNum, i32& outLineOff, const char*& outFile) const
 	{
 		stb_lex_location loc;
 		stb_c_lexer_get_location(&lexCtx_, lexCtx_.parse_point, &loc);
 
-		const char* line_start = lexCtx_.parse_point - loc.line_offset;
+		outLineNum = loc.line_number;
+		outLineOff = loc.line_offset;
+		outFile = fileName_;
+
+		// Search directives for better match.
+		for(const auto& lineDir : lineDirectives_)
+		{
+			if(loc.line_number >= lineDir.sourceLine_)
+			{
+				outLineNum = (loc.line_number - lineDir.sourceLine_) + lineDir.line_ - 1;
+				outFile = lineDir.file_.c_str();
+			}
+		}
+
+		return true;
+	}
+
+	void ShaderParser::Error(AST::Node*& node, ErrorType errorType, Core::StringView errorStr)
+	{
+		i32 lineNum = 0;
+		i32 lineOff = 0;
+		const char* lineFile = fileName_;
+		GetCurrentLine(lineNum, lineOff, lineFile);
+
+		const char* line_start = lexCtx_.parse_point - lineOff;
 		const char* line_end = strstr(line_start, "\n");
 		Core::String line(line_start, line_end);
 		if(callbacks_)
 		{
 			callbacks_->OnError(
-			    errorType, fileName_, loc.line_number, loc.line_offset, line.c_str(), errorStr.ToString().c_str());
+			    errorType, lineFile, lineNum, lineOff, line.c_str(), errorStr.ToString().c_str());
 		}
 		else
 		{
-			Core::Log("%s(%i-%i): error: %u: %s\n", fileName_, loc.line_number, loc.line_offset, (u32)errorType,
+			Core::Log("%s(%i-%i): error: %u: %s\n", lineFile, lineNum, lineOff, (u32)errorType,
 			    errorStr.ToString().c_str());
 			Core::Log("%s\n", line.c_str());
 			Core::String indent("> ");
-			indent.reserve(loc.line_offset + 1);
-			for(i32 idx = 1; idx < loc.line_offset; ++idx)
+			indent.reserve(lineOff + 1);
+			for(i32 idx = 1; idx < lineOff; ++idx)
 				indent += " ";
 			indent += "^";
 			Core::Log("> %s\n", indent.c_str());
