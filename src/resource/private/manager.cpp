@@ -228,7 +228,10 @@ namespace Resource
 				    return listEntry->resource_ == resource && listEntry->type_ == type;
 				});
 			DBG_ASSERT(it != resourceList_.end());
-			UnsafeDoReleaseResourceEntry(*it);
+			if(Core::AtomicDec(&(*it)->refCount_) == 0)
+			{
+				UnsafeDoReleaseResourceEntry(*it);
+			}
 			return true;
 		}
 
@@ -689,6 +692,7 @@ namespace Resource
 	bool Manager::ReleaseResource(void*& inResource, const Core::UUID& type)
 	{
 		DBG_ASSERT(IsInitialized());
+		WaitForResource(inResource, type);
 		if(impl_->ReleaseResourceEntry(inResource, type))
 		{
 			impl_->ProcessReleasedResources();
