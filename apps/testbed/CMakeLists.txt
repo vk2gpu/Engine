@@ -1,4 +1,9 @@
 SET(SOURCES_PUBLIC 
+	"common.h"
+	"forward_pipeline.h"
+	"forward_pipeline.cpp"
+	"imgui_pipeline.h"
+	"imgui_pipeline.cpp"
 	"test_entry.cpp"
 	"test_shared.h"
 )
