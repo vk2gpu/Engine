@@ -84,7 +84,7 @@ namespace GPU
 			{
 				d3dDebug_->EnableDebugLayer();
 
-				hr = d3dDebug_->QueryInterface(IID_ID3D12Debug1, (void**)d3dDebug1_.GetAddressOf());
+				hr = d3dDebug_.Get()->QueryInterface(IID_ID3D12Debug1, (void**)d3dDebug1_.GetAddressOf());
 				if(SUCCEEDED(hr))
 				{
 					if(Core::ContainsAnyFlags(setupParams.debugFlags_, DebugFlags::GPU_BASED_VALIDATION))

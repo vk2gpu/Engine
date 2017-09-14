@@ -1,9 +1,0 @@
-samplerstate-00.esf(76-16): error: 112: 'FAIL': Invalid value. Expecting enum value for 'AddressingMode'
-> 	AddressU = FAIL,
->                ^
-samplerstate-00.esf(76-16): error: 110: 'FAIL': Invalid member. Valid values are: ...TODO...
-> 	AddressU = FAIL,
->                ^
-samplerstate-00.esf(76-17): error: 103: ',': Unexpected token. Did you mean '='?
-> 	AddressU = FAIL,
->                 ^

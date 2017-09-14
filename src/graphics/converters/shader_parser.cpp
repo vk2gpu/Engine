@@ -170,8 +170,7 @@ namespace Graphics
 		const i32 shaderCodeLen = (i32)strlen(shaderCode);
 
 		// Parse #line directives to patch into the generate shader, and for error handling.
-		auto ParseLine = [&shaderCode, shaderCodeLen](i32& offset, Core::String& line)
-		{
+		auto ParseLine = [&shaderCode, shaderCodeLen](i32& offset, Core::String& line) {
 			line.clear();
 			while(offset < shaderCodeLen)
 			{
@@ -200,7 +199,7 @@ namespace Graphics
 
 					const char* lineFile = strstr(lineNum, " ");
 					if(lineFile != nullptr)
-						lineDirective.file_ = lineFile  + 1;
+						lineDirective.file_ = lineFile + 1;
 
 					lineDirective.line_ = atoi(lineNum);
 					lineDirectives_.push_back(lineDirective);
@@ -211,8 +210,7 @@ namespace Graphics
 		}
 
 		// Now handle rest with stb_c_lexer.
-		stb_c_lexer_init(
-		    &lexCtx_, shaderCode, shaderCode + shaderCodeLen, stringStore.data(), stringStore.size());
+		stb_c_lexer_init(&lexCtx_, shaderCode, shaderCode + shaderCodeLen, stringStore.data(), stringStore.size());
 
 		fileName_ = shaderFileName;
 		AST::NodeShaderFile* shaderFile = ParseShaderFile();
@@ -543,8 +541,7 @@ namespace Graphics
 				CHECK_TOKEN(AST::TokenType::CHAR, "]");
 
 				PARSE_TOKEN();
-			}
-			while(token_.value_ == "[" && arrayDim < 3);
+			} while(token_.value_ == "[" && arrayDim < 3);
 		}
 
 		else if(token_.value_ == "(")
@@ -951,13 +948,12 @@ namespace Graphics
 		Core::String line(line_start, line_end);
 		if(callbacks_)
 		{
-			callbacks_->OnError(
-			    errorType, lineFile, lineNum, lineOff, line.c_str(), errorStr.ToString().c_str());
+			callbacks_->OnError(errorType, lineFile, lineNum, lineOff, line.c_str(), errorStr.ToString().c_str());
 		}
 		else
 		{
-			Core::Log("%s(%i-%i): error: %u: %s\n", lineFile, lineNum, lineOff, (u32)errorType,
-			    errorStr.ToString().c_str());
+			Core::Log(
+			    "%s(%i-%i): error: %u: %s\n", lineFile, lineNum, lineOff, (u32)errorType, errorStr.ToString().c_str());
 			Core::Log("%s\n", line.c_str());
 			Core::String indent("> ");
 			indent.reserve(lineOff + 1);
