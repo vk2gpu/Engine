@@ -6,6 +6,8 @@ SET(SOURCES_PUBLIC
 	"imgui_pipeline.cpp"
 	"test_entry.cpp"
 	"test_shared.h"
+	"render_packets.h"
+	"render_packets.cpp"
 )
 
 ADD_ENGINE_EXECUTABLE(testbed ${SOURCES_PUBLIC})

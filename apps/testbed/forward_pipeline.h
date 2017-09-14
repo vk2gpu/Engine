@@ -7,13 +7,10 @@
 #include "math/mat44.h"
 
 #include "common.h"
+#include "render_packets.h"
 
 namespace Testbed
 {
-	using CustomBindFn = Core::Function<bool(Graphics::Shader*, Graphics::ShaderTechnique&)>;
-	using DrawFn = Core::Function<void(GPU::CommandList& cmdList, const char* passName, const GPU::DrawState& drawState,
-	    GPU::Handle fbs, GPU::Handle viewCBHandle, GPU::Handle objectSBHandle, CustomBindFn customBindFn)>;
-
 	class ForwardPipeline : public Graphics::Pipeline
 	{
 	public:

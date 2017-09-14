@@ -1,6 +1,7 @@
 #include "common.h"
 #include "forward_pipeline.h"
 #include "imgui_pipeline.h"
+#include "render_packets.h"
 
 #include "client/input_provider.h"
 #include "client/key_input.h"
@@ -421,57 +422,8 @@ namespace
 		ImGui::End();
 	}
 
-	enum class RenderPacketType : i16
-	{
-		UNKNOWN = 0,
-		MESH,
 
-		MAX,
-	};
-
-	struct RenderPacketBase
-	{
-		RenderPacketType type_ = RenderPacketType::UNKNOWN;
-		i16 size_ = 0;
-	};
-
-	template<typename TYPE>
-	struct RenderPacket : RenderPacketBase
-	{
-		RenderPacket()
-		{
-			DBG_ASSERT(TYPE::TYPE != RenderPacketType::UNKNOWN);
-			DBG_ASSERT(sizeof(TYPE) <= SHRT_MAX);
-			type_ = TYPE::TYPE;
-			size_ = sizeof(TYPE);
-		}
-	};
-
-	struct MeshRenderPacket : RenderPacket<MeshRenderPacket>
-	{
-		static const RenderPacketType TYPE = RenderPacketType::MESH;
-
-		GPU::Handle db_;
-		ModelMeshDraw draw_;
-		Testbed::ObjectConstants object_;
-		ShaderTechniqueDesc techDesc_;
-		Shader* shader_ = nullptr;
-		Testbed::ShaderTechniques* techs_ = nullptr;
-
-		// tmp object state data.
-		Math::Mat44 world_;
-		f32 angle_ = 0.0f;
-		Math::Vec3 position_;
-
-		bool IsInstancableWith(const MeshRenderPacket& other)
-		{
-			return db_ == other.db_ && memcmp(&draw_, &other.draw_, sizeof(draw_)) == 0 &&
-			       memcmp(&techDesc_, &other.techDesc_, sizeof(techDesc_)) == 0 && shader_ == other.shader_ &&
-			       techs_ == other.techs_;
-		}
-	};
-
-	Core::Vector<RenderPacketBase*> packets_;
+	Core::Vector<Testbed::RenderPacketBase*> packets_;
 	Core::Vector<Testbed::ShaderTechniques> shaderTechniques_;
 	i32 w_, h_;
 
@@ -480,82 +432,33 @@ namespace
 	{
 		namespace Binding = GPU::Binding;
 
+		Testbed::SortPackets(packets_);
+
 		rmt_ScopedCPUSample(DrawRenderPackets, RMTSF_None);
 		if(auto event = cmdList.Eventf(0, "DrawRenderPackets(\"%s\")", passName))
 		{
 			// Gather mesh packets for this pass.
-			Core::Vector<MeshRenderPacket*> meshPackets;
-			Core::Vector<i32> passTechIndices;
+			Core::Vector<Testbed::MeshRenderPacket*> meshPackets;
+			Core::Vector<i32> meshPassTechIndices;
 			meshPackets.reserve(packets_.size());
-			passTechIndices.reserve(packets_.size());
+			meshPassTechIndices.reserve(packets_.size());
 			for(auto& packet : packets_)
 			{
-				if(packet->type_ == MeshRenderPacket::TYPE)
+				if(packet->type_ == Testbed::MeshRenderPacket::TYPE)
 				{
-					auto* meshPacket = static_cast<MeshRenderPacket*>(packet);
+					auto* meshPacket = static_cast<Testbed::MeshRenderPacket*>(packet);
 					auto passIdxIt = meshPacket->techs_->passIndices_.find(passName);
 					if(passIdxIt != meshPacket->techs_->passIndices_.end() &&
 					    passIdxIt->second < meshPacket->techs_->passTechniques_.size())
 					{
 						meshPackets.push_back(meshPacket);
-						passTechIndices.push_back(passIdxIt->second);
+						meshPassTechIndices.push_back(passIdxIt->second);
 					}
 				}
 			}
 
-			// Mesh packets
-			{
-				// Allocate command list memory.
-				auto* objects = cmdList.Alloc<Testbed::ObjectConstants>(meshPackets.size());
-
-				// Update all render packet uniforms.
-				for(i32 idx = 0; idx < meshPackets.size(); ++idx)
-					objects[idx] = meshPackets[idx]->object_;
-				cmdList.UpdateBuffer(objectSBHandle, 0, sizeof(Testbed::ObjectConstants) * meshPackets.size(), objects);
-
-
-				i32 baseInstanceIdx = 0;
-				i32 numInstances = 0;
-
-				// Draw all packets, instanced where possible.
-				MeshRenderPacket* nextMeshPacket = nullptr;
-				const i32 objectDataSize = sizeof(Testbed::ObjectConstants);
-				for(i32 idx = 0; idx < meshPackets.size(); ++idx)
-				{
-					auto* meshPacket = meshPackets[idx];
-					i32 passTechIdx = passTechIndices[idx];
-
-					auto& tech = meshPacket->techs_->passTechniques_[passTechIdx];
-					bool doDraw = true;
-					if(customBindFn)
-						doDraw = customBindFn(meshPacket->shader_, tech);
-
-					if(doDraw)
-						++numInstances;
-
-					// If not instancable with the next mesh packet, on the last one, then draw last batch and start over.
-					nextMeshPacket = ((idx + 1) < meshPackets.size()) ? meshPackets[idx + 1] : nullptr;
-					if(nextMeshPacket == nullptr || !meshPacket->IsInstancableWith(*nextMeshPacket))
-					{
-						if(numInstances > 0)
-						{
-							tech.Set("ViewCBuffer", Binding::CBuffer(viewCBHandle, 0, sizeof(Testbed::ViewConstants)));
-							tech.Set("inObject",
-							    Binding::Buffer(objectSBHandle, GPU::Format::INVALID, baseInstanceIdx, numInstances,
-							        objectDataSize));
-							if(auto pbs = tech.GetBinding())
-							{
-								cmdList.Draw(pbs, meshPacket->db_, fbs, drawState,
-								    GPU::PrimitiveTopology::TRIANGLE_LIST, meshPacket->draw_.indexOffset_,
-								    meshPacket->draw_.vertexOffset_, meshPacket->draw_.noofIndices_, 0, numInstances);
-							}
-						}
-
-						baseInstanceIdx = idx + 1;
-						numInstances = 0;
-					}
-				}
-			}
+			Testbed::MeshRenderPacket::DrawPackets(
+			    meshPackets, meshPassTechIndices, cmdList, drawState, fbs, viewCBHandle, objectSBHandle, customBindFn);
 		}
 	}
 
@@ -681,7 +584,7 @@ void Loop(const Core::CommandLine& cmdLine)
 				techDesc.SetVertexElements(model->GetMeshVertexElements(idx));
 				techDesc.SetTopology(GPU::TopologyType::TRIANGLE);
 
-				MeshRenderPacket packet;
+				Testbed::MeshRenderPacket packet;
 				packet.db_ = model->GetMeshDrawBinding(idx);
 				packet.draw_ = model->GetMeshDraw(idx);
 				packet.techDesc_ = techDesc;
@@ -694,7 +597,7 @@ void Loop(const Core::CommandLine& cmdLine)
 
 				angle += 0.5f;
 
-				packets_.emplace_back(new MeshRenderPacket(packet));
+				packets_.emplace_back(new Testbed::MeshRenderPacket(packet));
 			}
 		}
 	}
@@ -707,7 +610,7 @@ void Loop(const Core::CommandLine& cmdLine)
 			techDesc.SetVertexElements(sponzaModel->GetMeshVertexElements(idx));
 			techDesc.SetTopology(GPU::TopologyType::TRIANGLE);
 
-			MeshRenderPacket packet;
+			Testbed::MeshRenderPacket packet;
 			packet.db_ = sponzaModel->GetMeshDrawBinding(idx);
 			packet.draw_ = sponzaModel->GetMeshDraw(idx);
 			packet.techDesc_ = techDesc;
@@ -721,7 +624,7 @@ void Loop(const Core::CommandLine& cmdLine)
 			packet.angle_ = 0.0f;
 			packet.position_ = Math::Vec3(0.0f, 0.0f, 0.0f);
 
-			packets_.emplace_back(new MeshRenderPacket(packet));
+			packets_.emplace_back(new Testbed::MeshRenderPacket(packet));
 		}
 	}
 
@@ -849,9 +752,9 @@ void Loop(const Core::CommandLine& cmdLine)
 
 				for(auto& packet : packets_)
 				{
-					if(packet->type_ == MeshRenderPacket::TYPE)
+					if(packet->type_ == Testbed::MeshRenderPacket::TYPE)
 					{
-						auto* meshPacket = static_cast<MeshRenderPacket*>(packet);
+						auto* meshPacket = static_cast<Testbed::MeshRenderPacket*>(packet);
 
 						//meshPacket->angle_ += (f32)targetFrameTime;
 						meshPacket->object_.world_.Rotation(Math::Vec3(0.0f, meshPacket->angle_, 0.0f));
@@ -915,9 +818,9 @@ void Loop(const Core::CommandLine& cmdLine)
 				rmt_ScopedCPUSample(CreateTechniques, RMTSF_None);
 				for(auto& packet : packets_)
 				{
-					if(packet->type_ == MeshRenderPacket::TYPE)
+					if(packet->type_ == Testbed::MeshRenderPacket::TYPE)
 					{
-						auto* meshPacket = static_cast<MeshRenderPacket*>(packet);
+						auto* meshPacket = static_cast<Testbed::MeshRenderPacket*>(packet);
 						forwardPipeline.CreateTechniques(shader, meshPacket->techDesc_, *meshPacket->techs_);
 					}
 				}
@@ -947,9 +850,9 @@ void Loop(const Core::CommandLine& cmdLine)
 	// Clean up.
 	for(auto* packet : packets_)
 	{
-		if(packet->type_ == MeshRenderPacket::TYPE)
+		if(packet->type_ == Testbed::MeshRenderPacket::TYPE)
 		{
-			auto* meshPacket = static_cast<MeshRenderPacket*>(packet);
+			auto* meshPacket = static_cast<Testbed::MeshRenderPacket*>(packet);
 			delete meshPacket;
 		}
 	}
