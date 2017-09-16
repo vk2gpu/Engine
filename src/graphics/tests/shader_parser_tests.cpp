@@ -105,7 +105,7 @@ TEST_CASE("graphics-tests-shader-preprocessor")
 	Core::File shaderFile(testShader, Core::FileFlags::READ, &pathResolver);
 	if(shaderFile)
 	{
-		Core::Log("Pereprocessing %s...\n", testShader);
+		Core::Log("Preprocessing %s...\n", testShader);
 
 		Core::String shaderCode;
 		shaderCode.resize((i32)shaderFile.Size());
@@ -114,6 +114,7 @@ TEST_CASE("graphics-tests-shader-preprocessor")
 		{
 			Graphics::ShaderPreprocessor shaderPreprocessor;
 			shaderPreprocessor.AddInclude(testPath);
+			shaderPreprocessor.AddInclude("../../../../res");
 			CHECK(shaderPreprocessor.Preprocess(testShader, shaderCode.c_str()));
 		}
 	}
@@ -181,16 +182,22 @@ TEST_CASE("graphics-tests-shader-basic")
 	Core::File shaderFile(shaderName, Core::FileFlags::READ, &pathResolver);
 	if(shaderFile)
 	{
-		Core::Log("Parsing %s...\n", shaderName);
-
 		Core::String shaderCode;
 		shaderCode.resize((i32)shaderFile.Size());
 		shaderFile.Read(shaderCode.data(), shaderCode.size());
 
+		Core::Log("Preprocessing %s...\n", shaderName);
+		Graphics::ShaderPreprocessor shaderPreprocessor;
+		shaderPreprocessor.AddInclude(testPath);
+		shaderPreprocessor.AddInclude("../../../../res");
+
+		CHECK(shaderPreprocessor.Preprocess(shaderName, shaderCode.c_str()));
+		Core::Log("Parsing %s...\n", shaderName);
+
 		{
 			Graphics::ShaderParser shaderParser;
 			ShaderParserCallbacks callbacks(nullptr);
-			auto* nodeShaderFile = shaderParser.Parse(shaderName, shaderCode.c_str(), &callbacks);
+			auto* nodeShaderFile = shaderParser.Parse(shaderName, shaderPreprocessor.GetOutput().c_str(), &callbacks);
 
 			using namespace Graphics;
 

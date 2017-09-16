@@ -99,7 +99,7 @@ namespace
 			Job::JobDesc jobDesc;
 			jobDesc.func_ = [](i32 param, void* data) {
 				auto jobData = reinterpret_cast<JobData*>(data);
-				RunJobTest(jobData->jobsToLaunch, "testJobRecursive");
+				RunJobTest(jobData->jobsToLaunch, "testJobRecursive", false);
 			};
 			jobDesc.param_ = i + 1;
 			jobDesc.data_ = &jobDatas[i];

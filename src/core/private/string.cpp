@@ -154,6 +154,18 @@ namespace Core
 		return (index_type)(found - &data_[0]);
 	}
 
+	String String::substr(index_type start, index_type len) const
+	{
+		DBG_ASSERT(start >= 0 && start < size());
+		DBG_ASSERT(len == npos || (len > 0 && len < (size() - start)));
+		if(len == npos)
+			len = size() - start;
+		String retVal;
+		retVal.resize(len);
+		memcpy(retVal.data(), data() + start, len);
+		return retVal;
+	}
+
 	String String::replace(const char* search, const char* replacement) const
 	{
 		String outString;

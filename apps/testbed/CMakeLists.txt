@@ -1,6 +1,13 @@
 SET(SOURCES_PUBLIC 
+	"common.h"
+	"forward_pipeline.h"
+	"forward_pipeline.cpp"
+	"imgui_pipeline.h"
+	"imgui_pipeline.cpp"
 	"test_entry.cpp"
 	"test_shared.h"
+	"render_packets.h"
+	"render_packets.cpp"
 )
 
 ADD_ENGINE_EXECUTABLE(testbed ${SOURCES_PUBLIC})

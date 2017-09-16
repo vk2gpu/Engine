@@ -318,6 +318,7 @@ namespace Core
 	{
 		CRITICAL_SECTION critSec_;
 		HANDLE lockThread_ = nullptr;
+		volatile i32 lockCount_ = 0;
 	};
 
 	Mutex::Mutex()
@@ -349,7 +350,8 @@ namespace Core
 	{
 		DBG_ASSERT(impl_);
 		::EnterCriticalSection(&impl_->critSec_);
-		impl_->lockThread_ = ::GetCurrentThread();
+		if(AtomicInc(&impl_->lockCount_) == 1)
+			impl_->lockThread_ = ::GetCurrentThread();
 	}
 
 	bool Mutex::TryLock()
@@ -357,7 +359,8 @@ namespace Core
 		DBG_ASSERT(impl_);
 		if(!!::TryEnterCriticalSection(&impl_->critSec_))
 		{
-			impl_->lockThread_ = ::GetCurrentThread();
+			if(AtomicInc(&impl_->lockCount_) == 1)
+				impl_->lockThread_ = ::GetCurrentThread();
 			return true;
 		}
 		return false;
@@ -367,7 +370,8 @@ namespace Core
 	{
 		DBG_ASSERT(impl_);
 		DBG_ASSERT(impl_->lockThread_ == ::GetCurrentThread());
-		impl_->lockThread_ = nullptr;
+		if(AtomicDec(&impl_->lockCount_) == 0)
+			impl_->lockThread_ = nullptr;
 		::LeaveCriticalSection(&impl_->critSec_);
 	}
 

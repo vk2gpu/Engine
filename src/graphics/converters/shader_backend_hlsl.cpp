@@ -231,6 +231,7 @@ namespace Graphics
 			Write(")");
 			--inParams_;
 
+
 			if(node->semantic_.size() > 0)
 				Write(" : %s", node->semantic_.c_str());
 

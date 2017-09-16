@@ -62,7 +62,7 @@ TEST_CASE("graphics-tests-model-request")
 	ScopedEngine engine;
 
 	Graphics::Model* model = nullptr;
-	REQUIRE(Resource::Manager::RequestResource(model, "model_tests/teapot.esf"));
+	REQUIRE(Resource::Manager::RequestResource(model, "model_tests/teapot.obj"));
 	Resource::Manager::WaitForResource(model);
 	REQUIRE(Resource::Manager::ReleaseResource(model));
 }

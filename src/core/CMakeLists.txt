@@ -2,6 +2,7 @@ SET(SOURCES_PUBLIC
 	"allocator.h"
 	"array.h"
 	"array_view.h"
+	"command_line.h"
 	"concurrency.h"
 	"debug.h"
 	"dll.h"
@@ -29,6 +30,7 @@ SET(SOURCES_PUBLIC
 )
 
 SET(SOURCES_PRIVATE 
+	"private/command_line.cpp"
 	"private/concurrency.cpp"
 	"private/concurrency.inl"
 	"private/debug.cpp"
