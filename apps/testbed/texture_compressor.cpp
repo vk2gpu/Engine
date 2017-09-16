@@ -7,32 +7,33 @@ TextureCompressor::TextureCompressor()
 	// Create lookup table to pass to shader.
 	LookupTable lookupTable;
 	for(i32 i = 0; i < 32; ++i)
-		lookupTable.Expand5[i] = (i<<3)|(i>>2);
+		lookupTable.Expand5[i] = (i << 3) | (i >> 2);
 	for(i32 i = 0; i < 64; ++i)
-		lookupTable.Expand6[i] = (i<<2)|(i>>4);
+		lookupTable.Expand6[i] = (i << 2) | (i >> 4);
 
-	auto stb__PrepareOptTable = [](u32 *table,const u32* expand,int size)
-	{
-		int i,mn,mx;
-		for (i=0;i<256;i++)
+	auto stb__PrepareOptTable = [](u32* table, const u32* expand, int size) {
+		int i, mn, mx;
+		for(i = 0; i < 256; i++)
 		{
 			int bestErr = 256;
-			for (mn=0;mn<size;mn++) {
-				for (mx=0;mx<size;mx++) {
+			for(mn = 0; mn < size; mn++)
+			{
+				for(mx = 0; mx < size; mx++)
+				{
 					int mine = expand[mn];
 					int maxe = expand[mx];
-					int err = abs((2*maxe + mine) / 3 - i);
-            
+					int err = abs((2 * maxe + mine) / 3 - i);
+
 					// DX10 spec says that interpolation must be within 3% of "correct" result,
 					// add this as error term. (normally we'd expect a random distribution of
 					// +-1.5% error, but nowhere in the spec does it say that the error has to be
 					// unbiased - better safe than sorry).
 					err += abs(maxe - mine) * 3 / 100;
-            
+
 					if(err < bestErr)
-					{ 
-						table[i*2+0] = mx;
-						table[i*2+1] = mn;
+					{
+						table[i * 2 + 0] = mx;
+						table[i * 2 + 1] = mn;
 						bestErr = err;
 					}
 				}
@@ -57,8 +58,8 @@ TextureCompressor::~TextureCompressor()
 	Resource::Manager::ReleaseResource(shader_);
 }
 
-bool TextureCompressor::Compress(GPU::CommandList& cmdList, Graphics::Texture* inTexture, 
-	GPU::Format format, GPU::Handle outputTexture)
+bool TextureCompressor::Compress(
+    GPU::CommandList& cmdList, Graphics::Texture* inTexture, GPU::Format format, GPU::Handle outputTexture)
 {
 	// Wait until shader is ready.
 	Resource::Manager::WaitForResource(shader_);
@@ -102,7 +103,7 @@ bool TextureCompressor::Compress(GPU::CommandList& cmdList, Graphics::Texture* i
 
 	auto tech = shader_->CreateTechnique(techName, Graphics::ShaderTechniqueDesc());
 	const auto& desc = inTexture->GetDesc();
-	
+
 	GPU::TextureDesc outTextureDesc = inTexture->GetDesc();
 	outTextureDesc.width_ = (outTextureDesc.width_ + 3) / 4;
 	outTextureDesc.height_ = (outTextureDesc.height_ + 3) / 4;

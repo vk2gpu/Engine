@@ -8,7 +8,8 @@ public:
 	TextureCompressor();
 	~TextureCompressor();
 
-	bool Compress(GPU::CommandList& cmdList, Graphics::Texture* inTexture, GPU::Format format, GPU::Handle outputTexture);
+	bool Compress(
+	    GPU::CommandList& cmdList, Graphics::Texture* inTexture, GPU::Format format, GPU::Handle outputTexture);
 
 private:
 	struct LookupTable
@@ -21,5 +22,4 @@ private:
 
 	GPU::Handle lookupTableCB_;
 	Graphics::Shader* shader_ = nullptr;
-
 };

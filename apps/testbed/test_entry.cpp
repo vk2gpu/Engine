@@ -148,9 +148,9 @@ namespace
 			Math::Vec3 viewFromPosition = cameraTarget_ + viewDistance;
 
 			matrix_.Identity();
-			matrix_.LookAt(viewFromPosition, cameraTarget_,
-			    Math::Vec3(
-			        cameraRotationMatrix.Row1().x, cameraRotationMatrix.Row1().y, cameraRotationMatrix.Row1().z));
+			matrix_.LookAt(
+			    viewFromPosition, cameraTarget_, Math::Vec3(cameraRotationMatrix.Row1().x,
+			                                         cameraRotationMatrix.Row1().y, cameraRotationMatrix.Row1().z));
 		}
 
 		Math::Mat44 GetCameraRotationMatrix() const
@@ -514,19 +514,12 @@ void Loop(const Core::CommandLine& cmdLine)
 #if LOAD_SPONZA
 	Resource::Manager::WaitForResource(sponzaModel);
 #endif
-	
+
 	GPU::TextureDesc finalTextureDesc = texture->GetDesc();
 	finalTextureDesc.format_ = GPU::Format::BC3_TYPELESS;
 	GPU::Handle finalTexture = GPU::Manager::CreateTexture(finalTextureDesc, nullptr, "finalCompressed");
 	DBG_ASSERT(finalTexture);
 
-#if 0
-	imguiPipeline.callback_ = [&](GPU::CommandList& cmdList)
-	{
-		texCompressor.Compress(cmdList, texture, GPU::Format::BC3_UNORM, finalTexture);
-	};
-#endif
-	
 	// Create some render packets.
 	// For now, they can be permenent.
 	f32 angle = 0.0;
@@ -802,7 +795,15 @@ void Loop(const Core::CommandLine& cmdLine)
 			forwardPipeline.SetCamera(camera_.matrix_, proj, Math::Vec2((f32)w_, (f32)h_));
 
 			// Set draw callback.
-			forwardPipeline.SetDrawCallback(DrawRenderPackets);
+			forwardPipeline.SetDrawCallback(
+			    [&](GPU::CommandList& cmdList, const char* passName, const GPU::DrawState& drawState, GPU::Handle fbs,
+			        GPU::Handle viewCBHandle, GPU::Handle objectSBHandle, Testbed::CustomBindFn customBindFn) {
+				    DrawRenderPackets(cmdList, passName, drawState, fbs, viewCBHandle, objectSBHandle, customBindFn);
+
+
+				    // Testing code.
+				    texCompressor.Compress(cmdList, texture, GPU::Format::BC3_UNORM, finalTexture);
+				});
 
 			// Clear graph prior to beginning work.
 			graph.Clear();
