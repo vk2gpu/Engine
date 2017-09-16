@@ -21,6 +21,8 @@
 #include "math/mat44.h"
 #include "math/plane.h"
 
+#include "texture_compressor.h"
+
 #include <cmath>
 
 #define LOAD_SPONZA (1)
@@ -488,21 +490,43 @@ void Loop(const Core::CommandLine& cmdLine)
 	Testbed::ForwardPipeline forwardPipeline;
 	RenderGraph graph;
 
+	TextureCompressor texCompressor;
+
+	Texture* texture = nullptr;
+	Resource::Manager::RequestResource(texture, "test_texture_compress.png");
+
 	// Load shader + teapot model.
 	Shader* shader = nullptr;
 	Resource::Manager::RequestResource(shader, "shader_tests/simple-mesh.esf");
-	Resource::Manager::WaitForResource(shader);
 
 	Model* model = nullptr;
 	Resource::Manager::RequestResource(model, "model_tests/teapot.obj");
-	Resource::Manager::WaitForResource(model);
 
 	Model* sponzaModel = nullptr;
+
 #if LOAD_SPONZA
 	Resource::Manager::RequestResource(sponzaModel, "model_tests/crytek-sponza/sponza.obj");
-	Resource::Manager::WaitForResource(sponzaModel);
 #endif
 
+	Resource::Manager::WaitForResource(texture);
+	Resource::Manager::WaitForResource(shader);
+	Resource::Manager::WaitForResource(model);
+#if LOAD_SPONZA
+	Resource::Manager::WaitForResource(sponzaModel);
+#endif
+	
+	GPU::TextureDesc finalTextureDesc = texture->GetDesc();
+	finalTextureDesc.format_ = GPU::Format::BC3_TYPELESS;
+	GPU::Handle finalTexture = GPU::Manager::CreateTexture(finalTextureDesc, nullptr, "finalCompressed");
+	DBG_ASSERT(finalTexture);
+
+#if 0
+	imguiPipeline.callback_ = [&](GPU::CommandList& cmdList)
+	{
+		texCompressor.Compress(cmdList, texture, GPU::Format::BC3_UNORM, finalTexture);
+	};
+#endif
+	
 	// Create some render packets.
 	// For now, they can be permenent.
 	f32 angle = 0.0;
@@ -533,6 +557,7 @@ void Loop(const Core::CommandLine& cmdLine)
 		return min + val * (max - min);
 	};
 
+#if 0
 	for(i32 idx = 0; idx < 1000; ++idx)
 	{
 		light.position_.x = randF32(-100.0f, 100.0f);
@@ -560,6 +585,7 @@ void Loop(const Core::CommandLine& cmdLine)
 		light.radiusOuter_ = 2.0f;
 		forwardPipeline.lights_.push_back(light);
 	}
+#endif
 
 	shaderTechniques_.reserve(10000);
 	Testbed::ShaderTechniques* techniques = &*shaderTechniques_.emplace_back();
@@ -569,13 +595,13 @@ void Loop(const Core::CommandLine& cmdLine)
 		{
 			ImGui::ColorConvertHSVtoRGB(h, s, v, r, g, b);
 			h += 0.1f;
-			light.position_ = position + Math::Vec3(0.0f, 5.0f, 0.0f);
+			light.position_ = position + Math::Vec3(0.0f, 10.0f, 0.0f);
 			light.color_.x = r;
 			light.color_.y = g;
 			light.color_.z = b;
-			light.color_ *= 10.0f;
-			light.radiusInner_ = 10.0f;
-			light.radiusOuter_ = 20.0f;
+			light.color_ *= 4.0f;
+			light.radiusInner_ = 15.0f;
+			light.radiusOuter_ = 25.0f;
 
 			forwardPipeline.lights_.push_back(light);
 			for(i32 idx = 0; idx < model->GetNumMeshes(); ++idx)
@@ -859,6 +885,7 @@ void Loop(const Core::CommandLine& cmdLine)
 	shaderTechniques_.clear();
 	Resource::Manager::ReleaseResource(shader);
 	Resource::Manager::ReleaseResource(model);
+	Resource::Manager::ReleaseResource(texture);
 #if LOAD_SPONZA
 	Resource::Manager::ReleaseResource(sponzaModel);
 #endif

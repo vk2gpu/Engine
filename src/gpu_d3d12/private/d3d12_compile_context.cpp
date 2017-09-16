@@ -160,7 +160,23 @@ namespace GPU
 		return ErrorCode::OK;
 	}
 
-	ErrorCode D3D12CompileContext::CompileCommand(const CommandClearUAV* command) { return ErrorCode::UNIMPLEMENTED; }
+	ErrorCode D3D12CompileContext::CompileCommand(const CommandClearUAV* command)
+	{
+		const auto& pbs = backend_.pipelineBindingSets_[command->pipelineBinding_.GetIndex()];
+
+		auto incSize = backend_.device_->d3dDevice_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+		D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle = pbs.uavs_.gpuDescHandle_;
+		D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle = pbs.uavs_.cpuDescHandle_;
+		gpuHandle.ptr += incSize * command->uavIdx_;
+		cpuHandle.ptr += incSize * command->uavIdx_;
+
+		AddTransition(pbs.uavTransitions_[command->uavIdx_], D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+		FlushTransitions();
+
+		d3dCommandList_->ClearUnorderedAccessViewUint(gpuHandle, cpuHandle, pbs.uavTransitions_[command->uavIdx_]->resource_.Get(), command->u_, 0, nullptr);
+
+		return ErrorCode::OK;
+	}
 
 	ErrorCode D3D12CompileContext::CompileCommand(const CommandUpdateBuffer* command)
 	{
