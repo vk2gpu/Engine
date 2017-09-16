@@ -125,13 +125,6 @@ bool TextureCompressor::Compress(GPU::CommandList& cmdList, Graphics::Texture* i
 		cmdList.CopyTextureSubResource(outputTexture, 0, GPU::Point(), intermediateTexture, 0, box);
 	}
 
-	tech.Set("inTexture", GPU::Binding::Texture2D(outputTexture, format, 0, 1)); 
-	tech.Set("outTexture", GPU::Binding::RWTexture2D(intermediateTexture, uavFormat));
-	if(auto binding = tech.GetBinding())
-	{
-		cmdList.Dispatch(binding, desc.width_ / 4, desc.height_ / 4, 1);
-	}
-
 	GPU::Manager::DestroyResource(intermediateTexture);
 	return true;
 }
