@@ -1,0 +1,6 @@
+{
+   "$internal" : {
+      "dependencies" : [ "shader_tests/00-particle.esf", "../../../../res/stdlib.esh" ],
+      "outputs" : [ "converter_output/shader_tests/00-particle.esf.converted" ]
+   }
+}

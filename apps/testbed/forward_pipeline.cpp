@@ -12,7 +12,7 @@ namespace Testbed
 {
 	using namespace Graphics;
 
-	RenderGraphTextureDesc GetDefaultTextureDesc(i32 w, i32 h)
+	static RenderGraphTextureDesc GetDefaultTextureDesc(i32 w, i32 h)
 	{
 		RenderGraphTextureDesc desc;
 		desc.type_ = GPU::TextureType::TEX2D;
@@ -22,7 +22,7 @@ namespace Testbed
 		return desc;
 	}
 
-	RenderGraphTextureDesc GetDepthTextureDesc(i32 w, i32 h)
+	static RenderGraphTextureDesc GetDepthTextureDesc(i32 w, i32 h)
 	{
 		RenderGraphTextureDesc desc;
 		desc.type_ = GPU::TextureType::TEX2D;
@@ -32,6 +32,7 @@ namespace Testbed
 		return desc;
 	}
 
+	const RenderGraphBufferDesc viewCBDesc = RenderGraphBufferDesc(sizeof(ViewConstants));
 	const RenderGraphBufferDesc objectSBDesc = RenderGraphBufferDesc(sizeof(ObjectConstants) * 1000);
 
 	struct LightConstants
@@ -71,7 +72,7 @@ namespace Testbed
 		DrawFn drawFn_;
 	};
 
-	LightCullingData AddLightCullingPasses(DrawFn drawFn, RenderGraph& renderGraph, const CommonBuffers& cbs,
+	static LightCullingData AddLightCullingPasses(DrawFn drawFn, RenderGraph& renderGraph, const CommonBuffers& cbs,
 	    RenderGraphResource depth, Shader* shader, const Core::ArrayView<Light>& lights)
 	{
 		GPU::Format lightTexFormat = GPU::Format::R32_UINT;
@@ -309,7 +310,7 @@ namespace Testbed
 		GPU::FrameBindingSetDesc fbsDesc_;
 	};
 
-	DepthData AddDepthPasses(DrawFn drawFn, RenderGraph& renderGraph, const CommonBuffers& cbs,
+	static DepthData AddDepthPasses(DrawFn drawFn, RenderGraph& renderGraph, const CommonBuffers& cbs,
 	    const RenderGraphTextureDesc& depthDesc, RenderGraphResource depth, RenderGraphResource objectSB)
 	{
 		struct DepthPassData : BaseDrawFnData
@@ -371,7 +372,7 @@ namespace Testbed
 		GPU::FrameBindingSetDesc fbsDesc_;
 	};
 
-	ForwardData AddForwardPasses(DrawFn drawFn, RenderGraph& renderGraph, const CommonBuffers& cbs,
+	static ForwardData AddForwardPasses(DrawFn drawFn, RenderGraph& renderGraph, const CommonBuffers& cbs,
 	    const LightCullingData& lightCulling, const RenderGraphTextureDesc& colorDesc, RenderGraphResource color,
 	    const RenderGraphTextureDesc& depthDesc, RenderGraphResource depth, RenderGraphResource objectSB)
 	{
@@ -463,7 +464,7 @@ namespace Testbed
 	using FullscreenSetupFn = Core::Function<void(RenderGraphBuilder&)>;
 	using FullscreenBindFn = Core::Function<void(RenderGraphResources&, Shader*, ShaderTechnique&)>;
 
-	FullscreenData AddFullscreenPass(DrawFn drawFn, RenderGraph& renderGraph, const CommonBuffers& cbs,
+	static FullscreenData AddFullscreenPass(DrawFn drawFn, RenderGraph& renderGraph, const CommonBuffers& cbs,
 	    RenderGraphResource color, Shader* shader, FullscreenSetupFn setupFn, FullscreenBindFn bindFn)
 	{
 		struct FullscreenPassData : BaseDrawFnData
@@ -599,7 +600,7 @@ namespace Testbed
 		    [&](RenderGraphBuilder& builder, ViewConstantData& data) {
 			    data.view_ = view_;
 			    data.cbs_.viewCB_ =
-			        builder.Write(builder.Create("View Constants", objectSBDesc), GPU::BindFlags::CONSTANT_BUFFER);
+			        builder.Write(builder.Create("View Constants", viewCBDesc), GPU::BindFlags::CONSTANT_BUFFER);
 			    data.cbs_.objectSB_ =
 			        builder.Write(builder.Create("Object Constants", objectSBDesc), GPU::BindFlags::SHADER_RESOURCE);
 			},

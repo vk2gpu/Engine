@@ -1,4 +1,4 @@
-#include "lib.esh"
+#include "stdlib.esh"
 #include "lights.esh"
 #include "brdf.esh"
 
@@ -50,6 +50,11 @@ void ps_depthprepass(in VS_OUT _in)
 	
 }
 
+void ps_shadow(in VS_OUT _in)
+{
+
+}
+
 Texture2D<uint> inLightTex;
 StructuredBuffer<uint> inLightIndices;
 StructuredBuffer<Light> inLights;
@@ -68,12 +73,12 @@ float4 ps_forward(in VS_OUT _in) : SV_TARGET0
 	Material material;
 
 	material.color_ = float3(0.8, 0.8, 0.8);
-	material.roughness_ = 1.0;
+	material.roughness_ = 0.25;
 	material.metallic_ = 0.0;
 	material.f0_ = DIELECTRIC_F0;
 
 	float3 viewPos = float3(v_.invView_[0].w, v_.invView_[1].w, v_.invView_[2].w);
-	Surface surface = SetupSurface(material, viewPos, _in.w_position, _in.normal);
+	Surface surface = SetupSurface(material, viewPos, _in.w_position, normal);
 
 	// Iterate over lights.
 	for(int idx = 0; idx < lightTexel.y; ++idx)
@@ -96,12 +101,19 @@ float4 ps_forward(in VS_OUT _in) : SV_TARGET0
 	return float4(LinearToGamma(lightColor), 1.0);
 }
 
-float4 ps_shadow(in VS_OUT _in) : SV_TARGET0
-{
-	return float4(1.0, 0.0, 1.0, 1.0);
-}
-
 RenderState RS_DEPTH_PREPASS =
+{
+	.BlendStates = {
+		.WriteMask = 0,
+	},
+
+	.DepthFunc = LESS_EQUAL,
+	.DepthEnable = 1,
+	.DepthWriteMask = 1,
+	.FillMode = SOLID,
+};
+
+RenderState RS_SHADOW =
 {
 	.BlendStates = {
 		.WriteMask = 0,
@@ -121,19 +133,18 @@ RenderState RS_FORWARD =
 	.FillMode = SOLID,
 };
 
-RenderState RS_SHADOW =
-{
-	.DepthFunc = LESS_EQUAL,
-	.DepthEnable = 1,
-	.DepthWriteMask = 1,
-	.FillMode = SOLID,
-};
-
 Technique RenderPassDepthPrepass =
 {
 	.VertexShader = vs_main,
 	.PixelShader = ps_depthprepass,
 	.RenderState = RS_DEPTH_PREPASS,
+};
+
+Technique RenderPassShadow =
+{
+	.VertexShader = vs_main,
+	.PixelShader = ps_shadow,
+	.RenderState = RS_SHADOW,
 };
 
 Technique RenderPassForward =
@@ -143,9 +154,3 @@ Technique RenderPassForward =
 	.RenderState = RS_FORWARD,
 };
 
-Technique RenderPassShadow =
-{
-	.VertexShader = vs_main,
-	.PixelShader = ps_shadow,
-	.RenderState = RS_SHADOW,
-};

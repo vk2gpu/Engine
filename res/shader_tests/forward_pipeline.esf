@@ -34,6 +34,7 @@ StructuredBuffer<TileInfo> inTileInfo;
 [numthreads(1,1,1)]
 void cs_compute_tile_info(CS_INPUT _in)
 {
+	GroupMemoryBarrierWithGroupSync();
 
 	//
 	const float3 eyePos = float3(0.0, 0.0, 0.0);
@@ -88,6 +89,8 @@ groupshared int gLightIndices[MAX_LIGHTS_PER_TILE];
 [numthreads(LIGHT_LIST_GROUP_SIZE,LIGHT_LIST_GROUP_SIZE,1)]
 void cs_compute_light_lists(CS_INPUT _in)
 {
+	GroupMemoryBarrierWithGroupSync();
+
 	float depth = depthTex.Load(uint3(_in.dispatchID.xy, 0));
 	uint depthInt = asuint(depth);
 	uint outTemp;

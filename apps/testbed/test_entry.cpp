@@ -1,6 +1,7 @@
 #include "common.h"
 #include "forward_pipeline.h"
 #include "imgui_pipeline.h"
+#include "shadow_pipeline.h"
 #include "render_packets.h"
 
 #include "client/input_provider.h"
@@ -457,8 +458,8 @@ namespace
 				}
 			}
 
-			Testbed::MeshRenderPacket::DrawPackets(
-			    meshPackets, meshPassTechIndices, cmdList, drawState, fbs, viewCBHandle, objectSBHandle, customBindFn);
+			Testbed::MeshRenderPacket::DrawPackets(meshPackets, meshPassTechIndices,
+				cmdList, drawState, fbs, viewCBHandle, objectSBHandle, customBindFn);
 		}
 	}
 
@@ -486,6 +487,7 @@ void Loop(const Core::CommandLine& cmdLine)
 	ImGui::Manager::Scoped imgui;
 	Testbed::ImGuiPipeline imguiPipeline;
 	Testbed::ForwardPipeline forwardPipeline;
+	Testbed::ShadowPipeline shadowPipeline;
 	RenderGraph graph;
 
 	// Load shader + teapot model.
@@ -775,7 +777,9 @@ void Loop(const Core::CommandLine& cmdLine)
 			proj.PerspProjectionVertical(Core::F32_PIDIV4, (f32)h_ / (f32)w_, 0.1f, 2000.0f);
 			forwardPipeline.SetCamera(camera_.matrix_, proj, Math::Vec2((f32)w_, (f32)h_));
 
-			// Set draw callback.
+			// Setup shadow light + eye pos.
+			shadowPipeline.SetDirectionalLight(camera_.cameraTarget_, forwardPipeline.lights_[0]);
+
 			forwardPipeline.SetDrawCallback(DrawRenderPackets);
 
 			// Clear graph prior to beginning work.

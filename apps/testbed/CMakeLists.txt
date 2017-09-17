@@ -8,6 +8,8 @@ SET(SOURCES_PUBLIC
 	"test_shared.h"
 	"render_packets.h"
 	"render_packets.cpp"
+	"shadow_pipeline.h"
+	"shadow_pipeline.cpp"
 )
 
 ADD_ENGINE_EXECUTABLE(testbed ${SOURCES_PUBLIC})

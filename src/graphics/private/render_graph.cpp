@@ -680,7 +680,7 @@ namespace Graphics
 			}
 		}
 
-#if 1
+#if 0
 		bool useSingleCommandList = true;
 
 		auto& singleCmdList = impl_->cmdLists_[0];

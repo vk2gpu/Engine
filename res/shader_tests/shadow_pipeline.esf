@@ -1,0 +1,63 @@
+#include "stdlib.esh"
+
+///////////////////////////////////////////////////////////////////////
+// Render shadow map.
+cbuffer ViewCBuffer
+{
+	ViewParams v_;
+};
+
+///////////////////////////////////////////////////////////////////////
+// Fullscreen shader.
+struct VS_FULLSCREEN_OUTPUT
+{
+	float4 position_ : SV_POSITION;
+	float2 texcoord_ : TEXCOORD0;
+};
+
+VS_FULLSCREEN_OUTPUT vs_fullscreen(uint id : SV_VertexID)
+{
+	VS_FULLSCREEN_OUTPUT output = (VS_FULLSCREEN_OUTPUT)0;
+	output.position_.x = (float)(id / 2) * 4.0 - 1.0;
+	output.position_.y = (float)(id % 2) * 4.0 - 1.0;
+	output.position_.z = 0.0;
+	output.position_.w = 1.0;
+	output.texcoord_.x = (float)(id / 2) * 2.0;
+	output.texcoord_.y = 1.0 - (float)(id % 2) * 2.0;
+	return output;
+}
+
+Texture2D<float> debugTex;
+SamplerState SS_FULLSCREEN = 
+{
+	.AddressU = CLAMP,
+	.AddressV = CLAMP,
+	.AddressW = CLAMP,
+	.MinFilter = NEAREST,
+	.MagFilter = NEAREST,
+};
+
+float4 ps_fullscreen(VS_FULLSCREEN_OUTPUT _in) : SV_TARGET0
+{
+	return debugTex.Sample(SS_FULLSCREEN, _in.texcoord_);
+}
+
+RenderState RS_FULLSCREEN =
+{
+	.BlendStates = {
+		.Enable = 1,
+		.SrcBlend = ONE,
+		.DestBlend = ZERO,
+	},
+
+	.DepthEnable = 0,
+	.FillMode = SOLID,
+	.CullMode = NONE,
+};
+
+Technique TECH_FULLSCREEN =
+{
+	.RenderState = RS_FULLSCREEN,
+	.VertexShader = vs_fullscreen,
+	.PixelShader = ps_fullscreen,
+};
