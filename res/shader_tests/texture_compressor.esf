@@ -507,7 +507,7 @@ struct BlockInput
 };
 
 // Expects anything UNORM.
-Texture2D<float4> inTexture;
+Texture2D<unorm float4> inTexture;
 
 // Formats expected:
 // - BC1: R32G32_UINT
@@ -516,7 +516,7 @@ Texture2D<float4> inTexture;
 // - BC5: R32G32B32A32_UINT
 RWTexture2D<uint4> outTexture;
 
-BlockInput ReadBlock(Texture2D<float4> inTex, int2 base)
+BlockInput ReadBlock(Texture2D<unorm float4> inTex, int2 base)
 {
 	int i, j;
 	BlockInput input = (BlockInput)0;

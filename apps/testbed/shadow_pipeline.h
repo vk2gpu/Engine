@@ -28,9 +28,6 @@ namespace Testbed
 		DrawFn drawFn_;
 
 		Graphics::Shader* shader_ = nullptr;
-		Graphics::ShaderTechnique techComputeTileInfo_;
-		Graphics::ShaderTechnique techComputeLightLists_;
-		Graphics::ShaderTechnique techDebugTileInfo_;
 
 		Math::Vec3 eyePos_;
 		Light directionalLight_;

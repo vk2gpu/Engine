@@ -87,6 +87,8 @@ namespace Graphics
 		Core::Vector<ShaderTechniqueDesc> techniqueDescs_;
 		Core::Vector<GPU::Handle> pipelineStates_;
 
+		Job::RWLock rwLock_;
+
 		ShaderImpl();
 		~ShaderImpl();
 

@@ -522,7 +522,7 @@ namespace Testbed
 		return output;
 	}
 
-	static const char* FORWARD_RESOURCE_NAMES[] = {"in_color", "in_depth", "out_color", "out_depth"};
+	static const char* FORWARD_RESOURCE_NAMES[] = {"in_color", "in_depth", "in_shadow_map", "out_color", "out_depth", nullptr};
 
 	ForwardPipeline::ForwardPipeline()
 	    : Pipeline(FORWARD_RESOURCE_NAMES)
@@ -635,8 +635,8 @@ namespace Testbed
 			    AddForwardPasses(drawFn_, renderGraph, cbs, lightCulling, GetDefaultTextureDesc(w, h), resources_[0],
 			        GetDepthTextureDesc(w, h), renderPassDepth.outDepth_, renderPassDepth.outObjectSB_);
 
-			resources_[2] = renderPassForward.outColor_;
-			resources_[3] = renderPassForward.outDepth_;
+			SetResource("out_color", renderPassForward.outColor_);
+			SetResource("out_depth", renderPassForward.outDepth_);
 			fbsDescs_.insert("RenderPassForward", renderPassForward.fbsDesc_);
 		}
 	}

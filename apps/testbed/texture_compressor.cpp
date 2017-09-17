@@ -59,7 +59,7 @@ TextureCompressor::~TextureCompressor()
 }
 
 bool TextureCompressor::Compress(
-    GPU::CommandList& cmdList, Graphics::Texture* inTexture, GPU::Format format, GPU::Handle outputTexture)
+    GPU::CommandList& cmdList, Graphics::Texture* inTexture, GPU::Format format, GPU::Handle outputTexture, GPU::Point point)
 {
 	// Wait until shader is ready.
 	Resource::Manager::WaitForResource(shader_);
@@ -123,7 +123,7 @@ bool TextureCompressor::Compress(
 		box.w_ = outTextureDesc.width_;
 		box.h_ = outTextureDesc.height_;
 		cmdList.Dispatch(binding, box.w_, box.h_, 1);
-		cmdList.CopyTextureSubResource(outputTexture, 0, GPU::Point(), intermediateTexture, 0, box);
+		cmdList.CopyTextureSubResource(outputTexture, 0, point, intermediateTexture, 0, box);
 	}
 
 	GPU::Manager::DestroyResource(intermediateTexture);

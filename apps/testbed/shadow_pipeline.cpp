@@ -123,6 +123,7 @@ namespace Testbed
 	using FullscreenSetupFn = Core::Function<void(RenderGraphBuilder&)>;
 	using FullscreenBindFn = Core::Function<void(RenderGraphResources&, Shader*, ShaderTechnique&)>;
 
+#if 0
 	static FullscreenData AddFullscreenPass(DrawFn drawFn, RenderGraph& renderGraph, const CommonBuffers& cbs,
 	    RenderGraphResource color, Shader* shader, FullscreenSetupFn setupFn, FullscreenBindFn bindFn)
 	{
@@ -180,8 +181,9 @@ namespace Testbed
 		output.fbsDesc_ = pass.GetFrameBindingDesc();
 		return output;
 	}
+#endif
 
-	static const char* SHADOW_RESOURCE_NAMES[] = {"in_depth", "out_shadow_map"};
+	static const char* SHADOW_RESOURCE_NAMES[] = {"in_depth", "out_shadow_map", nullptr};
 
 	ShadowPipeline::ShadowPipeline()
 	    : Pipeline(SHADOW_RESOURCE_NAMES)
@@ -190,16 +192,10 @@ namespace Testbed
 		Resource::Manager::WaitForResource(shader_);
 
 		ShaderTechniqueDesc desc;
-		techComputeTileInfo_ = shader_->CreateTechnique("TECH_COMPUTE_TILE_INFO", desc);
-		techComputeLightLists_ = shader_->CreateTechnique("TECH_COMPUTE_LIGHT_LISTS", desc);
-		techDebugTileInfo_ = shader_->CreateTechnique("TECH_DEBUG_TILE_INFO", desc);
 	}
 
 	ShadowPipeline::~ShadowPipeline()
 	{
-		techComputeTileInfo_ = ShaderTechnique();
-		techComputeLightLists_ = ShaderTechnique();
-		techDebugTileInfo_ = ShaderTechnique();
 		Resource::Manager::ReleaseResource(shader_);
 	}
 
@@ -283,6 +279,9 @@ namespace Testbed
 		auto renderPassShadow = AddShadowPass(drawFn_, renderGraph, settings);
 		fbsDescs_.insert("RenderPassShadow", renderPassShadow.fbsDesc_);
 
+		SetResource("out_shadow_map", renderPassShadow.outShadowMap_);
+
+#if 0
 		RenderGraphResource debugTex = debugTex = renderPassShadow.outShadowMap_;
 		AddFullscreenPass(drawFn_, renderGraph, cbs, resources_[0], shader_,
 			[&](RenderGraphBuilder& builder) {
@@ -291,6 +290,7 @@ namespace Testbed
 			[debugTex](RenderGraphResources& res, Shader* shader, ShaderTechnique& tech) {
 				tech.Set("debugTex", res.Texture2D(debugTex, GPU::Format::INVALID, 0, -1));
 			});
+#endif
 	}
 
 } // namespace Testbed

@@ -518,7 +518,7 @@ void Loop(const Core::CommandLine& cmdLine)
 #endif
 
 	GPU::TextureDesc finalTextureDesc = texture->GetDesc();
-	finalTextureDesc.format_ = GPU::Format::BC3_TYPELESS;
+	finalTextureDesc.format_ = GPU::Format::BC5_UNORM;
 	GPU::Handle finalTexture = GPU::Manager::CreateTexture(finalTextureDesc, nullptr, "finalCompressed");
 	DBG_ASSERT(finalTexture);
 
@@ -807,7 +807,7 @@ void Loop(const Core::CommandLine& cmdLine)
 
 
 				    // Testing code.
-				    texCompressor.Compress(cmdList, texture, GPU::Format::BC3_UNORM, finalTexture);
+				    texCompressor.Compress(cmdList, texture, finalTextureDesc.format_, finalTexture);
 				});
 
 			// Clear graph prior to beginning work.
@@ -825,19 +825,26 @@ void Loop(const Core::CommandLine& cmdLine)
 				scDesc.format_ = engine.scDesc.format_;
 				auto bbRes = graph.ImportResource("Back Buffer", engine.scHandle, scDesc);
 
-				// Set color target to back buffer.
-				forwardPipeline.SetResource("in_color", bbRes);
+				// Setup Shadow pipeline.
+				{
+					rmt_ScopedCPUSample(Setup_ShadowPipeline, RMTSF_None);
+					shadowPipeline.Setup(graph);
+				}
 
-				// Have the pipeline setup on the graph.
+				// Setup Forward pipeline.
 				{
 					rmt_ScopedCPUSample(Setup_ForwardPipeline, RMTSF_None);
+
+					forwardPipeline.SetResource("in_color", bbRes);
+					forwardPipeline.SetResource("in_shadow_map", shadowPipeline.GetResource("out_shadow_map"));
 					forwardPipeline.Setup(graph);
 				}
 
 				// Setup ImGui pipeline.
-				imguiPipeline.SetResource("in_color", forwardPipeline.GetResource("out_color"));
 				{
 					rmt_ScopedCPUSample(Setup_ImGuiPipeline, RMTSF_None);
+
+					imguiPipeline.SetResource("in_color", forwardPipeline.GetResource("out_color"));
 					imguiPipeline.Setup(graph);
 				}
 			}

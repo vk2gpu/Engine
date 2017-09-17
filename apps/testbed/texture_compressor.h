@@ -8,8 +8,16 @@ public:
 	TextureCompressor();
 	~TextureCompressor();
 
+	/**
+	 * Compress a texture to target format.
+	 * @param cmdList Command list to use.
+	 * @param inTexture Input texture to compress.
+	 * @param format Format to compress to.
+	 * @param outputTexture Output texture to write to.
+	 * @param point Point to copy to on @a outputTexture.
+	 */
 	bool Compress(
-	    GPU::CommandList& cmdList, Graphics::Texture* inTexture, GPU::Format format, GPU::Handle outputTexture);
+	    GPU::CommandList& cmdList, Graphics::Texture* inTexture, GPU::Format format, GPU::Handle outputTexture, GPU::Point point = GPU::Point());
 
 private:
 	struct LookupTable

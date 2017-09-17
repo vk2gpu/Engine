@@ -237,6 +237,8 @@ namespace Graphics
 	{
 		if(impl_)
 		{
+			Job::ScopedWriteLock lock(impl_->shader_->rwLock_);
+
 			if(GPU::Manager::IsInitialized())
 				if(impl_->bsHandle_)
 					GPU::Manager::DestroyResource(impl_->bsHandle_);
@@ -537,6 +539,8 @@ namespace Graphics
 
 	ShaderTechniqueImpl* ShaderImpl::CreateTechnique(const char* name, const ShaderTechniqueDesc& desc)
 	{
+		Job::ScopedWriteLock lock(rwLock_);
+
 		// See if there is a matching name + descriptor, if not, add it.
 		i32 foundIdx = -1;
 		u32 hash = Core::HashCRC32(0, &desc, sizeof(desc));

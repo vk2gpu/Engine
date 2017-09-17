@@ -41,6 +41,8 @@ namespace
 		"const",
 		"row_major",
 		"column_major",
+		"unorm",
+		"snorm",
 	};
 
 	NodeType BASE_TYPES[] =

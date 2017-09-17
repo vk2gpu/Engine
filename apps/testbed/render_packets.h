@@ -13,7 +13,7 @@ namespace Testbed
 {
 	using CustomBindFn = Core::Function<bool(Graphics::Shader*, Graphics::ShaderTechnique&)>;
 	using DrawFn = Core::Function<void(GPU::CommandList& cmdList, const char* passName, const GPU::DrawState& drawState,
-	    GPU::Handle fbs, GPU::Handle viewCBHandle, GPU::Handle objectSBHandle, CustomBindFn customBindFn)>;
+	    GPU::Handle fbs, GPU::Handle viewCBHandle, GPU::Handle objectSBHandle, CustomBindFn customBindFn), 64>;
 
 	enum class RenderPacketType : i16
 	{
