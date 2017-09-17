@@ -94,9 +94,10 @@ void cs_compute_light_lists(CS_INPUT _in)
 	float depth = depthTex.Load(uint3(_in.dispatchID.xy, 0));
 	uint depthInt = asuint(depth);
 	uint outTemp;
+
+	GroupMemoryBarrierWithGroupSync();
 	InterlockedMin(gDepthMin, depthInt, outTemp);
 	InterlockedMax(gDepthMax, depthInt, outTemp);
-
 	GroupMemoryBarrierWithGroupSync();
 
 	float depthMin = ClipToView(v_, float4(0.0, 0.0, asfloat(gDepthMin), 1.0)).z;

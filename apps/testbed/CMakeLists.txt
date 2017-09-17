@@ -6,6 +6,8 @@ SET(SOURCES_PUBLIC
 	"imgui_pipeline.cpp"
 	"test_entry.cpp"
 	"test_shared.h"
+	"texture_compressor.h"
+	"texture_compressor.cpp"
 	"render_packets.h"
 	"render_packets.cpp"
 	"shadow_pipeline.h"

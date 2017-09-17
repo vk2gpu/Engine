@@ -29,8 +29,8 @@ struct VS_IN
 struct VS_OUT
 {
 	float4 position : SV_POSITION;
-	float3 w_position : TEXCOORD15;
-	float3 normal : NORMAL;
+	float3 v_position : TEXCOORD15;
+	float3 v_normal : NORMAL;
 };
 
 VS_OUT vs_main(in VS_IN _in, uint _id : SV_INSTANCEID)
@@ -39,9 +39,10 @@ VS_OUT vs_main(in VS_IN _in, uint _id : SV_INSTANCEID)
 
 	VS_OUT _out = (VS_OUT)0;
 	float4 position = mul(o.world_, float4(_in.position, 1.0));
+	float3 normal = mul((float3x3)o.world_, _in.normal);
 	_out.position = mul(v_.viewProj_, position);
-	_out.w_position = position.xyz;
-	_out.normal = mul((float3x3)o.world_, _in.normal);
+	_out.v_position = mul(v_.view_, position).xyz;
+	_out.v_normal = mul(v_.view_, normal);
 	return _out;
 }
 
@@ -61,14 +62,13 @@ StructuredBuffer<Light> inLights;
 
 float4 ps_forward(in VS_OUT _in) : SV_TARGET0
 {
-	const float3 normal = normalize(_in.normal.xyz); 
+	const float3 v_normal = normalize(_in.v_normal.xyz); 
 	const float3 ambient = float3(0.01, 0.01, 0.01);
 
 	float3 lightColor = float3(0.0, 0.0, 0.0);
 	lightColor += ambient;
 
-	float2 viewCoord = _in.position.xy / v_.screenDimensions_;
-	int2 lightTexel = DecodeLight(inLightTex[int2(viewCoord * l_.numTiles_)]);
+	int2 lightTexel = DecodeLight(inLightTex[int2(floor(_in.position.xy / l_.tileSize_))]);
 
 	Material material;
 
@@ -77,28 +77,22 @@ float4 ps_forward(in VS_OUT _in) : SV_TARGET0
 	material.metallic_ = 0.0;
 	material.f0_ = DIELECTRIC_F0;
 
-	float3 viewPos = float3(v_.invView_[0].w, v_.invView_[1].w, v_.invView_[2].w);
-	Surface surface = SetupSurface(material, viewPos, _in.w_position, normal);
+	Surface surface = SetupSurface(material, _in.v_position, v_normal);
 
-	// Iterate over lights.
+	// Iterate over lights. 
 	for(int idx = 0; idx < lightTexel.y; ++idx)
 	{	
 		const int lightIdx = inLightIndices[lightTexel.x + idx];
-		const Light light = inLights[lightIdx];
-		const float3 lightVec = light.position_ - _in.w_position;
-		const float dist = sqrt(dot(lightVec, lightVec));
-		const float attn = CalculateAttn(dist, light.radiusInner_, light.radiusOuter_);
-#if 0
-		const float3 lightDir = lightVec / dist; 
-		
-		lightColor += light.color_ * max(0.0, dot(normal, lightDir) * attn);
-#else
-		lightColor += BRDF_Default(light, surface) * attn;
-#endif
+		Light light = inLights[lightIdx];
+		light.position_ = mul(v_.view_, float4(light.position_, 1.0)).xyz;
+
+		LightParameters lightParams = CreatePointLight(light, surface);
+	
+		lightColor += BRDF_Default(lightParams) * lightParams.attenuation;
 	}
 
 	// TODO: LinearToGamma in post process.
-	return float4(LinearToGamma(lightColor), 1.0);
+	return float4(LinearToGamma(lightColor), 0.0);
 }
 
 RenderState RS_DEPTH_PREPASS =
@@ -111,6 +105,7 @@ RenderState RS_DEPTH_PREPASS =
 	.DepthEnable = 1,
 	.DepthWriteMask = 1,
 	.FillMode = SOLID,
+	.CullMode = CCW,
 };
 
 RenderState RS_SHADOW =
@@ -123,6 +118,7 @@ RenderState RS_SHADOW =
 	.DepthEnable = 1,
 	.DepthWriteMask = 1,
 	.FillMode = SOLID,
+	.CullMode = CCW,
 };
 
 RenderState RS_FORWARD =
@@ -131,6 +127,7 @@ RenderState RS_FORWARD =
 	.DepthEnable = 1,
 	.DepthWriteMask = 1,
 	.FillMode = SOLID,
+	.CullMode = CCW,
 };
 
 Technique RenderPassDepthPrepass =

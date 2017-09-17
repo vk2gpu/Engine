@@ -16,7 +16,7 @@ namespace Core
 		char* GetMessageBuffer(i32& size)
 		{
 			static TLS tls;
-			size = 4096;
+			size = 64 * 1024;
 			if(tls.Get() == nullptr)
 			{
 				char* buffer = new char[size];
@@ -32,7 +32,7 @@ namespace Core
 		char* MessageBuffer = GetMessageBuffer(MessageBufferSize);
 
 #if COMPILER_MSVC
-		vsprintf_s(MessageBuffer, 4096, Text, ArgList);
+		vsprintf_s(MessageBuffer, MessageBufferSize, Text, ArgList);
 #else
 		vsprintf(MessageBuffer, Text, ArgList);
 #endif

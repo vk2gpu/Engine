@@ -21,16 +21,31 @@ struct Surface
 	float3 specularColor_;
 	float roughness_;
 
-	float3 surfacePosition_;
+	float3 position_;
 	float3 normal_;
 
-	float3 viewPosition_;
-	float3 viewVector_;
+	float3 viewDir_;
 	float NdotV_;
 };
 
 
-Surface SetupSurface(Material inMaterial, in float3 viewPosition, in float3 surfacePosition, in float3 normal)
+struct LightParameters
+{
+	Light light_;
+	Surface surface_;
+
+	float3 nearestLightPoint;
+	float3 lightDir;
+	float3 halfVec;
+	float attenuation;
+	float dist;
+	float NdotL;
+	float NdotH;
+	float LdotH;
+	float VdotH;
+};
+
+Surface SetupSurface(Material inMaterial, in float3 position, in float3 normal)
 {
 	Surface outSurface;
 	// Calculate diffuse + spec material colours.
@@ -40,11 +55,10 @@ Surface SetupSurface(Material inMaterial, in float3 viewPosition, in float3 surf
 
 	outSurface.roughness_ = inMaterial.roughness_;
 	outSurface.normal_ = normal;
-	outSurface.viewVector_ = normalize(viewPosition - surfacePosition);
-	outSurface.NdotV_ = max(LIGHTING_EPSILON, dot(normal, outSurface.viewVector_));
+	outSurface.viewDir_ = normalize(-position);
+	outSurface.NdotV_ = max(LIGHTING_EPSILON, dot(normal, outSurface.viewDir_));
 
-	outSurface.viewPosition_ = viewPosition;
-	outSurface.surfacePosition_ = surfacePosition;
+	outSurface.position_ = position;
 
 	return outSurface;
 }
@@ -60,6 +74,55 @@ float CalculateAttn(float dist, float radiusInner, float radiusOuter)
 	if(dist > radiusInner)
 		attn *= smoothstep(radiusOuter, radiusInner, dist);
 	return attn;
+}
+
+LightParameters CreatePointLight(Light inLight, Surface inSurface)
+{
+	LightParameters params;
+	params.light_ = inLight;
+	params.surface_ = inSurface;
+
+	params.nearestLightPoint = inLight.position_;
+	params.lightDir = params.nearestLightPoint - inSurface.position_;
+	params.dist = length(params.lightDir);
+	params.attenuation = CalculateAttn(params.dist, inLight.radiusInner_, inLight.radiusOuter_);
+
+	params.lightDir = normalize(params.lightDir);
+	params.halfVec = normalize(params.lightDir + inSurface.viewDir_);
+	params.NdotL = max(LIGHTING_EPSILON, dot(inSurface.normal_, params.lightDir));
+	params.NdotH = max(LIGHTING_EPSILON, dot(inSurface.normal_, params.halfVec));
+	params.LdotH = max(LIGHTING_EPSILON, dot(params.lightDir, params.halfVec));
+	params.VdotH = max(LIGHTING_EPSILON, dot(inSurface.viewDir_, params.halfVec));
+
+
+	return params;
+}
+
+LightParameters CreateSphereLight(Light inLight, Surface inSurface, float radius)
+{
+	LightParameters params;
+
+	float3 ref = reflect(-inSurface.viewDir_, inSurface.normal_);
+	float3 l = inLight.position_ - inSurface.position_;
+	float3 ray = (dot(l, ref) * ref) - l;
+	float3 pt = l + ray * saturate(radius / length(ray));
+
+	params.light_ = inLight;
+	params.surface_ = inSurface;
+
+	params.nearestLightPoint = pt;
+	params.lightDir = normalize(pt);
+	params.dist = length(pt);
+
+	params.attenuation = CalculateAttn(params.dist, inLight.radiusInner_, inLight.radiusOuter_);
+
+	params.halfVec = normalize(params.lightDir + inSurface.viewDir_);
+	params.NdotL = max(LIGHTING_EPSILON, dot(inSurface.normal_, params.lightDir));
+	params.NdotH = max(LIGHTING_EPSILON, dot(inSurface.normal_, params.halfVec));
+	params.LdotH = max(LIGHTING_EPSILON, dot(params.lightDir, params.halfVec));
+	params.VdotH = max(LIGHTING_EPSILON, dot(inSurface.viewDir_, params.halfVec));
+
+	return params;
 }
 
 float RoughnessToSpecularPower( float roughness)
@@ -133,15 +196,16 @@ float3 EnvBRDFApprox(float3 specularColor, float roughness, float NoV)
 
 //////////////////////////////////////////////////////////////////////////
 // BRDF_BlinnPhong
-float3 BRDF_BlinnPhong(Light inLight, in Surface inSurface)
+float3 BRDF_BlinnPhong(in LightParameters inParams)
 {
-	// Shared utility.
-	float3 lightVector = normalize(inLight.position_.xyz - inSurface.surfacePosition_);
-	float3 halfVector = normalize(lightVector + inSurface.viewVector_);
-	float NdotL = max(LIGHTING_EPSILON, dot(inSurface.normal_, lightVector));
-	float NdotH = max(LIGHTING_EPSILON, dot(inSurface.normal_, halfVector));
-	float LdotH = max(LIGHTING_EPSILON, dot(lightVector, halfVector));
-	float VdotH = max(LIGHTING_EPSILON, dot(inSurface.viewVector_, halfVector));
+	Light inLight = inParams.light_;
+	Surface inSurface  = inParams.surface_;
+	float3 lightDir = inParams.lightDir;
+	float3 halfVec = inParams.halfVec;
+	float NdotL = inParams.NdotL;
+	float NdotH = inParams.NdotH;
+	float LdotH = inParams.LdotH;
+	float VdotH = inParams.VdotH;
 
 	// Calculate terms for spec + diffuse.
 	float D = NDF_BlinnPhongNormalised(NdotH, RoughnessToSpecularPower(inSurface.roughness_));
@@ -165,15 +229,17 @@ float3 BRDF_BlinnPhong(Light inLight, in Surface inSurface)
 
 //////////////////////////////////////////////////////////////////////////
 // BRDF_GGX
-float3 BRDF_GGX(Light inLight, in Surface inSurface)
+float3 BRDF_GGX(in LightParameters inParams)
 {
-	// Shared utility.
-	float3 lightVector = normalize(inLight.position_.xyz - inSurface.surfacePosition_);
-	float3 halfVector = normalize(lightVector + inSurface.viewVector_);
-	float NdotL = max(LIGHTING_EPSILON, dot(inSurface.normal_, lightVector));
-	float NdotH = max(LIGHTING_EPSILON, dot(inSurface.normal_, halfVector));
-	float LdotH = max(LIGHTING_EPSILON, dot(lightVector, halfVector));
-	float VdotH = max(LIGHTING_EPSILON, dot(inSurface.viewVector_, halfVector));
+	Light inLight = inParams.light_;
+	Surface inSurface  = inParams.surface_;
+	float3 lightDir = inParams.lightDir;
+	float3 halfVec = inParams.halfVec;
+	float NdotL = inParams.NdotL;
+	float NdotH = inParams.NdotH;
+	float LdotH = inParams.LdotH;
+	float VdotH = inParams.VdotH;
+
 
 	// Calculate terms for spec + diffuse.
 	float D = NDF_GGX(NdotH, inSurface.roughness_);
@@ -201,9 +267,9 @@ float3 BRDF_GGX(Light inLight, in Surface inSurface)
 
 //////////////////////////////////////////////////////////////////////////
 // BRDF_Default
-float3 BRDF_Default(Light inLight, in Surface inSurface)
+float3 BRDF_Default(in LightParameters inParams)
 {
-	return BRDF_GGX(inLight, inSurface);
+	return BRDF_GGX(inParams);
 }
 
 //////////////////////////////////////////////////////////////////////////
