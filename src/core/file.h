@@ -238,6 +238,11 @@ namespace Core
 		 * @return true if successfully resolved.
 		 */
 		virtual bool ResolvePath(const char* inPath, char* outPath, i32 maxOutPath) = 0;
+
+		/**
+		 * Get original path from already resolved path.
+		 */
+		virtual bool OriginalPath(const char* inPath, char* outPath, i32 maxOutPath) = 0;
 	};
 
 	/**

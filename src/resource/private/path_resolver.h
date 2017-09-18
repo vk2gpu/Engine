@@ -18,6 +18,7 @@ namespace Resource
 		bool AddPath(const char* path);
 
 		bool ResolvePath(const char* inPath, char* outPath, i32 maxOutPath) override;
+		bool OriginalPath(const char* inPath, char* outPath, i32 maxOutPath) override;
 
 	private:
 		Core::Array<char, Core::MAX_PATH_LENGTH> rootPath_ = {};

@@ -32,7 +32,19 @@ namespace Resource
 				return true;
 			}
 		}
+		return false;
+	}
 
+	bool PathResolver::OriginalPath(const char* inPath, char* outPath, i32 maxOutPath)
+	{
+		for(const auto& searchPath : searchPaths_)
+		{
+			if(strstr(inPath, searchPath.c_str()) == inPath)
+			{
+				strcpy_s(outPath, maxOutPath, inPath + searchPath.size() + 1);
+				return true;
+			}
+		}
 		return false;
 	}
 

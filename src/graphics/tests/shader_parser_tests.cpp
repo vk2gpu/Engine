@@ -25,7 +25,7 @@ namespace
 
 		virtual ~PathResolver() {}
 
-		bool ResolvePath(const char* inPath, char* outPath, i32 maxOutPath)
+		bool ResolvePath(const char* inPath, char* outPath, i32 maxOutPath) override
 		{
 			const char* paths[] = {resolvePath_};
 
@@ -42,6 +42,22 @@ namespace
 				}
 			}
 
+			return false;
+		}
+
+		bool OriginalPath(const char* inPath, char* outPath, i32 maxOutPath) override
+		{
+			const char* paths[] = {resolvePath_};
+
+			for(i32 i = 0; i < sizeof(paths) / sizeof(paths[0]); ++i)
+			{
+				if(strstr(inPath, paths[i]) == inPath)
+				{
+					auto len = strlen(paths[i]);
+					strcpy_s(outPath, maxOutPath, inPath + len + 1);
+					return true;
+				}
+			}
 			return false;
 		}
 

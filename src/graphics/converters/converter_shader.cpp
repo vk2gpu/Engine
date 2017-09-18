@@ -56,10 +56,10 @@ namespace
 		bool Convert(Resource::IConverterContext& context, const char* sourceFile, const char* destPath) override
 		{
 			MetaData metaData = context.GetMetaData<MetaData>();
-
+			auto* pathResolver = context.GetPathResolver();
 			char fullPath[Core::MAX_PATH_LENGTH];
 			memset(fullPath, 0, sizeof(fullPath));
-			context.GetPathResolver()->ResolvePath(sourceFile, fullPath, sizeof(fullPath));
+			pathResolver->ResolvePath(sourceFile, fullPath, sizeof(fullPath));
 
 			char file[Core::MAX_PATH_LENGTH];
 			memset(file, 0, sizeof(file));
@@ -79,7 +79,7 @@ namespace
 			bool retVal = false;
 
 			//
-			Core::File shaderFile(sourceFile, Core::FileFlags::READ, context.GetPathResolver());
+			Core::File shaderFile(sourceFile, Core::FileFlags::READ, pathResolver);
 			if(shaderFile)
 			{
 				Core::Vector<char> shaderSource;
@@ -90,7 +90,7 @@ namespace
 
 				// Resolve standard library path.
 				char stdLibFile[Core::MAX_PATH_LENGTH];
-				if(context.GetPathResolver()->ResolvePath("stdlib.esh", stdLibFile, sizeof(stdLibFile)))
+				if(pathResolver->ResolvePath("stdlib.esh", stdLibFile, sizeof(stdLibFile)))
 				{
 					char stdLibPath[Core::MAX_PATH_LENGTH];
 					Core::FileSplitPath(stdLibFile, stdLibPath, sizeof(stdLibPath), nullptr, 0, nullptr, 0);
@@ -100,13 +100,17 @@ namespace
 				// Setup include path to root of shader.
 				preprocessor.AddInclude(path);
 
-				if(!preprocessor.Preprocess(sourceFile, shaderSource.data()))
+				if(!preprocessor.Preprocess(fullPath, shaderSource.data()))
 					return false;
 
 				// Add dependencies from preprocessor stage.
+				Core::Array<char, Core::MAX_PATH_LENGTH> originalPath;
 				for(const char* dep : preprocessor.GetDependencies())
 				{
-					context.AddDependency(dep);
+					if(pathResolver->OriginalPath(dep, originalPath.data(), originalPath.size()))
+						context.AddDependency(originalPath.data());
+					else if(Core::FileExists(dep))
+						context.AddDependency(dep);
 				}
 
 				// Parse shader into an AST.

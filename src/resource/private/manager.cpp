@@ -315,7 +315,7 @@ namespace Resource
 				DBG_ASSERT_MSG(currRelativePath.size() < Core::MAX_PATH_LENGTH, "Unable to find \'res\' directory!");
 			}
 
-			pathResolver_.AddPath(".");
+			pathResolver_.AddPath("./");
 			pathResolver_.AddPath(currRelativePath.c_str());
 
 			// Start timestamp checking job.
