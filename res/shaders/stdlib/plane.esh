@@ -1,0 +1,33 @@
+#ifndef STDLIB_PLANE_ESH
+#define STDLIB_PLANE_ESH
+
+struct Plane
+{
+	float3 normal_;
+	float d_;
+};
+
+float3 CalculatePlaneNormal(float3 a, float3 b, float3 c)
+{
+	return normalize(cross(b - a, c - a));
+}
+
+Plane CalculatePlane(float3 a, float3 b, float3 c)
+{
+	Plane plane;
+	plane.normal_.xyz = CalculatePlaneNormal(a, b, c);
+	plane.d_ = dot(a, plane.normal_.xyz);
+	return plane;
+}
+
+float PlaneDistanceNormal(float3 normal, float3 pos)
+{
+	return dot(normal, pos);
+}
+
+float PlaneDistance(Plane plane, float3 pos)
+{
+	return PlaneDistanceNormal(plane.normal_, pos) - plane.d_;
+}
+
+#endif

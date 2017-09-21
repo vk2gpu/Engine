@@ -201,9 +201,9 @@ namespace Testbed
 			            data.outLightIndex_ =
 			                builder.Write(builder.Create("LC Light Link Index SB", RenderGraphBufferDesc(sizeof(u32))),
 			                    GPU::BindFlags::UNORDERED_ACCESS);
-			            data.outLightTex_ = builder.Write(
-			                builder.Create("LC Light Tex", RenderGraphTextureDesc(GPU::TextureType::TEX2D,
-			                                                   lightTexFormat, light.numTilesX_, light.numTilesY_)),
+			            data.outLightTex_ = builder.Write(builder.Create("LC Light Tex",
+			                                                  RenderGraphTextureDesc(GPU::TextureType::TEX2D,
+			                                                      lightTexFormat, light.numTilesX_, light.numTilesY_)),
 			                GPU::BindFlags::UNORDERED_ACCESS);
 			            data.outLightIndicesSB_ =
 			                builder.Write(builder.Create("LC Light Indices SB",
@@ -522,12 +522,13 @@ namespace Testbed
 		return output;
 	}
 
-	static const char* FORWARD_RESOURCE_NAMES[] = {"in_color", "in_depth", "in_shadow_map", "out_color", "out_depth", nullptr};
+	static const char* FORWARD_RESOURCE_NAMES[] = {
+	    "in_color", "in_depth", "in_shadow_map", "out_color", "out_depth", nullptr};
 
 	ForwardPipeline::ForwardPipeline()
 	    : Pipeline(FORWARD_RESOURCE_NAMES)
 	{
-		Resource::Manager::RequestResource(shader_, "shader_tests/forward_pipeline.esf");
+		Resource::Manager::RequestResource(shader_, "shaders/forward_pipeline.esf");
 		Resource::Manager::WaitForResource(shader_);
 
 		ShaderTechniqueDesc desc;

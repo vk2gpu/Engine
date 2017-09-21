@@ -1,6 +1,0 @@
-{
-   "$internal" : {
-      "dependencies" : [ "shader_tests/dxt_compress.esf", "../../../../res/stdlib.esh" ],
-      "outputs" : [ "converter_output/shader_tests/dxt_compress.esf.converted" ]
-   }
-}

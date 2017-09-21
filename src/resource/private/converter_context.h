@@ -20,6 +20,9 @@ namespace Resource
 		void SetMetaData(MetaDataCb callback, void* metaData) override;
 		void GetMetaData(MetaDataCb callback, void* metaData) override;
 
+		Core::Vector<Core::String> GetDependencies() const { return dependencies_; }
+		Core::Vector<Core::String> GetOutputs() const { return outputs_; }
+
 	private:
 		Core::IFilePathResolver* pathResolver_ = nullptr;
 		char metaDataFileName_[Core::MAX_PATH_LENGTH] = {0};

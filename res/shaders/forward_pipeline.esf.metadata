@@ -1,0 +1,17 @@
+{
+   "$internal" : {
+      "dependencies" : [
+         "shaders/forward_pipeline.esf",
+         "shaders/stdlib.esh",
+         "shaders/stdlib/color.esh",
+         "shaders/stdlib/constants.esh",
+         "shaders/stdlib/gamma.esh",
+         "shaders/stdlib/metadata.esh",
+         "shaders/stdlib/normals.esh",
+         "shaders/stdlib/plane.esh",
+         "shaders/stdlib/view.esh",
+         "shaders/lights.esh"
+      ],
+      "outputs" : [ "converter_output/shaders/forward_pipeline.esf.converted" ]
+   }
+}

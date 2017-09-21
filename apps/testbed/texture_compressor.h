@@ -16,8 +16,8 @@ public:
 	 * @param outputTexture Output texture to write to.
 	 * @param point Point to copy to on @a outputTexture.
 	 */
-	bool Compress(
-	    GPU::CommandList& cmdList, Graphics::Texture* inTexture, GPU::Format format, GPU::Handle outputTexture, GPU::Point point = GPU::Point());
+	bool Compress(GPU::CommandList& cmdList, Graphics::Texture* inTexture, GPU::Format format,
+	    GPU::Handle outputTexture, GPU::Point point = GPU::Point());
 
 private:
 	struct LookupTable

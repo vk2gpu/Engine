@@ -32,6 +32,28 @@
 
 namespace Resource
 {
+
+	Core::Vector<Core::String> LoadDependencies(Core::IFilePathResolver* pathResolver, const char* sourceFile)
+	{
+		Core::Vector<Core::String> deps;
+		Core::Array<char, Core::MAX_PATH_LENGTH> metaDataFilename;
+		if(pathResolver->ResolvePath(sourceFile, metaDataFilename.data(), metaDataFilename.size()))
+		{
+			strcat_s(metaDataFilename.data(), metaDataFilename.size(), ".metadata");
+
+			auto metaDataFile = Core::File(metaDataFilename.data(), Core::FileFlags::READ);
+			if(metaDataFile)
+			{
+				auto metaDataSer = Serialization::Serializer(metaDataFile, Serialization::Flags::TEXT);
+				if(auto object = metaDataSer.Object("$internal"))
+				{
+					metaDataSer.Serialize("dependencies", deps);
+				}
+			}
+		}
+		return deps;
+	}
+
 	// TODO: Remove this and rely upon Resource::Database perhaps?
 	struct ResourceEntry
 	{
@@ -44,25 +66,35 @@ namespace Resource
 		volatile i32 loaded_ = 0;
 		volatile i32 refCount_ = 0;
 
+		Core::Vector<Core::String> dependencies_;
+
 		/// @return If resource is out of date and needs reimporting.
 		bool ResourceOutOfDate(Core::IFilePathResolver* pathResolver) const
 		{
-			Core::FileTimestamp sourceTimestamp;
 			Core::FileTimestamp convertedTimestamp;
 			bool sourceExists = false;
-			if(pathResolver)
-			{
-				Core::Array<char, Core::MAX_PATH_LENGTH> resolvedSourcePath = {};
-				pathResolver->ResolvePath(sourceFile_.c_str(), resolvedSourcePath.data(), resolvedSourcePath.size());
-				sourceExists = Core::FileStats(resolvedSourcePath.data(), nullptr, &sourceTimestamp, nullptr);
-			}
-			else
-			{
-				sourceExists &= Core::FileStats(sourceFile_.c_str(), nullptr, &sourceTimestamp, nullptr);
-			}
 			bool convertedExists = Core::FileStats(convertedFile_.c_str(), nullptr, &convertedTimestamp, nullptr);
-			if(sourceExists && convertedExists)
-				return convertedTimestamp < sourceTimestamp;
+			if(convertedExists)
+			{
+				for(const auto& dep : dependencies_)
+				{
+					Core::FileTimestamp depTimestamp;
+					if(pathResolver)
+					{
+						Core::Array<char, Core::MAX_PATH_LENGTH> resolvedSourcePath = {};
+						pathResolver->ResolvePath(dep.c_str(), resolvedSourcePath.data(), resolvedSourcePath.size());
+						sourceExists = Core::FileStats(resolvedSourcePath.data(), nullptr, &depTimestamp, nullptr);
+					}
+					else
+					{
+						sourceExists &= Core::FileStats(dep.c_str(), nullptr, &depTimestamp, nullptr);
+					}
+
+					if(sourceExists)
+						if(convertedTimestamp < depTimestamp)
+							return true;
+				}
+			}
 			return !convertedExists;
 		}
 	};
@@ -498,6 +530,7 @@ namespace Resource
 		success_ = factory_->LoadResource(factoryContext, &entry_->resource_, type_, name_.c_str(), file_);
 		if(success_ && !isReload)
 		{
+			entry_->dependencies_ = LoadDependencies(&impl_->pathResolver_, entry_->sourceFile_.c_str());
 			Core::AtomicInc(&entry_->loaded_);
 		}
 
@@ -534,7 +567,21 @@ namespace Resource
 
 	void ResourceConvertJob::OnWork(i32 param)
 	{
-		success_ = Manager::ConvertResource(name_.c_str(), convertedPath_.c_str(), type_);
+		success_ = false;
+		Core::AtomicInc(&impl_->numConversionJobs_);
+		for(auto converterPlugin : impl_->converterPlugins_)
+		{
+			auto* converter = converterPlugin.CreateConverter();
+			if(converter->SupportsFileType(nullptr, type_))
+			{
+				ConverterContext converterContext(&impl_->pathResolver_);
+				success_ = converterContext.Convert(converter, name_.c_str(), convertedPath_.c_str());
+			}
+			converterPlugin.DestroyConverter(converter);
+			if(success_)
+				break;
+		}
+		Core::AtomicDec(&impl_->numConversionJobs_);
 	}
 
 	void ResourceConvertJob::OnCompleted()
@@ -716,27 +763,6 @@ namespace Resource
 		{
 			Job::Manager::YieldCPU();
 		}
-	}
-
-	bool Manager::ConvertResource(const char* name, const char* convertedName, const Core::UUID& type)
-	{
-		DBG_ASSERT(IsInitialized());
-		bool retVal = false;
-		Core::AtomicInc(&impl_->numConversionJobs_);
-		for(auto converterPlugin : impl_->converterPlugins_)
-		{
-			auto* converter = converterPlugin.CreateConverter();
-			if(converter->SupportsFileType(nullptr, type))
-			{
-				ConverterContext converterContext(&impl_->pathResolver_);
-				retVal = converterContext.Convert(converter, name, convertedName);
-			}
-			converterPlugin.DestroyConverter(converter);
-			if(retVal)
-				break;
-		}
-		Core::AtomicDec(&impl_->numConversionJobs_);
-		return retVal;
 	}
 
 	bool Manager::RegisterFactory(const Core::UUID& type, IFactory* factory)

@@ -1,6 +1,0 @@
-{
-   "$internal" : {
-      "dependencies" : [ "shader_tests/texture_compressor.esf", "../../../../res/stdlib.esh" ],
-      "outputs" : [ "converter_output/shader_tests/texture_compressor.esf.converted" ]
-   }
-}

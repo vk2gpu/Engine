@@ -98,8 +98,9 @@ namespace Testbed
 				if(numInstances > 0)
 				{
 					tech.Set("ViewCBuffer", GPU::Binding::CBuffer(viewCBHandle, 0, sizeof(Testbed::ViewConstants)));
-					tech.Set("inObject", GPU::Binding::Buffer(objectSBHandle, GPU::Format::INVALID, baseInstanceIdx,
-					                         numInstances, objectDataSize));
+					tech.Set("inObject",
+					    GPU::Binding::Buffer(
+					        objectSBHandle, GPU::Format::INVALID, baseInstanceIdx, numInstances, objectDataSize));
 					if(auto pbs = tech.GetBinding())
 					{
 						cmdList.Draw(pbs, meshPacket->db_, fbs, drawState, GPU::PrimitiveTopology::TRIANGLE_LIST,

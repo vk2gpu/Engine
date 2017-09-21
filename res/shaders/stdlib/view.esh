@@ -1,0 +1,34 @@
+#ifndef STDLIB_VIEW_ESH
+#define STDLIB_VIEW_ESH
+
+///////////////////////////////////////////////////////////////////////
+// Common view parameters.
+struct ViewParams
+{
+    float4x4 view_;
+    float4x4 proj_;
+    float4x4 viewProj_;
+    float4x4 invView_;
+    float4x4 invProj_;
+    float2 screenDimensions_;
+};
+
+float4 ClipToView(in ViewParams v, float4 clipPos)
+{
+    float4 view = mul(v.invProj_, clipPos);
+    return view / view.w;
+}
+ 
+float4 ScreenToClip(in ViewParams v, float4 screenPos)
+{
+    float2 ndc = screenPos.xy / v.screenDimensions_;
+    float4 clipPos = float4(float2(ndc.x, 1.0f - ndc.y) * 2.0f - 1.0f, screenPos.z, screenPos.w);
+    return clipPos;
+}
+
+float4 ScreenToView(in ViewParams v, float4 screenPos)
+{
+    return ClipToView(v, ScreenToClip(v, screenPos));
+}
+
+#endif

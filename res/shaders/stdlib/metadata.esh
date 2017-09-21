@@ -1,0 +1,87 @@
+#ifndef STDLIB_METADATA_ESH
+#define STDLIB_METADATA_ESH
+
+[internal("SamplerState")]
+struct SamplerState
+{
+	AddressingMode AddressU;
+	AddressingMode AddressV;
+	AddressingMode AddressW;
+	FilteringMode MinFilter;
+	FilteringMode MagFilter;
+	float MipLODBias;
+	uint MaxAnisotropy;
+	float BorderColor;//[4];
+	float MinLOD;
+	float MaxLOD;
+};
+
+[internal("BlendState")]
+struct BlendState
+{
+	uint Enable;
+	BlendType SrcBlend;
+	BlendType DestBlend;
+	BlendFunc BlendOp;
+	BlendType SrcBlendAlpha;
+	BlendType DestBlendAlpha;
+	BlendFunc BlendOpAlpha;
+	uint WriteMask;
+};
+
+[internal("StencilFaceState")]
+struct StencilFaceState
+{
+	StencilFunc Fail;
+	StencilFunc DepthFail;
+	StencilFunc Pass;
+	CompareMode Func;
+};
+
+[internal("RenderState")]
+struct RenderState
+{
+	BlendState BlendStates;//[8];
+
+	StencilFaceState StencilFront;
+	StencilFaceState StencilBack;
+	uint DepthEnable;
+	uint DepthWriteMask;
+	CompareMode DepthFunc;
+	uint StencilEnable;
+	uint StencilRef;
+	uint StencilRead;
+	uint StencilWrite;
+
+	FillMode FillMode;
+	CullMode CullMode;
+	float DepthBias;
+	float SlopeScaledDepthBias;
+	uint AntialiasedLineEnable;
+};
+
+[internal("Technique")]
+struct Technique
+{
+	[fn("VertexShader")]
+	void VertexShader;
+
+	[fn("GeometryShader")]
+	void GeometryShader;
+
+	[fn("HullShader")]
+	void HullShader;
+
+	[fn("DomainShader")]
+	void DomainShader;
+
+	[fn("PixelShader")]
+	void PixelShader;
+
+	[fn("ComputeShader")]
+	void ComputeShader;
+
+	RenderState RenderState;
+};
+
+#endif

@@ -1,0 +1,26 @@
+#ifndef STDLIB_NORMALS_ESH
+#define STDLIB_NORMALS_ESH
+
+float3x3 BuildTBN(float3 inTangent, float3 inBinormal, float3 inNormal)
+{
+	return float3x3(normalize(inTangent), normalize(inBinormal), normalize(inNormal));
+}
+
+float3 EncodeNormal(float3 nrm)
+{
+	const float3 scale = float3(0.5, 0.5, 0.5);
+	return nrm * scale + scale;
+}
+
+float3 DecodeNormal(float3 nrm)
+{
+	const float3 scale = float3(2.0, 2.0, 2.0);
+	return nrm * scale - float3(1.0, 1.0, 1.0);
+}
+
+float3 ReconstructNormal(float3 nrm)
+{
+	return float3(nrm.xy, sqrt(1.0 - dot(nrm.xy, nrm.xy)));
+}
+
+#endif

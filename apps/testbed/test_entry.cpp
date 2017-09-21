@@ -149,9 +149,9 @@ namespace
 			Math::Vec3 viewFromPosition = cameraTarget_ + viewDistance;
 
 			matrix_.Identity();
-			matrix_.LookAt(
-			    viewFromPosition, cameraTarget_, Math::Vec3(cameraRotationMatrix.Row1().x,
-			                                         cameraRotationMatrix.Row1().y, cameraRotationMatrix.Row1().z));
+			matrix_.LookAt(viewFromPosition, cameraTarget_,
+			    Math::Vec3(
+			        cameraRotationMatrix.Row1().x, cameraRotationMatrix.Row1().y, cameraRotationMatrix.Row1().z));
 		}
 
 		Math::Mat44 GetCameraRotationMatrix() const
@@ -460,8 +460,8 @@ namespace
 				}
 			}
 
-			Testbed::MeshRenderPacket::DrawPackets(meshPackets, meshPassTechIndices,
-				cmdList, drawState, fbs, viewCBHandle, objectSBHandle, customBindFn);
+			Testbed::MeshRenderPacket::DrawPackets(
+			    meshPackets, meshPassTechIndices, cmdList, drawState, fbs, viewCBHandle, objectSBHandle, customBindFn);
 		}
 	}
 
@@ -499,7 +499,7 @@ void Loop(const Core::CommandLine& cmdLine)
 
 	// Load shader + teapot model.
 	Shader* shader = nullptr;
-	Resource::Manager::RequestResource(shader, "shader_tests/simple-mesh.esf");
+	Resource::Manager::RequestResource(shader, "shaders/simple-mesh.esf");
 
 	Model* model = nullptr;
 	Resource::Manager::RequestResource(model, "model_tests/teapot.obj");

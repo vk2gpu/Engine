@@ -80,18 +80,18 @@ namespace Testbed
 
 			    // Create shadow map if none are provided.
 			    if(!settings.outShadowMap_)
-				{
-					RenderGraphTextureDesc desc;
-					desc.type_ = GPU::TextureType::TEX2D;
-					desc.width_ = settings.width_;
-					desc.height_ = settings.height_;
-					desc.elements_ = settings.elements_;
-					desc.format_ = settings.format_;
+			    {
+				    RenderGraphTextureDesc desc;
+				    desc.type_ = GPU::TextureType::TEX2D;
+				    desc.width_ = settings.width_;
+				    desc.height_ = settings.height_;
+				    desc.elements_ = settings.elements_;
+				    desc.format_ = settings.format_;
 				    settings.outShadowMap_ = builder.Create("Shadow Map", desc);
-				}
+			    }
 
 
-				// Setup frame buffer.
+			    // Setup frame buffer.
 			    data.outShadowMap_ = builder.SetDSV(settings.outShadowMap_);
 			},
 
@@ -188,16 +188,13 @@ namespace Testbed
 	ShadowPipeline::ShadowPipeline()
 	    : Pipeline(SHADOW_RESOURCE_NAMES)
 	{
-		Resource::Manager::RequestResource(shader_, "shader_tests/shadow_pipeline.esf");
+		Resource::Manager::RequestResource(shader_, "shaders/shadow_pipeline.esf");
 		Resource::Manager::WaitForResource(shader_);
 
 		ShaderTechniqueDesc desc;
 	}
 
-	ShadowPipeline::~ShadowPipeline()
-	{
-		Resource::Manager::ReleaseResource(shader_);
-	}
+	ShadowPipeline::~ShadowPipeline() { Resource::Manager::ReleaseResource(shader_); }
 
 	void ShadowPipeline::CreateTechniques(Shader* shader, ShaderTechniqueDesc desc, ShaderTechniques& outTechniques)
 	{

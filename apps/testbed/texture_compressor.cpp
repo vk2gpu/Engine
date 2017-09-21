@@ -2,7 +2,7 @@
 
 TextureCompressor::TextureCompressor()
 {
-	Resource::Manager::RequestResource(shader_, "shader_tests/texture_compressor.esf");
+	Resource::Manager::RequestResource(shader_, "shaders/texture_compressor.esf");
 
 	// Create lookup table to pass to shader.
 	LookupTable lookupTable;
@@ -58,8 +58,8 @@ TextureCompressor::~TextureCompressor()
 	Resource::Manager::ReleaseResource(shader_);
 }
 
-bool TextureCompressor::Compress(
-    GPU::CommandList& cmdList, Graphics::Texture* inTexture, GPU::Format format, GPU::Handle outputTexture, GPU::Point point)
+bool TextureCompressor::Compress(GPU::CommandList& cmdList, Graphics::Texture* inTexture, GPU::Format format,
+    GPU::Handle outputTexture, GPU::Point point)
 {
 	// Wait until shader is ready.
 	Resource::Manager::WaitForResource(shader_);

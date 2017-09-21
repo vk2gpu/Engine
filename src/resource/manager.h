@@ -102,15 +102,6 @@ namespace Resource
 		}
 
 		/**
-		 * Convert resource.
-		 * @param name Name of resource.
-		 * @param convertedName Converted name of resource.
-		 * @param type Type of resource.
-		 * @return true if success.
-		 */
-		static bool ConvertResource(const char* name, const char* convertedName, const Core::UUID& type);
-
-		/**
 		 * Register factory.
 		 * @param type Type to register factory for.
 		 * @param factory Factory for resource creation.

@@ -88,15 +88,6 @@ namespace
 
 				Graphics::ShaderPreprocessor preprocessor;
 
-				// Resolve standard library path.
-				char stdLibFile[Core::MAX_PATH_LENGTH];
-				if(pathResolver->ResolvePath("stdlib.esh", stdLibFile, sizeof(stdLibFile)))
-				{
-					char stdLibPath[Core::MAX_PATH_LENGTH];
-					Core::FileSplitPath(stdLibFile, stdLibPath, sizeof(stdLibPath), nullptr, 0, nullptr, 0);
-					preprocessor.AddInclude(stdLibPath);
-				}
-
 				// Setup include path to root of shader.
 				preprocessor.AddInclude(path);
 

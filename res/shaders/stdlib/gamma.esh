@@ -1,0 +1,53 @@
+#ifndef STDLIB_GAMMA_ESH
+#define STDLIB_GAMMA_ESH
+
+#define FAST_GAMMA_CONVERSION ( 0 )
+#define ACCURATE_GAMMA_CONVERSION ( 1 )
+
+float3 GammaToLinear(float3 inRGBA)
+{
+#if FAST_GAMMA_CONVERSION
+	return inRGBA.rgb * inRGBA.rgb;
+#elif ACCURATE_GAMMA_CONVERSION
+	// http://www.frostbite.com/wp-content/uploads/2014/11/course_notes_moving_frostbite_to_pbr.pdf pg87
+	float3 linearRGBLo = inRGBA / 12.92;
+	float3 linearRGBHi = pow((inRGBA + 0.055) / 1.055, float3(2.4, 2.4, 2.4));
+	return float3( 
+		(inRGBA.x <= 0.04045) ? linearRGBLo.x : linearRGBHi.x,
+		(inRGBA.y <= 0.04045) ? linearRGBLo.y : linearRGBHi.y,
+		(inRGBA.z <= 0.04045) ? linearRGBLo.z : linearRGBHi.z);
+#else
+	float gamma = 2.2;
+	return pow(max(float3(0.0, 0.0, 0.0), inRGBA.rgb), float3(gamma, gamma, gamma));
+#endif
+}
+
+float4 GammaToLinear(float4 inRGBA)
+{
+	return float4(GammaToLinear(inRGBA.rgb), inRGBA.a);
+}
+
+float3 LinearToGamma(float3 inRGBA)
+{
+#if FAST_GAMMA_CONVERSION
+	return sqrt(inRGBA.rgb);
+#elif ACCURATE_GAMMA_CONVERSION
+	// http://www.frostbite.com/wp-content/uploads/2014/11/course_notes_moving_frostbite_to_pbr.pdf pg87
+	float3 sRGBLo = inRGBA * 12.92;
+	float3 sRGBHi = (pow(abs(inRGBA) , float3(1.0 / 2.4, 1.0 / 2.4, 1.0 / 2.4)) * 1.055) - 0.055;
+	return float3(
+		(inRGBA.x <= 0.0031308) ? sRGBLo.x : sRGBHi.x,
+		(inRGBA.y <= 0.0031308) ? sRGBLo.y : sRGBHi.y,
+		(inRGBA.z <= 0.0031308) ? sRGBLo.z : sRGBHi.z);
+#else	
+	float invGamma = 1.0 / 2.2;
+	return pow(max(float3(0.0, 0.0, 0.0), inRGBA.rgb), float3(invGamma, invGamma, invGamma));
+#endif
+}
+
+float4 LinearToGamma(float4 inRGBA)
+{
+	return float4(LinearToGamma(inRGBA.rgb), inRGBA.a);
+}
+
+#endif

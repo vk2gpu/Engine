@@ -1,6 +1,0 @@
-{
-   "$internal" : {
-      "dependencies" : [ "shader_tests/shadow_pipeline.esf", "../../../../res/stdlib.esh" ],
-      "outputs" : [ "converter_output/shader_tests/shadow_pipeline.esf.converted" ]
-   }
-}
