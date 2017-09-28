@@ -252,12 +252,12 @@ namespace Resource
 		}
 
 		/// @return true if this was the last reference.
-		bool ReleaseResourceEntry(void* resource, const Core::UUID& type)
+		bool ReleaseResourceEntry(void* resource)
 		{
 			Job::ScopedWriteLock lock(resourceRWLock_);
 			auto it =
-			    std::find_if(resourceList_.begin(), resourceList_.end(), [resource, &type](ResourceEntry* listEntry) {
-				    return listEntry->resource_ == resource && listEntry->type_ == type;
+			    std::find_if(resourceList_.begin(), resourceList_.end(), [resource](ResourceEntry* listEntry) {
+				    return listEntry->resource_ == resource;
 				});
 			DBG_ASSERT(it != resourceList_.end());
 			if(Core::AtomicDec(&(*it)->refCount_) == 0)
@@ -268,12 +268,12 @@ namespace Resource
 		}
 
 		/// @return if resource is ready.
-		bool IsResourceReady(void* resource, const Core::UUID& type)
+		bool IsResourceReady(void* resource)
 		{
 			Job::ScopedWriteLock lock(resourceRWLock_);
 			auto it =
-			    std::find_if(resourceList_.begin(), resourceList_.end(), [resource, &type](ResourceEntry* listEntry) {
-				    return listEntry->resource_ == resource && listEntry->type_ == type;
+			    std::find_if(resourceList_.begin(), resourceList_.end(), [resource](ResourceEntry* listEntry) {
+				    return listEntry->resource_ == resource;
 				});
 			DBG_ASSERT(it != resourceList_.end());
 			return (*it)->loaded_ != 0;
@@ -736,11 +736,11 @@ namespace Resource
 		return false;
 	}
 
-	bool Manager::ReleaseResource(void*& inResource, const Core::UUID& type)
+	bool Manager::ReleaseResource(void*& inResource)
 	{
 		DBG_ASSERT(IsInitialized());
-		WaitForResource(inResource, type);
-		if(impl_->ReleaseResourceEntry(inResource, type))
+		WaitForResource(inResource);
+		if(impl_->ReleaseResourceEntry(inResource))
 		{
 			impl_->ProcessReleasedResources();
 		}
@@ -748,18 +748,18 @@ namespace Resource
 		return true;
 	}
 
-	bool Manager::IsResourceReady(void* inResource, const Core::UUID& type)
+	bool Manager::IsResourceReady(void* inResource)
 	{
 		DBG_ASSERT(IsInitialized());
 		DBG_ASSERT(inResource != nullptr);
-		return impl_->IsResourceReady(inResource, type);
+		return impl_->IsResourceReady(inResource);
 	}
 
-	void Manager::WaitForResource(void* inResource, const Core::UUID& type)
+	void Manager::WaitForResource(void* inResource)
 	{
 		DBG_ASSERT(IsInitialized());
 		DBG_ASSERT(inResource != nullptr);
-		while(!IsResourceReady(inResource, type))
+		while(!IsResourceReady(inResource))
 		{
 			Job::Manager::YieldCPU();
 		}

@@ -3,6 +3,7 @@ SET(SOURCES_PUBLIC
 	"manager.h"
 	"converter.h"
 	"factory.h"
+	"ref.h"
 	"resource.h"
 )
 
@@ -13,9 +14,10 @@ SET(SOURCES_PRIVATE
 	"private/factory_context.cpp"
 	"private/jobs_fileio.h"
 	"private/jobs_fileio.cpp"
+	"private/manager.cpp"
 	"private/path_resolver.h"
 	"private/path_resolver.cpp"
-	"private/manager.cpp"
+	"private/ref.cpp"
 )
 
 SET(SOURCES_TESTS

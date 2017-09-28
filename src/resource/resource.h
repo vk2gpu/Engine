@@ -28,4 +28,11 @@ namespace Resource
 	static const u32 RESOURCE_VERSION = VERSION;                                                                       \
 	static void RegisterFactory();                                                                                     \
 	static void UnregisterFactory();
+
+
+/**
+ * Used to define a resource in the cpp.
+ */
+#define DEFINE_RESOURCE(NAME)
+
 }

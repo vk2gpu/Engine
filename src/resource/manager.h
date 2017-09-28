@@ -73,33 +73,23 @@ namespace Resource
 		 * @param inResource Resource to release.
 		 * @return true if success.
 		 */
-		static bool ReleaseResource(void*& inResource, const Core::UUID& type);
+		static bool ReleaseResource(void*& inResource);
 		template<typename TYPE>
 		static bool ReleaseResource(TYPE*& inResource)
 		{
-			return ReleaseResource(reinterpret_cast<void*&>(inResource), TYPE::GetTypeUUID());
+			return ReleaseResource(reinterpret_cast<void*&>(inResource));
 		}
 
 		/**
 		 * Is resource ready?
 		 * @retunr true if resource is ready.
 		 */
-		static bool IsResourceReady(void* inResource, const Core::UUID& type);
-		template<typename TYPE>
-		static bool IsResourceReady(TYPE* inResource)
-		{
-			return IsResourceReady(reinterpret_cast<void**>(inResource), TYPE::GetTypeUUID());
-		}
+		static bool IsResourceReady(void* inResource);
 
 		/**
 		 * Wait for resource to become ready.
 		 */
-		static void WaitForResource(void* inResource, const Core::UUID& type);
-		template<typename TYPE>
-		static void WaitForResource(TYPE* inResource)
-		{
-			return WaitForResource(reinterpret_cast<void**>(inResource), TYPE::GetTypeUUID());
-		}
+		static void WaitForResource(void* inResource);
 
 		/**
 		 * Register factory.

@@ -10,6 +10,7 @@
 #include "resource/converter.h"
 #include "resource/factory.h"
 #include "resource/manager.h"
+#include "resource/ref.h"
 #include "resource/resource.h"
 
 #include <cstdarg>
@@ -173,6 +174,7 @@ TEST_CASE("resource-tests-request")
 	REQUIRE(Resource::Manager::UnregisterFactory(factory));
 }
 
+
 TEST_CASE("resource-tests-request-multiple")
 {
 	Job::Manager::Scoped jobManager(1, 256, 32 * 1024);
@@ -205,6 +207,33 @@ TEST_CASE("resource-tests-request-multiple")
 
 	REQUIRE(Resource::Manager::ReleaseResource(testResourceB));
 	REQUIRE(!testResourceB);
+
+	REQUIRE(Resource::Manager::UnregisterFactory(factory));
+}
+
+
+TEST_CASE("resource-tests-refs")
+{
+	Job::Manager::Scoped jobManager(1, 256, 32 * 1024);
+	Plugin::Manager::Scoped pluginManager;
+	Resource::Manager::Scoped manager;
+
+	// Register factory.
+	auto* factory = new TestFactory();
+	REQUIRE(Resource::Manager::RegisterFactory(TestResource::GetTypeUUID(), factory));
+
+	{
+		auto file = Core::File("converter.test", Core::FileFlags::CREATE | Core::FileFlags::WRITE);
+		REQUIRE(file);
+	}
+
+	using TestResourceRef = Resource::Ref<TestResource>;
+
+	TestResourceRef testResource("converter.test");
+	REQUIRE(testResource);
+
+	testResource.Reset();
+	REQUIRE(!testResource);
 
 	REQUIRE(Resource::Manager::UnregisterFactory(factory));
 }
