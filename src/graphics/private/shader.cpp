@@ -194,22 +194,7 @@ namespace Graphics
 		}
 	};
 
-	static ShaderFactory* factory_ = nullptr;
-
-	void Shader::RegisterFactory()
-	{
-		DBG_ASSERT(factory_ == nullptr);
-		factory_ = new ShaderFactory();
-		Resource::Manager::RegisterFactory<Shader>(factory_);
-	}
-
-	void Shader::UnregisterFactory()
-	{
-		DBG_ASSERT(factory_ != nullptr);
-		Resource::Manager::UnregisterFactory(factory_);
-		delete factory_;
-		factory_ = nullptr;
-	}
+	DEFINE_RESOURCE(Shader);
 
 	Shader::Shader()
 	{ //

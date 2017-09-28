@@ -113,22 +113,7 @@ namespace Graphics
 		}
 	};
 
-	static TextureFactory* factory_ = nullptr;
-
-	void Texture::RegisterFactory()
-	{
-		DBG_ASSERT(factory_ == nullptr);
-		factory_ = new TextureFactory();
-		Resource::Manager::RegisterFactory<Texture>(factory_);
-	}
-
-	void Texture::UnregisterFactory()
-	{
-		DBG_ASSERT(factory_ != nullptr);
-		Resource::Manager::UnregisterFactory(factory_);
-		delete factory_;
-		factory_ = nullptr;
-	}
+	DEFINE_RESOURCE(Texture);
 
 	Texture::Texture()
 	{ //

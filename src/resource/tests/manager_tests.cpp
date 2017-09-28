@@ -35,7 +35,7 @@ namespace
 		DECLARE_RESOURCE(TestResource, 0);
 
 	private:
-		friend class TestFactory;
+		friend class TestResourceFactory;
 
 		TestResource() {}
 		~TestResource() {}
@@ -43,11 +43,11 @@ namespace
 		TestResourceData* data_ = nullptr;
 	};
 
-	class TestFactory : public Resource::IFactory
+	class TestResourceFactory : public Resource::IFactory
 	{
 	public:
-		TestFactory() {}
-		virtual ~TestFactory() {}
+		TestResourceFactory() {}
+		virtual ~TestResourceFactory() {}
 
 		bool CreateResource(Resource::IFactoryContext& context, void** outResource, const Core::UUID& type) override
 		{
@@ -107,6 +107,8 @@ namespace
 		}
 	};
 
+	DEFINE_RESOURCE(TestResource);
+
 	class ConverterContext : public Resource::IConverterContext
 	{
 	public:
@@ -157,7 +159,7 @@ TEST_CASE("resource-tests-request")
 	Resource::Manager::Scoped manager;
 
 	// Register factory.
-	auto* factory = new TestFactory();
+	auto* factory = new TestResourceFactory();
 	REQUIRE(Resource::Manager::RegisterFactory(TestResource::GetTypeUUID(), factory));
 
 	{
@@ -182,7 +184,7 @@ TEST_CASE("resource-tests-request-multiple")
 	Resource::Manager::Scoped manager;
 
 	// Register factory.
-	auto* factory = new TestFactory();
+	auto* factory = new TestResourceFactory();
 	REQUIRE(Resource::Manager::RegisterFactory(TestResource::GetTypeUUID(), factory));
 
 	TestResource* testResourceA = nullptr;
@@ -219,7 +221,7 @@ TEST_CASE("resource-tests-refs")
 	Resource::Manager::Scoped manager;
 
 	// Register factory.
-	auto* factory = new TestFactory();
+	auto* factory = new TestResourceFactory();
 	REQUIRE(Resource::Manager::RegisterFactory(TestResource::GetTypeUUID(), factory));
 
 	{

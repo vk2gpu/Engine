@@ -203,22 +203,7 @@ namespace Graphics
 		}
 	};
 
-	static ModelFactory* factory_ = nullptr;
-
-	void Model::RegisterFactory()
-	{
-		DBG_ASSERT(factory_ == nullptr);
-		factory_ = new ModelFactory();
-		Resource::Manager::RegisterFactory<Model>(factory_);
-	}
-
-	void Model::UnregisterFactory()
-	{
-		DBG_ASSERT(factory_ != nullptr);
-		Resource::Manager::UnregisterFactory(factory_);
-		delete factory_;
-		factory_ = nullptr;
-	}
+	DEFINE_RESOURCE(Model);
 
 	Model::Model()
 	{ //

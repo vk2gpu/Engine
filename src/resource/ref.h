@@ -21,7 +21,7 @@ namespace Resource
 		~RefBase();
 
 		RefBase(RefBase&&);
-		RefBase& operator= (RefBase&&);
+		RefBase& operator=(RefBase&&);
 
 		void Reset();
 		bool IsReady() const;
@@ -30,7 +30,7 @@ namespace Resource
 
 	protected:
 		RefBase(const RefBase&) = delete;
-		RefBase& operator = (const RefBase&) = delete;
+		RefBase& operator=(const RefBase&) = delete;
 
 		void* resource_ = nullptr;
 	};
@@ -44,21 +44,21 @@ namespace Resource
 	public:
 		Ref() = default;
 		Ref(const char* name)
-			: RefBase(name, TYPE::GetTypeUUID())
+		    : RefBase(name, TYPE::GetTypeUUID())
 		{
 		}
 
 		Ref(Ref&&) = default;
-		Ref& operator= (Ref&&) = default;
+		Ref& operator=(Ref&&) = default;
 
-		operator const TYPE* () const { return reinterpret_cast<const TYPE*>(resource_); }
-		operator TYPE* () { return reinterpret_cast<TYPE*>(resource_); }
+		operator const TYPE*() const { return reinterpret_cast<const TYPE*>(resource_); }
+		operator TYPE*() { return reinterpret_cast<TYPE*>(resource_); }
 
-		const TYPE* operator-> () const { return reinterpret_cast<const TYPE*>(resource_); }
-		TYPE* operator-> () { return reinterpret_cast<TYPE*>(resource_); }
+		const TYPE* operator->() const { return reinterpret_cast<const TYPE*>(resource_); }
+		TYPE* operator->() { return reinterpret_cast<TYPE*>(resource_); }
 
 	private:
 		Ref(const Ref&) = delete;
-		Ref& operator = (const Ref&) = delete;
+		Ref& operator=(const Ref&) = delete;
 	};
 } // namespace Resource

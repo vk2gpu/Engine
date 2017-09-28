@@ -255,10 +255,8 @@ namespace Resource
 		bool ReleaseResourceEntry(void* resource)
 		{
 			Job::ScopedWriteLock lock(resourceRWLock_);
-			auto it =
-			    std::find_if(resourceList_.begin(), resourceList_.end(), [resource](ResourceEntry* listEntry) {
-				    return listEntry->resource_ == resource;
-				});
+			auto it = std::find_if(resourceList_.begin(), resourceList_.end(),
+			    [resource](ResourceEntry* listEntry) { return listEntry->resource_ == resource; });
 			DBG_ASSERT(it != resourceList_.end());
 			if(Core::AtomicDec(&(*it)->refCount_) == 0)
 			{
@@ -271,10 +269,8 @@ namespace Resource
 		bool IsResourceReady(void* resource)
 		{
 			Job::ScopedWriteLock lock(resourceRWLock_);
-			auto it =
-			    std::find_if(resourceList_.begin(), resourceList_.end(), [resource](ResourceEntry* listEntry) {
-				    return listEntry->resource_ == resource;
-				});
+			auto it = std::find_if(resourceList_.begin(), resourceList_.end(),
+			    [resource](ResourceEntry* listEntry) { return listEntry->resource_ == resource; });
 			DBG_ASSERT(it != resourceList_.end());
 			return (*it)->loaded_ != 0;
 		}

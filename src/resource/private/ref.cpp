@@ -5,26 +5,15 @@
 
 namespace Resource
 {
-	RefBase::RefBase()
-	{
-	}
+	RefBase::RefBase() {}
 
-	RefBase::RefBase(const char* name, const Core::UUID& type)
-	{
-		Manager::RequestResource(resource_, name, type);
-	}
+	RefBase::RefBase(const char* name, const Core::UUID& type) { Manager::RequestResource(resource_, name, type); }
 
-	RefBase::~RefBase()
-	{
-		Reset();
-	}
+	RefBase::~RefBase() { Reset(); }
 
-	RefBase::RefBase(RefBase&& other)
-	{
-		std::swap(resource_, other.resource_);
-	}
+	RefBase::RefBase(RefBase&& other) { std::swap(resource_, other.resource_); }
 
-	RefBase& RefBase::operator= (RefBase&& other)
+	RefBase& RefBase::operator=(RefBase&& other)
 	{
 		std::swap(resource_, other.resource_);
 		return *this;
