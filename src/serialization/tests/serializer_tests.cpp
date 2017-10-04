@@ -95,3 +95,48 @@ TEST_CASE("serializer-tests-vec-write-read")
 		}
 	}
 }
+
+TEST_CASE("serializer-tests-map-write-read")
+{
+	Core::Vector<u8*> buffer;
+	buffer.resize(1024 * 1024);
+
+	Core::File outFile(buffer.data(), buffer.size(), Core::FileFlags::WRITE);
+	{
+		Serialization::Serializer serializer(outFile, Serialization::Flags::TEXT);
+
+		Core::Map<Core::String, i32> testMap;
+		testMap.insert("first", 1);
+		testMap.insert("second", 2);
+		testMap.insert("third", 3);
+		testMap.insert("fourth", 4);
+		testMap.insert("fifth", 5);
+
+		if(auto object = serializer.Object("root_object"))
+		{
+			REQUIRE(serializer.Serialize("map", testMap));
+		}
+	}
+
+	Core::File inFile(buffer.data(), outFile.Tell(), Core::FileFlags::READ);
+	{
+		Core::Map<Core::String, i32> testMap;
+
+		Serialization::Serializer serializer(inFile, Serialization::Flags::TEXT);
+		if(auto object = serializer.Object("root_object"))
+		{
+			REQUIRE(serializer.Serialize("map", testMap));
+			REQUIRE(testMap.size() == 5);
+			REQUIRE(testMap.find("first") != testMap.end());
+			REQUIRE(testMap.find("second") != testMap.end());
+			REQUIRE(testMap.find("third") != testMap.end());
+			REQUIRE(testMap.find("fourth") != testMap.end());
+			REQUIRE(testMap.find("fifth") != testMap.end());
+			REQUIRE(testMap.find("first")->second == 1);
+			REQUIRE(testMap.find("second")->second == 2);
+			REQUIRE(testMap.find("third")->second == 3);
+			REQUIRE(testMap.find("fourth")->second == 4);
+			REQUIRE(testMap.find("fifth")->second == 5);
+		}
+	}
+}

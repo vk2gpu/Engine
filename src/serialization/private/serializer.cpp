@@ -260,6 +260,7 @@ namespace Serialization
 		virtual bool SerializeBinary(const char* key, char* data, i32 size) = 0;
 		virtual i32 BeginObject(const char* key, bool isArray) = 0;
 		virtual void EndObject() = 0;
+		virtual Core::String GetObjectKey(i32 idx) = 0;
 		virtual bool IsReading() const = 0;
 		virtual bool IsWriting() const = 0;
 	};
@@ -354,20 +355,42 @@ namespace Serialization
 		i32 BeginObject(const char* key, bool isArray) override
 		{
 			auto& object = GetObject();
-			if(isArray)
+			if(object.isArray())
 			{
-				auto& newObject = object[key] = Json::Value(Json::arrayValue);
-				objectStack_.push_back(&newObject);
+				if(isArray)
+				{
+					auto& newObject = object.append(Json::Value(Json::arrayValue));
+					objectStack_.push_back(&newObject);
+				}
+				else
+				{
+					auto& newObject = object.append(Json::Value(Json::objectValue));
+					objectStack_.push_back(&newObject);
+				}
 			}
 			else
 			{
-				auto& newObject = object[key] = Json::Value(Json::objectValue);
-				objectStack_.push_back(&newObject);
+				if(isArray)
+				{
+					auto& newObject = object[key] = Json::Value(Json::arrayValue);
+					objectStack_.push_back(&newObject);
+				}
+				else
+				{
+					auto& newObject = object[key] = Json::Value(Json::objectValue);
+					objectStack_.push_back(&newObject);
+				}
 			}
-			return -1;
+			return 0;
 		}
 
 		void EndObject() override { objectStack_.pop_back(); }
+
+		Core::String GetObjectKey(i32 idx) override
+		{
+			auto& object = GetObject();
+			return object.getMemberNames()[idx].c_str();
+		}
 
 		bool IsReading() const override { return false; }
 		bool IsWriting() const override { return true; }
@@ -472,7 +495,7 @@ namespace Serialization
 			if(object.isObject())
 			{
 				objectStack_.push_back(&object);
-				return -1;
+				return object.size();
 			}
 			else if(object.isArray())
 			{
@@ -480,7 +503,7 @@ namespace Serialization
 				vectorStack_.push_back(0);
 				return object.size();
 			}
-			return 0;
+			return -1;
 		}
 
 		void EndObject() override
@@ -488,6 +511,13 @@ namespace Serialization
 			if(objectStack_.back()->isArray())
 				vectorStack_.pop_back();
 			objectStack_.pop_back();
+			DBG_ASSERT(objectStack_.size() > 0);
+		}
+
+		Core::String GetObjectKey(i32 idx) override
+		{
+			auto& object = GetObject();
+			return object.getMemberNames()[idx].c_str();
 		}
 
 		bool IsReading() const override { return true; }
@@ -575,7 +605,9 @@ namespace Serialization
 
 	void Serializer::EndObject() { impl_->EndObject(); }
 
-	bool Serializer::IsReading() const { return impl_->IsReading(); }
+	Core::String Serializer::GetObjectKey(i32 idx) { return impl_->GetObjectKey(idx); }
+
+ 	bool Serializer::IsReading() const { return impl_->IsReading(); }
 
 	bool Serializer::IsWriting() const { return impl_->IsWriting(); }
 

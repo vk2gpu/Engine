@@ -2,6 +2,7 @@
 
 #include "serialization/dll.h"
 #include "core/types.h"
+#include "core/map.h"
 #include "core/string.h"
 #include "core/vector.h"
 
@@ -74,7 +75,7 @@ namespace Serialization
 			    : serializer_(serializer)
 			    , key_(key)
 			{
-				valid_ = serializer_.BeginObject(key) == -1;
+				valid_ = serializer_.BeginObject(key) != -1;
 			}
 
 			~ScopedObject()
@@ -93,7 +94,7 @@ namespace Serialization
 		ScopedObject Object(const char* key);
 
 		template<typename TYPE, typename = typename std::enable_if<std::is_object<TYPE>::value>::type,
-		    typename std::enable_if<!std::is_enum<TYPE>::value>::type>
+		    typename = typename std::enable_if<!std::is_enum<TYPE>::value>::type>
 		bool Serialize(const char* key, TYPE& type)
 		{
 			if(auto object = Object(key))
@@ -108,21 +109,59 @@ namespace Serialization
 			if(IsReading())
 			{
 				i32 num = BeginObject(key, true);
-				type.resize(num);
-				for(i32 idx = 0; idx < num; ++idx)
+				if(num >= 0)
 				{
-					Serialize(nullptr, type[idx]);
+					type.resize(num);
+					for(i32 idx = 0; idx < num; ++idx)
+					{
+						Serialize(nullptr, type[idx]);
+					}
+					EndObject();
 				}
-				EndObject();
 				return true;
 			}
 			else if(IsWriting())
 			{
-				if(-1 == BeginObject(key, true))
+				if(0 == BeginObject(key, true))
 				{
 					for(auto& val : type)
 					{
 						Serialize(nullptr, val);
+					}
+					EndObject();
+				}
+				return true;
+			}
+			return false;
+		}
+
+		/// Map serialization.
+		template<typename TYPE, typename ALLOCATOR>
+		bool Serialize(const char* key, Core::Map<Core::String, TYPE, ALLOCATOR>& type)
+		{
+			if(IsReading())
+			{
+				i32 num = BeginObject(key, false);
+				if(num >= 0)
+				{
+					for(i32 idx = 0; idx < num; ++idx)
+					{
+						Core::String objKey = GetObjectKey(idx);
+						TYPE value;
+						Serialize(objKey.c_str(), value);
+						type.insert(objKey, std::move(value));
+					}
+					EndObject();
+				}
+				return true;
+			}
+			else if(IsWriting())
+			{
+				if(0 == BeginObject(key, false))
+				{
+					for(auto& val : type)
+					{
+						Serialize(val.first.c_str(), val.second);
 					}
 					EndObject();
 				}
@@ -137,7 +176,7 @@ namespace Serialization
 	private:
 		i32 BeginObject(const char* key, bool isArray = false);
 		void EndObject();
-
+		Core::String GetObjectKey(i32 idx);
 
 		Serializer(const Serializer&) = delete;
 		Serializer& operator=(const Serializer&) = delete;
