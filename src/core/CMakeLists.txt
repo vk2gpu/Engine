@@ -18,6 +18,7 @@ SET(SOURCES_PUBLIC
 	"map.h"
 	"misc.h"
 	"mpmc_bounded_queue.h"
+	"os.h"
 	"pair.h"
 	"portability.h"
 	"random.h"

@@ -59,12 +59,11 @@ namespace Core
 	bool AssertInternal(const char* Message, const char* File, int Line, ...)
 	{
 #if defined(DEBUG) || defined(RELEASE)
-		i32 MessageBufferSize = 0;
-		char* MessageBuffer = GetMessageBuffer(MessageBufferSize);
+		char MessageBuffer[4096];
 		va_list ArgList;
 		va_start(ArgList, Line);
 #if COMPILER_MSVC
-		vsprintf_s(MessageBuffer, MessageBufferSize, Message, ArgList);
+		vsprintf_s(MessageBuffer, sizeof(MessageBuffer), Message, ArgList);
 #else
 		vsprintf(MessageBuffer, Message, ArgList);
 #endif
