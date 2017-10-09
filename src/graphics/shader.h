@@ -7,9 +7,12 @@
 #include "gpu/types.h"
 #include "gpu/resources.h"
 #include "resource/resource.h"
+#include "resource/ref.h"
 
 namespace Graphics
 {
+	using ShaderRef = Resource::Ref<class Shader>;
+
 	class GRAPHICS_DLL Shader
 	{
 	public:

@@ -25,6 +25,34 @@ namespace Core
 	 */
 	CORE_DLL bool IsDebuggerAttached();
 
+	enum class MessageBoxType
+	{
+		OK = 0,
+		OK_CANCEL,
+		YES_NO,
+		YES_NO_CANCEL
+	};
+
+	enum class MessageBoxIcon
+	{
+		WARNING = 0,
+		ERROR,
+		QUESTION
+	};
+
+	enum class MessageBoxReturn
+	{
+		OK = 0,
+		YES = 0,
+		NO = 1,
+		CANCEL = 2,
+	};
+
+	/**
+	 * Open a message box.
+	 */
+	CORE_DLL MessageBoxReturn MessageBox(const char* title, const char* message,
+	    MessageBoxType type = MessageBoxType::OK, MessageBoxIcon icon = MessageBoxIcon::WARNING);
 } // namespace Core
 
 //////////////////////////////////////////////////////////////////////////

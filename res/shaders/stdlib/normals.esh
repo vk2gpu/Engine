@@ -1,9 +1,10 @@
 #ifndef STDLIB_NORMALS_ESH
 #define STDLIB_NORMALS_ESH
 
-float3x3 BuildTBN(float3 inTangent, float3 inBinormal, float3 inNormal)
+float3x3 BuildTBN(float3 normal, float3 tangent)
 {
-	return float3x3(normalize(inTangent), normalize(inBinormal), normalize(inNormal));
+	const float3 binormal = cross(normal, tangent);
+	return float3x3(normalize(tangent), normalize(binormal), normalize(normal));
 }
 
 float3 EncodeNormal(float3 nrm)

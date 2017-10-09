@@ -4,6 +4,7 @@
 #include "math/aabb.h"
 #include "math/mat44.h"
 #include "gpu/resources.h"
+#include "graphics/material.h"
 
 namespace Graphics
 {
@@ -34,8 +35,8 @@ namespace Graphics
 
 	struct MeshNode
 	{
+		Core::UUID material_;
 		i32 nodeIdx_ = -1;
-		i32 materialIdx_ = -1;
 		i32 aabbIdx_ = -1;
 		i32 noofBones_ = -1;
 		i32 bonePaletteIdx_ = -1;
@@ -109,9 +110,12 @@ namespace Graphics
 		Core::Vector<GPU::Handle> vbs_;
 		Core::Vector<GPU::Handle> ibs_;
 		Core::Vector<GPU::Handle> dbs_;
+		Core::Vector<MaterialRef> materials_;
 
 		ModelImpl();
 		~ModelImpl();
+
+		void WaitForDependencies();
 	};
 
 } // namespace Graphics

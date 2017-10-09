@@ -1,13 +1,10 @@
 #include "core/debug.h"
 #include "core/concurrency.h"
+#include "core/os.h"
 
 #include "Remotery.h"
 
 #include <cstdio>
-
-#if PLATFORM_WINDOWS
-#include <windows.h>
-#endif
 
 namespace Core
 {
@@ -85,4 +82,76 @@ namespace Core
 		return false;
 #endif
 	}
+
+	namespace
+	{
+		Core::Mutex mbMutex_;
+	}
+
+	MessageBoxReturn MessageBox(const char* title, const char* message, MessageBoxType type, MessageBoxIcon icon)
+	{
+		Core::ScopedMutex lock(mbMutex_);
+
+#if PLATFORM_WINDOWS
+		UINT mbType = MB_TASKMODAL | MB_SETFOREGROUND | MB_TOPMOST;
+		switch(type)
+		{
+		case MessageBoxType::OK:
+			mbType |= MB_OK;
+			break;
+		case MessageBoxType::OK_CANCEL:
+			mbType |= MB_OKCANCEL;
+			break;
+		case MessageBoxType::YES_NO:
+			mbType |= MB_YESNO;
+			break;
+		case MessageBoxType::YES_NO_CANCEL:
+			mbType |= MB_YESNOCANCEL;
+			break;
+		}
+
+		switch(icon)
+		{
+		case MessageBoxIcon::WARNING:
+			mbType |= MB_ICONWARNING;
+			break;
+		case MessageBoxIcon::ERROR:
+			mbType |= MB_ICONERROR;
+			break;
+		case MessageBoxIcon::QUESTION:
+			mbType |= MB_ICONQUESTION;
+			break;
+		default:
+			mbType |= MB_ICONWARNING;
+			break;
+		}
+
+		// Log.
+		Log("MB: %s: %s\n", title, message);
+
+		// TODO: HWND!
+		int RetVal = ::MessageBoxA(NULL, message, title, mbType);
+
+		switch(RetVal)
+		{
+		case IDOK:
+			return MessageBoxReturn::OK;
+			break;
+		case IDYES:
+			return MessageBoxReturn::YES;
+			break;
+		case IDNO:
+			return MessageBoxReturn::NO;
+			break;
+		case IDCANCEL:
+			return MessageBoxReturn::CANCEL;
+			break;
+		default:
+			break;
+		};
+
+#endif
+		return MessageBoxReturn::OK;
+	}
+
 } // namespace Core

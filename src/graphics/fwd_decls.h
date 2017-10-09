@@ -2,6 +2,8 @@
 
 namespace Graphics
 {
+	class Material;
+
 	class Shader;
 	struct ShaderTechniqueDesc;
 	class ShaderTechnique;

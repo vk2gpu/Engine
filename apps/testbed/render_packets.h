@@ -2,8 +2,9 @@
 
 #include "core/function.h"
 #include "core/debug.h"
-#include "graphics/shader.h"
+#include "graphics/material.h"
 #include "graphics/model.h"
+#include "graphics/shader.h"
 #include "math/vec3.h"
 #include "math/mat44.h"
 
@@ -53,7 +54,7 @@ namespace Testbed
 		Graphics::ModelMeshDraw draw_;
 		Testbed::ObjectConstants object_;
 		Graphics::ShaderTechniqueDesc techDesc_;
-		Graphics::Shader* shader_ = nullptr;
+		Graphics::Material* material_ = nullptr;
 		Testbed::ShaderTechniques* techs_ = nullptr;
 
 		// tmp object state data.
@@ -68,7 +69,7 @@ namespace Testbed
 		bool IsInstancableWith(const MeshRenderPacket& other) const
 		{
 			return db_ == other.db_ && memcmp(&draw_, &other.draw_, sizeof(draw_)) == 0 &&
-			       memcmp(&techDesc_, &other.techDesc_, sizeof(techDesc_)) == 0 && shader_ == other.shader_ &&
+			       memcmp(&techDesc_, &other.techDesc_, sizeof(techDesc_)) == 0 && material_ == other.material_ &&
 			       techs_ == other.techs_;
 		}
 	};

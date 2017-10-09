@@ -18,6 +18,7 @@ namespace Resource
 	public:
 		RefBase();
 		RefBase(const char* name, const Core::UUID& type);
+		RefBase(const Core::UUID& name, const Core::UUID& type);
 		~RefBase();
 
 		RefBase(RefBase&&);
@@ -45,6 +46,10 @@ namespace Resource
 		Ref() = default;
 		Ref(const char* name)
 		    : RefBase(name, TYPE::GetTypeUUID())
+		{
+		}
+		Ref(const Core::UUID& uuid)
+		    : RefBase(uuid, TYPE::GetTypeUUID())
 		{
 		}
 

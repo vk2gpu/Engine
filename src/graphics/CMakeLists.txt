@@ -1,5 +1,6 @@
 SET(SOURCES_PUBLIC 
 	"dll.h"
+	"material.h"
 	"model.h"
 	"pipeline.h"
 	"render_graph.h"
@@ -12,6 +13,8 @@ SET(SOURCES_PUBLIC
 SET(SOURCES_PRIVATE 
 	"private/model.cpp"
 	"private/model_impl.h"
+	"private/material.cpp"
+	"private/material_impl.h"
 	"private/pipeline.cpp"
 	"private/render_graph.cpp"
 	"private/render_pass.cpp"
@@ -52,20 +55,19 @@ TARGET_LINK_LIBRARIES(graphics gpu job math resource)
 TARGET_LINK_LIBRARIES(graphics_test client imgui fcpp)
 
 # Plugins
-SET(SOURCES_MODEL_CONVERTER
-	"converters/converter_model.cpp"
+SET(SOURCES_MATERIAL_CONVERTER
+	"converters/converter_material.cpp"
+	"converters/import_material.h"
 )
 
-SET(SOURCES_TEXTURE_CONVERTER
-	"converters/converter_texture.cpp"
-	"converters/dds.h"
-	"converters/dds.cpp"
-	"converters/image.h"
-	"converters/image.cpp"
+SET(SOURCES_MODEL_CONVERTER
+	"converters/converter_model.cpp"
+	"converters/import_model.h"
 )
 
 SET(SOURCES_SHADER_CONVERTER
 	"converters/converter_shader.cpp"
+	"converters/import_shader.h"
 	"converters/shader_ast.h"
 	"converters/shader_ast.cpp"
 	"converters/shader_backend_hlsl.h"
@@ -78,6 +80,15 @@ SET(SOURCES_SHADER_CONVERTER
 	"converters/shader_parser.cpp"
 	"converters/shader_preprocessor.h"
 	"converters/shader_preprocessor.cpp"
+)
+
+SET(SOURCES_TEXTURE_CONVERTER
+	"converters/converter_texture.cpp"
+	"converters/import_texture.h"
+	"converters/dds.h"
+	"converters/dds.cpp"
+	"converters/image.h"
+	"converters/image.cpp"
 )
 
 SET(SOURCES_TEST_PIPELINE
@@ -93,6 +104,10 @@ INCLUDE_DIRECTORIES(
 )
 
 # Converter plugins.
+ADD_ENGINE_PLUGIN(converter_graphics_material SHARED ${SOURCES_MATERIAL_CONVERTER})
+SET_TARGET_PROPERTIES(converter_graphics_material PROPERTIES FOLDER Libraries/Plugins)
+TARGET_LINK_LIBRARIES(converter_graphics_material core graphics resource)
+
 ADD_ENGINE_PLUGIN(converter_graphics_model SHARED ${SOURCES_MODEL_CONVERTER})
 SET_TARGET_PROPERTIES(converter_graphics_model PROPERTIES FOLDER Libraries/Plugins)
 TARGET_LINK_LIBRARIES(converter_graphics_model core graphics resource assimp)

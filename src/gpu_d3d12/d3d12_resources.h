@@ -11,38 +11,50 @@
 namespace GPU
 {
 	/**
-	 * Resource vector.
-	 * Just a wrapper around Core::Vector that will automatically
-	 * resize when inserting resources.
+	 * Resource pool.
 	 */
 	template<typename TYPE>
-	class ResourceVector
+	class ResourcePool
 	{
 	public:
-		static const i32 RESIZE_ROUND_UP = 32;
-		ResourceVector() = default;
-		~ResourceVector() = default;
+		static const i32 INDEX_BITS = 5;
+		static const i32 BLOCK_SIZE = 1 << INDEX_BITS;
+		ResourcePool() = default;
+		~ResourcePool()
+		{
+			for(auto& block : blocks_)
+				delete block;
+			blocks_.clear();
+		}
 
 		TYPE& operator[](i32 idx)
 		{
 			DBG_ASSERT(idx < Handle::MAX_INDEX);
-			if(idx >= storage_.size())
-				storage_.resize(Core::PotRoundUp(idx + 1, RESIZE_ROUND_UP));
-			return storage_[idx];
+			const i32 blockIdx = idx >> INDEX_BITS;
+			const i32 resourceIdx = idx & (BLOCK_SIZE - 1);
+			while(blockIdx >= blocks_.size())
+				blocks_.push_back(new Block);
+			return blocks_[blockIdx]->resources_[resourceIdx];
 		}
 
 		const TYPE& operator[](i32 idx) const
 		{
 			DBG_ASSERT(idx < Handle::MAX_INDEX);
-			DBG_ASSERT(idx < storage_.size());
-			return storage_[idx];
+			const i32 blockIdx = idx >> INDEX_BITS;
+			const i32 resourceIdx = idx & (BLOCK_SIZE - 1);
+			return blocks_[blockIdx]->resources_[resourceIdx];
 		}
 
-		i32 size() const { return storage_.size(); }
+		i32 size() const { return blocks_.size() * BLOCK_SIZE; }
 		void clear() { storage_.clear(); }
 
 	private:
-		Core::Vector<TYPE> storage_;
+		struct Block
+		{
+			Core::Array<TYPE, BLOCK_SIZE> resources_;
+		};
+
+		Core::Vector<Block*> blocks_;
 	};
 
 	class D3D12ScopedResourceBarrier

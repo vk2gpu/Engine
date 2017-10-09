@@ -18,7 +18,7 @@ namespace Testbed
 		virtual ~ShadowPipeline();
 
 		void CreateTechniques(
-		    Graphics::Shader* shader, Graphics::ShaderTechniqueDesc desc, ShaderTechniques& outTechniques);
+		    Graphics::Material* material, Graphics::ShaderTechniqueDesc desc, ShaderTechniques& outTechniques);
 		void SetDirectionalLight(Math::Vec3 eyePos, Light light);
 		void SetDrawCallback(DrawFn drawFn);
 		void Setup(Graphics::RenderGraph& renderGraph) override;

@@ -16,6 +16,7 @@
 #include "graphics/render_graph.h"
 #include "graphics/render_pass.h"
 #include "graphics/render_resources.h"
+#include "graphics/material.h"
 #include "imgui/manager.h"
 #include "job/function_job.h"
 #include "test_shared.h"
@@ -492,6 +493,9 @@ void Loop(const Core::CommandLine& cmdLine)
 	Testbed::ShadowPipeline shadowPipeline;
 	RenderGraph graph;
 
+	MaterialRef testMaterial("test_material.material");
+	testMaterial.WaitUntilReady();
+
 	TextureCompressor texCompressor;
 
 	Texture* texture = nullptr;
@@ -540,7 +544,7 @@ void Loop(const Core::CommandLine& cmdLine)
 	light.color_.x = 1.0f;
 	light.color_.y = 1.0f;
 	light.color_.z = 1.0f;
-	light.color_ *= 98000.0f;
+	light.color_ *= 980000.0f;
 	light.radiusInner_ = 10000.0f;
 	light.radiusOuter_ = 20000.0f;
 	forwardPipeline.lights_.push_back(light);
@@ -609,7 +613,7 @@ void Loop(const Core::CommandLine& cmdLine)
 				packet.db_ = model->GetMeshDrawBinding(idx);
 				packet.draw_ = model->GetMeshDraw(idx);
 				packet.techDesc_ = techDesc;
-				packet.shader_ = shader;
+				packet.material_ = model->GetMeshMaterial(idx);
 				packet.techs_ = techniques;
 
 				packet.world_ = model->GetMeshWorldTransform(idx);
@@ -635,7 +639,11 @@ void Loop(const Core::CommandLine& cmdLine)
 			packet.db_ = sponzaModel->GetMeshDrawBinding(idx);
 			packet.draw_ = sponzaModel->GetMeshDraw(idx);
 			packet.techDesc_ = techDesc;
-			packet.shader_ = shader;
+			packet.material_ = sponzaModel->GetMeshMaterial(idx);
+
+			if(techniques->material_ != packet.material_)
+				techniques = &*shaderTechniques_.emplace_back();
+
 			packet.techs_ = techniques;
 
 			packet.world_ = sponzaModel->GetMeshWorldTransform(idx);
@@ -860,7 +868,8 @@ void Loop(const Core::CommandLine& cmdLine)
 					if(packet->type_ == Testbed::MeshRenderPacket::TYPE)
 					{
 						auto* meshPacket = static_cast<Testbed::MeshRenderPacket*>(packet);
-						forwardPipeline.CreateTechniques(shader, meshPacket->techDesc_, *meshPacket->techs_);
+						forwardPipeline.CreateTechniques(
+						    meshPacket->material_, meshPacket->techDesc_, *meshPacket->techs_);
 					}
 				}
 			}

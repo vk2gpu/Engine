@@ -16,6 +16,7 @@
 
 #include "serialization/serializer.h"
 #include "graphics/private/shader_impl.h"
+#include "graphics/converters/import_shader.h"
 #include "graphics/converters/shader_backend_hlsl.h"
 #include "graphics/converters/shader_backend_metadata.h"
 #include "graphics/converters/shader_compiler_hlsl.h"
@@ -33,21 +34,6 @@ namespace
 
 		virtual ~ConverterShader() {}
 
-		struct MetaData
-		{
-			bool isInitialized_ = false;
-
-			bool Serialize(Serialization::Serializer& serializer)
-			{
-				isInitialized_ = true;
-
-				bool retVal = true;
-				//retVal &= serializer.Serialize("format", format_);
-				//retVal &= serializer.Serialize("generateMipLevels", generateMipLevels_);
-				return retVal;
-			}
-		};
-
 		bool SupportsFileType(const char* fileExt, const Core::UUID& type) const override
 		{
 			return (type == Graphics::Shader::GetTypeUUID()) || (fileExt && strcmp(fileExt, "esf") == 0);
@@ -55,7 +41,7 @@ namespace
 
 		bool Convert(Resource::IConverterContext& context, const char* sourceFile, const char* destPath) override
 		{
-			MetaData metaData = context.GetMetaData<MetaData>();
+			auto metaData = context.GetMetaData<Graphics::MetaDataShader>();
 			auto* pathResolver = context.GetPathResolver();
 			char fullPath[Core::MAX_PATH_LENGTH];
 			memset(fullPath, 0, sizeof(fullPath));
@@ -135,7 +121,7 @@ namespace
 				}
 
 				// Grab sampler states.
-				//const auto& samplerStates = backendMetadata.GetSamplerStates();
+				const auto& samplerStates = backendMetadata.GetSamplerStates();
 
 				// Generate HLSL for the whole ESF.
 				Graphics::ShaderBackendHLSL backendHLSL;
@@ -219,6 +205,7 @@ namespace
 				outHeader.numUAVs_ = uavs.size();
 				outHeader.numShaders_ = outputCompiles.size();
 				outHeader.numTechniques_ = techniques.size();
+				outHeader.numSamplerStates_ = samplerStates.size();
 				Core::Vector<Graphics::ShaderBindingHeader> outBindingHeaders;
 				outBindingHeaders.reserve(cbuffers.size() + samplers.size() + srvs.size() + uavs.size());
 
@@ -231,6 +218,16 @@ namespace
 						outBindingHeaders.push_back(bindingHeader);
 					}
 				};
+
+				Core::Vector<Graphics::ShaderSamplerStateHeader> outSamplerStateHeaders;
+				outSamplerStateHeaders.reserve(samplerStates.size());
+				for(const auto& samplerState : samplerStates)
+				{
+					Graphics::ShaderSamplerStateHeader outSamplerState;
+					strcpy_s(outSamplerState.name_, sizeof(outSamplerState.name_), samplerState.name_.c_str());
+					outSamplerState.state_ = samplerState.state_;
+					outSamplerStateHeaders.emplace_back(outSamplerState);
+				}
 
 				PopulateoutBindingHeaders(cbuffers);
 				PopulateoutBindingHeaders(samplers);
@@ -319,6 +316,9 @@ namespace
 						if(outTechniqueHeaders.size() > 0)
 							outFile.Write(outTechniqueHeaders.data(),
 							    outTechniqueHeaders.size() * sizeof(Graphics::ShaderTechniqueHeader));
+						if(outSamplerStateHeaders.size() > 0)
+							outFile.Write(outSamplerStateHeaders.data(),
+							    outSamplerStateHeaders.size() * sizeof(Graphics::ShaderSamplerStateHeader));
 
 						i64 outBytes = 0;
 						for(const auto& compile : outputCompiles)

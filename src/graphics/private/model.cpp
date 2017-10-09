@@ -132,6 +132,14 @@ namespace Graphics
 				return false;
 			}
 
+			// Create materials for mesh nodes.
+			impl->materials_.reserve(impl->meshNodes_.size());
+			for(const auto& meshNode : impl->meshNodes_)
+			{
+				impl->materials_.emplace_back(meshNode.material_);
+				DBG_ASSERT(impl->materials_.back());
+			}
+
 			// Now load in and create vertex + index buffers.
 			if(GPU::Manager::IsInitialized())
 			{
@@ -196,6 +204,9 @@ namespace Graphics
 				}
 			}
 
+			// Wait until dependencies are loaded.
+			impl->WaitForDependencies();
+
 			std::swap(model->impl_, impl);
 			delete impl;
 
@@ -252,6 +263,12 @@ namespace Graphics
 		return retVal;
 	}
 
+	Material* Model::GetMeshMaterial(i32 meshIdx) const
+	{
+		DBG_ASSERT(meshIdx < impl_->data_.numMeshNodes_);
+		return impl_->materials_[meshIdx];
+	}
+
 	Math::Mat44 Model::GetMeshWorldTransform(i32 meshIdx) const
 	{
 		DBG_ASSERT(meshIdx < impl_->data_.numMeshNodes_);
@@ -272,6 +289,12 @@ namespace Graphics
 			for(auto vb : vbs_)
 				GPU::Manager::DestroyResource(vb);
 		}
+	}
+
+	void ModelImpl::WaitForDependencies()
+	{
+		for(const auto& material : materials_)
+			material.WaitUntilReady();
 	}
 
 } // namespace Graphics

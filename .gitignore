@@ -2,6 +2,7 @@
 *.pyc
 *.TMP
 *.tmp
+.converter_output/
 .svn/
 build/
 scripts/*.pyc

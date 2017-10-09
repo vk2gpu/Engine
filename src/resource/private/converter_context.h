@@ -13,6 +13,7 @@ namespace Resource
 		virtual ~ConverterContext();
 
 		void AddDependency(const char* fileName) override;
+		void AddResourceDependency(const char* fileName, const Core::UUID& type) override;
 		void AddOutput(const char* fileName) override;
 		void AddError(const char* errorFile, int errorLine, const char* errorMsg, ...) override;
 		Core::IFilePathResolver* GetPathResolver() override;

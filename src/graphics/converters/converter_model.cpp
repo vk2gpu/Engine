@@ -1,5 +1,7 @@
 #include "graphics/model.h"
+#include "graphics/converters/import_model.h"
 #include "graphics/private/model_impl.h"
+#include "core/concurrency.h"
 #include "core/file.h"
 #include "core/half.h"
 #include "core/misc.h"
@@ -11,7 +13,6 @@
 #include "resource/converter.h"
 #include "serialization/serializer.h"
 
-
 #include "assimp/config.h"
 #include "assimp/cimport.h"
 #include "assimp/scene.h"
@@ -19,6 +20,8 @@
 #include "assimp/postprocess.h"
 
 #include <cstring>
+#include <regex>
+#include <limits>
 
 namespace
 {
@@ -182,6 +185,8 @@ namespace
 
 namespace
 {
+	Core::Mutex assimpMutex_;
+
 	/**
 	 * Assimp logging function.
 	 */
@@ -196,7 +201,7 @@ namespace
 	/**
 	 * Determine material name.
 	 */
-	std::string AssimpGetMaterialName(aiMaterial* material)
+	Core::String AssimpGetMaterialName(aiMaterial* material)
 	{
 		aiString aiName("default");
 		// Try material name.
@@ -252,40 +257,6 @@ namespace
 
 		virtual ~ConverterModel() {}
 
-		struct MetaData
-		{
-			bool isInitialized_ = false;
-			bool flattenHierarchy_ = false;
-			i32 maxBones_ = 256;
-			i32 maxBoneInfluences_ = 4;
-
-			struct
-			{
-				GPU::Format position_ = GPU::Format::R32G32B32_FLOAT;
-				GPU::Format normal_ = GPU::Format::R16G16B16A16_SNORM;
-				GPU::Format texcoord_ = GPU::Format::R16G16_FLOAT;
-				GPU::Format color_ = GPU::Format::R8G8B8A8_UNORM;
-			} vertexFormat_;
-
-			bool Serialize(Serialization::Serializer& serializer)
-			{
-				isInitialized_ = true;
-
-				bool retVal = true;
-				retVal &= serializer.Serialize("flattenHierarchy", flattenHierarchy_);
-				retVal &= serializer.Serialize("maxBones", maxBones_);
-				retVal &= serializer.Serialize("maxBoneInfluences", maxBoneInfluences_);
-				if(auto object = serializer.Object("vertexFormat"))
-				{
-					retVal &= serializer.Serialize("position", vertexFormat_.position_);
-					retVal &= serializer.Serialize("normal", vertexFormat_.normal_);
-					retVal &= serializer.Serialize("texcoord", vertexFormat_.texcoord_);
-					retVal &= serializer.Serialize("color", vertexFormat_.color_);
-				}
-				return retVal;
-			}
-		};
-
 		struct MeshData
 		{
 			GPU::PrimitiveTopology primTopology_ = GPU::PrimitiveTopology::TRIANGLE_LIST;
@@ -308,7 +279,18 @@ namespace
 
 		bool Convert(Resource::IConverterContext& context, const char* sourceFile, const char* destPath) override
 		{
-			metaData_ = context.GetMetaData<MetaData>();
+			context_ = &context;
+			metaData_ = context.GetMetaData<Graphics::MetaDataModel>();
+
+			// Setup default 'catch all' material.
+			if(metaData_.isInitialized_ == false)
+			{
+				Graphics::MetaDataModel::Material material;
+				material.regex_ = "(.*)";
+				material.template_.shader_ = "shaders/default.esf";
+				metaData_.materials_.push_back(material);
+			}
+			std::reverse(metaData_.materials_.begin(), metaData_.materials_.end());
 
 			char resolvedSourcePath[Core::MAX_PATH_LENGTH];
 			memset(resolvedSourcePath, 0, sizeof(resolvedSourcePath));
@@ -324,6 +306,8 @@ namespace
 				return false;
 			}
 
+			sourceFile_ = resolvedSourcePath;
+
 			char outFilename[Core::MAX_PATH_LENGTH];
 			memset(outFilename, 0, sizeof(outFilename));
 			strcat_s(outFilename, sizeof(outFilename), destPath);
@@ -337,21 +321,25 @@ namespace
 			aiSetImportPropertyInteger(propertyStore, AI_CONFIG_IMPORT_MD5_NO_ANIM_AUTOLOAD, true);
 
 			aiLogStream assimpLogger = {AssimpLogStream, (char*)this};
-			aiAttachLogStream(&assimpLogger);
-
-			// TODO: Intercept file io to track dependencies.
-			int flags = aiProcessPreset_TargetRealtime_MaxQuality | aiProcess_SplitByBoneCount |
-			            aiProcess_LimitBoneWeights | aiProcess_ConvertToLeftHanded;
-			if(metaData_.flattenHierarchy_)
 			{
-				flags |= aiProcess_OptimizeGraph | aiProcess_RemoveComponent;
-				aiSetImportPropertyInteger(propertyStore, AI_CONFIG_PP_RVC_FLAGS,
-				    aiComponent_ANIMATIONS | aiComponent_LIGHTS | aiComponent_CAMERAS);
+				Core::ScopedMutex lock(assimpMutex_);
+				aiAttachLogStream(&assimpLogger);
+
+				// TODO: Intercept file io to track dependencies.
+				int flags = aiProcessPreset_TargetRealtime_MaxQuality | aiProcess_SplitByBoneCount |
+				            aiProcess_LimitBoneWeights | aiProcess_ConvertToLeftHanded;
+				if(metaData_.flattenHierarchy_)
+				{
+					flags |= aiProcess_OptimizeGraph | aiProcess_RemoveComponent;
+					aiSetImportPropertyInteger(propertyStore, AI_CONFIG_PP_RVC_FLAGS,
+					    aiComponent_ANIMATIONS | aiComponent_LIGHTS | aiComponent_CAMERAS);
+				}
+
+				scene_ = aiImportFileExWithProperties(resolvedSourcePath, flags, nullptr, propertyStore);
+
+				aiReleasePropertyStore(propertyStore);
+				aiDetachLogStream(&assimpLogger);
 			}
-
-			scene_ = aiImportFileExWithProperties(resolvedSourcePath, flags, nullptr, propertyStore);
-
-			aiReleasePropertyStore(propertyStore);
 
 			if(scene_ == nullptr)
 				return false;
@@ -399,8 +387,6 @@ namespace
 
 				for(const auto& data : meshNodeInverseBindposeDatas_)
 					outFile.Write(data.second, data.first * sizeof(Graphics::MeshNodeInverseBindpose));
-
-				// TODO: materials.
 
 				// Write out mesh data.
 				i32 numVertexElements = 0;
@@ -469,6 +455,7 @@ namespace
 			}
 
 			// Setup metadata.
+			std::reverse(metaData_.materials_.begin(), metaData_.materials_.end());
 			context.SetMetaData(metaData_);
 
 			return retVal;
@@ -659,16 +646,15 @@ namespace
 				meshData.draws_.push_back(draw);
 				meshNode.drawIdx_ = meshData.draws_.size() - 1;
 
-				// Add model node data.
-				meshNodes_.push_back(meshNode);
-
 				// Grab material name.
-				//Core::String materialName;
-				//aiMaterial* material = scene_->mMaterials[mesh->mMaterialIndex];
+				Core::String materialName;
+				aiMaterial* material = scene_->mMaterials[mesh->mMaterialIndex];
 
 				// Import material.
-				//MeshData.MaterialRef_ = findMaterialMatch(Material);
-				//MeshData_.push_back(MeshData);
+				meshNode.material_ = AddMaterial(material);
+
+				// Add model node data.
+				meshNodes_.push_back(meshNode);
 
 				// Update primitive index.
 				++meshIdx;
@@ -940,7 +926,133 @@ namespace
 			}
 		}
 
-		MetaData metaData_;
+		Core::UUID AddTexture(aiMaterial* material, Graphics::ImportMaterial& importMaterial, const char* name,
+		    aiTextureType type, i32 idx)
+		{
+			Core::UUID texUUID;
+
+			aiString aiName;
+			aiString path;
+			aiTextureMapping textureMapping = aiTextureMapping_UV;
+			unsigned int uvIndex = 0;
+			float blend = 0.0f;
+			aiTextureOp textureOp = aiTextureOp_Multiply;
+			aiTextureMapMode textureMapMode = aiTextureMapMode_Wrap;
+			if(material->GetTexture(type, idx, &path, &textureMapping, &uvIndex, &blend, &textureOp, &textureMapMode) ==
+			    aiReturn_SUCCESS)
+			{
+				Core::Array<char, Core::MAX_PATH_LENGTH> sourcePath = {0};
+				Core::Array<char, Core::MAX_PATH_LENGTH> texturePath = {0};
+				Core::Array<char, Core::MAX_PATH_LENGTH> origTexturePath = {0};
+				Core::FileSplitPath(sourceFile_.c_str(), sourcePath.data(), sourcePath.size(), nullptr, 0, nullptr, 0);
+				Core::FileAppendPath(texturePath.data(), texturePath.size(), sourcePath.data());
+				Core::FileAppendPath(texturePath.data(), texturePath.size(), path.C_Str());
+				Core::FileNormalizePath(texturePath.data(), texturePath.size(), false);
+				context_->GetPathResolver()->OriginalPath(
+				    texturePath.data(), origTexturePath.data(), origTexturePath.size());
+				importMaterial.textures_[name] = origTexturePath.data();
+
+				// TODO: Setup metadata for textures.
+			}
+
+			return texUUID;
+		}
+
+		Core::UUID AddMaterial(aiMaterial* material)
+		{
+			Core::UUID retVal;
+
+			// Grab material name.
+			auto materialName = AssimpGetMaterialName(material);
+
+			// Setup material refs if there are matches.
+			for(const auto& materialEntry : metaData_.materials_)
+			{
+				std::regex regex;
+				try
+				{
+					regex = std::regex(materialEntry.regex_.c_str());
+				}
+				catch(...)
+				{
+					// TODO: Log Error.
+					continue;
+				}
+
+				if(std::regex_match(materialName.c_str(), regex))
+				{
+					auto foundMaterial = addedMaterials_.find(materialName);
+					if(foundMaterial == addedMaterials_.end())
+					{
+						// Find material file name.
+						Core::Array<char, Core::MAX_PATH_LENGTH> materialPath = {0};
+						Core::Array<char, Core::MAX_PATH_LENGTH> sourceName = {0};
+						Core::Array<char, Core::MAX_PATH_LENGTH> sourceExt = {0};
+						Core::Array<char, Core::MAX_PATH_LENGTH> origMaterialPath = {0};
+						Core::FileSplitPath(sourceFile_.c_str(), materialPath.data(), materialPath.size(),
+						    sourceName.data(), sourceName.size(), sourceExt.data(), sourceExt.size());
+						strcat_s(materialPath.data(), materialPath.size(), "/materials/");
+						Core::FileCreateDir(materialPath.data());
+
+						strcat_s(materialPath.data(), materialPath.size(), sourceName.data());
+						strcat_s(materialPath.data(), materialPath.size(), ".");
+						strcat_s(materialPath.data(), materialPath.size(), sourceExt.data());
+						strcat_s(materialPath.data(), materialPath.size(), ".");
+						strcat_s(materialPath.data(), materialPath.size(), materialName.c_str());
+						strcat_s(materialPath.data(), materialPath.size(), ".material");
+
+						context_->GetPathResolver()->OriginalPath(
+						    materialPath.data(), origMaterialPath.data(), origMaterialPath.size());
+						retVal = origMaterialPath.data();
+
+						// If file exists, load and serialize. Otherwise, use template.
+						Graphics::ImportMaterial importMaterial;
+						if(Core::FileExists(materialPath.data()))
+						{
+							auto materialFile = Core::File(materialPath.data(), Core::FileFlags::READ);
+							auto materialSer = Serialization::Serializer(materialFile, Serialization::Flags::TEXT);
+							importMaterial.Serialize(materialSer);
+						}
+						else
+						{
+							importMaterial = materialEntry.template_;
+						}
+
+						// Attempt to find textures.
+						AddTexture(material, importMaterial, "texDiffuse", aiTextureType_DIFFUSE, 0);
+						AddTexture(material, importMaterial, "texSpecular", aiTextureType_SPECULAR, 0);
+						AddTexture(material, importMaterial, "texMetallic", aiTextureType_AMBIENT, 0);
+						AddTexture(material, importMaterial, "texEmissive", aiTextureType_EMISSIVE, 0);
+						AddTexture(material, importMaterial, "texHeight", aiTextureType_HEIGHT, 0);
+						AddTexture(material, importMaterial, "texNormal", aiTextureType_NORMALS, 0);
+						AddTexture(material, importMaterial, "texRoughness", aiTextureType_SHININESS, 0);
+						AddTexture(material, importMaterial, "texOpacity", aiTextureType_OPACITY, 0);
+						AddTexture(material, importMaterial, "texDisplacement", aiTextureType_DISPLACEMENT, 0);
+						AddTexture(material, importMaterial, "texLightmap", aiTextureType_LIGHTMAP, 0);
+						AddTexture(material, importMaterial, "texReflection", aiTextureType_REFLECTION, 0);
+
+						{
+							Core::FileRemove(materialPath.data());
+							auto materialFile =
+							    Core::File(materialPath.data(), Core::FileFlags::CREATE | Core::FileFlags::WRITE);
+							auto materialSer = Serialization::Serializer(materialFile, Serialization::Flags::TEXT);
+							importMaterial.Serialize(materialSer);
+						}
+						addedMaterials_[materialName] = retVal;
+					}
+					else
+					{
+						retVal = foundMaterial->second;
+					}
+				}
+			}
+
+			return retVal;
+		}
+
+		Resource::IConverterContext* context_ = nullptr;
+		Graphics::MetaDataModel metaData_;
+		Core::String sourceFile_;
 		const aiScene* scene_ = nullptr;
 		Core::Vector<Graphics::NodeDataAoS> nodes_;
 		Core::Vector<Graphics::MeshNode> meshNodes_;
@@ -948,6 +1060,9 @@ namespace
 		Core::Vector<Core::Pair<i32, Graphics::MeshNodeBonePalette*>> meshNodeBonePaletteDatas_;
 		Core::Vector<Core::Pair<i32, Graphics::MeshNodeInverseBindpose*>> meshNodeInverseBindposeDatas_;
 		Core::Vector<MeshData> meshDatas_;
+
+		Core::Map<Core::String, Core::UUID> defaultTextures_;
+		Core::Map<Core::String, Core::UUID> addedMaterials_;
 	};
 }
 

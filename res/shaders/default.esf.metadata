@@ -1,7 +1,7 @@
 {
    "$internal" : {
       "dependencies" : [
-         "shaders/shadow_pipeline.esf",
+         "shaders/default.esf",
          "shaders/stdlib.esh",
          "shaders/stdlib/color.esh",
          "shaders/stdlib/constants.esh",
@@ -9,8 +9,10 @@
          "shaders/stdlib/metadata.esh",
          "shaders/stdlib/normals.esh",
          "shaders/stdlib/plane.esh",
-         "shaders/stdlib/view.esh"
+         "shaders/stdlib/view.esh",
+         "shaders/lights.esh",
+         "shaders/brdf.esh"
       ],
-      "outputs" : [ "../../../../.converter_output/shaders/shadow_pipeline.esf.converted" ]
+      "outputs" : [ "../../../../.converter_output/shaders/default.esf.converted" ]
    }
 }

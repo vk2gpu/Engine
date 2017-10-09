@@ -9,6 +9,11 @@ namespace Resource
 
 	RefBase::RefBase(const char* name, const Core::UUID& type) { Manager::RequestResource(resource_, name, type); }
 
+	RefBase::RefBase(const Core::UUID& uuid, const Core::UUID& type)
+	{
+		Manager::RequestResource(resource_, uuid, type);
+	}
+
 	RefBase::~RefBase() { Reset(); }
 
 	RefBase::RefBase(RefBase&& other) { std::swap(resource_, other.resource_); }

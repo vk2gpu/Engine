@@ -35,6 +35,12 @@ namespace Resource
 		virtual void AddDependency(const char* fileName) = 0;
 
 		/**
+		 * Add resource dependency.
+		 * Any resource that the converter/input resource depends upon.
+		 */
+		virtual void AddResourceDependency(const char* fileName, const Core::UUID& type) = 0;
+
+		/**
 		 * Add output.
 		 * All files output by the converter.
 		 */

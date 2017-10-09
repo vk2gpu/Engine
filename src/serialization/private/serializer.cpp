@@ -607,7 +607,7 @@ namespace Serialization
 
 	Core::String Serializer::GetObjectKey(i32 idx) { return impl_->GetObjectKey(idx); }
 
- 	bool Serializer::IsReading() const { return impl_->IsReading(); }
+	bool Serializer::IsReading() const { return impl_->IsReading(); }
 
 	bool Serializer::IsWriting() const { return impl_->IsWriting(); }
 

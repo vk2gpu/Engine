@@ -11,6 +11,8 @@
          "shaders/stdlib/plane.esh",
          "shaders/stdlib/view.esh"
       ],
-      "outputs" : [ "converter_output/shaders/texture_compressor.esf.converted" ]
+      "outputs" : [
+         "../../../../.converter_output/shaders/texture_compressor.esf.converted"
+      ]
    }
 }

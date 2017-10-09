@@ -3,9 +3,12 @@
 #include "graphics/dll.h"
 #include "gpu/fwd_decls.h"
 #include "resource/resource.h"
+#include "resource/ref.h"
 
 namespace Graphics
 {
+	using TextureRef = Resource::Ref<class Texture>;
+
 	class GRAPHICS_DLL Texture
 	{
 	public:

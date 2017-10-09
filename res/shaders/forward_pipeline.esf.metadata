@@ -12,6 +12,8 @@
          "shaders/stdlib/view.esh",
          "shaders/lights.esh"
       ],
-      "outputs" : [ "converter_output/shaders/forward_pipeline.esf.converted" ]
+      "outputs" : [
+         "../../../../.converter_output/shaders/forward_pipeline.esf.converted"
+      ]
    }
 }

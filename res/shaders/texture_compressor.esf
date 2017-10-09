@@ -497,6 +497,7 @@ void stb__CompressAlphaBlock(inout BlockOutput dest, in int4 src[16], int ch, in
 struct CS_INPUT
 {
 	int3 groupID : SV_GroupID;
+	int groupIndex : SV_GroupIndex;
 	int3 groupThreadID : SV_GroupThreadID;
 	int3 dispatchID : SV_DispatchThreadID;
 };
@@ -594,7 +595,6 @@ void cs_compress_bc5(CS_INPUT _in)
 	WriteBlock(outTexture, outputBlock, _in.groupID.xy);
 }
 
-
 Technique TECH_COMPRESS_BC1 =
 {
 	.ComputeShader = cs_compress_bc1,
@@ -614,3 +614,4 @@ Technique TECH_COMPRESS_BC5 =
 {
 	.ComputeShader = cs_compress_bc5,
 };
+

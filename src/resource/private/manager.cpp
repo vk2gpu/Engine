@@ -4,6 +4,7 @@
 #include "resource/converter.h"
 #include "resource/factory.h"
 #include "resource/private/converter_context.h"
+#include "resource/private/database.h"
 #include "resource/private/factory_context.h"
 #include "resource/private/path_resolver.h"
 #include "resource/private/jobs_fileio.h"
@@ -160,6 +161,9 @@ namespace Resource
 		/// Plugins.
 		Core::Vector<ConverterPlugin> converterPlugins_;
 
+		/// Resource database.
+		Database* database_ = nullptr;
+
 		/// Read job queue.
 		Core::MPMCBoundedQueue<FileIOJob> readJobs_;
 		/// Signalled when read job is waiting.
@@ -182,6 +186,8 @@ namespace Resource
 		/// Path resolver.
 		PathResolver pathResolver_;
 
+		/// Root path in project structure (where the 'res' folder is)
+		Core::String rootPath_;
 
 		/// Number of conversions running.
 		volatile i32 numConversionJobs_ = 0;
@@ -335,16 +341,25 @@ namespace Resource
 			Plugin::Manager::GetPlugins<ConverterPlugin>(converterPlugins_.data(), converterPlugins_.size());
 
 			// From current working directory find the "res" directory to add to the path resolver.
+			Core::String rootPath = "";
 			Core::String currRelativePath = "res";
 			while(Core::FileExists(currRelativePath.c_str()) == false)
 			{
+				rootPath.Printf("../%s", rootPath.c_str());
 				currRelativePath.Printf("../%s", currRelativePath.c_str());
 
-				DBG_ASSERT_MSG(currRelativePath.size() < Core::MAX_PATH_LENGTH, "Unable to find \'res\' directory!");
+				DBG_ASSERT_MSG(rootPath.size() < Core::MAX_PATH_LENGTH, "Unable to find \'res\' directory!");
 			}
 
 			pathResolver_.AddPath("./");
 			pathResolver_.AddPath(currRelativePath.c_str());
+
+			// Converter output folder should be along side "res".
+			std::swap(rootPath_, rootPath);
+
+			// Scan for resources.
+			database_ = new Database(currRelativePath.c_str(), pathResolver_);
+			database_->ScanResources();
 
 			// Start timestamp checking job.
 			timestampJobSem_.Signal(1);
@@ -377,6 +392,9 @@ namespace Resource
 
 			timestampJobSem_.Signal(1);
 			timestampThread_.Join();
+
+			delete database_;
+			database_ = nullptr;
 		}
 
 		static int ReadIOThread(void* userData)
@@ -530,6 +548,13 @@ namespace Resource
 			Core::AtomicInc(&entry_->loaded_);
 		}
 
+		if(!success_)
+		{
+			Core::MessageBox("Resource Load Error", 
+				Core::String().Printf("Unable to load resource \"%s\"", entry_->sourceFile_.c_str()).c_str(), 
+				Core::MessageBoxType::OK, Core::MessageBoxIcon::ERROR); 
+		}
+
 		if(isReload)
 		{
 			Core::AtomicDec(&impl_->numReloadJobs_);
@@ -650,7 +675,7 @@ namespace Resource
 		Core::Array<char, Core::MAX_PATH_LENGTH> convertedFileName = {};
 		Core::Array<char, Core::MAX_PATH_LENGTH> convertedPath = {};
 		sprintf_s(convertedFileName.data(), convertedFileName.size(), "%s.%s.converted", fileName.data(), ext.data());
-		sprintf_s(convertedPath.data(), convertedPath.size(), "converter_output");
+		sprintf_s(convertedPath.data(), convertedPath.size(), "%s.converter_output", impl_->rootPath_.data());
 
 		Core::FileCreateDir(convertedPath.data());
 
@@ -732,6 +757,15 @@ namespace Resource
 		return false;
 	}
 
+	bool Manager::RequestResource(void*& outResource, const Core::UUID& uuid, const Core::UUID& type)
+	{
+		DBG_ASSERT(IsInitialized());
+		Core::String name = impl_->database_->GetPathRescan(uuid);
+		if(name.size() > 0)
+			return RequestResource(outResource, name.c_str(), type);
+		return false;
+	}
+
 	bool Manager::ReleaseResource(void*& inResource)
 	{
 		DBG_ASSERT(IsInitialized());
@@ -755,9 +789,19 @@ namespace Resource
 	{
 		DBG_ASSERT(IsInitialized());
 		DBG_ASSERT(inResource != nullptr);
+		f64 maxWaitTime = 10.0;
+		f64 startTime = Core::Timer::GetAbsoluteTime();
 		while(!IsResourceReady(inResource))
 		{
 			Job::Manager::YieldCPU();
+			if((Core::Timer::GetAbsoluteTime() - startTime) > maxWaitTime)
+			{
+				auto retVal = Core::MessageBox("Resource load timeout.", "Timed out waiting for resource load. Continue waiting?", Core::MessageBoxType::OK_CANCEL);
+				if(retVal == Core::MessageBoxReturn::CANCEL)
+					DBG_BREAK;
+				startTime = Core::Timer::GetAbsoluteTime();
+				maxWaitTime *= 2.0;
+			}
 		}
 	}
 

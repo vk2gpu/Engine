@@ -40,9 +40,9 @@ namespace Testbed
 			else if(techDesc > 0)
 				return false;
 
-			if(a.shader_ < b.shader_)
+			if(a.material_ < b.material_)
 				return true;
-			else if(a.shader_ > b.shader_)
+			else if(a.material_ > b.material_)
 				return false;
 
 			if(a.techs_ < b.techs_)
@@ -86,7 +86,7 @@ namespace Testbed
 			auto& tech = meshPacket->techs_->passTechniques_[passTechIdx];
 			bool doDraw = true;
 			if(customBindFn)
-				doDraw = customBindFn(meshPacket->shader_, tech);
+				doDraw = customBindFn(meshPacket->material_->GetShader(), tech);
 
 			if(doDraw)
 				++numInstances;

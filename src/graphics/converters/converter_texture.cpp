@@ -1,5 +1,6 @@
 #include "graphics/converters/dds.h"
 #include "graphics/converters/image.h"
+#include "graphics/converters/import_texture.h"
 #include "graphics/texture.h"
 #include "resource/converter.h"
 #include "core/array.h"
@@ -37,23 +38,6 @@ namespace
 
 		virtual ~ConverterTexture() {}
 
-		struct MetaData
-		{
-			bool isInitialized_ = false;
-			GPU::Format format_ = GPU::Format::INVALID;
-			bool generateMipLevels_ = false;
-
-			bool Serialize(Serialization::Serializer& serializer)
-			{
-				isInitialized_ = true;
-
-				bool retVal = true;
-				retVal &= serializer.Serialize("format", format_);
-				retVal &= serializer.Serialize("generateMipLevels", generateMipLevels_);
-				return retVal;
-			}
-		};
-
 		bool SupportsFileType(const char* fileExt, const Core::UUID& type) const override
 		{
 			return (type == Graphics::Texture::GetTypeUUID()) ||
@@ -64,7 +48,7 @@ namespace
 
 		bool Convert(Resource::IConverterContext& context, const char* sourceFile, const char* destPath) override
 		{
-			MetaData metaData = context.GetMetaData<MetaData>();
+			auto metaData = context.GetMetaData<Graphics::MetaDataTexture>();
 
 			char file[Core::MAX_PATH_LENGTH];
 			memset(file, 0, sizeof(file));

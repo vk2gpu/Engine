@@ -33,6 +33,7 @@ namespace Testbed
 
 	struct ShaderTechniques
 	{
+		Graphics::Material* material_ = nullptr;
 		Core::Map<Core::String, i32> passIndices_;
 		Core::Vector<Graphics::ShaderTechnique> passTechniques_;
 	};

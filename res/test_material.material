@@ -1,0 +1,7 @@
+{
+	"shader" : "shaders/simple-mesh.esf",
+
+	"textures" : {
+		"texAlbedo" : "test_texture.png"
+	}
+}

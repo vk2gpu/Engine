@@ -1,0 +1,153 @@
+#include "stdlib.esh"
+#include "lights.esh"
+#include "brdf.esh"
+
+cbuffer ViewCBuffer
+{
+	ViewParams v_;
+};
+
+cbuffer LightCBuffer
+{
+	LightParams l_;
+};
+
+struct Object
+{
+	float4x4 world_;
+};
+
+StructuredBuffer<Object> inObject;
+
+
+struct VS_IN
+{
+	float3 position : POSITION;
+	float3 normal : NORMAL;
+};
+
+struct VS_OUT
+{
+	float4 position : SV_POSITION;
+	float3 v_position : TEXCOORD15;
+	float3 v_normal : NORMAL;
+};
+
+VS_OUT vs_main(in VS_IN _in, uint _id : SV_INSTANCEID)
+{
+	Object o = inObject[_id];
+
+	VS_OUT _out = (VS_OUT)0;
+	float4 position = mul(o.world_, float4(_in.position, 1.0));
+	float3 normal = mul((float3x3)o.world_, _in.normal);
+	_out.position = mul(v_.viewProj_, position);
+	_out.v_position = mul(v_.view_, position).xyz;
+	_out.v_normal = mul(v_.view_, normal);
+	return _out;
+}
+
+void ps_depthprepass(in VS_OUT _in)
+{
+	
+}
+
+void ps_shadow(in VS_OUT _in)
+{
+
+}
+
+Texture2D<uint> inLightTex;
+StructuredBuffer<uint> inLightIndices;
+StructuredBuffer<Light> inLights;
+
+float4 ps_forward(in VS_OUT _in) : SV_TARGET0
+{
+	const float3 v_normal = normalize(_in.v_normal.xyz); 
+	const float3 ambient = float3(0.01, 0.01, 0.01);
+
+	float3 lightColor = float3(0.0, 0.0, 0.0);
+	lightColor += ambient;
+
+	int2 lightTexel = DecodeLight(inLightTex[int2(floor(_in.position.xy / l_.tileSize_))]);
+
+	Material material;
+
+	material.color_ = float3(0.8, 0.8, 0.8);
+	material.roughness_ = 0.25;
+	material.metallic_ = 0.0;
+	material.f0_ = DIELECTRIC_F0;
+
+	Surface surface = SetupSurface(material, _in.v_position, v_normal);
+
+	// Iterate over lights. 
+	for(int idx = 0; idx < lightTexel.y; ++idx)
+	{	
+		const int lightIdx = inLightIndices[lightTexel.x + idx];
+		Light light = inLights[lightIdx];
+		light.position_ = mul(v_.view_, float4(light.position_, 1.0)).xyz;
+
+		LightParameters lightParams = CreatePointLight(light, surface);
+	
+		lightColor += BRDF_Default(lightParams) * lightParams.attenuation;
+	}
+
+	// TODO: LinearToGamma in post process.
+	return float4(LinearToGamma(lightColor), 0.0);
+}
+
+RenderState RS_DEPTH_PREPASS =
+{
+	.BlendStates = {
+		.WriteMask = 0,
+	},
+
+	.DepthFunc = LESS_EQUAL,
+	.DepthEnable = 1,
+	.DepthWriteMask = 1,
+	.FillMode = SOLID,
+	.CullMode = CCW,
+};
+
+RenderState RS_SHADOW =
+{
+	.BlendStates = {
+		.WriteMask = 0,
+	},
+
+	.DepthFunc = LESS_EQUAL,
+	.DepthEnable = 1,
+	.DepthWriteMask = 1,
+	.FillMode = SOLID,
+	.CullMode = CCW,
+};
+
+RenderState RS_FORWARD =
+{
+	.DepthFunc = LESS_EQUAL,
+	.DepthEnable = 1,
+	.DepthWriteMask = 1,
+	.FillMode = SOLID,
+	.CullMode = CCW,
+};
+
+Technique RenderPassDepthPrepass =
+{
+	.VertexShader = vs_main,
+	.PixelShader = ps_depthprepass,
+	.RenderState = RS_DEPTH_PREPASS,
+};
+
+Technique RenderPassShadow =
+{
+	.VertexShader = vs_main,
+	.PixelShader = ps_shadow,
+	.RenderState = RS_SHADOW,
+};
+
+Technique RenderPassForward =
+{
+	.VertexShader = vs_main,
+	.PixelShader = ps_forward,
+	.RenderState = RS_FORWARD,
+};
+

@@ -13,6 +13,6 @@
          "shaders/lights.esh",
          "shaders/brdf.esh"
       ],
-      "outputs" : [ "converter_output/shaders/simple-mesh.esf.converted" ]
+      "outputs" : [ "../../../../.converter_output/shaders/simple-mesh.esf.converted" ]
    }
 }

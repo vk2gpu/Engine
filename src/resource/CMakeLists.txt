@@ -10,6 +10,8 @@ SET(SOURCES_PUBLIC
 SET(SOURCES_PRIVATE 
 	"private/converter_context.h"
 	"private/converter_context.cpp"
+	"private/database.h"
+	"private/database.cpp"
 	"private/factory_context.h"
 	"private/factory_context.cpp"
 	"private/jobs_fileio.h"

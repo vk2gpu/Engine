@@ -6,5 +6,7 @@
 #include <Windows.h>
 
 #undef DrawState
+#undef MessageBox
+#undef ERROR
 
 #endif

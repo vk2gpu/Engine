@@ -196,7 +196,8 @@ namespace Testbed
 
 	ShadowPipeline::~ShadowPipeline() { Resource::Manager::ReleaseResource(shader_); }
 
-	void ShadowPipeline::CreateTechniques(Shader* shader, ShaderTechniqueDesc desc, ShaderTechniques& outTechniques)
+	void ShadowPipeline::CreateTechniques(
+	    Graphics::Material* material, ShaderTechniqueDesc desc, ShaderTechniques& outTechniques)
 	{
 		auto AddTechnique = [&](const char* name) {
 			auto techIt = fbsDescs_.find(name);
@@ -210,11 +211,11 @@ namespace Testbed
 			if(idxIt != outTechniques.passIndices_.end())
 			{
 				if(!outTechniques.passTechniques_[idxIt->second])
-					outTechniques.passTechniques_[idxIt->second] = shader->CreateTechnique(name, desc);
+					outTechniques.passTechniques_[idxIt->second] = material->CreateTechnique(name, desc);
 			}
 			else
 			{
-				outTechniques.passTechniques_.emplace_back(shader->CreateTechnique(name, desc));
+				outTechniques.passTechniques_.emplace_back(material->CreateTechnique(name, desc));
 				outTechniques.passIndices_.insert(name, size);
 			}
 		};

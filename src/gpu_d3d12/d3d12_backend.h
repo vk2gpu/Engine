@@ -94,17 +94,17 @@ namespace GPU
 
 		/// Resources.
 		Core::RWLock resLock_;
-		ResourceVector<D3D12SwapChain> swapchainResources_;
-		ResourceVector<D3D12Buffer> bufferResources_;
-		ResourceVector<D3D12Texture> textureResources_;
-		ResourceVector<D3D12Shader> shaders_;
-		ResourceVector<D3D12SamplerState> samplerStates_;
-		ResourceVector<D3D12GraphicsPipelineState> graphicsPipelineStates_;
-		ResourceVector<D3D12ComputePipelineState> computePipelineStates_;
-		ResourceVector<D3D12PipelineBindingSet> pipelineBindingSets_;
-		ResourceVector<D3D12DrawBindingSet> drawBindingSets_;
-		ResourceVector<D3D12FrameBindingSet> frameBindingSets_;
-		ResourceVector<D3D12CommandList*> commandLists_;
+		ResourcePool<D3D12SwapChain> swapchainResources_;
+		ResourcePool<D3D12Buffer> bufferResources_;
+		ResourcePool<D3D12Texture> textureResources_;
+		ResourcePool<D3D12Shader> shaders_;
+		ResourcePool<D3D12SamplerState> samplerStates_;
+		ResourcePool<D3D12GraphicsPipelineState> graphicsPipelineStates_;
+		ResourcePool<D3D12ComputePipelineState> computePipelineStates_;
+		ResourcePool<D3D12PipelineBindingSet> pipelineBindingSets_;
+		ResourcePool<D3D12DrawBindingSet> drawBindingSets_;
+		ResourcePool<D3D12FrameBindingSet> frameBindingSets_;
+		ResourcePool<D3D12CommandList*> commandLists_;
 	};
 
 } // namespace GPU

@@ -69,6 +69,21 @@ namespace Resource
 		}
 
 		/**
+		 * Request resource by uuid & type.
+		 * If a resource is loaded, it
+		 * @param outResource Output resource.
+		 * @param uuid UUID of resource.
+		 * @param type Type of resource.
+		 * @return true if success.
+		 */
+		static bool RequestResource(void*& outResource, const Core::UUID& uuid, const Core::UUID& type);
+		template<typename TYPE>
+		static bool RequestResource(TYPE*& outResource, const Core::UUID& uuid)
+		{
+			return RequestResource(reinterpret_cast<void*&>(outResource), uuid, TYPE::GetTypeUUID());
+		}
+
+		/**
 		 * Release resource.
 		 * @param inResource Resource to release.
 		 * @return true if success.

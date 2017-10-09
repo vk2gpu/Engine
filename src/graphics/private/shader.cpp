@@ -79,11 +79,16 @@ namespace Graphics
 			impl->name_ = name;
 			impl->header_ = header;
 
+			auto OnFailure = [impl]()
+			{
+				delete impl;
+			};
+
 			impl->bindingHeaders_.resize(header.numCBuffers_ + header.numSamplers_ + header.numSRVs_ + header.numUAVs_);
 			readBytes = impl->bindingHeaders_.size() * sizeof(ShaderBindingHeader);
 			if(inFile.Read(impl->bindingHeaders_.data(), readBytes) != readBytes)
 			{
-				delete impl;
+				OnFailure();
 				return false;
 			}
 
@@ -91,7 +96,7 @@ namespace Graphics
 			readBytes = impl->bytecodeHeaders_.size() * sizeof(ShaderBytecodeHeader);
 			if(inFile.Read(impl->bytecodeHeaders_.data(), readBytes) != readBytes)
 			{
-				delete impl;
+				OnFailure();
 				return false;
 			}
 
@@ -108,7 +113,7 @@ namespace Graphics
 			readBytes = impl->bindingMappings_.size() * sizeof(ShaderBindingMapping);
 			if(inFile.Read(impl->bindingMappings_.data(), readBytes) != readBytes)
 			{
-				delete impl;
+				OnFailure();
 				return false;
 			}
 
@@ -116,7 +121,15 @@ namespace Graphics
 			readBytes = impl->techniqueHeaders_.size() * sizeof(ShaderTechniqueHeader);
 			if(inFile.Read(impl->techniqueHeaders_.data(), readBytes) != readBytes)
 			{
-				delete impl;
+				OnFailure();
+				return false;
+			}
+
+			impl->samplerStateHeaders_.resize(header.numSamplerStates_);
+			readBytes = impl->samplerStateHeaders_.size() * sizeof(ShaderSamplerStateHeader);
+			if(inFile.Read(impl->samplerStateHeaders_.data(), readBytes) != readBytes)
+			{
+				OnFailure();
 				return false;
 			}
 
@@ -124,11 +137,11 @@ namespace Graphics
 			readBytes = impl->bytecode_.size();
 			if(inFile.Read(impl->bytecode_.data(), readBytes) != readBytes)
 			{
-				delete impl;
+				OnFailure();
 				return false;
 			}
 
-			// Create all the shaders.
+			// Create all the shaders & sampler states.
 			GPU::Handle handle;
 			if(GPU::Manager::IsInitialized())
 			{
@@ -144,9 +157,7 @@ namespace Graphics
 					handle = GPU::Manager::CreateShader(desc, name);
 					if(!handle)
 					{
-						for(auto s : impl->shaders_)
-							GPU::Manager::DestroyResource(s);
-						delete impl;
+						OnFailure();
 						return false;
 					}
 
@@ -155,6 +166,18 @@ namespace Graphics
 					impl->shaderBindingMappings_.push_back(mapping);
 
 					mapping += (bytecode.numCBuffers_ + bytecode.numSamplers_ + bytecode.numSRVs_ + bytecode.numUAVs_);
+				}
+
+				impl->samplerStates_.reserve(impl->samplerStateHeaders_.size());
+				for(const auto& samplerStateHeader : impl->samplerStateHeaders_)
+				{
+					handle = GPU::Manager::CreateSamplerState(samplerStateHeader.state_, samplerStateHeader.name_);
+					if(!handle)
+					{
+						OnFailure();
+						return false;
+					}
+					impl->samplerStates_.push_back(handle);
 				}
 
 				// Bytecode no longer needed once created.
@@ -508,6 +531,8 @@ namespace Graphics
 				GPU::Manager::DestroyResource(ps);
 			for(auto s : shaders_)
 				GPU::Manager::DestroyResource(s);
+			for(auto s : samplerStates_)
+				GPU::Manager::DestroyResource(s);
 		}
 	}
 
@@ -520,6 +545,11 @@ namespace Graphics
 				return idx;
 		}
 		return -1;
+	}
+
+	const char* ShaderImpl::GetBindingName(i32 idx) const
+	{
+		return bindingHeaders_[idx].name_;
 	}
 
 	ShaderTechniqueImpl* ShaderImpl::CreateTechnique(const char* name, const ShaderTechniqueDesc& desc)
@@ -645,6 +675,24 @@ namespace Graphics
 		impl->samplerOffset_ = impl->cbvs_.size();
 		impl->srvOffset_ = impl->samplers_.size() + impl->samplerOffset_;
 		impl->uavOffset_ = impl->srvs_.size() + impl->srvOffset_;
+
+		// Set samplers.
+		for(i32 idx = 0; idx < impl->samplers_.size(); ++idx)
+		{
+			const char* name = GetBindingName(idx + impl->samplerOffset_);
+
+			for(i32 headerIdx = 0; headerIdx < samplerStateHeaders_.size(); ++headerIdx)
+			{
+				const auto& header = samplerStateHeaders_[headerIdx];
+				if(strcmp(name, header.name_) == 0)
+				{
+					GPU::BindingSampler binding;
+					binding.resource_ = samplerStates_[headerIdx];
+					impl->samplers_[idx] = binding;
+					break;
+				}
+			}
+		}
 
 		return true;
 	}

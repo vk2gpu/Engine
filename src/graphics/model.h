@@ -2,7 +2,6 @@
 
 #include "graphics/dll.h"
 #include "graphics/fwd_decls.h"
-#include "graphics/shader.h"
 #include "core/array.h"
 #include "gpu/fwd_decls.h"
 #include "gpu/types.h"
@@ -23,7 +22,7 @@ namespace Graphics
 	class GRAPHICS_DLL Model
 	{
 	public:
-		DECLARE_RESOURCE("Graphics.Model", 0);
+		DECLARE_RESOURCE("Graphics.Model", 1);
 
 		/// @return Number of meshes.
 		i32 GetNumMeshes() const;
@@ -36,6 +35,9 @@ namespace Graphics
 
 		/// @return Draw info for @a meshIdx.
 		ModelMeshDraw GetMeshDraw(i32 meshIdx) const;
+
+		/// @return Material for @a meshIdx.
+		Material* Model::GetMeshMaterial(i32 meshIdx) const;
 
 		/// @return Mesh world transform.
 		Math::Mat44 GetMeshWorldTransform(i32 meshIdx) const;

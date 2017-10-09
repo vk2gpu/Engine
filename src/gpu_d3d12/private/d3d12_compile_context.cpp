@@ -410,8 +410,6 @@ namespace GPU
 			}
 		}
 
-		FlushTransitions();
-
 		d3dCommandList_->OMSetRenderTargets(fbs.numRTs_, rtvDesc, TRUE, dsvDesc);
 
 		return ErrorCode::OK;
@@ -506,10 +504,10 @@ namespace GPU
 			{
 				barriers_.push_back(barrier.second);
 			}
-			pendingBarriers_.clear();
 
 			// Perform resource barriers.
 			d3dCommandList_->ResourceBarrier(barriers_.size(), barriers_.data());
+			pendingBarriers_.clear();
 			barriers_.clear();
 		}
 	}

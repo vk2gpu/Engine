@@ -13,6 +13,7 @@
 #include "plugin/manager.h"
 #include "resource/manager.h"
 
+#include "graphics/material.h"
 #include "graphics/model.h"
 #include "graphics/shader.h"
 #include "graphics/texture.h"
@@ -55,7 +56,7 @@ namespace
 		Client::Window window;
 		Plugin::Manager::Scoped pluginManager;
 		GPU::Manager::Scoped gpuManager;
-		Job::Manager::Scoped jobManager = Job::Manager::Scoped(Core::GetNumLogicalCores(), 256, 32 * 1024);
+		Job::Manager::Scoped jobManager = Job::Manager::Scoped(Core::GetNumLogicalCores(), 256, 64 * 1024);
 		Resource::Manager::Scoped resourceManager;
 
 		GPU::SwapChainDesc scDesc;
@@ -67,6 +68,7 @@ namespace
 		    : window(name, 100, 100, 1280, 720, true, true)
 		    , gpuManager(GetDefaultSetupParams(cmdLine))
 		{
+			Graphics::Material::RegisterFactory();
 			Graphics::Model::RegisterFactory();
 			Graphics::Shader::RegisterFactory();
 			Graphics::Texture::RegisterFactory();
@@ -103,6 +105,7 @@ namespace
 		{
 			GPU::Manager::DestroyResource(fbsHandle);
 			GPU::Manager::DestroyResource(scHandle);
+			Graphics::Material::UnregisterFactory();
 			Graphics::Model::UnregisterFactory();
 			Graphics::Shader::UnregisterFactory();
 			Graphics::Texture::UnregisterFactory();

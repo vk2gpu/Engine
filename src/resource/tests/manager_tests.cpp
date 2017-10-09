@@ -117,6 +117,10 @@ namespace
 		virtual ~ConverterContext() {}
 
 		void AddDependency(const char* fileName) override { Core::Log("AddDependency: %s\n", fileName); }
+		void AddResourceDependency(const char* fileName, const Core::UUID& type) override
+		{
+			Core::Log("AddResourceDependency: %s\n", fileName);
+		}
 
 		void AddOutput(const char* fileName) override { Core::Log("AddOutput: %s\n", fileName); }
 

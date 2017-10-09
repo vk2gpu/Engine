@@ -2,6 +2,7 @@
 
 #include "core/types.h"
 #include "core/library.h"
+#include "core/os.h"
 #include "gpu/resources.h"
 #include "gpu/types.h"
 

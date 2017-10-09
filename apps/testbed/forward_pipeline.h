@@ -26,7 +26,7 @@ namespace Testbed
 		virtual ~ForwardPipeline();
 
 		void CreateTechniques(
-		    Graphics::Shader* shader, Graphics::ShaderTechniqueDesc desc, ShaderTechniques& outTechniques);
+		    Graphics::Material* material, Graphics::ShaderTechniqueDesc desc, ShaderTechniques& outTechniques);
 		void SetCamera(const Math::Mat44& view, const Math::Mat44& proj, Math::Vec2 screenDimensions);
 		void SetDrawCallback(DrawFn drawFn);
 		void Setup(Graphics::RenderGraph& renderGraph) override;
