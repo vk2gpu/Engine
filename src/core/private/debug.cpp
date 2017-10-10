@@ -154,4 +154,14 @@ namespace Core
 		return MessageBoxReturn::OK;
 	}
 
+	i32 GetCallstack(i32 skipFrames, void** addresses, i32 maxAddresses, i32* stackHash)
+	{
+#if PLATFORM_WINDOWS
+		return ::CaptureStackBackTrace(skipFrames + 1, maxAddresses, addresses, (DWORD*)stackHash);
+#else
+		return 0;
+#endif
+	}
+
+
 } // namespace Core

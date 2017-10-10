@@ -128,6 +128,16 @@ namespace Core
 		}
 
 		/**
+		 * Get maximum handle index.
+		 */
+		i32 GetMaxHandleIndex(i32 type) const;
+
+		/**
+		 * Is handle index allocated?
+		 */
+		bool IsHandleIndexAllocated(i32 type, i32 index) const;
+		
+		/**
 		 * Is a handle valid?
 		 */
 		bool IsValid(Handle handle) const

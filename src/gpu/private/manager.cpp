@@ -10,6 +10,7 @@
 #include "core/handle.h"
 #include "core/library.h"
 #include "core/misc.h"
+#include "core/string.h"
 #include "core/vector.h"
 
 #include "renderdoc_app.h"
@@ -19,6 +20,50 @@
 #include "Remotery.h"
 
 #include <utility>
+
+/**
+ * GPU debug information.
+ */
+namespace GPU
+{
+	#if !defined(FINAL)
+	struct ResourceDebugInfo
+	{
+		ResourceDebugInfo() = default;
+		ResourceDebugInfo(const char* name)
+			: name_(name)
+		{
+			Core::GetCallstack(2, creationCallstack_.data(), creationCallstack_.size());
+		}
+
+		Core::String name_;
+		Core::Array<void*, 16> creationCallstack_;
+	};
+
+	using ResourceDebugInfos = Core::Vector<ResourceDebugInfo>;
+	GPU_DLL Core::Mutex resourceDebugInfoMutex_;
+	GPU_DLL Core::Array<ResourceDebugInfos, (i32)GPU::ResourceType::MAX> resourceDebugInfo_;
+
+	GPU_DLL ResourceDebugInfo GetDebugInfo(GPU::Handle handle)
+	{
+		return resourceDebugInfo_[(i32)handle.GetType()][handle.GetIndex()];
+	}
+#endif // !defined(FINAL)
+
+	GPU_DLL void SetDebugInfo(GPU::Handle handle, const char* name)
+	{
+#if !defined(FINAL)
+		Core::ScopedMutex lock(resourceDebugInfoMutex_);
+
+		auto& resourceDebugInfo = resourceDebugInfo_[(i32)handle.GetType()];
+		if(resourceDebugInfo.size() <= handle.GetIndex())
+		{
+			resourceDebugInfo.resize(Core::PotRoundUp(handle.GetIndex() + 1, 32));
+		}
+		resourceDebugInfo[handle.GetIndex()] = ResourceDebugInfo(name);
+#endif // !defined(FINAL)
+	}
+} // namespace GPU
 
 namespace RenderDoc
 {
@@ -110,6 +155,7 @@ namespace GPU
 
 		Core::Mutex mutex_;
 		Core::HandleAllocator handles_ = Core::HandleAllocator(ResourceType::MAX);
+
 		Core::Array<Core::Vector<Handle>, MAX_GPU_FRAMES> deferredDeletions_ = {};
 		i64 frameIdx_ = 0;
 
@@ -208,9 +254,35 @@ namespace GPU
 			NextFrame();
 
 #if !defined(FINAL)
+		bool handlesAlive = false;
 		for(i32 i = 0; i < (i32)ResourceType::MAX; ++i)
-			DBG_ASSERT_MSG(
-			    impl_->handles_.GetTotalHandles(i) == 0, "Handles still remain allocated for resource type %u", i);
+		{
+			handlesAlive |= impl_->handles_.GetTotalHandles(i) > 0;
+		}
+
+		if(handlesAlive)
+		{
+			Core::Log("GPU Handles still allocated:\n");
+
+			for(i32 i = 0; i < (i32)ResourceType::MAX; ++i)
+			{
+				Core::Log(" - Type %u:\n", i);
+				if(impl_->handles_.GetTotalHandles(i) > 0)
+				{
+					for(i32 resIdx = 0; resIdx < impl_->handles_.GetMaxHandleIndex(i); ++resIdx)
+					{
+						if(impl_->handles_.IsHandleIndexAllocated(i, resIdx))
+						{
+							const char* debugName = resourceDebugInfo_[i][resIdx].name_.c_str();
+							Core::Log(" - - %s\n", debugName);
+						}
+					}
+				}
+
+			}
+		}
+
+		DBG_ASSERT(!handlesAlive);
 #endif
 		delete impl_;
 		impl_ = nullptr;
@@ -246,6 +318,7 @@ namespace GPU
 		DBG_ASSERT(IsInitialized());
 		rmt_ScopedCPUSample(GPU_CreateSwapChain, RMTSF_None);
 		Handle handle = impl_->AllocHandle(ResourceType::SWAP_CHAIN);
+		SetDebugInfo(handle, debugName);
 		impl_->HandleErrorCode(handle, impl_->backend_->CreateSwapChain(handle, desc, debugName));
 		return handle;
 	}
@@ -255,6 +328,7 @@ namespace GPU
 		DBG_ASSERT(IsInitialized());
 		rmt_ScopedCPUSample(GPU_CreateBuffer, RMTSF_None);
 		Handle handle = impl_->AllocHandle(ResourceType::BUFFER);
+		SetDebugInfo(handle, debugName);
 		impl_->HandleErrorCode(handle, impl_->backend_->CreateBuffer(handle, desc, initialData, debugName));
 		return handle;
 	}
@@ -265,6 +339,7 @@ namespace GPU
 		DBG_ASSERT(IsInitialized());
 		rmt_ScopedCPUSample(GPU_CreateTexture, RMTSF_None);
 		Handle handle = impl_->AllocHandle(ResourceType::TEXTURE);
+		SetDebugInfo(handle, debugName);
 		impl_->HandleErrorCode(handle, impl_->backend_->CreateTexture(handle, desc, initialData, debugName));
 		return handle;
 	}
@@ -274,6 +349,7 @@ namespace GPU
 		DBG_ASSERT(IsInitialized());
 		rmt_ScopedCPUSample(GPU_CreateSamplerState, RMTSF_None);
 		Handle handle = impl_->AllocHandle(ResourceType::SAMPLER_STATE);
+		SetDebugInfo(handle, debugName);
 		impl_->HandleErrorCode(handle, impl_->backend_->CreateSamplerState(handle, state, debugName));
 		return handle;
 	}
@@ -283,6 +359,7 @@ namespace GPU
 		DBG_ASSERT(IsInitialized());
 		rmt_ScopedCPUSample(GPU_CreateShader, RMTSF_None);
 		Handle handle = impl_->AllocHandle(ResourceType::SHADER);
+		SetDebugInfo(handle, debugName);
 		impl_->HandleErrorCode(handle, impl_->backend_->CreateShader(handle, desc, debugName));
 		return handle;
 	}
@@ -292,6 +369,7 @@ namespace GPU
 		DBG_ASSERT(IsInitialized());
 		rmt_ScopedCPUSample(GPU_CreateGraphicsPipelineState, RMTSF_None);
 		Handle handle = impl_->AllocHandle(ResourceType::GRAPHICS_PIPELINE_STATE);
+		SetDebugInfo(handle, debugName);
 		impl_->HandleErrorCode(handle, impl_->backend_->CreateGraphicsPipelineState(handle, desc, debugName));
 		return handle;
 	}
@@ -302,6 +380,7 @@ namespace GPU
 		DBG_ASSERT(impl_->backend_);
 		rmt_ScopedCPUSample(GPU_CreateComputePipelineState, RMTSF_None);
 		Handle handle = impl_->AllocHandle(ResourceType::COMPUTE_PIPELINE_STATE);
+		SetDebugInfo(handle, debugName);
 		impl_->HandleErrorCode(handle, impl_->backend_->CreateComputePipelineState(handle, desc, debugName));
 		return handle;
 	}
@@ -311,6 +390,7 @@ namespace GPU
 		DBG_ASSERT(IsInitialized());
 		rmt_ScopedCPUSample(GPU_CreatePipelineBindingSet, RMTSF_None);
 		Handle handle = impl_->AllocHandle(ResourceType::PIPELINE_BINDING_SET);
+		SetDebugInfo(handle, debugName);
 		impl_->HandleErrorCode(handle, impl_->backend_->CreatePipelineBindingSet(handle, desc, debugName));
 		return handle;
 	}
@@ -321,6 +401,7 @@ namespace GPU
 		DBG_ASSERT(impl_->backend_);
 		rmt_ScopedCPUSample(GPU_CreateDrawBindingSet, RMTSF_None);
 		Handle handle = impl_->AllocHandle(ResourceType::DRAW_BINDING_SET);
+		SetDebugInfo(handle, debugName);
 		impl_->HandleErrorCode(handle, impl_->backend_->CreateDrawBindingSet(handle, desc, debugName));
 		return handle;
 	}
@@ -330,6 +411,7 @@ namespace GPU
 		DBG_ASSERT(IsInitialized());
 		rmt_ScopedCPUSample(GPU_CreateFrameBindingSet, RMTSF_None);
 		Handle handle = impl_->AllocHandle(ResourceType::FRAME_BINDING_SET);
+		SetDebugInfo(handle, debugName);
 		impl_->HandleErrorCode(handle, impl_->backend_->CreateFrameBindingSet(handle, desc, debugName));
 		return handle;
 	}
@@ -339,6 +421,7 @@ namespace GPU
 		DBG_ASSERT(IsInitialized());
 		rmt_ScopedCPUSample(GPU_CreateCommandList, RMTSF_None);
 		Handle handle = impl_->AllocHandle(ResourceType::COMMAND_LIST);
+		SetDebugInfo(handle, debugName);
 		impl_->HandleErrorCode(handle, impl_->backend_->CreateCommandList(handle, debugName));
 		return handle;
 	}
@@ -348,6 +431,7 @@ namespace GPU
 		DBG_ASSERT(IsInitialized());
 		rmt_ScopedCPUSample(GPU_CreateFence, RMTSF_None);
 		Handle handle = impl_->AllocHandle(ResourceType::FENCE);
+		SetDebugInfo(handle, debugName);
 		impl_->HandleErrorCode(handle, impl_->backend_->CreateFence(handle, debugName));
 		return handle;
 	}

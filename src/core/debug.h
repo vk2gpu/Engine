@@ -53,6 +53,13 @@ namespace Core
 	 */
 	CORE_DLL MessageBoxReturn MessageBox(const char* title, const char* message,
 	    MessageBoxType type = MessageBoxType::OK, MessageBoxIcon icon = MessageBoxIcon::WARNING);
+
+	/**
+	 * Get callstack.
+	 * @return Number of addresses.
+	 */
+	CORE_DLL i32 GetCallstack(i32 skipFrames, void** addresses, i32 maxAddresses, i32* stackHash = nullptr);
+
 } // namespace Core
 
 //////////////////////////////////////////////////////////////////////////

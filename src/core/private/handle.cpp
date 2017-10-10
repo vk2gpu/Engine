@@ -117,5 +117,19 @@ namespace Core
 		return totalHandles;
 	}
 
+	i32 HandleAllocator::GetMaxHandleIndex(i32 type) const
+	{
+		DBG_ASSERT((i32)type < impl_->types_.size());
+		HandleAllocatorImpl::TypeData& typeData = impl_->types_[type];
+		return typeData.allocated_.size();
+	}
+
+	bool HandleAllocator::IsHandleIndexAllocated(i32 type, i32 index) const
+	{
+		DBG_ASSERT((i32)type < impl_->types_.size());
+		HandleAllocatorImpl::TypeData& typeData = impl_->types_[type];
+		return !!typeData.allocated_[index];
+
+	}
 
 } // namespace Core
