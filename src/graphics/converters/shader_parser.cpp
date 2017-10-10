@@ -571,21 +571,58 @@ namespace Graphics
 			PARSE_TOKEN();
 		}
 
-		if(token_.value_ == ":")
+		u32 mask = 0;
+		const u32 REGISTER_MASK = 0x1;
+		const u32 SEMANTIC_MASK = 0x3;
+		while(token_.value_ == ":")
 		{
 			// Parse semantic.
 			PARSE_TOKEN();
 			CHECK_TOKEN(AST::TokenType::IDENTIFIER, "");
 
-			// Check if identifier is a reserved keyword.
-			if(reserved_.find(token_.value_) != reserved_.end())
+			// If identifier is 'register', then parse register.
+			if(token_.value_ == "register")
 			{
-				Error(node, ErrorType::RESERVED_KEYWORD,
-				    Core::String().Printf("\'%s\': is a reserved keyword. Semantic expected.", token_.value_.c_str()));
-				return node;
-			}
+				if(mask & REGISTER_MASK)
+				{
+					Error(node, ErrorType::UNEXPECTED_TOKEN,
+						Core::String().Printf("register() has already been specified for declaration."));
+					return node;
+				}
 
-			node->semantic_ = token_.value_;
+				mask |= REGISTER_MASK;
+
+				// Parse register.
+				PARSE_TOKEN();
+				CHECK_TOKEN(AST::TokenType::CHAR, "(");
+
+				PARSE_TOKEN();
+				node->register_ = token_.value_;
+
+				PARSE_TOKEN();
+				CHECK_TOKEN(AST::TokenType::CHAR, ")");
+			}
+			else
+			{
+				if(mask & SEMANTIC_MASK)
+				{
+					Error(node, ErrorType::UNEXPECTED_TOKEN,
+						Core::String().Printf("Semantic has already been specified for declaration."));
+					return node;
+				}
+
+				// Check if identifier is a reserved keyword.
+				if(reserved_.find(token_.value_) != reserved_.end())
+				{
+					Error(node, ErrorType::RESERVED_KEYWORD,
+					    Core::String().Printf("\'%s\': is a reserved keyword. Semantic expected.", token_.value_.c_str()));
+					return node;
+				}
+
+				mask |= SEMANTIC_MASK;
+
+				node->semantic_ = token_.value_;
+			}
 
 			PARSE_TOKEN();
 		}

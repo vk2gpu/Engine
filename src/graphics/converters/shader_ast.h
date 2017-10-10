@@ -63,7 +63,7 @@ namespace Graphics
 			TYPE_IDENT,
 			// struct declaration: i.e. "struct MyStruct { ... };"
 			STRUCT,
-			// parameter/function declaration: i.e. "float4 myThing : SEMANTIC = 0;" or "float4 func(int param) : SEMANTIC"
+			// parameter/function declaration: i.e. "float4 myThing : SEMANTIC = 0;", "float4 func(int param) : SEMANTIC", "float4 func(int param) : register(u0) : SEMANTIC", etc.
 			DECLARATION,
 			// base value: i.e. "1", "2"
 			VALUE,
@@ -296,6 +296,7 @@ namespace Graphics
 			Core::Vector<AST::NodeAttribute*> attributes_;
 			Core::Vector<NodeStorageClass*> storageClasses_;
 			NodeTypeIdent* type_ = nullptr;
+			Core::String register_;
 			Core::String semantic_;
 			bool isFunction_ = false;
 			Core::Vector<NodeDeclaration*> parameters_;

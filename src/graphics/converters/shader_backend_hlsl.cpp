@@ -249,10 +249,13 @@ namespace Graphics
 		else
 		{
 			Core::String reg;
-			if(node->type_->baseType_->metaData_ == "SRV")
-				reg.Printf("register(t%i)", srvReg_++);
-			if(node->type_->baseType_->metaData_ == "UAV")
-				reg.Printf("register(u%i)", uavReg_++);
+			if(node->register_.size() > 0)
+				reg.Printf("register(%s)", node->register_.c_str());
+			else if(node->type_->baseType_->metaData_ == "SRV")
+					reg.Printf("register(t%i)", srvReg_++);
+			else if(node->type_->baseType_->metaData_ == "UAV")
+					reg.Printf("register(u%i)", uavReg_++);
+
 			if(node->type_->baseType_->struct_)
 				if(auto attr = node->type_->baseType_->struct_->FindAttribute("internal"))
 					if(attr->HasParameter(0) && attr->GetParameter(0) == "SamplerState")
