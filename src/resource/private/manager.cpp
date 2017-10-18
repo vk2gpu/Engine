@@ -789,7 +789,7 @@ namespace Resource
 	{
 		DBG_ASSERT(IsInitialized());
 		DBG_ASSERT(inResource != nullptr);
-		f64 maxWaitTime = 10.0;
+		f64 maxWaitTime = Core::IsDebuggerAttached() ? 120.0 : 10.0;
 		f64 startTime = Core::Timer::GetAbsoluteTime();
 		while(!IsResourceReady(inResource))
 		{
