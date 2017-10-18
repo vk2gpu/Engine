@@ -1,0 +1,26 @@
+{
+   "$internal" : {
+      "dependencies" : [],
+      "outputs" : [
+         "../../../../.converter_output/model_tests/crytek-sponza/sponza.obj.converted"
+      ]
+   },
+   "flattenHierarchy" : true,
+   "materials" : [
+      {
+         "regex" : "(.*)",
+         "template" : {
+            "shader" : "shaders/textured.esf",
+            "textures" : {}
+         }
+      }
+   ],
+   "maxBoneInfluences" : 4,
+   "maxBones" : 256,
+   "vertexFormat" : {
+      "color" : "R8G8B8A8_UNORM",
+      "normal" : "R16G16B16A16_FLOAT",
+      "position" : "R32G32B32_FLOAT",
+      "texcoord" : "R16G16_FLOAT"
+   }
+}
