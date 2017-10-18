@@ -1,6 +1,7 @@
 #include "job/function_job.h"
 #include "job/manager.h"
 #include "core/concurrency.h"
+#include "core/timer.h"
 #include "core/vector.h"
 
 namespace Job
@@ -20,7 +21,17 @@ namespace Job
 		baseJobDesc_.name_ = name;
 	}
 
-	FunctionJob::~FunctionJob() {}
+	FunctionJob::~FunctionJob()
+	{
+		const f64 MAX_WAIT_TIME = 30.0; 
+		Core::Timer timer;
+		timer.Mark();
+		while(running_ > 0)
+		{
+			Job::Manager::YieldCPU();
+			DBG_ASSERT(timer.GetTime() < MAX_WAIT_TIME);
+		}
+	}
 
 	void FunctionJob::RunSingle(i32 param, Counter** counter)
 	{
