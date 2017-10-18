@@ -15,6 +15,9 @@
 #include "gpu/resources.h"
 #include "gpu/utils.h"
 
+#include "job/function_job.h"
+#include "job/manager.h"
+
 #include "serialization/serializer.h"
 
 #pragma warning(push)
@@ -23,6 +26,8 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 #pragma warning(pop)
+
+#include "graphics/ispc/image_processing_ispc.h"
 
 #include <squish.h>
 
@@ -74,15 +79,6 @@ namespace
 
 			context.AddDependency(sourceFile);
 
-			GPU::TextureDesc desc;
-			desc.type_ = GPU::TextureType::TEX2D;
-			desc.bindFlags_ = GPU::BindFlags::SHADER_RESOURCE;
-			desc.format_ = image.format_;
-			desc.width_ = image.width_;
-			desc.height_ = image.height_;
-			desc.depth_ = (i16)image.depth_;
-			desc.levels_ = (i16)image.levels_;
-
 			// If we get an R8G8B8A8 image in, we want to attempt to compress it
 			// to an appropriate format.
 			bool retVal = false;
@@ -92,6 +88,45 @@ namespace
 				{
 					metaData.format_ = GPU::Format::BC3_UNORM;
 					metaData.generateMipLevels_ = true;
+				}
+
+				if(metaData.generateMipLevels_)
+				{
+					u32 maxDim = Core::Max(image.width_, Core::Max(image.height_, image.depth_));
+					i32 levels = 32 - Core::CountLeadingZeros(maxDim);
+					Graphics::Image lsImage(image.type_, GPU::Format::R32G32B32A32_FLOAT, image.width_, image.height_, image.depth_, levels, nullptr, nullptr);
+					Graphics::Image newImage(image.type_, image.format_, image.width_, image.height_, image.depth_, levels, nullptr, nullptr);
+
+					// Unpack into linear space.
+					i32 numTexels = image.width_ * image.height_;
+					ispc::ImageProc_Unpack_R8G8B8A8(numTexels, image.GetData<ispc::Color_R8G8B8A8>(), lsImage.GetData<ispc::Color>());
+					ispc::ImageProc_GammaToLinear(image.width_, image.height_, lsImage.GetData<ispc::Color>(), lsImage.GetData<ispc::Color>());
+
+					// Downsample all mip levels, conver to gamma space, then pack into new image.
+					auto* currData = lsImage.GetData<ispc::Color>();
+					auto* nextData = currData + (image.width_ * image.height_);
+					auto* packedData = newImage.GetData<ispc::Color_R8G8B8A8>();
+					i32 currW = image.width_;
+					i32 currH = image.height_;
+					for(i32 mip = 0; mip < levels; ++mip)
+					{
+						if(mip < (levels - 1))
+							ispc::ImageProc_Downsample2x(currW, currH, currData, nextData);
+
+						ispc::ImageProc_LinearToGamma(currW, currH, currData, currData);
+						ispc::ImageProc_Pack_R8G8B8A8(numTexels, currData, packedData);
+
+						packedData += numTexels;
+
+						currW = Core::Max(1, currW >> 1);
+						currH = Core::Max(1, currH >> 1);
+
+						numTexels = currW * currH;
+						currData = nextData;
+						nextData = currData + numTexels;
+					}
+
+					std::swap(image, newImage);
 				}
 
 				auto formatInfo = GPU::GetFormatInfo(metaData.format_);
@@ -109,7 +144,15 @@ namespace
 				metaData.generateMipLevels_ = false;
 			}
 
+			GPU::TextureDesc desc;
+			desc.type_ = GPU::TextureType::TEX2D;
+			desc.bindFlags_ = GPU::BindFlags::SHADER_RESOURCE;
 			desc.format_ = image.format_;
+			desc.width_ = image.width_;
+			desc.height_ = image.height_;
+			desc.depth_ = (i16)image.depth_;
+			desc.levels_ = (i16)image.levels_;
+
 			retVal = WriteTexture(outFilename, desc, image.data_);
 
 			if(retVal)
@@ -174,12 +217,6 @@ namespace
 				return Graphics::Image();
 			}
 
-			if(image.levels_ != 1)
-			{
-				Core::Log("ERROR: Can only encode single mip level images (for now)");
-				return Graphics::Image();
-			}
-
 			if(format == GPU::Format::BC1_TYPELESS || format == GPU::Format::BC1_UNORM ||
 			    format == GPU::Format::BC1_UNORM_SRGB || format == GPU::Format::BC2_TYPELESS ||
 			    format == GPU::Format::BC2_UNORM || format == GPU::Format::BC2_UNORM_SRGB ||
@@ -222,45 +259,84 @@ namespace
 					DBG_BREAK;
 				}
 
-				// Find out what space squish needs.
-				i32 outSize = squish::GetStorageRequirements(image.width_, image.height_, squishFormat);
-				u8* outData = new u8[outSize];
+				auto outImage = Graphics::Image(image.type_, format, image.width_, image.height_, image.depth_, image.levels_,
+				    nullptr, nullptr);
 
-				// Squish takes RGBA8, so no need to convert before passing in.
-				if(image.width_ >= 4 && image.height_ >= 4)
+				// Setup jobs.
+				struct JobParams
 				{
-					squish::CompressImage(
-					    reinterpret_cast<squish::u8*>(image.data_), image.width_, image.height_, outData, squishFormat);
+					i32 inOffset_ = 0;
+					i32 outOffset_ = 0;
+					i32 w_ = 0;
+					i32 h_ = 0;
+				};
+
+				Core::Vector<JobParams> params;
+				params.reserve(image.levels_);
+
+				JobParams param;
+				for(i32 mip = 0; mip < image.levels_; ++mip)
+				{
+					const i32 w = Core::Max(1, image.width_ >> mip);
+					const i32 h = Core::Max(1, image.height_ >> mip);
+					const i32 bw = Core::PotRoundUp(w,  formatInfo.blockW_) / formatInfo.blockW_;
+					const i32 bh = Core::PotRoundUp(h, formatInfo.blockH_) / formatInfo.blockH_;
+
+					param.w_ = w;
+					param.h_ = h;
+
+					params.push_back(param);
+
+					param.inOffset_ += (param.w_ * param.h_ * 4);
+					param.outOffset_ += (bw * bh * formatInfo.blockBits_) / 8;
 				}
-				// If less than block size, copy into a 4x4 block.
-				else if((image.width_ < 4 || image.height_ < 4) && !(image.width_ > 4 || image.height_ > 4))
-				{
-					Core::Array<u32, 4 * 4> block;
 
-					// Copy into single block.
-					for(i32 y = 0; y < image.height_; ++y)
+				Job::FunctionJob encodeJob("Encode Job",
+					[&params, squishFormat, &image, &outImage](i32 idx)
 					{
-						for(i32 x = 0; x < image.width_; ++x)
+						auto param = params[idx];
+						auto* inData = image.data_ + param.inOffset_;
+						auto* outData = outImage.data_ + param.outOffset_;
+						auto w = param.w_;
+						auto h = param.h_;
+
+						// Squish takes RGBA8, so no need to convert before passing in.
+						if(w >= 4 && h >= 4)
 						{
-							i32 srcIdx = x + y * image.width_ * 4; // 4 bytes per pixel.
-							i32 dstIdx = x + y * 4;
-							memcpy(&block[dstIdx], &image.data_[srcIdx], 4);
+							squish::CompressImage(
+								inData, 
+								w, h, outData, squishFormat);
 						}
-					}
+						// If less than block size, copy into a 4x4 block.
+						else if((w < 4 || h < 4) && !(w > 4 || h > 4))
+						{
+							Core::Array<u32, 4 * 4> block;
 
-					// Now encode.
-					squish::CompressImage(reinterpret_cast<squish::u8*>(block.data()), 4, 4, outData, squishFormat);
-				}
-				else
-				{
-					Core::Log("ERROR: Image can't be encoded. (%ux%u)", image.width_, image.height_);
-					delete[] outData;
-					return Graphics::Image();
-				}
+							// Copy into single block.
+							for(i32 y = 0; y < h; ++y)
+							{
+								for(i32 x = 0; x < w; ++x)
+								{
+									i32 srcIdx = x + y * w * 4; // 4 bytes per pixel.
+									i32 dstIdx = x + y * 4;
+									memcpy(&block[dstIdx], &inData[srcIdx], 4);
+								}
+							}
 
-				//
-				return Graphics::Image(image.type_, format, image.width_, image.height_, image.depth_, image.levels_,
-				    outData, [](u8* data) { delete[] data; });
+							// Now encode.
+							squish::CompressImage(reinterpret_cast<squish::u8*>(block.data()), 4, 4, outData, squishFormat);
+						}
+						else
+						{
+							Core::Log("ERROR: Image can't be encoded. (%ux%u)", w, h);
+						}
+					});
+
+				Job::Counter* counter = nullptr;
+				encodeJob.RunMultiple(0, image.levels_ - 1, &counter);
+				Job::Manager::WaitForCounter(counter, 0);
+
+				return outImage;
 			}
 
 			return Graphics::Image();

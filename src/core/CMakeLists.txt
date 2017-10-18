@@ -43,6 +43,8 @@ SET(SOURCES_PRIVATE
 	"private/hash.cpp"
 	"private/library.cpp"
 	"private/linear_allocator.cpp"
+	"private/misc.cpp"
+	"private/misc.inl"
 	"private/random.cpp"
 	"private/string.cpp"
 	"private/uuid.cpp"

@@ -63,4 +63,10 @@ namespace Core
 	}
 
 	inline bool ContainsAnyFlags(int value, int Flags) { return ((int)value & (int)Flags) != 0; }
+
+	CORE_DLL_INLINE i32 CountLeadingZeros(u32 mask);
+	CORE_DLL_INLINE i32 CountLeadingZeros(u64 mask);
 } // namespace Core
+#if CODE_INLINE
+#include "core/private/misc.inl"
+#endif

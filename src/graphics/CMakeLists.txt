@@ -89,6 +89,7 @@ SET(SOURCES_TEXTURE_CONVERTER
 	"converters/dds.cpp"
 	"converters/image.h"
 	"converters/image.cpp"
+	"ispc/image_processing.ispc"
 )
 
 SET(SOURCES_TEST_PIPELINE
@@ -104,23 +105,23 @@ INCLUDE_DIRECTORIES(
 )
 
 # Converter plugins.
-ADD_ENGINE_PLUGIN(converter_graphics_material SHARED ${SOURCES_MATERIAL_CONVERTER})
+ADD_ENGINE_PLUGIN(converter_graphics_material ${SOURCES_MATERIAL_CONVERTER})
 SET_TARGET_PROPERTIES(converter_graphics_material PROPERTIES FOLDER Libraries/Plugins)
 TARGET_LINK_LIBRARIES(converter_graphics_material core graphics resource)
 
-ADD_ENGINE_PLUGIN(converter_graphics_model SHARED ${SOURCES_MODEL_CONVERTER})
+ADD_ENGINE_PLUGIN(converter_graphics_model ${SOURCES_MODEL_CONVERTER})
 SET_TARGET_PROPERTIES(converter_graphics_model PROPERTIES FOLDER Libraries/Plugins)
 TARGET_LINK_LIBRARIES(converter_graphics_model core graphics resource assimp)
 
-ADD_ENGINE_PLUGIN(converter_graphics_shader SHARED ${SOURCES_SHADER_CONVERTER})
+ADD_ENGINE_PLUGIN(converter_graphics_shader ${SOURCES_SHADER_CONVERTER})
 SET_TARGET_PROPERTIES(converter_graphics_shader PROPERTIES FOLDER Libraries/Plugins)
 TARGET_LINK_LIBRARIES(converter_graphics_shader core graphics resource fcpp)
 
-ADD_ENGINE_PLUGIN(converter_graphics_texture SHARED ${SOURCES_TEXTURE_CONVERTER})
+ADD_ENGINE_PLUGIN(converter_graphics_texture ${SOURCES_TEXTURE_CONVERTER})
 SET_TARGET_PROPERTIES(converter_graphics_texture PROPERTIES FOLDER Libraries/Plugins)
 TARGET_LINK_LIBRARIES(converter_graphics_texture core graphics resource squish)
 
 # Pipeline plugins.
-ADD_ENGINE_PLUGIN(graphics_test_pipeline SHARED ${SOURCES_TEST_PIPELINE})
+ADD_ENGINE_PLUGIN(graphics_test_pipeline ${SOURCES_TEST_PIPELINE})
 SET_TARGET_PROPERTIES(graphics_test_pipeline PROPERTIES FOLDER Tests/Plugins)
 TARGET_LINK_LIBRARIES(graphics_test_pipeline core graphics)

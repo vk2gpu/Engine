@@ -39,6 +39,12 @@ namespace Graphics
 
 		operator bool() const { return data_ != nullptr; }
 
+		template<typename TYPE>
+		TYPE* GetData() { return reinterpret_cast<TYPE*>(data_); }
+
+		template<typename TYPE>
+		const TYPE* GetData() const { return reinterpret_cast<TYPE*>(data_); }
+
 		GPU::TextureType type_ = GPU::TextureType::TEX2D;
 		GPU::Format format_ = GPU::Format::INVALID;
 		i32 width_ = 0;

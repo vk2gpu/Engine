@@ -1,4 +1,5 @@
 #include "graphics/converters/image.h"
+#include "gpu/utils.h"
 
 #include <utility>
 
@@ -16,6 +17,22 @@ namespace Graphics
 	    , freeDataFn_(freeDataFn)
 
 	{
+		if(!data_)
+		{
+			i64 bytesReq = GPU::GetTextureSize(format, width, height, depth, levels, 1);
+			if(type_ == GPU::TextureType::TEXCUBE)
+			{
+				bytesReq *= 6;
+			}
+
+			data_ = new u8[bytesReq];
+			memset(data_, 0, bytesReq);
+
+			freeDataFn_ = [](u8* data)
+			{
+				delete [] data;
+			};
+		}
 	}
 
 	Image::Image(Image&& other)

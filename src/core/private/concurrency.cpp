@@ -1,5 +1,3 @@
-#pragma once
-
 #include "core/concurrency.h"
 #include "core/debug.h"
 #include "core/string.h"
