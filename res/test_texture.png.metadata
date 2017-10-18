@@ -1,7 +1,7 @@
 {
    "$internal" : {
       "dependencies" : [ "test_texture.png" ],
-      "outputs" : [ "converter_output/test_texture.png.converted" ]
+      "outputs" : [ "../../../../.converter_output/test_texture.png.converted" ]
    },
    "format" : "BC3_UNORM",
    "generateMipLevels" : true

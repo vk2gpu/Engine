@@ -147,9 +147,9 @@ RenderState RS_SHADOW =
 
 RenderState RS_FORWARD =
 {
-	.DepthFunc = LESS_EQUAL,
+	.DepthFunc = EQUAL,
 	.DepthEnable = 1,
-	.DepthWriteMask = 1,
+	.DepthWriteMask = 0,
 	.FillMode = SOLID,
 	.CullMode = CCW,
 };
@@ -172,6 +172,7 @@ Technique RenderPassForward =
 {
 	.VertexShader = vs_main,
 	.PixelShader = ps_forward,
+
 	.RenderState = RS_FORWARD,
 };
 

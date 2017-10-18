@@ -1,7 +1,7 @@
 {
    "$internal" : {
       "dependencies" : [ "test_texture_compress.png" ],
-      "outputs" : [ "converter_output/test_texture_compress.png.converted" ]
+      "outputs" : [ "../../../../.converter_output/test_texture_compress.png.converted" ]
    },
    "format" : "R8G8B8A8_UNORM",
    "generateMipLevels" : false
