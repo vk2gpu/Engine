@@ -21,6 +21,13 @@ ENDIF()
 # Engine project is C++
 PROJECT(Engine CXX)
 
+IF(MSVC)
+	# Disable runtime checks.
+	STRING (REGEX REPLACE "/RTC(su|[1su])" "" CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}")
+	MESSAGE( "Debug flags: ${CMAKE_CXX_FLAGS_DEBUG}")
+	MESSAGE( "Release flags: ${CMAKE_CXX_FLAGS_RELEASE}")
+ENDIF()
+
 
 # Output directories.
 SET(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/output/lib)
