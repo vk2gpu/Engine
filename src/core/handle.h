@@ -136,7 +136,7 @@ namespace Core
 		 * Is handle index allocated?
 		 */
 		bool IsHandleIndexAllocated(i32 type, i32 index) const;
-		
+
 		/**
 		 * Is a handle valid?
 		 */

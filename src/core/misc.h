@@ -21,7 +21,7 @@ namespace Core
 	template<typename TYPE, typename TYPE2, typename TYPE3>
 	constexpr TYPE Clamp(TYPE v, TYPE2 min, TYPE3 max)
 	{
-		return Max(min, Min(v, max));
+		return (TYPE)Max(min, Min(v, max));
 	}
 
 	template<typename TYPE>

@@ -16,7 +16,7 @@ namespace Core
 #elif COMPILER_GCC || COMPILER_CLANG
 		return __builtin_clz(mask);
 #else
-#  error "No BSR implementation."
+#error "No BSR implementation."
 #endif
 	}
 
@@ -27,9 +27,9 @@ namespace Core
 		auto ret = _BitScanReverse64(&index, mask);
 		return ret ? 63 - index : 64;
 #elif COMPILER_GCC || COMPILER_CLANG
-		return __builtin_clzll( Mask );
+		return __builtin_clzll(Mask);
 #else
-#  error "No BSR implementation."
+#error "No BSR implementation."
 #endif
 	}
 }

@@ -129,7 +129,6 @@ namespace Core
 		DBG_ASSERT((i32)type < impl_->types_.size());
 		HandleAllocatorImpl::TypeData& typeData = impl_->types_[type];
 		return !!typeData.allocated_[index];
-
 	}
 
 } // namespace Core

@@ -25,9 +25,13 @@ SET(SOURCES_PUBLIC
 	"set.h"
 	"string.h"
 	"timer.h"
+	"type_conversion.h"
 	"types.h"
 	"uuid.h"
 	"vector.h"
+)
+
+SET(SOURCES_ISPC
 )
 
 SET(SOURCES_PRIVATE 
@@ -47,6 +51,7 @@ SET(SOURCES_PRIVATE
 	"private/misc.inl"
 	"private/random.cpp"
 	"private/string.cpp"
+	"private/type_conversion.cpp"
 	"private/uuid.cpp"
 	"private/timer.cpp"
 )
@@ -60,11 +65,12 @@ SET(SOURCES_TESTS
 	"tests/map_tests.cpp"
 	"tests/string_tests.cpp"
 	"tests/test_entry.cpp"
+	"tests/type_conversion_tests.cpp"
 	"tests/uuid_tests.cpp"
 	"tests/vector_tests.cpp"
 )
 
-ADD_ENGINE_LIBRARY(core ${SOURCES_PUBLIC} ${SOURCES_PRIVATE} ${SOURCES_TESTS})
+ADD_ENGINE_LIBRARY(core ${SOURCES_PUBLIC} ${SOURCES_ISPC} ${SOURCES_PRIVATE} ${SOURCES_TESTS})
 TARGET_LINK_LIBRARIES(core Remotery)
 
 
