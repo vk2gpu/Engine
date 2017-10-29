@@ -586,7 +586,7 @@ namespace Graphics
 				if(mask & REGISTER_MASK)
 				{
 					Error(node, ErrorType::UNEXPECTED_TOKEN,
-						Core::String().Printf("register() has already been specified for declaration."));
+					    Core::String().Printf("register() has already been specified for declaration."));
 					return node;
 				}
 
@@ -607,7 +607,7 @@ namespace Graphics
 				if(mask & SEMANTIC_MASK)
 				{
 					Error(node, ErrorType::UNEXPECTED_TOKEN,
-						Core::String().Printf("Semantic has already been specified for declaration."));
+					    Core::String().Printf("Semantic has already been specified for declaration."));
 					return node;
 				}
 
@@ -615,7 +615,8 @@ namespace Graphics
 				if(reserved_.find(token_.value_) != reserved_.end())
 				{
 					Error(node, ErrorType::RESERVED_KEYWORD,
-					    Core::String().Printf("\'%s\': is a reserved keyword. Semantic expected.", token_.value_.c_str()));
+					    Core::String().Printf(
+					        "\'%s\': is a reserved keyword. Semantic expected.", token_.value_.c_str()));
 					return node;
 				}
 

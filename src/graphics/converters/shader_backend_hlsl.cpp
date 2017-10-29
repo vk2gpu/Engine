@@ -235,16 +235,26 @@ namespace Graphics
 			if(node->semantic_.size() > 0)
 				Write(" : %s", node->semantic_.c_str());
 
-			NextLine();
+			if(node->value_)
+			{
+				NextLine();
+				if(node->line_ >= 0)
+					Write("#line %i %s\n", node->line_, node->file_.c_str());
 
-			if(node->line_ >= 0)
-				Write("#line %i %s\n", node->line_, node->file_.c_str());
+				Write("{");
+				node->value_->Visit(this);
+				NextLine();
+				Write("}");
+				NextLine();
+			}
+			else
+			{
+				Write(";");
+				NextLine();
 
-			Write("{");
-			node->value_->Visit(this);
-			NextLine();
-			Write("}");
-			NextLine();
+				if(node->line_ >= 0)
+					Write("#line %i %s\n", node->line_, node->file_.c_str());
+			}
 		}
 		else
 		{
@@ -252,9 +262,9 @@ namespace Graphics
 			if(node->register_.size() > 0)
 				reg.Printf("register(%s)", node->register_.c_str());
 			else if(node->type_->baseType_->metaData_ == "SRV")
-					reg.Printf("register(t%i)", srvReg_++);
+				reg.Printf("register(t%i)", srvReg_++);
 			else if(node->type_->baseType_->metaData_ == "UAV")
-					reg.Printf("register(u%i)", uavReg_++);
+				reg.Printf("register(u%i)", uavReg_++);
 
 			if(node->type_->baseType_->struct_)
 				if(auto attr = node->type_->baseType_->struct_->FindAttribute("internal"))

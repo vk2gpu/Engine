@@ -79,10 +79,7 @@ namespace Graphics
 			impl->name_ = name;
 			impl->header_ = header;
 
-			auto OnFailure = [impl]()
-			{
-				delete impl;
-			};
+			auto OnFailure = [impl]() { delete impl; };
 
 			impl->bindingHeaders_.resize(header.numCBuffers_ + header.numSamplers_ + header.numSRVs_ + header.numUAVs_);
 			readBytes = impl->bindingHeaders_.size() * sizeof(ShaderBindingHeader);
@@ -547,10 +544,7 @@ namespace Graphics
 		return -1;
 	}
 
-	const char* ShaderImpl::GetBindingName(i32 idx) const
-	{
-		return bindingHeaders_[idx].name_;
-	}
+	const char* ShaderImpl::GetBindingName(i32 idx) const { return bindingHeaders_[idx].name_; }
 
 	ShaderTechniqueImpl* ShaderImpl::CreateTechnique(const char* name, const ShaderTechniqueDesc& desc)
 	{

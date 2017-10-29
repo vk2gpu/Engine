@@ -11,6 +11,7 @@ namespace Graphics
 	{
 		bool isInitialized_ = false;
 		bool flattenHierarchy_ = false;
+		bool splitStreams_ = true;
 		i32 maxBones_ = 256;
 		i32 maxBoneInfluences_ = 4;
 
@@ -44,6 +45,7 @@ namespace Graphics
 
 			bool retVal = true;
 			retVal &= serializer.Serialize("flattenHierarchy", flattenHierarchy_);
+			retVal &= serializer.Serialize("splitStreams", splitStreams_);
 			retVal &= serializer.Serialize("maxBones", maxBones_);
 			retVal &= serializer.Serialize("maxBoneInfluences", maxBoneInfluences_);
 			if(auto object = serializer.Object("vertexFormat"))

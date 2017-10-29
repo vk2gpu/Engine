@@ -104,4 +104,9 @@ namespace GPU
 	 */
 	GPU_DLL Format GetSRVFormatStencil(Format format);
 
+	/**
+	 * Get stride for vertex stream.
+	 */
+	GPU_DLL i32 GetStride(const VertexElement* elements, i32 numElements, i32 streamIdx);
+
 } // namespace GPU

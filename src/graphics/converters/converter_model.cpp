@@ -6,6 +6,7 @@
 #include "core/half.h"
 #include "core/misc.h"
 #include "core/pair.h"
+#include "core/type_conversion.h"
 #include "gpu/enum.h"
 #include "gpu/utils.h"
 #include "math/aabb.h"
@@ -181,6 +182,61 @@ namespace
 #undef NORM_ELEMENT
 		return true;
 	}
+
+	bool GetInStreamDesc(Core::StreamDesc& outDesc, GPU::VertexUsage usage)
+	{
+		switch(usage)
+		{
+		case GPU::VertexUsage::POSITION:
+		case GPU::VertexUsage::NORMAL:
+		case GPU::VertexUsage::TEXCOORD:
+		case GPU::VertexUsage::TANGENT:
+		case GPU::VertexUsage::BINORMAL:
+			outDesc.dataType_ = Core::DataType::FLOAT;
+			outDesc.numBits_ = 32;
+			outDesc.stride_ = 3 * sizeof(f32);
+			break;
+		case GPU::VertexUsage::BLENDWEIGHTS:
+		case GPU::VertexUsage::BLENDINDICES:
+		case GPU::VertexUsage::COLOR:
+			outDesc.dataType_ = Core::DataType::FLOAT;
+			outDesc.numBits_ = 32;
+			outDesc.stride_ = 4 * sizeof(f32);
+			break;
+		default:
+			return false;
+		}
+		return outDesc.numBits_ > 0;
+	}
+
+	bool GetOutStreamDesc(Core::StreamDesc& outDesc, GPU::Format format)
+	{
+		auto formatInfo = GPU::GetFormatInfo(format);
+
+		switch(formatInfo.rgbaFormat_)
+		{
+		case GPU::FormatType::FLOAT:
+			outDesc.dataType_ = Core::DataType::FLOAT;
+			break;
+		case GPU::FormatType::UNORM:
+			outDesc.dataType_ = Core::DataType::UNORM;
+			break;
+		case GPU::FormatType::SNORM:
+			outDesc.dataType_ = Core::DataType::SNORM;
+			break;
+		case GPU::FormatType::UINT:
+			outDesc.dataType_ = Core::DataType::UINT;
+			break;
+		case GPU::FormatType::SINT:
+			outDesc.dataType_ = Core::DataType::SINT;
+			break;
+		default:
+			return false;
+		}
+		outDesc.numBits_ = formatInfo.rBits_;
+		outDesc.stride_ = formatInfo.blockBits_ >> 3;
+		return outDesc.numBits_ > 0;
+	}
 }
 
 namespace
@@ -257,6 +313,7 @@ namespace
 
 		virtual ~ConverterModel() {}
 
+		using VertexBinaryStreams = Core::Array<BinaryStream, GPU::MAX_VERTEX_STREAMS>;
 		struct MeshData
 		{
 			GPU::PrimitiveTopology primTopology_ = GPU::PrimitiveTopology::TRIANGLE_LIST;
@@ -266,7 +323,7 @@ namespace
 			i32 idx_ = -1;
 			Core::Vector<GPU::VertexElement> elements_;
 			Core::Vector<Graphics::ModelMeshDraw> draws_;
-			BinaryStream vertexData_;
+			VertexBinaryStreams vertexData_;
 			BinaryStream indexData_;
 		};
 
@@ -319,6 +376,7 @@ namespace
 			aiSetImportPropertyInteger(propertyStore, AI_CONFIG_PP_SBBC_MAX_BONES, metaData_.maxBones_);
 			aiSetImportPropertyInteger(propertyStore, AI_CONFIG_PP_LBW_MAX_WEIGHTS, metaData_.maxBoneInfluences_);
 			aiSetImportPropertyInteger(propertyStore, AI_CONFIG_IMPORT_MD5_NO_ANIM_AUTOLOAD, true);
+			aiSetImportPropertyInteger(propertyStore, AI_CONFIG_PP_ICL_PTCACHE_SIZE, 64);
 
 			aiLogStream assimpLogger = {AssimpLogStream, (char*)this};
 			{
@@ -396,15 +454,15 @@ namespace
 					Graphics::ModelMeshData meshData;
 
 					// Calculate output vertex size.
-					u32 stride = 0;
+					u32 vertexSize = 0;
 					for(const auto& element : mesh.elements_)
 					{
 						u32 size = GPU::GetFormatInfo(element.format_).blockBits_ / 8;
-						stride = Core::Max(stride, element.offset_ + size);
+						vertexSize += size;
 					}
 
 					meshData.noofVertices_ = mesh.noofVertices_;
-					meshData.vertexStride_ = stride;
+					meshData.vertexSize_ = vertexSize;
 					meshData.noofIndices_ = mesh.noofIndices_;
 					meshData.indexStride_ = mesh.indexStride_;
 					meshData.startVertexElements_ = numVertexElements;
@@ -438,7 +496,9 @@ namespace
 				// Write out mesh vertex + index buffers.
 				for(const auto& mesh : meshDatas_)
 				{
-					outFile.Write(mesh.vertexData_.Data(), mesh.vertexData_.Size());
+					for(const auto& stream : mesh.vertexData_)
+						if(stream.Size() > 0)
+							outFile.Write(stream.Data(), stream.Size());
 				}
 				for(const auto& mesh : meshDatas_)
 				{
@@ -499,41 +559,58 @@ namespace
 				Core::Array<GPU::VertexElement, GPU::MAX_VERTEX_ELEMENTS> elements;
 				i32 numElements = 0;
 
+				i32 currStream = 0;
+
 				// Vertex format.
 				elements[numElements++] =
-				    GPU::VertexElement(0, 0, metaData_.vertexFormat_.position_, GPU::VertexUsage::POSITION, 0);
+				    GPU::VertexElement(currStream, 0, metaData_.vertexFormat_.position_, GPU::VertexUsage::POSITION, 0);
+
+				if(metaData_.splitStreams_)
+					currStream++;
 
 				if(mesh->HasNormals())
 				{
 					elements[numElements++] =
-					    GPU::VertexElement(0, 0, metaData_.vertexFormat_.normal_, GPU::VertexUsage::NORMAL, 0);
+					    GPU::VertexElement(currStream, 0, metaData_.vertexFormat_.normal_, GPU::VertexUsage::NORMAL, 0);
+
+					if(metaData_.splitStreams_)
+						currStream++;
 				}
 
 				if(mesh->HasTangentsAndBitangents())
 				{
-					elements[numElements++] =
-					    GPU::VertexElement(0, 0, metaData_.vertexFormat_.normal_, GPU::VertexUsage::TANGENT, 0);
+					elements[numElements++] = GPU::VertexElement(
+					    currStream, 0, metaData_.vertexFormat_.normal_, GPU::VertexUsage::TANGENT, 0);
 
-					elements[numElements++] =
-					    GPU::VertexElement(0, 0, metaData_.vertexFormat_.normal_, GPU::VertexUsage::BINORMAL, 0);
+					elements[numElements++] = GPU::VertexElement(
+					    currStream, 0, metaData_.vertexFormat_.normal_, GPU::VertexUsage::BINORMAL, 0);
+
+					if(metaData_.splitStreams_)
+						currStream++;
 				}
 
 				for(i32 idx = 0; idx < AI_MAX_NUMBER_OF_TEXTURECOORDS; ++idx)
 				{
-					if(mesh->HasTextureCoords(idx) || idx == 0)
+					if(mesh->HasTextureCoords(idx))
 					{
 						elements[numElements++] = GPU::VertexElement(
-						    0, 0, metaData_.vertexFormat_.texcoord_, GPU::VertexUsage::TEXCOORD, idx);
+						    currStream, 0, metaData_.vertexFormat_.texcoord_, GPU::VertexUsage::TEXCOORD, idx);
 					}
+
+					if(metaData_.splitStreams_)
+						currStream++;
 				}
 
 				for(i32 idx = 0; idx < AI_MAX_NUMBER_OF_COLOR_SETS; ++idx)
 				{
-					if(mesh->HasVertexColors(idx) || idx == 0)
+					if(mesh->HasVertexColors(idx))
 					{
-						elements[numElements++] =
-						    GPU::VertexElement(0, 0, metaData_.vertexFormat_.color_, GPU::VertexUsage::COLOR, idx);
+						elements[numElements++] = GPU::VertexElement(
+						    currStream, 0, metaData_.vertexFormat_.color_, GPU::VertexUsage::COLOR, idx);
 					}
+
+					if(metaData_.splitStreams_)
+						currStream++;
 				}
 
 				// Add bones to vertex declaration if they exist.
@@ -546,7 +623,7 @@ namespace
 						if(mesh->HasVertexColors(idx))
 						{
 							elements[numElements++] = GPU::VertexElement(
-							    0, 0, GPU::Format::R8G8B8A8_UINT, GPU::VertexUsage::BLENDINDICES, idx);
+							    4, 0, GPU::Format::R8G8B8A8_UINT, GPU::VertexUsage::BLENDINDICES, idx);
 						}
 					}
 
@@ -555,7 +632,7 @@ namespace
 						if(mesh->HasVertexColors(idx))
 						{
 							elements[numElements++] = GPU::VertexElement(
-							    0, 0, GPU::Format::R16G16B16A16_UNORM, GPU::VertexUsage::BLENDWEIGHTS, idx);
+							    4, 0, GPU::Format::R8G8B8A8_UNORM, GPU::VertexUsage::BLENDWEIGHTS, idx);
 						}
 					}
 				}
@@ -661,8 +738,8 @@ namespace
 			}
 		}
 
-		u32 SerialiseVertices(struct aiMesh* mesh, GPU::VertexElement* elements, size_t numElements, Math::AABB& aabb,
-		    BinaryStream& stream) const
+		u32 SerialiseVertices(struct aiMesh* mesh, GPU::VertexElement* elements, i32 numElements, Math::AABB& aabb,
+		    VertexBinaryStreams& streams) const
 		{
 			aabb.Empty();
 
@@ -678,10 +755,10 @@ namespace
 				blendIndices.resize(mesh->mNumVertices * numBoneVectors, Math::Vec4(-1.0f, -1.0f, -1.0f, -1.0f));
 
 				// Populate the weights and indices.
-				for(u32 boneidx = 0; boneidx < mesh->mNumBones; ++boneidx)
+				for(i32 boneidx = 0; boneidx < (i32)mesh->mNumBones; ++boneidx)
 				{
 					auto* bone = mesh->mBones[boneidx];
-					for(u32 weightidx = 0; weightidx < bone->mNumWeights; ++weightidx)
+					for(i32 weightidx = 0; weightidx < (i32)bone->mNumWeights; ++weightidx)
 					{
 						const auto& WeightVertex = bone->mWeights[weightidx];
 
@@ -697,7 +774,7 @@ namespace
 				}
 
 				// Fill the rest of the weights and indices with valid, but empty values.
-				for(u32 Vertidx = 0; Vertidx < mesh->mNumVertices; ++Vertidx)
+				for(i32 Vertidx = 0; Vertidx < (i32)mesh->mNumVertices; ++Vertidx)
 				{
 					Math::Vec4& blendWeight = blendWeights[Vertidx];
 					Math::Vec4& blendIndex = blendIndices[Vertidx];
@@ -707,134 +784,97 @@ namespace
 				}
 			}
 
-			// Calculate output vertex stride.
-			u32 stride = 0;
-			for(u32 elementIdx = 0; elementIdx < numElements; ++elementIdx)
-			{
-				const auto& element(elements[elementIdx]);
-				u32 size = GPU::GetFormatInfo(element.format_).blockBits_ / 8;
-				stride = Core::Max(stride, element.offset_ + size);
-			}
-
-			Core::Vector<u8> vertexData(stride, 0);
-
-			for(u32 vertexidx = 0; vertexidx < mesh->mNumVertices; ++vertexidx)
+			// Calculate AABB.
+			for(i32 vertexidx = 0; vertexidx < (i32)mesh->mNumVertices; ++vertexidx)
 			{
 				aiVector3D position =
 				    mesh->mVertices != nullptr ? mesh->mVertices[vertexidx] : aiVector3D(0.0f, 0.0f, 0.0f);
 
 				// Expand aabb.
 				aabb.ExpandBy(Math::Vec3(position.x, position.y, position.z));
+			}
 
-				for(u32 elementIdx = 0; elementIdx < numElements; ++elementIdx)
+			for(i32 vtxStreamIdx = 0; vtxStreamIdx < GPU::MAX_VERTEX_STREAMS; ++vtxStreamIdx)
+			{
+				// Setup stream descs.
+				const i32 stride = GPU::GetStride(elements, numElements, vtxStreamIdx);
+				if(stride > 0)
 				{
-					const auto& element(elements[elementIdx]);
+					Core::Vector<u8> vertexData(stride * mesh->mNumVertices, 0);
+					Core::Vector<Core::StreamDesc> inStreamDescs;
+					Core::Vector<Core::StreamDesc> outStreamDescs;
+					Core::Vector<i32> numComponents;
+					for(i32 elementIdx = 0; elementIdx < numElements; ++elementIdx)
+					{
+						const auto& element(elements[elementIdx]);
+						if(element.streamIdx_ == vtxStreamIdx)
+						{
+							Core::StreamDesc inStreamDesc;
+							if(GetInStreamDesc(inStreamDesc, element.usage_))
+							{
+								switch(element.usage_)
+								{
+								case GPU::VertexUsage::POSITION:
+									inStreamDesc.data_ = mesh->mVertices;
+									break;
+								case GPU::VertexUsage::NORMAL:
+									inStreamDesc.data_ = mesh->mNormals;
+									break;
+								case GPU::VertexUsage::TEXCOORD:
+									inStreamDesc.data_ = mesh->mTextureCoords[element.usageIdx_];
+									break;
+								case GPU::VertexUsage::TANGENT:
+									inStreamDesc.data_ = mesh->mTangents;
+									break;
+								case GPU::VertexUsage::BINORMAL:
+									inStreamDesc.data_ = mesh->mBitangents;
+									break;
+								case GPU::VertexUsage::BLENDWEIGHTS:
+									inStreamDesc.data_ = blendWeights.data();
+									break;
+								case GPU::VertexUsage::BLENDINDICES:
+									inStreamDesc.data_ = blendIndices.data();
+									break;
+								case GPU::VertexUsage::COLOR:
+									inStreamDesc.data_ = mesh->mColors[element.usageIdx_];
+									break;
+								default:
+									DBG_BREAK;
+								}
 
-					switch(element.usage_)
-					{
-					case GPU::VertexUsage::POSITION:
-					{
-						f32 input[] = {position.x, position.y, position.z, 1.0f};
-						i32 outSize = 0;
-						FloatToVertexDataType(input, element.format_, &vertexData[element.offset_], outSize);
-					}
-					break;
-					case GPU::VertexUsage::NORMAL:
-					{
-						f32 input[] = {0.0f, 0.0f, 0.0f, 0.0f};
-						if(mesh->mNormals != nullptr)
-						{
-							input[0] = mesh->mNormals[vertexidx].x;
-							input[1] = mesh->mNormals[vertexidx].y;
-							input[2] = mesh->mNormals[vertexidx].z;
-						}
-						i32 outSize = 0;
-						FloatToVertexDataType(input, element.format_, &vertexData[element.offset_], outSize);
-					}
-					break;
-					case GPU::VertexUsage::TANGENT:
-					{
-						f32 input[] = {0.0f, 0.0f, 0.0f, 0.0f};
-						if(mesh->mTangents != nullptr)
-						{
-							input[0] = mesh->mTangents[vertexidx].x;
-							input[1] = mesh->mTangents[vertexidx].y;
-							input[2] = mesh->mTangents[vertexidx].z;
-						}
-						i32 outSize = 0;
-						FloatToVertexDataType(input, element.format_, &vertexData[element.offset_], outSize);
-					}
-					break;
-					case GPU::VertexUsage::BINORMAL:
-					{
-						f32 input[] = {0.0f, 0.0f, 0.0f, 0.0f};
-						if(mesh->mBitangents != nullptr)
-						{
-							input[0] = mesh->mBitangents[vertexidx].x;
-							input[1] = mesh->mBitangents[vertexidx].y;
-							input[2] = mesh->mBitangents[vertexidx].z;
-						}
-						i32 outSize = 0;
-						FloatToVertexDataType(input, element.format_, &vertexData[element.offset_], outSize);
-					}
-					break;
-					case GPU::VertexUsage::TEXCOORD:
-					{
-						DBG_ASSERT(element.usageIdx_ < AI_MAX_NUMBER_OF_TEXTURECOORDS);
-						f32 input[] = {0.0f, 0.0f, 0.0f, 0.0f};
-						if(mesh->mTextureCoords[element.usageIdx_] != nullptr)
-						{
-							input[0] = mesh->mTextureCoords[element.usageIdx_][vertexidx].x;
-							input[1] = mesh->mTextureCoords[element.usageIdx_][vertexidx].y;
-							input[2] = mesh->mTextureCoords[element.usageIdx_][vertexidx].z;
-						}
-						i32 outSize = 0;
-						FloatToVertexDataType(input, element.format_, &vertexData[element.offset_], outSize);
-					}
-					break;
-					case GPU::VertexUsage::COLOR:
-					{
-						DBG_ASSERT(element.usageIdx_ < AI_MAX_NUMBER_OF_COLOR_SETS);
-						f32 input[] = {1.0f, 1.0f, 1.0f, 1.0f};
-						if(mesh->mColors[element.usageIdx_] != nullptr)
-						{
-							input[0] = mesh->mColors[element.usageIdx_][vertexidx].r;
-							input[1] = mesh->mColors[element.usageIdx_][vertexidx].g;
-							input[2] = mesh->mColors[element.usageIdx_][vertexidx].b;
-							input[3] = mesh->mColors[element.usageIdx_][vertexidx].a;
-						}
-						i32 outSize = 0;
-						FloatToVertexDataType(input, element.format_, &vertexData[element.offset_], outSize);
-					}
-					break;
-					case GPU::VertexUsage::BLENDINDICES:
-					{
-						f32 input[] = {blendIndices[vertexidx + (element.usageIdx_ * numBoneVectors)].x,
-						    blendIndices[vertexidx + (element.usageIdx_ * numBoneVectors)].y,
-						    blendIndices[vertexidx + (element.usageIdx_ * numBoneVectors)].z,
-						    blendIndices[vertexidx + (element.usageIdx_ * numBoneVectors)].w};
-						i32 outSize = 0;
-						FloatToVertexDataType(input, element.format_, &vertexData[element.offset_], outSize);
-					}
-					break;
-					case GPU::VertexUsage::BLENDWEIGHTS:
-					{
-						f32 input[] = {blendWeights[vertexidx + (element.usageIdx_ * numBoneVectors)].x,
-						    blendWeights[vertexidx + (element.usageIdx_ * numBoneVectors)].y,
-						    blendWeights[vertexidx + (element.usageIdx_ * numBoneVectors)].z,
-						    blendWeights[vertexidx + (element.usageIdx_ * numBoneVectors)].w};
+								DBG_ASSERT(inStreamDesc.data_);
 
-						i32 outSize = 0;
-						FloatToVertexDataType(input, element.format_, &vertexData[element.offset_], outSize);
-					}
-					break;
+								Core::StreamDesc outStreamDesc;
+								if(GetOutStreamDesc(outStreamDesc, element.format_))
+								{
+									outStreamDesc.data_ = vertexData.data() + element.offset_;
 
-					default:
-						break;
-					};
+									numComponents.push_back(
+									    Core::Min(inStreamDesc.stride_ / (inStreamDesc.numBits_ >> 3),
+									        outStreamDesc.stride_ / (outStreamDesc.numBits_ >> 3)));
+
+									outStreamDesc.stride_ = stride;
+
+									inStreamDescs.push_back(inStreamDesc);
+									outStreamDescs.push_back(outStreamDesc);
+								}
+							}
+						}
+					}
+
+					for(i32 elementStreamIdx = 0; elementStreamIdx < inStreamDescs.size(); ++elementStreamIdx)
+					{
+						auto inStreamDesc = inStreamDescs[elementStreamIdx];
+						auto outStreamDesc = outStreamDescs[elementStreamIdx];
+
+						DBG_ASSERT(vertexData.size() >= (outStreamDesc.stride_ * (i32)mesh->mNumVertices));
+						auto retVal = Core::Convert(
+						    outStreamDesc, inStreamDesc, mesh->mNumVertices, numComponents[elementStreamIdx]);
+						DBG_ASSERT_MSG(retVal, "Unable to convert stream.");
+					}
+
+					streams[vtxStreamIdx].Write(vertexData.data(), vertexData.size());
 				}
-
-				stream.Write(vertexData.data(), vertexData.size());
 			}
 			return mesh->mNumVertices;
 		}

@@ -96,19 +96,19 @@ namespace Graphics
 					{
 					case GPU::TextureType::TEX1D:
 						tech.Set(
-							bindingIdx, GPU::Binding::Texture1D(tex->GetHandle(), texDesc.format_, 0, texDesc.levels_));
+						    bindingIdx, GPU::Binding::Texture1D(tex->GetHandle(), texDesc.format_, 0, texDesc.levels_));
 						break;
 					case GPU::TextureType::TEX2D:
 						tech.Set(
-							bindingIdx, GPU::Binding::Texture2D(tex->GetHandle(), texDesc.format_, 0, texDesc.levels_));
+						    bindingIdx, GPU::Binding::Texture2D(tex->GetHandle(), texDesc.format_, 0, texDesc.levels_));
 						break;
 					case GPU::TextureType::TEX3D:
 						tech.Set(
-							bindingIdx, GPU::Binding::Texture3D(tex->GetHandle(), texDesc.format_, 0, texDesc.levels_));
+						    bindingIdx, GPU::Binding::Texture3D(tex->GetHandle(), texDesc.format_, 0, texDesc.levels_));
 						break;
 					case GPU::TextureType::TEXCUBE:
-						tech.Set(
-							bindingIdx, GPU::Binding::TextureCube(tex->GetHandle(), texDesc.format_, 0, texDesc.levels_));
+						tech.Set(bindingIdx,
+						    GPU::Binding::TextureCube(tex->GetHandle(), texDesc.format_, 0, texDesc.levels_));
 						break;
 					}
 				}

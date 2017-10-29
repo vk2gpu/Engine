@@ -23,7 +23,7 @@ namespace Job
 
 	FunctionJob::~FunctionJob()
 	{
-		const f64 MAX_WAIT_TIME = 30.0; 
+		const f64 MAX_WAIT_TIME = 30.0;
 		Core::Timer timer;
 		timer.Mark();
 		while(running_ > 0)

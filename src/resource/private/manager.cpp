@@ -550,9 +550,9 @@ namespace Resource
 
 		if(!success_)
 		{
-			Core::MessageBox("Resource Load Error", 
-				Core::String().Printf("Unable to load resource \"%s\"", entry_->sourceFile_.c_str()).c_str(), 
-				Core::MessageBoxType::OK, Core::MessageBoxIcon::ERROR); 
+			Core::MessageBox("Resource Load Error",
+			    Core::String().Printf("Unable to load resource \"%s\"", entry_->sourceFile_.c_str()).c_str(),
+			    Core::MessageBoxType::OK, Core::MessageBoxIcon::ERROR);
 		}
 
 		if(isReload)
@@ -796,7 +796,8 @@ namespace Resource
 			Job::Manager::YieldCPU();
 			if((Core::Timer::GetAbsoluteTime() - startTime) > maxWaitTime)
 			{
-				auto retVal = Core::MessageBox("Resource load timeout.", "Timed out waiting for resource load. Continue waiting?", Core::MessageBoxType::OK_CANCEL);
+				auto retVal = Core::MessageBox("Resource load timeout.",
+				    "Timed out waiting for resource load. Continue waiting?", Core::MessageBoxType::OK_CANCEL);
 				if(retVal == Core::MessageBoxReturn::CANCEL)
 					DBG_BREAK;
 				startTime = Core::Timer::GetAbsoluteTime();

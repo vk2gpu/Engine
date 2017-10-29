@@ -10,9 +10,9 @@
 #include <stdint.h>
 
 
-
 #ifdef __cplusplus
-namespace ispc { /* namespace */
+namespace ispc
+{      /* namespace */
 #endif // __cplusplus
 
 #ifndef __ISPC_ALIGN__
@@ -29,38 +29,40 @@ namespace ispc { /* namespace */
 
 #ifndef __ISPC_STRUCT_Color__
 #define __ISPC_STRUCT_Color__
-struct Color {
-    float r_;
-    float g_;
-    float b_;
-    float a_;
-};
+	struct Color
+	{
+		float r_;
+		float g_;
+		float b_;
+		float a_;
+	};
 #endif
 
 #ifndef __ISPC_STRUCT_Color_R8G8B8A8__
 #define __ISPC_STRUCT_Color_R8G8B8A8__
-struct Color_R8G8B8A8 {
-    uint8_t r_;
-    uint8_t g_;
-    uint8_t b_;
-    uint8_t a_;
-};
+	struct Color_R8G8B8A8
+	{
+		uint8_t r_;
+		uint8_t g_;
+		uint8_t b_;
+		uint8_t a_;
+	};
 #endif
 
 
 ///////////////////////////////////////////////////////////////////////////
 // Functions exported from ispc code
 ///////////////////////////////////////////////////////////////////////////
-#if defined(__cplusplus) && (! defined(__ISPC_NO_EXTERN_C) || !__ISPC_NO_EXTERN_C )
-extern "C" {
+#if defined(__cplusplus) && (!defined(__ISPC_NO_EXTERN_C) || !__ISPC_NO_EXTERN_C)
+	extern "C" {
 #endif // __cplusplus
-    extern void ImageProc_Downsample2x(int32_t w, int32_t h, const struct Color * input, struct Color * output);
-    extern void ImageProc_GammaToLinear(int32_t w, int32_t h, const struct Color * input, struct Color * output);
-    extern void ImageProc_LinearToGamma(int32_t w, int32_t h, const struct Color * input, struct Color * output);
-    extern void ImageProc_Pack_R8G8B8A8(int32_t numTexels, const struct Color * input, struct Color_R8G8B8A8 * output);
-    extern void ImageProc_Unpack_R8G8B8A8(int32_t numTexels, const struct Color_R8G8B8A8 * input, struct Color * output);
-#if defined(__cplusplus) && (! defined(__ISPC_NO_EXTERN_C) || !__ISPC_NO_EXTERN_C )
-} /* end extern C */
+	extern void ImageProc_Downsample2x(int32_t w, int32_t h, const struct Color* input, struct Color* output);
+	extern void ImageProc_GammaToLinear(int32_t w, int32_t h, const struct Color* input, struct Color* output);
+	extern void ImageProc_LinearToGamma(int32_t w, int32_t h, const struct Color* input, struct Color* output);
+	extern void ImageProc_Pack_R8G8B8A8(int32_t numTexels, const struct Color* input, struct Color_R8G8B8A8* output);
+	extern void ImageProc_Unpack_R8G8B8A8(int32_t numTexels, const struct Color_R8G8B8A8* input, struct Color* output);
+#if defined(__cplusplus) && (!defined(__ISPC_NO_EXTERN_C) || !__ISPC_NO_EXTERN_C)
+	}  /* end extern C */
 #endif // __cplusplus
 
 

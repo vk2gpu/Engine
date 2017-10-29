@@ -82,7 +82,7 @@ namespace Graphics
 	{
 		GPU::PrimitiveTopology primTopology_ = GPU::PrimitiveTopology::TRIANGLE_LIST;
 		i32 noofVertices_ = 0;
-		i32 vertexStride_ = 0;
+		i32 vertexSize_ = 0;
 		i32 noofIndices_ = 0;
 		i32 indexStride_ = 0;
 		i32 startVertexElements_ = 0;

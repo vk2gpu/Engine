@@ -28,10 +28,7 @@ namespace Graphics
 			data_ = new u8[bytesReq];
 			memset(data_, 0, bytesReq);
 
-			freeDataFn_ = [](u8* data)
-			{
-				delete [] data;
-			};
+			freeDataFn_ = [](u8* data) { delete[] data; };
 		}
 	}
 

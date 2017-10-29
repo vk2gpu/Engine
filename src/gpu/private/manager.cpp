@@ -26,12 +26,12 @@
  */
 namespace GPU
 {
-	#if !defined(FINAL)
+#if !defined(FINAL)
 	struct ResourceDebugInfo
 	{
 		ResourceDebugInfo() = default;
 		ResourceDebugInfo(const char* name)
-			: name_(name)
+		    : name_(name)
 		{
 			Core::GetCallstack(2, creationCallstack_.data(), creationCallstack_.size());
 		}
@@ -278,7 +278,6 @@ namespace GPU
 						}
 					}
 				}
-
 			}
 		}
 

@@ -9,6 +9,7 @@
 #include "core/hash.h"
 #include "core/misc.h"
 #include "gpu/manager.h"
+#include "gpu/utils.h"
 
 #include <algorithm>
 
@@ -146,7 +147,7 @@ namespace Graphics
 				Core::Vector<u8> data;
 				for(const auto& mesh : impl->modelMeshes_)
 				{
-					readBytes = mesh.noofVertices_ * mesh.vertexStride_;
+					readBytes = mesh.noofVertices_ * mesh.vertexSize_;
 					if(data.capacity() < readBytes)
 						data.resize((i32)readBytes);
 
@@ -195,10 +196,28 @@ namespace Graphics
 					desc.ib_.resource_ = impl->ibs_[idx];
 					desc.ib_.size_ = mesh.noofIndices_ * mesh.indexStride_;
 					desc.ib_.stride_ = mesh.indexStride_;
-					desc.vbs_[0].offset_ = 0;
-					desc.vbs_[0].resource_ = impl->vbs_[idx];
-					desc.vbs_[0].size_ = mesh.noofVertices_ * mesh.vertexStride_;
-					desc.vbs_[0].stride_ = mesh.vertexStride_;
+
+					auto vertexElements = Core::ArrayView<GPU::VertexElement>(
+					    impl->elements_.data() + impl->modelMeshes_[idx].startVertexElements_,
+					    impl->elements_.data() + impl->modelMeshes_[idx].endVertexElements_);
+
+					i32 offset = 0;
+					for(i32 streamIdx = 0; streamIdx < GPU::MAX_VERTEX_ELEMENTS; ++streamIdx)
+					{
+						const i32 stride = GPU::GetStride(vertexElements.data(), vertexElements.size(), streamIdx);
+						if(stride > 0)
+						{
+							auto& vb = desc.vbs_[streamIdx];
+
+							vb.offset_ = offset;
+							vb.resource_ = impl->vbs_[idx];
+							vb.size_ = mesh.noofVertices_ * stride;
+							vb.stride_ = stride;
+
+							offset += mesh.noofVertices_ * vb.stride_;
+						}
+					}
+
 					GPU::Handle db = GPU::Manager::CreateDrawBindingSet(desc, name);
 					impl->dbs_.push_back(db);
 				}

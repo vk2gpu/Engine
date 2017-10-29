@@ -501,4 +501,19 @@ namespace GPU
 		return GPU::Format::INVALID;
 	}
 
+	GPU_DLL i32 GetStride(const VertexElement* elements, i32 numElements, i32 streamIdx)
+	{
+		u32 stride = 0;
+		for(i32 elementIdx = 0; elementIdx < numElements; ++elementIdx)
+		{
+			const auto& element(elements[elementIdx]);
+			if(element.streamIdx_ == streamIdx)
+			{
+				u32 size = GPU::GetFormatInfo(element.format_).blockBits_ / 8;
+				stride = Core::Max(stride, element.offset_ + size);
+			}
+		}
+		return stride;
+	}
+
 } // namespace GPU

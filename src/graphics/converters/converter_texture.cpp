@@ -94,13 +94,17 @@ namespace
 				{
 					u32 maxDim = Core::Max(image.width_, Core::Max(image.height_, image.depth_));
 					i32 levels = 32 - Core::CountLeadingZeros(maxDim);
-					Graphics::Image lsImage(image.type_, GPU::Format::R32G32B32A32_FLOAT, image.width_, image.height_, image.depth_, levels, nullptr, nullptr);
-					Graphics::Image newImage(image.type_, image.format_, image.width_, image.height_, image.depth_, levels, nullptr, nullptr);
+					Graphics::Image lsImage(image.type_, GPU::Format::R32G32B32A32_FLOAT, image.width_, image.height_,
+					    image.depth_, levels, nullptr, nullptr);
+					Graphics::Image newImage(image.type_, image.format_, image.width_, image.height_, image.depth_,
+					    levels, nullptr, nullptr);
 
 					// Unpack into linear space.
 					i32 numTexels = image.width_ * image.height_;
-					ispc::ImageProc_Unpack_R8G8B8A8(numTexels, image.GetData<ispc::Color_R8G8B8A8>(), lsImage.GetData<ispc::Color>());
-					ispc::ImageProc_GammaToLinear(image.width_, image.height_, lsImage.GetData<ispc::Color>(), lsImage.GetData<ispc::Color>());
+					ispc::ImageProc_Unpack_R8G8B8A8(
+					    numTexels, image.GetData<ispc::Color_R8G8B8A8>(), lsImage.GetData<ispc::Color>());
+					ispc::ImageProc_GammaToLinear(
+					    image.width_, image.height_, lsImage.GetData<ispc::Color>(), lsImage.GetData<ispc::Color>());
 
 					// Downsample all mip levels, conver to gamma space, then pack into new image.
 					auto* currData = lsImage.GetData<ispc::Color>();
@@ -259,8 +263,8 @@ namespace
 					DBG_BREAK;
 				}
 
-				auto outImage = Graphics::Image(image.type_, format, image.width_, image.height_, image.depth_, image.levels_,
-				    nullptr, nullptr);
+				auto outImage = Graphics::Image(
+				    image.type_, format, image.width_, image.height_, image.depth_, image.levels_, nullptr, nullptr);
 
 				// Setup jobs.
 				struct JobParams
@@ -279,7 +283,7 @@ namespace
 				{
 					const i32 w = Core::Max(1, image.width_ >> mip);
 					const i32 h = Core::Max(1, image.height_ >> mip);
-					const i32 bw = Core::PotRoundUp(w,  formatInfo.blockW_) / formatInfo.blockW_;
+					const i32 bw = Core::PotRoundUp(w, formatInfo.blockW_) / formatInfo.blockW_;
 					const i32 bh = Core::PotRoundUp(h, formatInfo.blockH_) / formatInfo.blockH_;
 
 					param.w_ = w;
@@ -291,46 +295,42 @@ namespace
 					param.outOffset_ += (bw * bh * formatInfo.blockBits_) / 8;
 				}
 
-				Job::FunctionJob encodeJob("Encode Job",
-					[&params, squishFormat, &image, &outImage](i32 idx)
+				Job::FunctionJob encodeJob("Encode Job", [&params, squishFormat, &image, &outImage](i32 idx) {
+					auto param = params[idx];
+					auto* inData = image.data_ + param.inOffset_;
+					auto* outData = outImage.data_ + param.outOffset_;
+					auto w = param.w_;
+					auto h = param.h_;
+
+					// Squish takes RGBA8, so no need to convert before passing in.
+					if(w >= 4 && h >= 4)
 					{
-						auto param = params[idx];
-						auto* inData = image.data_ + param.inOffset_;
-						auto* outData = outImage.data_ + param.outOffset_;
-						auto w = param.w_;
-						auto h = param.h_;
+						squish::CompressImage(inData, w, h, outData, squishFormat);
+					}
+					// If less than block size, copy into a 4x4 block.
+					else if((w < 4 || h < 4) && !(w > 4 || h > 4))
+					{
+						Core::Array<u32, 4 * 4> block;
 
-						// Squish takes RGBA8, so no need to convert before passing in.
-						if(w >= 4 && h >= 4)
+						// Copy into single block.
+						for(i32 y = 0; y < h; ++y)
 						{
-							squish::CompressImage(
-								inData, 
-								w, h, outData, squishFormat);
-						}
-						// If less than block size, copy into a 4x4 block.
-						else if((w < 4 || h < 4) && !(w > 4 || h > 4))
-						{
-							Core::Array<u32, 4 * 4> block;
-
-							// Copy into single block.
-							for(i32 y = 0; y < h; ++y)
+							for(i32 x = 0; x < w; ++x)
 							{
-								for(i32 x = 0; x < w; ++x)
-								{
-									i32 srcIdx = x + y * w * 4; // 4 bytes per pixel.
-									i32 dstIdx = x + y * 4;
-									memcpy(&block[dstIdx], &inData[srcIdx], 4);
-								}
+								i32 srcIdx = x + y * w * 4; // 4 bytes per pixel.
+								i32 dstIdx = x + y * 4;
+								memcpy(&block[dstIdx], &inData[srcIdx], 4);
 							}
+						}
 
-							// Now encode.
-							squish::CompressImage(reinterpret_cast<squish::u8*>(block.data()), 4, 4, outData, squishFormat);
-						}
-						else
-						{
-							Core::Log("ERROR: Image can't be encoded. (%ux%u)", w, h);
-						}
-					});
+						// Now encode.
+						squish::CompressImage(reinterpret_cast<squish::u8*>(block.data()), 4, 4, outData, squishFormat);
+					}
+					else
+					{
+						Core::Log("ERROR: Image can't be encoded. (%ux%u)", w, h);
+					}
+				});
 
 				Job::Counter* counter = nullptr;
 				encodeJob.RunMultiple(0, image.levels_ - 1, &counter);
