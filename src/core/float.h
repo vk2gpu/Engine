@@ -12,8 +12,8 @@ namespace Core
 	static const f32 F32_PIDIV2(1.57079632679489660f);
 	static const f32 F32_PIDIV4(0.78539816339744828f);
 
-	static const f32 F32_MIN(3.402823466e+38f);
-	static const f32 F32_MAX(1.175494351e-38F);
+	static const f32 F32_MIN(1.175494351e-38F);
+	static const f32 F32_MAX(3.402823466e+38f);
 
 	static const u32 F32_SIGN_MASK(0x80000000);
 	static const u32 F32_EXP_MASK(0x7F800000);

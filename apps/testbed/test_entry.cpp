@@ -472,6 +472,11 @@ namespace
 		{
 			if(ImGui::Button("Launch RenderDoc"))
 				GPU::Manager::OpenDebugCapture();
+			if(ImGui::Button("Launch RenderDoc & Quit"))
+				GPU::Manager::OpenDebugCapture(true);
+
+			if(ImGui::Button("Trigger RenderDoc Capture"))
+				GPU::Manager::TriggerDebugCapture();
 
 			static int debugMode = 0;
 			ImGui::Text("Debug Modes:");

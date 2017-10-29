@@ -180,8 +180,15 @@ namespace GPU
 		/**
 		 * Open debug capture.
 		 * Where supported, this will open the appropriate debug tool.
+		 * @param quitOnOpen If true, will quit once debug capture application has opened.
 		 */
-		static void OpenDebugCapture();
+		static void OpenDebugCapture(bool quitOnOpen = false);
+
+		/**
+		 * Trigger debug capture.
+		 * Where supported, this will trigger a capture with debug tool.
+		 */
+		static void TriggerDebugCapture();
 
 		/**
 		 * Scoped Debug capture.

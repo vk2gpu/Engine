@@ -11,6 +11,7 @@
 #include "core/library.h"
 #include "core/misc.h"
 #include "core/string.h"
+#include "core/timer.h"
 #include "core/vector.h"
 
 #include "renderdoc_app.h"
@@ -131,7 +132,7 @@ namespace RenderDoc
 		}
 	}
 
-	void Open()
+	void Open(bool quitOnOpen)
 	{
 		if(!renderDocAPI_)
 			return;
@@ -140,6 +141,31 @@ namespace RenderDoc
 		{
 			renderDocAPI_->LaunchReplayUI(1, nullptr);
 		}
+
+		if(quitOnOpen)
+		{
+			Core::Timer timer;
+			timer.Mark();
+			while(timer.GetTime() < 30.0f)
+			{
+				Core::Sleep(1.0);
+				if(renderDocAPI_->IsTargetControlConnected())
+				{
+					Core::Sleep(5.0);
+					exit(0);
+				}
+			}
+
+			DBG_LOG("RenderDoc has not connected within timeout.");
+		}
+	}
+
+	void Trigger()
+	{
+		if(!renderDocAPI_)
+			return;
+
+		renderDocAPI_->TriggerCapture();
 	}
 }
 
@@ -519,12 +545,21 @@ namespace GPU
 		}
 	}
 
-	void Manager::OpenDebugCapture()
+	void Manager::OpenDebugCapture(bool quitOnOpen)
 	{
 		DBG_ASSERT(IsInitialized());
 		if(Core::ContainsAllFlags(impl_->debugFlags_, DebugFlags::RENDERDOC))
 		{
-			RenderDoc::Open();
+			RenderDoc::Open(quitOnOpen);
+		}
+	}
+
+	void Manager::TriggerDebugCapture()
+	{
+		DBG_ASSERT(IsInitialized());
+		if(Core::ContainsAllFlags(impl_->debugFlags_, DebugFlags::RENDERDOC))
+		{
+			RenderDoc::Trigger();
 		}
 	}
 
