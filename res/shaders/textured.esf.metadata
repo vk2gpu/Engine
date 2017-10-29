@@ -2,6 +2,7 @@
    "$internal" : {
       "dependencies" : [
          "shaders/textured.esf",
+         "shaders/base_geometry.esh",
          "shaders/stdlib.esh",
          "shaders/stdlib/color.esh",
          "shaders/stdlib/constants.esh",

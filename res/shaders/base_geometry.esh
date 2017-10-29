@@ -1,0 +1,345 @@
+#ifndef BASE_GEOMETRY_ESH
+#define BASE_GEOMETRY_ESH
+
+#include "stdlib.esh"
+#include "lights.esh"
+#include "brdf.esh"
+
+cbuffer ViewCBuffer
+{
+	ViewParams v_;
+};
+
+cbuffer LightCBuffer
+{
+	LightParams l_;
+};
+
+struct Object
+{
+	float4x4 world_;
+};
+
+
+struct VS_IN
+{
+	float3 position : POSITION;
+	float3 normal : NORMAL;
+
+#ifdef REQUIRE_TANGENT
+	float3 tangent : TANGENT;
+#endif
+
+#ifdef REQUIRE_TEXCOORD0
+	float2 texcoord0 : TEXCOORD0;
+#endif
+};
+
+struct VS_OUT
+{
+	float4 position : SV_POSITION;
+	float3 v_position : TEXCOORD15;
+	float3 v_normal : NORMAL;
+
+#ifdef REQUIRE_TANGENT
+	float3 v_tangent : TANGENT;
+#endif
+
+#ifdef REQUIRE_TEXCOORD0
+	float2 texcoord0 : TEXCOORD0;
+#endif
+};
+
+struct VertexData
+{
+	VS_IN input;
+
+	// World space position.
+	float4 positionWS;
+	// View space position.
+	float4 positionVS;
+	// Clip space position.
+	float4 positionCS;
+
+	float3 normalWS;
+	float3 normalVS;
+
+#ifdef REQUIRE_TANGENT
+	float3 tangentWS;
+	float3 tangentVS;
+#endif
+
+#ifdef REQUIRE_TEXCOORD0
+	float2 texcoord0;
+#endif
+
+	uint instanceID;
+};
+
+struct PixelData
+{
+	VS_OUT input;
+
+	float3 normal;
+
+	float4 color;
+	float roughness;
+	float metallic;
+	float specular;
+};
+
+#define PASS_DEPTH_PREPASS 0
+#define PASS_FORWARD 1
+#define PASS_SHADOW 2
+
+#define VTX_DEFAULT 0x0
+#define VTX_CHANGED_POSITION 0x1
+#define VTX_CHANGED_NORMAL 0x2
+#define VTX_CHANGED_TANGENT 0x4
+
+// @return Mask of what values have been modified.
+uint ShadeVertex(uniform int passID, in Object obj, inout VertexData vtxData);
+
+#define PIX_DEFAULT 0x0
+#define PIX_LIGHTING 0x1
+
+// @return Mask of what any additional logic to perform.
+uint ShadePixel(uniform int passID, inout PixelData pixData);
+
+StructuredBuffer<Object> inObject;
+
+Object GetObjectUniforms(int id)
+{
+	return inObject[id];
+}
+
+float4 GetPositionWS(Object obj, float3 pos)
+{
+	return mul(obj.world_, float4(pos, 1.0));
+}
+
+float4 GetPositionVS(ViewParams v, float3 pos)
+{
+	return mul(v.view_, float4(pos, 1.0));
+}
+
+float4 GetPositionCS(ViewParams v, float3 pos)
+{
+	return mul(v.viewProj_, float4(pos, 1.0));
+}
+
+float3 GetNormalWS(Object obj, float3 nrm)
+{
+	return mul((float3x3)obj.world_, nrm);
+}
+
+float3 GetNormalVS(ViewParams v, float3 nrm)
+{
+	return mul((float3x3)v.view_, nrm);
+}
+
+float3 GetNormalCS(ViewParams v, float3 nrm)
+{
+	return mul((float3x3)v.viewProj_, nrm);
+}
+
+VS_OUT vs_position(in float3 _in : POSITION, uint _id : SV_INSTANCEID)
+{
+	Object o = GetObjectUniforms(_id);
+
+	VertexData vtxData = (VertexData)0;
+	vtxData.input.position = _in;
+	vtxData.instanceID = _id;
+	vtxData.positionWS = GetPositionWS(o, _in);
+	vtxData.positionVS = GetPositionVS(v_, vtxData.positionWS.xyz);
+	vtxData.positionCS = GetPositionCS(v_, vtxData.positionWS.xyz);
+
+	if(ShadeVertex(PASS_DEPTH_PREPASS, o, vtxData))
+	{
+		vtxData.positionCS = GetPositionCS(v_, vtxData.positionWS.xyz);
+	}
+
+	VS_OUT outVtx = (VS_OUT)0;
+	outVtx.position = vtxData.positionCS;
+#ifdef REQUIRE_TEXCOORD0
+	outVtx.texcoord0 = vtxData.texcoord0;
+#endif
+	outVtx.v_position = vtxData.positionVS.xyz;
+	outVtx.v_normal = vtxData.normalVS.xyz;
+
+#ifdef REQUIRE_TANGENT
+	outVtx.v_tangent = vtxData.tangentVS.xyz;
+#endif
+
+	return outVtx;
+}
+
+VS_OUT vs_main(in VS_IN _in, uint _id : SV_INSTANCEID)
+{
+	Object o = GetObjectUniforms(_id);
+
+	VertexData vtxData = (VertexData)0;
+	vtxData.input = _in;
+	vtxData.instanceID = _id;
+	vtxData.positionWS = GetPositionWS(o, _in.position);
+	vtxData.positionVS = GetPositionVS(v_, vtxData.positionWS.xyz);
+	vtxData.positionCS = GetPositionCS(v_, vtxData.positionWS.xyz);
+	vtxData.normalWS = GetNormalWS(o, _in.normal).xyz;
+	vtxData.normalVS = GetNormalVS(v_, vtxData.normalWS).xyz;
+
+#ifdef REQUIRE_TANGENT
+	vtxData.tangentWS = GetNormalWS(o, _in.tangent).xyz;
+	vtxData.tangentVS = GetNormalVS(v_, vtxData.tangentWS).xyz;
+#endif
+
+#ifdef REQUIRE_TEXCOORD0
+	vtxData.texcoord0 = _in.texcoord0;
+#endif
+
+	if(ShadeVertex(PASS_DEPTH_PREPASS, o, vtxData))
+	{
+		vtxData.positionCS = GetPositionCS(v_, vtxData.positionWS.xyz);
+	}
+
+	VS_OUT outVtx = (VS_OUT)0;
+	outVtx.position = vtxData.positionCS;
+#ifdef REQUIRE_TEXCOORD0
+	outVtx.texcoord0 = vtxData.texcoord0;
+#endif
+	outVtx.v_position = vtxData.positionVS.xyz;
+	outVtx.v_normal = vtxData.normalVS.xyz;
+
+#ifdef REQUIRE_TANGENT
+	outVtx.v_tangent = vtxData.tangentVS.xyz;
+#endif
+	return outVtx;
+}
+
+Texture2D<uint> inLightTex;
+StructuredBuffer<uint> inLightIndices;
+StructuredBuffer<Light> inLights;
+
+void ps_depthprepass(in VS_OUT _in)
+{
+	PixelData pixData = (PixelData)0;
+	pixData.input = _in;
+	ShadePixel(PASS_DEPTH_PREPASS, pixData);
+}
+
+void ps_shadow(in VS_OUT _in)
+{
+	PixelData pixData = (PixelData)0;
+	pixData.input = _in;
+	ShadePixel(PASS_SHADOW, pixData);
+}
+
+float4 ps_forward(in VS_OUT _in) : SV_TARGET0
+{
+	PixelData pixData = (PixelData)0;
+	pixData.input = _in;
+	uint pixMask = ShadePixel(PASS_FORWARD, pixData);
+
+	if(pixMask & PIX_LIGHTING)
+	{
+		const float3 ambient = float3(0.01, 0.01, 0.01);
+
+		const float3 v_normal = normalize(pixData.input.v_normal.xyz); 
+#ifdef REQUIRE_TANGENT
+		const float3 t_normal = pixData.normal;
+		const float3 v_tangent = normalize(pixData.input.v_tangent.xyz); 
+		const float3x3 v_tbn = BuildTBN(v_normal, v_tangent);
+		const float3 normal = mul(t_normal, v_tbn);
+#else
+		const float3 normal = v_normal;
+#endif
+
+		float3 lightColor = float3(0.0, 0.0, 0.0);
+		lightColor += ambient;
+
+		int2 lightTexel = DecodeLight(inLightTex[int2(floor(_in.position.xy / l_.tileSize_))]);
+
+		Material material;
+		material.color_ = pixData.color.rgb;
+		material.roughness_ = pixData.roughness;
+		material.metallic_ = pixData.metallic;
+		material.f0_ = pixData.specular;
+
+		Surface surface = SetupSurface(material, _in.v_position, normal);
+
+		// Iterate over lights. 
+		for(int idx = 0; idx < lightTexel.y; ++idx)
+		{	
+			const int lightIdx = inLightIndices[lightTexel.x + idx];
+			Light light = inLights[lightIdx];
+			light.position_ = mul(v_.view_, float4(light.position_, 1.0)).xyz;
+
+			LightParameters lightParams = CreatePointLight(light, surface);
+		
+			lightColor += BRDF_Default(lightParams) * lightParams.attenuation;
+		}
+
+		// TODO: LinearToGamma in post process.
+		return float4(LinearToGamma(lightColor), 0.0);
+	}
+
+	return pixData.color;
+}
+
+RenderState RS_DEPTH_PREPASS =
+{
+	.BlendStates = {
+		.WriteMask = 0,
+	},
+
+	.DepthFunc = LESS_EQUAL,
+	.DepthEnable = 1,
+	.DepthWriteMask = 1,
+	.FillMode = SOLID,
+	.CullMode = CCW,
+};
+
+RenderState RS_SHADOW =
+{
+	.BlendStates = {
+		.WriteMask = 0,
+	},
+
+	.DepthFunc = LESS_EQUAL,
+	.DepthEnable = 1,
+	.DepthWriteMask = 1,
+	.FillMode = SOLID,
+	.CullMode = CCW,
+};
+
+RenderState RS_FORWARD =
+{
+	.DepthFunc = EQUAL,
+	.DepthEnable = 1,
+	.DepthWriteMask = 0,
+	.FillMode = SOLID,
+	.CullMode = CCW,
+};
+
+Technique RenderPassDepthPrepass =
+{
+	.VertexShader = vs_position,
+	.PixelShader = ps_depthprepass,
+	.RenderState = RS_DEPTH_PREPASS,
+};
+
+Technique RenderPassShadow =
+{
+	.VertexShader = vs_position,
+	.PixelShader = ps_shadow,
+	.RenderState = RS_SHADOW,
+};
+
+Technique RenderPassForward =
+{
+	.VertexShader = vs_main,
+	.PixelShader = ps_forward,
+
+	.RenderState = RS_FORWARD,
+};
+
+#endif // BASE_GEOMETRY_ESH
