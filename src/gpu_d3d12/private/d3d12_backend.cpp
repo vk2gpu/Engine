@@ -899,7 +899,7 @@ namespace GPU
 					dbs.vbResources_[idx] = buffer;
 
 					dbs.vbs_[idx].BufferLocation = buffer->resource_->GetGPUVirtualAddress() + vb.offset_;
-					dbs.vbs_[idx].SizeInBytes = Core::PotRoundUp(vb.size_, D3D12_TEXTURE_DATA_PITCH_ALIGNMENT);
+					dbs.vbs_[idx].SizeInBytes = vb.size_;
 					dbs.vbs_[idx].StrideInBytes = vb.stride_;
 				}
 				++idx;

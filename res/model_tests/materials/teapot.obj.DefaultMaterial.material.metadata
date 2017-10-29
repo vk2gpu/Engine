@@ -1,0 +1,8 @@
+{
+   "$internal" : {
+      "dependencies" : [ "shaders/default.esf" ],
+      "outputs" : [
+         "../../../../.converter_output/model_tests/materials/teapot.obj.DefaultMaterial.material.converted"
+      ]
+   }
+}

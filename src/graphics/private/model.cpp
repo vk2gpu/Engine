@@ -214,7 +214,7 @@ namespace Graphics
 							vb.size_ = mesh.noofVertices_ * stride;
 							vb.stride_ = stride;
 
-							offset += mesh.noofVertices_ * vb.stride_;
+							offset += vb.size_;
 						}
 					}
 
