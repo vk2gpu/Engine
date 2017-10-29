@@ -3,6 +3,7 @@
 #include "core/debug.h"
 #include "core/file.h"
 #include "core/random.h"
+#include "core/string.h"
 #include "core/timer.h"
 #include "core/vector.h"
 #include "core/os.h"
@@ -32,6 +33,15 @@ namespace
 		return setupParams;
 	}
 
+	i32 GetNumJobWorkers(const Core::CommandLine& cmdLine)
+	{
+		i32 numWorkers = Core::GetNumLogicalCores();
+		Core::String val;
+		if(cmdLine.GetArg(0, "jobworkers", val))
+			numWorkers = atoi(val.c_str());
+		return numWorkers;
+	}
+
 	class ScopedEngine
 	{
 	public:
@@ -56,7 +66,7 @@ namespace
 		Client::Window window;
 		Plugin::Manager::Scoped pluginManager;
 		GPU::Manager::Scoped gpuManager;
-		Job::Manager::Scoped jobManager = Job::Manager::Scoped(Core::GetNumLogicalCores(), 256, 64 * 1024);
+		Job::Manager::Scoped jobManager;
 		Resource::Manager::Scoped resourceManager;
 
 		GPU::SwapChainDesc scDesc;
@@ -67,6 +77,7 @@ namespace
 		ScopedEngine(const char* name, const Core::CommandLine& cmdLine)
 		    : window(name, 100, 100, 1280, 720, true, true)
 		    , gpuManager(GetDefaultSetupParams(cmdLine))
+		    , jobManager(GetNumJobWorkers(cmdLine), 256, 64 * 1024)
 		{
 			Graphics::Material::RegisterFactory();
 			Graphics::Model::RegisterFactory();
