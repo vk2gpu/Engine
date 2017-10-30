@@ -203,9 +203,14 @@ namespace GPU
 				case D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER:
 				{
 					D3D12_SAMPLER_DESC desc = {};
+					// Setup easy to spot when debugging, but valid default.
 					desc.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-					desc.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-					desc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+					desc.AddressV = D3D12_TEXTURE_ADDRESS_MODE_MIRROR;
+					desc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+					desc.BorderColor[0] = 1.0f;
+					desc.BorderColor[1] = 2.0f;
+					desc.BorderColor[2] = 3.0f;
+					desc.BorderColor[3] = 4.0f;
 					d3dDevice_->CreateSampler(&desc, handle);
 					break;
 				}

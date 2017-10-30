@@ -619,7 +619,7 @@ namespace GPU
 		allocCbvSrvUav.gpuDescHandle_.ptr += incr * MAX_UAV_BINDINGS;
 		allocCbvSrvUav.offset_ += MAX_UAV_BINDINGS;
 
-		outPipelineBindingSet.samplers_ = samplerAllocator_->Alloc(desc.numSamplers_);
+		outPipelineBindingSet.samplers_ = samplerAllocator_->Alloc(MAX_SAMPLER_BINDINGS);
 
 		return ErrorCode::OK;
 	}
