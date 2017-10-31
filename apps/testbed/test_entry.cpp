@@ -909,6 +909,9 @@ void Loop(const Core::CommandLine& cmdLine)
 			delete meshPacket;
 		}
 	}
+
+	GPU::Manager::DestroyResource(finalTexture);
+
 	shaderTechniques_.clear();
 	Resource::Manager::ReleaseResource(shader);
 	Resource::Manager::ReleaseResource(model);
