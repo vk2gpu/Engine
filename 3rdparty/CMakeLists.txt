@@ -50,3 +50,11 @@ ENDIF()
 # Setup squish.
 ADD_SUBDIRECTORY("squish")
 ADD_3RDPARTY_LIBRARY_OPTIMIZED(squish "squish")
+
+# Setup etlsf.
+ADD_SUBDIRECTORY("etlsf")
+ADD_3RDPARTY_LIBRARY(etlsf "etlsf")
+
+# Setup tlsf.
+ADD_SUBDIRECTORY("tlsf")
+ADD_3RDPARTY_LIBRARY(tlsf "tlsf")

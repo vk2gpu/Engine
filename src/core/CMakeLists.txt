@@ -7,6 +7,7 @@ SET(SOURCES_PUBLIC
 	"debug.h"
 	"dll.h"
 	"enum.h"
+	"external_allocator.h"
 	"file.h"
 	"float.h"
 	"function.h"
@@ -40,6 +41,8 @@ SET(SOURCES_PRIVATE
 	"private/concurrency.inl"
 	"private/debug.cpp"
 	"private/enum.cpp"
+	"private/external_allocator.cpp"
+	"private/external_allocator.inl"
 	"private/file.cpp"
 	"private/float.cpp"
 	"private/handle.cpp"
@@ -57,6 +60,7 @@ SET(SOURCES_PRIVATE
 )
 
 SET(SOURCES_TESTS
+	"tests/allocator_tests.cpp"
 	"tests/array_tests.cpp"
 	"tests/concurrency_tests.cpp"
 	"tests/file_tests.cpp"
@@ -70,7 +74,12 @@ SET(SOURCES_TESTS
 	"tests/vector_tests.cpp"
 )
 
+INCLUDE_DIRECTORIES(
+	"${ENGINE_3RDPARTY_PATH}/etlsf"
+	"${ENGINE_3RDPARTY_PATH}/tlsf"
+)
+
 ADD_ENGINE_LIBRARY(core ${SOURCES_PUBLIC} ${SOURCES_ISPC} ${SOURCES_PRIVATE} ${SOURCES_TESTS})
-TARGET_LINK_LIBRARIES(core Remotery)
+TARGET_LINK_LIBRARIES(core Remotery etlsf tlsf)
 
 
