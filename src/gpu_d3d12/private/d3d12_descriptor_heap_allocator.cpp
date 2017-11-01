@@ -28,37 +28,25 @@ namespace GPU
 		for(i32 i = 0; i < blocks_.size(); ++i)
 		{
 			auto& block = blocks_[i];
-			auto it = std::find_if(block.freeAllocations_.begin(), block.freeAllocations_.end(),
-			    [&](const DescriptorBlock::Allocation& blockAlloc) { return blockAlloc.size_ >= numDescriptors; });
 
-			// Found block, reduce free size and add to used.
-			if(it != block.freeAllocations_.end())
+			auto allocId = block.allocator_.AllocRange(numDescriptors);
+			if(auto alloc = block.allocator_.GetAlloc(allocId))
 			{
-				DescriptorBlock::Allocation alloc;
-				alloc.offset_ = it->offset_;
-				alloc.size_ = numDescriptors;
-				it->offset_ += numDescriptors;
-				it->size_ -= numDescriptors;
-
-				// Remove zero sized blocks.
-				if(it->size_ == 0)
-					block.freeAllocations_.erase(it);
-
-				block.usedAllocations_.emplace_back(std::move(alloc));
-
 				D3D12DescriptorAllocation retVal;
 				retVal.d3dDescriptorHeap_ = block.d3dDescriptorHeap_;
 				retVal.offset_ = alloc.offset_;
-				retVal.blockIdx_ = i;
+				retVal.allocId_ = ((u32)i << 16) | (u32)allocId;
 				retVal.cpuDescHandle_ = block.d3dDescriptorHeap_->GetCPUDescriptorHandleForHeapStart();
 				retVal.cpuDescHandle_.ptr += (alloc.offset_ * handleIncrementSize_);
 				retVal.gpuDescHandle_ = block.d3dDescriptorHeap_->GetGPUDescriptorHandleForHeapStart();
 				retVal.gpuDescHandle_.ptr += (alloc.offset_ * handleIncrementSize_);
+
+				block.numAllocs_++;
 				return retVal;
 			}
-			// Ran out of blocks, add new block.
 			else if(i == (blocks_.size() - 1))
 			{
+				DBG_ASSERT(block.numAllocs_ > 0);
 				AddBlock();
 			}
 		}
@@ -83,43 +71,16 @@ namespace GPU
 	void D3D12DescriptorHeapAllocator::Free(D3D12DescriptorAllocation alloc)
 	{
 		Core::ScopedMutex lock(allocMutex_);
+		auto& block = blocks_[alloc.allocId_ >> 16];
+		DBG_ASSERT(block.numAllocs_ >= 1);
 
-		auto& block = blocks_[alloc.blockIdx_];
-
-		auto it = std::find_if(block.usedAllocations_.begin(), block.usedAllocations_.end(),
-		    [&](const DescriptorBlock::Allocation& blockAlloc) { return alloc.offset_ == blockAlloc.offset_; });
-		DBG_ASSERT(it != block.usedAllocations_.end());
-
-		ClearRange(block.d3dDescriptorHeap_.Get(), DescriptorHeapSubType::INVALID, it->offset_, it->size_);
-
-		block.freeAllocations_.push_back(*it);
-		block.usedAllocations_.erase(it);
-
-		ConsolodateAllocations();
-	}
-
-	void D3D12DescriptorHeapAllocator::FreeAll()
-	{
-		Core::ScopedMutex lock(allocMutex_);
-
-		DescriptorBlock::Allocation allocation;
-		allocation.offset_ = 0;
-		allocation.size_ = blockSize_;
-
-		for(i32 i = 0; i < blocks_.size(); ++i)
-		{
-			auto& block = blocks_[i];
-			block.usedAllocations_.clear();
-			block.freeAllocations_.clear();
-			block.freeAllocations_.push_back(allocation);
-
-			ClearRange(block.d3dDescriptorHeap_.Get(), DescriptorHeapSubType::INVALID, 0, blockSize_);
-		}
+		block.allocator_.FreeRange(alloc.allocId_ & 0xffff);
+		block.numAllocs_--;
 	}
 
 	void D3D12DescriptorHeapAllocator::AddBlock()
 	{
-		DescriptorBlock block;
+		DescriptorBlock block(blockSize_, Core::Min(blockSize_, 4096));
 		D3D12_DESCRIPTOR_HEAP_DESC desc;
 		desc.Type = heapType_;
 		desc.NumDescriptors = blockSize_;
@@ -130,56 +91,9 @@ namespace GPU
 		    &desc, IID_ID3D12DescriptorHeap, (void**)block.d3dDescriptorHeap_.GetAddressOf()));
 		SetObjectName(block.d3dDescriptorHeap_.Get(), debugName_);
 
-		DescriptorBlock::Allocation allocation;
-		allocation.offset_ = 0;
-		allocation.size_ = blockSize_;
-
-		// Leave padding at end of allocation for CBV/SRV/UAV, and sampler descriptor heaps.
-		if(heapType_ == D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV)
-			allocation.size_ -= Core::Max(MAX_CBV_BINDINGS, Core::Max(MAX_SRV_BINDINGS, MAX_UAV_BINDINGS));
-		else if(heapType_ == D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER)
-			allocation.size_ -= MAX_SAMPLER_BINDINGS;
-
 		ClearRange(block.d3dDescriptorHeap_.Get(), DescriptorHeapSubType::INVALID, 0, blockSize_);
 
-		block.freeAllocations_.emplace_back(std::move(allocation));
 		blocks_.emplace_back(std::move(block));
-	}
-
-	void D3D12DescriptorHeapAllocator::ConsolodateAllocations()
-	{
-		for(auto& block : blocks_)
-		{
-			if(block.freeAllocations_.size() > 1)
-			{
-				// Ensure allocations are sorted by offset.
-				// TODO: Consider just inserting into the free list at the correct location.
-				std::sort(block.freeAllocations_.begin(), block.freeAllocations_.end(),
-				    [](const DescriptorBlock::Allocation& a, const DescriptorBlock::Allocation& b) {
-					    return a.offset_ < b.offset_;
-					});
-
-				// Merge adjacent blocks.
-				auto itA = block.freeAllocations_.begin();
-				auto itB = itA + 1;
-				while(itA != block.freeAllocations_.end() && itB != block.freeAllocations_.end())
-				{
-					if((itA->offset_ + itA->size_) == itB->offset_)
-					{
-						itB->offset_ = itA->offset_;
-						itB->size_ += itA->size_;
-
-						itA = block.freeAllocations_.erase(itA);
-						itB = itA + 1;
-					}
-					else
-					{
-						++itA;
-						++itB;
-					}
-				}
-			}
-		}
 	}
 
 	void D3D12DescriptorHeapAllocator::ClearRange(

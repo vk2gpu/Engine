@@ -119,10 +119,7 @@ namespace Graphics
 
 	Material::Material() {}
 
-	Material::~Material()
-	{
-		delete impl_;
-	}
+	Material::~Material() { delete impl_; }
 
 	MaterialImpl::MaterialImpl() {}
 

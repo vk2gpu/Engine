@@ -16,6 +16,9 @@ namespace Core
 	{
 		i32 offset_ = -1;
 		i32 size_ = -1;
+
+		/// @return is valid allocation.
+		operator bool() const { return offset_ >= 0 && size_ > 0; }
 	};
 
 	/**
@@ -34,8 +37,9 @@ namespace Core
 		 * @param maxAllocations Maximum number of allocations allowed.
 		 */
 		ExternalAllocator(i32 size, i32 maxAllocations);
-
 		~ExternalAllocator();
+		ExternalAllocator(ExternalAllocator&&);
+		ExternalAllocator& operator=(ExternalAllocator&&);
 
 		/**
 		 * Allocate range.

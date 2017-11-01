@@ -13,8 +13,7 @@ SET(SOURCES_TESTS
 )
 
 INCLUDE_DIRECTORIES(
-	# 3rd party includes.
-	"../../jsoncpp/include"
+	"${ENGINE_3RDPARTY_PATH}/jsoncpp/include"
 )
 
 ADD_ENGINE_LIBRARY(serialization ${SOURCES_PUBLIC} ${SOURCES_PRIVATE} ${SOURCES_TESTS})

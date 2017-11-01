@@ -7,6 +7,8 @@
 #include "core/debug.h"
 #include "etlsf.h"
 
+#include <utility>
+
 namespace Core
 {
 	ExternalAllocator::ExternalAllocator(i32 size, i32 maxAllocations)
@@ -17,6 +19,14 @@ namespace Core
 	}
 
 	ExternalAllocator::~ExternalAllocator() { etlsf_destroy(arena_); }
+
+	ExternalAllocator::ExternalAllocator(ExternalAllocator&& other) { std::swap(arena_, other.arena_); }
+
+	ExternalAllocator& ExternalAllocator::operator=(ExternalAllocator&& other)
+	{
+		std::swap(arena_, other.arena_);
+		return *this;
+	}
 
 	u16 ExternalAllocator::AllocRange(i32 size)
 	{

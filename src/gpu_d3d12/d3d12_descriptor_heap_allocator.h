@@ -2,6 +2,7 @@
 
 #include "gpu_d3d12/d3d12_types.h"
 #include "core/concurrency.h"
+#include "core/external_allocator.h"
 #include "core/vector.h"
 
 namespace GPU
@@ -16,8 +17,8 @@ namespace GPU
 		D3D12_CPU_DESCRIPTOR_HANDLE cpuDescHandle_ = D3D12_CPU_DESCRIPTOR_HANDLE();
 		/// GPU descriptor handle.
 		D3D12_GPU_DESCRIPTOR_HANDLE gpuDescHandle_ = D3D12_GPU_DESCRIPTOR_HANDLE();
-		/// Block index.
-		i32 blockIdx_ = 0;
+		/// Allocation id.
+		u32 allocId_ = 0;
 	};
 
 
@@ -34,29 +35,25 @@ namespace GPU
 		D3D12DescriptorAllocation Alloc(i32 numCBV, i32 numSRV, i32 numUAV);
 
 		void Free(D3D12DescriptorAllocation alloc);
-		void FreeAll();
 
 	private:
 		D3D12DescriptorHeapAllocator(const D3D12DescriptorHeapAllocator&) = delete;
 
 		void AddBlock();
-		void ConsolodateAllocations();
 
 		void ClearRange(
 		    ID3D12DescriptorHeap* d3dDescriptorHeap, DescriptorHeapSubType subType, i32 offset, i32 numDescriptors);
 
 		struct DescriptorBlock
 		{
-			ComPtr<ID3D12DescriptorHeap> d3dDescriptorHeap_;
-
-			struct Allocation
+			DescriptorBlock(i32 size, i32 maxAllocs)
+			    : allocator_(size, maxAllocs)
 			{
-				i32 offset_ = 0;
-				i32 size_ = 0;
-			};
+			}
 
-			Core::Vector<Allocation> freeAllocations_;
-			Core::Vector<Allocation> usedAllocations_;
+			ComPtr<ID3D12DescriptorHeap> d3dDescriptorHeap_;
+			Core::ExternalAllocator allocator_;
+			i32 numAllocs_ = 0;
 		};
 
 		/// device to use.
