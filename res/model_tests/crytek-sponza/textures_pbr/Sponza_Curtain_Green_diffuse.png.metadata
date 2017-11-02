@@ -1,0 +1,12 @@
+{
+   "$internal" : {
+      "dependencies" : [
+         "model_tests/crytek-sponza/textures_pbr/Sponza_Curtain_Green_diffuse.png"
+      ],
+      "outputs" : [
+         "../../../../.converter_output/model_tests/crytek-sponza/textures_pbr/Sponza_Curtain_Green_diffuse.png.converted"
+      ]
+   },
+   "format" : "BC3_UNORM",
+   "generateMipLevels" : true
+}

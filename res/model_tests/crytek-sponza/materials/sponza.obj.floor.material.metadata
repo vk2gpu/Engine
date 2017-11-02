@@ -1,0 +1,8 @@
+{
+   "$internal" : {
+      "dependencies" : [ "shaders/textured.esf" ],
+      "outputs" : [
+         "../../../../.converter_output/model_tests/crytek-sponza/materials/sponza.obj.floor.material.converted"
+      ]
+   }
+}

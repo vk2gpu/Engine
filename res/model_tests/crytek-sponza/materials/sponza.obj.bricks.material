@@ -1,0 +1,10 @@
+{
+   "shader" : "shaders/textured.esf",
+   "textures" : {
+      "texDiffuse" : "model_tests/crytek-sponza/textures_pbr/Sponza_Bricks_a_Albedo.png",
+      "texHeight" : "model_tests/crytek-sponza/textures_pbr/Sponza_Bricks_a_Normal.png",
+      "texMetallic" : "model_tests/crytek-sponza/textures_pbr/Dielectric_metallic.png",
+      "texNormal" : "model_tests/crytek-sponza/textures_pbr/Sponza_Bricks_a_Normal.png",
+      "texRoughness" : "model_tests/crytek-sponza/textures_pbr/Sponza_Bricks_a_Roughness.png"
+   }
+}

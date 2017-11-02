@@ -1,0 +1,10 @@
+{
+   "$internal" : {
+      "dependencies" : [ "model_tests/crytek-sponza/textures_pbr/Sponza_Thorn_roughness.png" ],
+      "outputs" : [
+         "../../../../.converter_output/model_tests/crytek-sponza/textures_pbr/Sponza_Thorn_roughness.png.converted"
+      ]
+   },
+   "format" : "BC3_UNORM",
+   "generateMipLevels" : true
+}

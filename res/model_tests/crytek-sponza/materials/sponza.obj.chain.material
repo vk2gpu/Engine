@@ -1,0 +1,11 @@
+{
+   "shader" : "shaders/textured.esf",
+   "textures" : {
+      "texDiffuse" : "model_tests/crytek-sponza/textures_pbr/ChainTexture_Albedo.png",
+      "texHeight" : "model_tests/crytek-sponza/textures_pbr/ChainTexture_Normal.png",
+      "texMetallic" : "model_tests/crytek-sponza/textures_pbr/ChainTexture_Metallic.png",
+      "texNormal" : "model_tests/crytek-sponza/textures_pbr/ChainTexture_Normal.png",
+      "texOpacity" : "model_tests/crytek-sponza/textures_pbr/chain_texture_mask.png",
+      "texRoughness" : "model_tests/crytek-sponza/textures_pbr/ChainTexture_Roughness.png"
+   }
+}

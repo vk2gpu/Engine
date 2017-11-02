@@ -1,0 +1,10 @@
+{
+   "shader" : "shaders/textured.esf",
+   "textures" : {
+      "texDiffuse" : "model_tests/crytek-sponza/textures_pbr/Sponza_Column_c_diffuse.png",
+      "texHeight" : "model_tests/crytek-sponza/textures_pbr/Sponza_Column_c_normal.png",
+      "texMetallic" : "model_tests/crytek-sponza/textures_pbr/Dielectric_metallic.png",
+      "texNormal" : "model_tests/crytek-sponza/textures_pbr/Sponza_Column_c_normal.png",
+      "texRoughness" : "model_tests/crytek-sponza/textures_pbr/Sponza_Column_c_roughness.png"
+   }
+}
