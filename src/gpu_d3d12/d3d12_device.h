@@ -1,6 +1,7 @@
 #pragma once
 
 #include "gpu_d3d12/d3d12_types.h"
+#include "gpu_d3d12/d3d12_backend.h"
 #include "gpu_d3d12/d3d12_command_list.h"
 #include "gpu_d3d12/d3d12_resources.h"
 #include "gpu/resources.h"
@@ -12,7 +13,7 @@ namespace GPU
 	class D3D12Device
 	{
 	public:
-		D3D12Device(const SetupParams& setupParams, IDXGIFactory4* dxgiFactory, IDXGIAdapter1* adapter);
+		D3D12Device(D3D12Backend& backend, const SetupParams& setupParams, IDXGIFactory4* dxgiFactory, IDXGIAdapter1* adapter);
 		~D3D12Device();
 
 		void CreateCommandQueues();
@@ -92,5 +93,9 @@ namespace GPU
 		Core::Vector<ComPtr<ID3D12RootSignature>> d3dRootSignatures_;
 
 		Core::Vector<ComPtr<ID3D12PipelineState>> d3dDefaultPSOs_;
+
+		/// Vendor specific extensions.
+		AGSContext* agsContext_ = nullptr;
+		unsigned int agsFeatureBits_ = 0;
 	};
 } // namespace GPU

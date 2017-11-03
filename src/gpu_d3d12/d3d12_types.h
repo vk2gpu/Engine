@@ -13,6 +13,8 @@
 #include <d3d12.h>
 #include <wrl.h>
 
+#include <amd_ags.h>
+
 // Windows header crap.
 #undef DrawState
 

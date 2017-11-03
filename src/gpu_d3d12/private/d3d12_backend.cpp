@@ -98,6 +98,23 @@ namespace GPU
 		flags |= DXGI_CREATE_FACTORY_DEBUG;
 #endif
 
+		// Vendor specific extensions.
+		AGSConfiguration agsConfig;
+		agsConfig.allocCallback = nullptr;
+		agsConfig.freeCallback = nullptr;
+		agsConfig.crossfireMode = AGS_CROSSFIRE_MODE_DISABLE;
+		if(AGS_SUCCESS == agsInit(&agsContext_, &agsConfig, &agsGPUInfo_))
+		{
+			Core::Log("AMD AGS Successfully initialized.\n");
+			for(i32 i = 0; i < agsGPUInfo_.numDevices; ++i)
+			{
+				const auto& device = agsGPUInfo_.devices[i];
+				Core::Log(" - %s (%u CUs, %u MHz, %uMB)\n", device.adapterString, device.numCUs, device.coreClock, (u32)(device.localMemoryInBytes / (1024*1024)));
+			}
+
+
+		}
+
 		DXGICreateDXGIFactory2Fn(flags, IID_IDXGIFactory4, (void**)dxgiFactory_.ReleaseAndGetAddressOf());
 	}
 
@@ -114,6 +131,9 @@ namespace GPU
 			dxgiDebug_->ReportLiveObjects(DXGI_DEBUG_ALL, DXGI_DEBUG_RLO_ALL);
 		}
 #endif
+
+		if(agsContext_)
+			agsDeInit(agsContext_);
 	}
 
 	i32 D3D12Backend::EnumerateAdapters(AdapterInfo* outAdapters, i32 maxAdapters)
@@ -153,7 +173,7 @@ namespace GPU
 
 	ErrorCode D3D12Backend::Initialize(i32 adapterIdx)
 	{
-		device_ = new D3D12Device(setupParams_, dxgiFactory_.Get(), dxgiAdapters_[adapterIdx].Get());
+		device_ = new D3D12Device(*this, setupParams_, dxgiFactory_.Get(), dxgiAdapters_[adapterIdx].Get());
 		if(*device_ == false)
 		{
 			delete device_;

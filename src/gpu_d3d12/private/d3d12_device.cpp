@@ -10,7 +10,7 @@
 
 namespace GPU
 {
-	D3D12Device::D3D12Device(const SetupParams& setupParams, IDXGIFactory4* dxgiFactory, IDXGIAdapter1* adapter)
+	D3D12Device::D3D12Device(D3D12Backend& backend, const SetupParams& setupParams, IDXGIFactory4* dxgiFactory, IDXGIAdapter1* adapter)
 	    : dxgiFactory_(dxgiFactory)
 	{
 		HRESULT hr = S_OK;
@@ -28,6 +28,32 @@ namespace GPU
 		}
 		if(FAILED(hr))
 			return;
+
+		// Vendor specific extensions.
+		
+		agsContext_ = backend.agsContext_;
+		if(AGS_SUCCESS == agsDriverExtensionsDX12_Init(agsContext_, d3dDevice_.Get(), &agsFeatureBits_))
+		{
+			Core::Log("AMD AGS features supported:\n");
+#define LOG_AGS_FEATURE(_feature) if(Core::ContainsAnyFlags(agsFeatureBits_, _feature)) Core::Log("- Have: %s\n", #_feature)
+			LOG_AGS_FEATURE(AGS_DX12_EXTENSION_INTRINSIC_READFIRSTLANE);
+			LOG_AGS_FEATURE(AGS_DX12_EXTENSION_INTRINSIC_READLANE);
+			LOG_AGS_FEATURE(AGS_DX12_EXTENSION_INTRINSIC_LANEID);
+			LOG_AGS_FEATURE(AGS_DX12_EXTENSION_INTRINSIC_SWIZZLE);
+			LOG_AGS_FEATURE(AGS_DX12_EXTENSION_INTRINSIC_BALLOT);
+			LOG_AGS_FEATURE(AGS_DX12_EXTENSION_INTRINSIC_MBCOUNT);
+			LOG_AGS_FEATURE(AGS_DX12_EXTENSION_INTRINSIC_COMPARE3);
+			LOG_AGS_FEATURE(AGS_DX12_EXTENSION_INTRINSIC_BARYCENTRICS);
+			LOG_AGS_FEATURE(AGS_DX12_EXTENSION_INTRINSIC_WAVE_REDUCE);
+			LOG_AGS_FEATURE(AGS_DX12_EXTENSION_INTRINSIC_WAVE_SCAN);
+			LOG_AGS_FEATURE(AGS_DX12_EXTENSION_USER_MARKERS);
+#undef LOG_AGS_FEATURE
+		}
+		else
+		{
+			agsContext_ = nullptr;
+		}
+
 
 #if !defined(FINAL)
 		// Setup break on error + corruption.
@@ -86,6 +112,9 @@ namespace GPU
 		delete samplerAllocator_;
 		delete rtvAllocator_;
 		delete dsvAllocator_;
+
+		if(agsContext_)
+			agsDriverExtensionsDX12_DeInit(agsContext_);
 	}
 
 	void D3D12Device::CreateCommandQueues()

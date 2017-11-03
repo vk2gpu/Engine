@@ -105,6 +105,14 @@ namespace GPU
 		ResourcePool<D3D12DrawBindingSet> drawBindingSets_;
 		ResourcePool<D3D12FrameBindingSet> frameBindingSets_;
 		ResourcePool<D3D12CommandList*> commandLists_;
+
+
+		/// Vendor specific extensions.
+		AGSContext* agsContext_ = nullptr;
+		AGSGPUInfo agsGPUInfo_;
+
+
 	};
+
 
 } // namespace GPU
