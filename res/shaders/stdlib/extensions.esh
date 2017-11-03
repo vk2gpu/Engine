@@ -1,0 +1,17 @@
+#ifndef STDLIB_EXTENSIONS_ESH
+#define STDLIB_EXTENSIONS_ESH
+
+#if VENDOR_AMD && SHADER_MODEL >= 0x0005001
+#  include "../../../3rdparty/AGS_SDK/ags_lib/hlsl/ags_shader_intrinsics_dx12.hlsl"
+#endif
+
+#if VENDOR_NVIDIA && SHADER_MODEL >= 0x0005001
+#  define NV_SHADER_EXTN_SLOT u7
+#  define NV_SHADER_EXTN_REGISTER_SPACE space2
+#  include "../../../3rdparty/nvapi/nvHLSLExtns.h"
+#elif VENDOR_NVIDIA && SHADER_MODEL >= 0x0005000
+#  define NV_SHADER_EXTN_SLOT u7
+#  include "../../../3rdparty/nvapi/nvHLSLExtns.h"
+#endif
+
+#endif // STDLIB_EXTENSIONS_ESH

@@ -6,6 +6,7 @@
          "shaders/stdlib.esh",
          "shaders/stdlib/color.esh",
          "shaders/stdlib/constants.esh",
+         "shaders/stdlib/extensions.esh",
          "shaders/stdlib/gamma.esh",
          "shaders/stdlib/metadata.esh",
          "shaders/stdlib/normals.esh",
