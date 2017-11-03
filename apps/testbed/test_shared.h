@@ -77,7 +77,7 @@ namespace
 		ScopedEngine(const char* name, const Core::CommandLine& cmdLine)
 		    : window(name, 100, 100, 1280, 720, true, true)
 		    , gpuManager(GetDefaultSetupParams(cmdLine))
-		    , jobManager(GetNumJobWorkers(cmdLine), 256, 64 * 1024)
+		    , jobManager(GetNumJobWorkers(cmdLine), 256, 256 * 1024)
 		{
 			Graphics::Material::RegisterFactory();
 			Graphics::Model::RegisterFactory();

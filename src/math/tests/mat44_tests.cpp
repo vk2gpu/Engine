@@ -11,6 +11,7 @@ namespace
 
 TEST_CASE("mat44-tests-mul")
 {
+#if 0 // TODO: Use Core::Timer
 	Math::Mat44 a;
 	Math::Mat44 b;
 
@@ -54,10 +55,12 @@ TEST_CASE("mat44-tests-mul")
 
 		Core::Log("ISPC Avg. cycles: %f\n", avgCycles);
 	}
+#endif
 }
 
 TEST_CASE("mat44-tests-inverse")
 {
+#if 0 // TODO: Use Core::Timer
 	Math::Mat44 a;
 	Math::Mat44 b;
 
@@ -101,4 +104,5 @@ TEST_CASE("mat44-tests-inverse")
 
 		Core::Log("ISPC Avg. cycles: %f\n", avgCycles);
 	}
+#endif
 }
