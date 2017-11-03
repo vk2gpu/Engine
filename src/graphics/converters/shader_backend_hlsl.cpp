@@ -260,7 +260,10 @@ namespace Graphics
 		{
 			Core::String reg;
 			if(node->register_.size() > 0)
-				reg.Printf("register(%s)", node->register_.c_str());
+				if(node->space_.size() == 0)
+					reg.Printf("register(%s)", node->register_.c_str());
+				else
+					reg.Printf("register(%s, %s)", node->register_.c_str(), node->space_.c_str());
 			else if(node->type_->baseType_->metaData_ == "SRV")
 				reg.Printf("register(t%i)", srvReg_++);
 			else if(node->type_->baseType_->metaData_ == "UAV")

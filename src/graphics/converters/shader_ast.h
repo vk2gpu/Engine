@@ -297,6 +297,7 @@ namespace Graphics
 			Core::Vector<NodeStorageClass*> storageClasses_;
 			NodeTypeIdent* type_ = nullptr;
 			Core::String register_;
+			Core::String space_;
 			Core::String semantic_;
 			bool isFunction_ = false;
 			Core::Vector<NodeDeclaration*> parameters_;

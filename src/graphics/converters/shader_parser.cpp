@@ -62,6 +62,7 @@ namespace
 		{"uint2", 8},
 		{"uint3", 12},
 		{"uint4", 16},
+		{"bool", 4},
 	};
 
 	NodeType STREAM_TYPES[] =
@@ -600,6 +601,14 @@ namespace Graphics
 				node->register_ = token_.value_;
 
 				PARSE_TOKEN();
+
+				if(token_.value_ == ",")
+				{
+					PARSE_TOKEN();
+					node->space_ = token_.value_;
+					PARSE_TOKEN();
+				}
+
 				CHECK_TOKEN(AST::TokenType::CHAR, ")");
 			}
 			else
