@@ -57,9 +57,10 @@ namespace GPU
 		ErrorCode SubmitCommandList(D3D12CommandList& commandList);
 
 		ErrorCode ResizeSwapChain(D3D12SwapChain& swapChain, i32 width, i32 height);
-
-
+		
 		operator bool() const { return !!d3dDevice_; }
+
+		ID3D12GraphicsCommandList* GetBarrierCommandList();
 
 		ComPtr<IDXGIFactory4> dxgiFactory_;
 		ComPtr<ID3D12Device> d3dDevice_;
@@ -80,6 +81,11 @@ namespace GPU
 		ComPtr<ID3D12Fence> d3dUploadFence_;
 		HANDLE uploadFenceEvent_ = 0;
 		volatile i64 uploadFenceIdx_ = 0;
+
+		/// Barriers for resource creation.
+		Core::Mutex barrierMutex_;
+		class D3D12CommandList* barrierCommandList_ = nullptr;
+		ID3D12GraphicsCommandList* d3dBarrierCommandList_ = nullptr;
 
 		/// Descriptor heap allocators.
 		class D3D12DescriptorHeapAllocator* cbvSrvUavAllocator_ = nullptr;

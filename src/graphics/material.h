@@ -14,6 +14,9 @@ namespace Graphics
 	public:
 		DECLARE_RESOURCE("Graphics.Material", 0);
 
+		/// @return Get material name.
+		const char* GetName() const;
+
 		/// @return Get shader associated with this material.
 		Shader* GetShader() const;
 

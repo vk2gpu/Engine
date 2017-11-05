@@ -20,6 +20,13 @@ namespace GPU
 	ErrorCode D3D12CompileContext::CompileCommandList(D3D12CommandList& outCommandList, const CommandList& commandList)
 	{
 		d3dCommandList_ = outCommandList.Open();
+		bool supportPIXMarkers = true;
+		bool supportAGSMarkers = false;
+		auto primaryDevice = backend_.device_;
+
+		if(backend_.agsContext_ && Core::ContainsAllFlags(primaryDevice->agsFeatureBits_, AGS_DX12_EXTENSION_USER_MARKERS))
+			supportAGSMarkers = true;
+
 		if(d3dCommandList_)
 		{
 #define CASE_COMMAND(TYPE_STRUCT)                                                                                      \
@@ -48,12 +55,15 @@ namespace GPU
 				case CommandBeginEvent::TYPE:
 				{
 					const auto* eventCommand = static_cast<const CommandBeginEvent*>(command);
-					PIXBeginEvent(d3dCommandList_, eventCommand->metaData_, eventCommand->text_);
+
+					if(supportPIXMarkers) PIXBeginEvent(d3dCommandList_, eventCommand->metaData_, eventCommand->text_);
+					if(supportAGSMarkers) agsDriverExtensionsDX12_PushMarker(backend_.agsContext_, d3dCommandList_, eventCommand->text_);
 				}
 				break;
 				case CommandEndEvent::TYPE:
 				{
-					PIXEndEvent(d3dCommandList_);
+					if(supportPIXMarkers) PIXEndEvent(d3dCommandList_);
+					if(supportAGSMarkers) agsDriverExtensionsDX12_PopMarker(backend_.agsContext_, d3dCommandList_);
 				}
 				break;
 				default:

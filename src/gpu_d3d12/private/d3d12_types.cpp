@@ -130,18 +130,14 @@ namespace GPU
 			retVal = D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
 		if(Core::ContainsAllFlags(bindFlags, BindFlags::STREAM_OUTPUT))
 			retVal = D3D12_RESOURCE_STATE_STREAM_OUT;
+		if(Core::ContainsAllFlags(bindFlags, BindFlags::UNORDERED_ACCESS))
+			retVal = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
 		if(Core::ContainsAllFlags(bindFlags, BindFlags::RENDER_TARGET))
 			retVal = D3D12_RESOURCE_STATE_RENDER_TARGET;
 		if(Core::ContainsAllFlags(bindFlags, BindFlags::DEPTH_STENCIL))
 			retVal = D3D12_RESOURCE_STATE_DEPTH_WRITE;
-		if(Core::ContainsAllFlags(bindFlags, BindFlags::UNORDERED_ACCESS))
-			retVal = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
 		if(Core::ContainsAllFlags(bindFlags, BindFlags::PRESENT))
 			retVal = D3D12_RESOURCE_STATE_PRESENT;
-
-		// TODO: proper state.
-		retVal = D3D12_RESOURCE_STATE_COMMON;
-
 		return retVal;
 	}
 

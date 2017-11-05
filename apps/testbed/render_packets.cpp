@@ -103,9 +103,12 @@ namespace Testbed
 					        objectSBHandle, GPU::Format::INVALID, baseInstanceIdx, numInstances, objectDataSize));
 					if(auto pbs = tech.GetBinding())
 					{
-						cmdList.Draw(pbs, meshPacket->db_, fbs, drawState, GPU::PrimitiveTopology::TRIANGLE_LIST,
-						    meshPacket->draw_.indexOffset_, meshPacket->draw_.vertexOffset_,
-						    meshPacket->draw_.noofIndices_, 0, numInstances);
+						if(auto event = cmdList.Eventf(0x0, "Material: %s", meshPacket->material_->GetName()))
+						{
+							cmdList.Draw(pbs, meshPacket->db_, fbs, drawState, GPU::PrimitiveTopology::TRIANGLE_LIST,
+							    meshPacket->draw_.indexOffset_, meshPacket->draw_.vertexOffset_,
+								meshPacket->draw_.noofIndices_, 0, numInstances);
+						}
 					}
 				}
 

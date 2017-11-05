@@ -639,8 +639,8 @@ namespace GPU
 
 		// Grab all resources to create pipeline binding set with.
 		Core::Array<D3D12Resource*, MAX_SRV_BINDINGS> srvResources = {};
-		Core::Array<D3D12_SHADER_RESOURCE_VIEW_DESC, MAX_UAV_BINDINGS> srvs = {};
-		Core::Array<D3D12Resource*, MAX_SRV_BINDINGS> uavResources = {};
+		Core::Array<D3D12_SHADER_RESOURCE_VIEW_DESC, MAX_SRV_BINDINGS> srvs = {};
+		Core::Array<D3D12Resource*, MAX_UAV_BINDINGS> uavResources = {};
 		Core::Array<D3D12_UNORDERED_ACCESS_VIEW_DESC, MAX_UAV_BINDINGS> uavs = {};
 		Core::Array<D3D12Resource*, MAX_CBV_BINDINGS> cbvResources = {};
 		Core::Array<D3D12_CONSTANT_BUFFER_VIEW_DESC, MAX_CBV_BINDINGS> cbvs = {};
@@ -660,8 +660,7 @@ namespace GPU
 		    Core::F32_MAX,
 		};
 
-		D3D12_SHADER_RESOURCE_VIEW_DESC defaultSRV;
-		memset(&defaultSRV, 0, sizeof(defaultSRV));
+		D3D12_SHADER_RESOURCE_VIEW_DESC defaultSRV = {};
 		defaultSRV.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 		defaultSRV.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 		defaultSRV.Shader4ComponentMapping = D3D12_ENCODE_SHADER_4_COMPONENT_MAPPING(

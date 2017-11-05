@@ -2,6 +2,7 @@
 
 #include "core/array.h"
 #include "core/array_view.h"
+#include "core/string.h"
 #include "core/vector.h"
 #include "gpu/resources.h"
 #include "graphics/shader.h"
@@ -27,6 +28,7 @@ namespace Graphics
 
 		Core::Vector<MaterialTexture> textures_;
 
+		Core::String name_;
 		ShaderRef shaderRes_;
 		Core::Vector<TextureRef> textureRes_;
 

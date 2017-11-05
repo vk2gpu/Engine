@@ -97,6 +97,7 @@ namespace ImGui
 		int width, height;
 		IO.Fonts->GetTexDataAsRGBA32(&pixels, &width, &height);
 		fontDesc.type_ = GPU::TextureType::TEX2D;
+		fontDesc.bindFlags_ = GPU::BindFlags::SHADER_RESOURCE;
 		fontDesc.width_ = width;
 		fontDesc.height_ = height;
 		fontDesc.format_ = GPU::Format::R8G8B8A8_UNORM;

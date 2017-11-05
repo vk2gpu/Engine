@@ -67,6 +67,7 @@ namespace Graphics
 					textureRes.WaitUntilReady();
 			}
 
+			impl->name_ = name;
 			material->impl_ = impl;
 
 			return true;
@@ -74,6 +75,8 @@ namespace Graphics
 	};
 
 	DEFINE_RESOURCE(Material);
+
+	const char* Material::GetName() const { return impl_->name_.c_str(); }
 
 	Shader* Material::GetShader() const { return impl_->shaderRes_; }
 

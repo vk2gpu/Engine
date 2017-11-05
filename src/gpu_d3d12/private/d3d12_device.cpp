@@ -96,6 +96,9 @@ namespace GPU
 		// Frame fence.
 		d3dDevice_->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_ID3D12Fence, (void**)d3dFrameFence_.GetAddressOf());
 		frameFenceEvent_ = ::CreateEvent(nullptr, FALSE, FALSE, "Frame fence");
+
+		// Setup command list for barriers.
+		barrierCommandList_ = new D3D12CommandList(*this, 0, D3D12_COMMAND_LIST_TYPE_DIRECT);
 	}
 
 	D3D12Device::~D3D12Device()
@@ -105,6 +108,7 @@ namespace GPU
 		::CloseHandle(frameFenceEvent_);
 		::CloseHandle(uploadFenceEvent_);
 		delete uploadCommandList_;
+		delete barrierCommandList_;
 		for(auto& d3dUploadAllocator : uploadAllocators_)
 			delete d3dUploadAllocator;
 
@@ -417,7 +421,7 @@ namespace GPU
 		ComPtr<ID3D12Resource> d3dResource;
 		HRESULT hr = S_OK;
 		CHECK_D3D(hr = d3dDevice_->CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE, &resourceDesc,
-		              outResource.defaultState_, nullptr, IID_PPV_ARGS(d3dResource.GetAddressOf())));
+		              D3D12_RESOURCE_STATE_COMMON, nullptr, IID_PPV_ARGS(d3dResource.GetAddressOf())));
 		if(FAILED(hr))
 			return ErrorCode::FAIL;
 
@@ -436,7 +440,7 @@ namespace GPU
 			if(auto* d3dCommandList = uploadCommandList_->Open())
 			{
 				D3D12ScopedResourceBarrier copyBarrier(
-				    d3dCommandList, d3dResource.Get(), 0, outResource.defaultState_, D3D12_RESOURCE_STATE_COPY_DEST);
+				    d3dCommandList, d3dResource.Get(), 0, D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_COPY_DEST);
 				d3dCommandList->CopyBufferRegion(d3dResource.Get(), 0, resAlloc.baseResource_.Get(),
 				    resAlloc.offsetInBaseResource_, resourceDesc.Width);
 			}
@@ -451,10 +455,25 @@ namespace GPU
 
 			d3dCopyQueue_->Signal(d3dUploadFence_.Get(), Core::AtomicInc(&uploadFenceIdx_));
 
-			return errorCode;
 		}
 
-		return ErrorCode::OK;
+		// Add barrier for default state.
+		if(errorCode == ErrorCode::OK && outResource.defaultState_ != D3D12_RESOURCE_STATE_COMMON)
+		{
+			D3D12_RESOURCE_BARRIER barrier;
+			barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+			barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+			barrier.Transition.pResource = outResource.resource_.Get();
+			barrier.Transition.Subresource = 0xffffffff;
+			barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COMMON;
+			barrier.Transition.StateAfter = outResource.defaultState_;
+
+			Core::ScopedMutex lock(barrierMutex_);
+			auto barrierCommandList = GetBarrierCommandList();
+			barrierCommandList->ResourceBarrier(1, &barrier);
+		}
+
+		return errorCode;
 	}
 
 	ErrorCode D3D12Device::CreateTexture(D3D12Resource& outResource, const TextureDesc& desc,
@@ -503,7 +522,7 @@ namespace GPU
 		ComPtr<ID3D12Resource> d3dResource;
 		HRESULT hr = S_OK;
 		CHECK_D3D(hr = d3dDevice_->CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE, &resourceDesc,
-		              outResource.defaultState_, setClearValue, IID_PPV_ARGS(d3dResource.GetAddressOf())));
+		              D3D12_RESOURCE_STATE_COMMON, setClearValue, IID_PPV_ARGS(d3dResource.GetAddressOf())));
 		if(FAILED(hr))
 			return ErrorCode::FAIL;
 
@@ -564,7 +583,7 @@ namespace GPU
 			if(auto* d3dCommandList = uploadCommandList_->Open())
 			{
 				D3D12ScopedResourceBarrier copyBarrier(
-				    d3dCommandList, d3dResource.Get(), 0, outResource.defaultState_, D3D12_RESOURCE_STATE_COPY_DEST);
+				    d3dCommandList, d3dResource.Get(), 0, D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_COPY_DEST);
 
 				for(i32 i = 0; i < numSubRsc; ++i)
 				{
@@ -591,8 +610,22 @@ namespace GPU
 			CHECK_ERRORCODE(errorCode = uploadCommandList_->Submit(d3dCopyQueue_.Get()));
 
 			d3dCopyQueue_->Signal(d3dUploadFence_.Get(), Core::AtomicInc(&uploadFenceIdx_));
+		}
 
-			return errorCode;
+		// Add barrier for default state.
+		if(errorCode == ErrorCode::OK && outResource.defaultState_ != D3D12_RESOURCE_STATE_COMMON)
+		{		
+			D3D12_RESOURCE_BARRIER barrier;
+			barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+			barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+			barrier.Transition.pResource = outResource.resource_.Get();
+			barrier.Transition.Subresource = 0xffffffff;
+			barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COMMON;
+			barrier.Transition.StateAfter = outResource.defaultState_;
+			
+			Core::ScopedMutex lock(barrierMutex_);
+			auto barrierCommandList = GetBarrierCommandList();
+			barrierCommandList->ResourceBarrier(1, &barrier);
 		}
 
 		return errorCode;
@@ -769,6 +802,17 @@ namespace GPU
 	ErrorCode D3D12Device::SubmitCommandList(D3D12CommandList& commandList)
 	{
 		d3dDirectQueue_->Wait(d3dUploadFence_.Get(), uploadFenceIdx_);
+
+		{
+			Core::ScopedMutex lock(barrierMutex_);
+			if(d3dBarrierCommandList_)
+			{
+				d3dBarrierCommandList_ = nullptr;
+				barrierCommandList_->Close();
+				barrierCommandList_->Submit(d3dDirectQueue_.Get());
+			}
+		}
+
 		return commandList.Submit(d3dDirectQueue_.Get());
 	}
 
@@ -818,6 +862,15 @@ namespace GPU
 		}
 
 		return ErrorCode::OK;
+	}
+
+	ID3D12GraphicsCommandList* D3D12Device::GetBarrierCommandList()
+	{
+		if(d3dBarrierCommandList_ == nullptr)
+		{
+			d3dBarrierCommandList_ = barrierCommandList_->Open();
+		}
+		return d3dBarrierCommandList_;
 	}
 
 } // namespace GPU
