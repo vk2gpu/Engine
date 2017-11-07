@@ -8,5 +8,7 @@
 #undef DrawState
 #undef MessageBox
 #undef ERROR
+#undef DELETE
+#undef LoadImage
 
 #endif
