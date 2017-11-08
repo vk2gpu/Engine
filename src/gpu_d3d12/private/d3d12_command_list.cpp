@@ -39,6 +39,15 @@ namespace GPU
 		::CloseHandle(fenceEvent_);
 	}
 
+	ID3D12GraphicsCommandList* D3D12CommandList::Get()
+	{
+		if(isOpen_)
+		{
+			return d3dCommandList_.Get();
+		}
+		return Open();
+	}
+
 	ID3D12GraphicsCommandList* D3D12CommandList::Open()
 	{
 		DBG_ASSERT(!isOpen_);
@@ -75,8 +84,13 @@ namespace GPU
 		DBG_ASSERT(!isOpen_);
 		ID3D12CommandList* d3dCommandLists[1] = {d3dCommandList_.Get()};
 		d3dCommandQueue->ExecuteCommandLists(1, d3dCommandLists);
-		CHECK_D3D(d3dCommandQueue->Signal(d3dFence_.Get(), listIdx_));
+		SignalNext(d3dCommandQueue);
+		return ErrorCode::OK;
+	}
 
+	ErrorCode D3D12CommandList::SignalNext(ID3D12CommandQueue* d3dCommandQueue)
+	{
+		CHECK_D3D(d3dCommandQueue->Signal(d3dFence_.Get(), listIdx_));
 		++listIdx_;
 		return ErrorCode::OK;
 	}

@@ -16,6 +16,12 @@ namespace GPU
 		~D3D12CommandList();
 
 		/**
+		 * Get command list.
+		 * Will open command list if not currently open.
+		 */
+		ID3D12GraphicsCommandList* Get();
+
+		/**
 		 * Open a command list for use.
 		 */
 		ID3D12GraphicsCommandList* Open();
@@ -29,6 +35,11 @@ namespace GPU
 		 * Submit command list to queue.
 		 */
 		ErrorCode Submit(ID3D12CommandQueue* d3dCommandQueue);
+
+		/**
+		 * Signal for next list.
+		 */
+		ErrorCode SignalNext(ID3D12CommandQueue* d3dCommandQueue);
 
 		D3D12Device& device_;
 		D3D12_COMMAND_LIST_TYPE type_;

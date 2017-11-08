@@ -261,6 +261,20 @@ namespace GPU
 				return false;
 			}
 		}
+
+		bool HandleErrorCode(ErrorCode errorCode)
+		{
+			switch(errorCode)
+			{
+			case ErrorCode::OK:
+				return true;
+				break;
+			default:
+				// TODO: log error.
+				DBG_BREAK;
+				return false;
+			}
+		}
 	};
 
 	ManagerImpl* impl_ = nullptr;
@@ -479,7 +493,7 @@ namespace GPU
 		DBG_ASSERT(IsInitialized());
 		DBG_ASSERT(handle.GetType() == ResourceType::COMMAND_LIST);
 		rmt_ScopedCPUSample(GPU_CompileCommandList, RMTSF_None);
-		return impl_->HandleErrorCode(handle, impl_->backend_->CompileCommandList(handle, commandList));
+		return impl_->HandleErrorCode(impl_->backend_->CompileCommandList(handle, commandList));
 	}
 
 	bool Manager::SubmitCommandList(Handle handle)
@@ -487,7 +501,18 @@ namespace GPU
 		DBG_ASSERT(IsInitialized());
 		DBG_ASSERT(handle.GetType() == ResourceType::COMMAND_LIST);
 		rmt_ScopedCPUSample(GPU_SubmitCommandList, RMTSF_None);
-		return impl_->HandleErrorCode(handle, impl_->backend_->SubmitCommandList(handle));
+		return impl_->HandleErrorCode(impl_->backend_->SubmitCommandLists(Core::ArrayView<Handle>(&handle, 1)));
+	}
+
+	bool Manager::SubmitCommandLists(Core::ArrayView<Handle> handles)
+	{
+		DBG_ASSERT(IsInitialized());
+#if !defined(FINAL)
+		for(auto handle : handles)
+			DBG_ASSERT(handle.GetType() == ResourceType::COMMAND_LIST);
+#endif
+		rmt_ScopedCPUSample(GPU_SubmitCommandLists, RMTSF_None);
+		return impl_->HandleErrorCode(impl_->backend_->SubmitCommandLists(handles));
 	}
 
 	bool Manager::PresentSwapChain(Handle handle)
@@ -495,7 +520,7 @@ namespace GPU
 		DBG_ASSERT(IsInitialized());
 		DBG_ASSERT(handle.GetType() == ResourceType::SWAP_CHAIN);
 		rmt_ScopedCPUSample(GPU_PresentSwapChain, RMTSF_None);
-		return impl_->HandleErrorCode(handle, impl_->backend_->PresentSwapChain(handle));
+		return impl_->HandleErrorCode(impl_->backend_->PresentSwapChain(handle));
 	}
 
 	bool Manager::ResizeSwapChain(Handle handle, i32 width, i32 height)
@@ -503,7 +528,7 @@ namespace GPU
 		DBG_ASSERT(IsInitialized());
 		DBG_ASSERT(handle.GetType() == ResourceType::SWAP_CHAIN);
 		rmt_ScopedCPUSample(GPU_ResizeSwapChain, RMTSF_None);
-		return impl_->HandleErrorCode(handle, impl_->backend_->ResizeSwapChain(handle, width, height));
+		return impl_->HandleErrorCode(impl_->backend_->ResizeSwapChain(handle, width, height));
 	}
 
 	void Manager::NextFrame()

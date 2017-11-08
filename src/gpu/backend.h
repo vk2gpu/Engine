@@ -3,6 +3,7 @@
 #include "gpu/dll.h"
 #include "gpu/command_list.h"
 #include "gpu/resources.h"
+#include "core/array_view.h"
 #include "core/types.h"
 #include "core/handle.h"
 #include "plugin/plugin.h"
@@ -50,7 +51,7 @@ namespace GPU
 		 * Command list management.
 		 */
 		virtual ErrorCode CompileCommandList(Handle handle, const CommandList& commandList) = 0;
-		virtual ErrorCode SubmitCommandList(Handle handle) = 0;
+		virtual ErrorCode SubmitCommandLists(Core::ArrayView<Handle> handles) = 0;
 
 		/**
 		 * Swapchain management.

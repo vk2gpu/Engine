@@ -1150,11 +1150,23 @@ namespace GPU
 		return context.CompileCommandList(*outCommandList, commandList);
 	}
 
-	ErrorCode D3D12Backend::SubmitCommandList(Handle handle)
+	ErrorCode D3D12Backend::SubmitCommandLists(Core::ArrayView<Handle> handles)
 	{
-		D3D12CommandList* commandList = commandLists_[handle.GetIndex()];
-		DBG_ASSERT(commandList);
-		return device_->SubmitCommandList(*commandList);
+		Core::Array<D3D12CommandList*, COMMAND_LIST_BATCH_SIZE> commandLists;
+		i32 numBatches = (handles.size() + (COMMAND_LIST_BATCH_SIZE - 1)) / COMMAND_LIST_BATCH_SIZE;
+		for(i32 batch = 0; batch < numBatches; ++batch)
+		{
+			const i32 baseHandle = batch * COMMAND_LIST_BATCH_SIZE;
+			const i32 numHandles = Core::Min(COMMAND_LIST_BATCH_SIZE, handles.size() - baseHandle);
+			for(i32 i = 0; i < numHandles; ++i)
+			{
+				commandLists[i] = commandLists_[handles[i].GetIndex()];
+				DBG_ASSERT(commandLists[i]);
+			}
+
+			device_->SubmitCommandLists(Core::ArrayView<D3D12CommandList*>(commandLists.data(), numHandles));
+		}	
+		return ErrorCode::OK;
 	}
 
 	ErrorCode D3D12Backend::PresentSwapChain(Handle handle)

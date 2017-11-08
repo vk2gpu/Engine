@@ -757,13 +757,16 @@ namespace Graphics
 		//Core::Log("Execute done\n");
 		// Submit all command lists with commands in sequential order.
 		rmt_ScopedCPUSample(RenderGraph_SubmitCommandLists, RMTSF_None);
+		Core::Vector<GPU::Handle> cmdLists;
+		jobDescs.resize(numPasses);
 		for(i32 idx = 0; idx < numPasses; ++idx)
 		{
 			const auto& cmdList = impl_->cmdLists_[idx];
 			auto cmdHandle = impl_->cmdHandles_[idx];
 			if(cmdList.NumCommands() > 0)
-				GPU::Manager::SubmitCommandList(cmdHandle);
+				cmdLists.push_back(cmdHandle);
 		}
+		GPU::Manager::SubmitCommandLists(cmdLists);
 	}
 
 	i32 RenderGraph::GetNumExecutedRenderPasses() const { return impl_->executeRenderPasses_.size(); }

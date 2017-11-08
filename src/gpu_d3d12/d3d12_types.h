@@ -79,10 +79,19 @@ namespace GPU
 	D3D12_RESOURCE_DESC GetResourceDesc(const TextureDesc& desc);
 
 	/**
+	 * Barriers.
+	 */
+	D3D12_RESOURCE_BARRIER TransitionBarrier(ID3D12Resource* res, UINT subRsc, D3D12_RESOURCE_STATES before, D3D12_RESOURCE_STATES after);
+
+	/**
 	 * Utility.
 	 */
 	void SetObjectName(ID3D12Object* object, const char* name);
 	void WaitOnFence(ID3D12Fence* fence, HANDLE event, u64 value);
+
+	static const i32 COMMAND_LIST_BATCH_SIZE = 32;
+	static const i64 UPLOAD_AUTO_FLUSH_COMMANDS = 30;
+	static const i64 UPLOAD_AUTO_FLUSH_BYTES = 8 * 1024 * 1024;
 
 
 } // namespace GPU

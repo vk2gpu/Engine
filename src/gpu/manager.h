@@ -143,6 +143,13 @@ namespace GPU
 		static bool SubmitCommandList(Handle handle);
 
 		/**
+		 * Submit command lists.
+		 * @param handles Handles to command lists.
+		 * @return Success.
+		 */
+		static bool SubmitCommandLists(Core::ArrayView<Handle> handles);
+
+		/**
 		 * Present swapchain.
 		 */
 		static bool PresentSwapChain(Handle handle);

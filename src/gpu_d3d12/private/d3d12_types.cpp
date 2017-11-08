@@ -424,6 +424,19 @@ namespace GPU
 		return resourceDesc;
 	}
 
+	D3D12_RESOURCE_BARRIER TransitionBarrier(ID3D12Resource* res, UINT subRsc, D3D12_RESOURCE_STATES before, D3D12_RESOURCE_STATES after)
+	{
+		D3D12_RESOURCE_BARRIER barrier;
+		barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+		barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+		barrier.Transition.pResource = res;
+		barrier.Transition.Subresource = subRsc;
+		barrier.Transition.StateBefore = before;
+		barrier.Transition.StateAfter = after;
+		return barrier;
+	}
+
+
 	void SetObjectName(ID3D12Object* object, const char* name)
 	{
 #if !defined(FINAL)
