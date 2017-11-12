@@ -71,8 +71,7 @@ namespace Core
 		TYPE& operator[](index_type idx)
 		{
 			DBG_ASSERT_MSG(idx >= 0 && idx < size_, "Index out of bounds. (index %u, size %u)", idx, size_);
-			return data_[idx];
-		}
+			return data_[idx];		}
 
 		const TYPE& operator[](index_type idx) const
 		{

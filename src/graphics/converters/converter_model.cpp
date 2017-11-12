@@ -258,6 +258,7 @@ namespace
 			aiSetImportPropertyInteger(propertyStore, AI_CONFIG_PP_LBW_MAX_WEIGHTS, metaData_.maxBoneInfluences_);
 			aiSetImportPropertyInteger(propertyStore, AI_CONFIG_IMPORT_MD5_NO_ANIM_AUTOLOAD, true);
 			aiSetImportPropertyInteger(propertyStore, AI_CONFIG_PP_ICL_PTCACHE_SIZE, 64);
+			aiSetImportPropertyFloat(propertyStore, AI_CONFIG_PP_GSN_MAX_SMOOTHING_ANGLE, metaData_.smoothingAngle_);
 
 			aiLogStream assimpLogger = {AssimpLogStream, (char*)this};
 			{
@@ -267,6 +268,7 @@ namespace
 				// TODO: Intercept file io to track dependencies.
 				int flags = aiProcessPreset_TargetRealtime_MaxQuality | aiProcess_SplitByBoneCount |
 				            aiProcess_LimitBoneWeights | aiProcess_ConvertToLeftHanded;
+
 				if(metaData_.flattenHierarchy_)
 				{
 					flags |= aiProcess_OptimizeGraph | aiProcess_RemoveComponent;
@@ -458,13 +460,10 @@ namespace
 						currStream++;
 				}
 
-				if(mesh->HasTangentsAndBitangents())
+				if(mesh->HasTangentsAndBitangents() && metaData_.vertexFormat_.tangent_ != GPU::Format::INVALID)
 				{
 					elements[numElements++] = GPU::VertexElement(
-					    currStream, 0, metaData_.vertexFormat_.normal_, GPU::VertexUsage::TANGENT, 0);
-
-					elements[numElements++] = GPU::VertexElement(
-					    currStream, 0, metaData_.vertexFormat_.normal_, GPU::VertexUsage::BINORMAL, 0);
+					    currStream, 0, metaData_.vertexFormat_.tangent_, GPU::VertexUsage::TANGENT, 0);
 
 					if(metaData_.splitStreams_)
 						currStream++;
