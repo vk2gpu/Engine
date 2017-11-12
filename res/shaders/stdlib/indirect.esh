@@ -1,0 +1,82 @@
+#ifndef STDLIB_INDIRECT_ESH
+#define STDLIB_INDIRECT_ESH
+
+/**
+ * Draw arguments.
+ * - Should currently match D3D12 & Vulkan structure.
+ */
+struct DrawArgs 
+{
+	uint noofVertices;
+	uint noofInstances;
+	uint vertexOffset;
+	uint firstInstance;
+};
+
+/**
+ * Draw indexed arguments.
+ * - Should currently match D3D12 & Vulkan structure.
+ */
+struct DrawIndexedArgs 
+{
+	uint noofVertices;
+	uint noofInstances;
+	uint indexOffset;
+	int vertexOffset;
+	uint firstInstance;
+};
+
+/**
+ * Dispatch arguments.
+ * - Should currently match D3D12 & Vulkan structure.
+ */
+struct DispatchArgs
+{
+	uint xGroups;
+	uint yGroups;
+	uint zGroups;
+};
+
+/**
+ * Address arguments (for constants & views)
+ * - D3D12 only.
+ */
+struct AddressArgs
+{
+	uint h;
+	uint l;
+};
+
+/**
+ * Vertex buffer view arguments.
+ * - D3D12 only.
+ */
+struct VertexBufferViewArgs
+{
+	AddressArgs address;
+	uint size;
+	uint stride;
+};
+
+/**
+ * Index buffer view arguments.
+ * - D3D12 only.
+ */
+struct IndexBufferViewArgs
+{
+	AddressArgs address;
+	uint size;
+	uint format;
+};
+
+/**
+ * Constant buffer view arguments.
+ * - D3D12 only.
+ */
+struct ConstantBufferViewArgs
+{
+	AddressArgs address;
+	uint size_;
+};
+
+#endif // STDLIB_INDIRECT_ESH

@@ -130,17 +130,37 @@ float4 GetPositionCS(ViewParams v, float3 pos)
 
 float3 GetNormalWS(Object obj, float3 nrm)
 {
-	return mul((float3x3)obj.world_, nrm);
+	return mul(obj.world_, float4(nrm, 0.0)).xyz;
 }
 
 float3 GetNormalVS(ViewParams v, float3 nrm)
 {
-	return mul((float3x3)v.view_, nrm);
+	return mul(v.view_, float4(nrm, 0.0)).xyz;
 }
 
 float3 GetNormalCS(ViewParams v, float3 nrm)
 {
-	return mul((float3x3)v.viewProj_, nrm);
+	return mul(v.viewProj_, float4(nrm, 0.0)).xyz;
+}
+
+float3 CalculateNormal(in PixelData pixData)
+{
+	const float3 v_normal = normalize(pixData.input.v_normal.xyz); 
+#ifdef REQUIRE_TANGENT
+	const float3 t_normal = pixData.normal;
+	const float3 v_tangent = normalize(pixData.input.v_tangent.xyz); 
+	const float3x3 v_tbn = BuildTBN(v_normal, v_tangent);
+	return mul(t_normal, v_tbn);
+#else
+
+#  ifdef REQUIRE_TEXCOORD0
+	const float3 t_normal = pixData.normal;
+	const float3x3 v_tbn = BuildTBN(v_normal, pixData.input.v_position, pixData.input.texcoord0);
+	return mul(t_normal, v_tbn);
+#  endif
+#endif
+
+	return v_normal;
 }
 
 VS_OUT vs_position(in float3 _in : POSITION, uint _id : SV_INSTANCEID)
@@ -207,10 +227,10 @@ VS_OUT vs_main(in VS_IN _in, uint _id : SV_INSTANCEID)
 	outVtx.texcoord0 = vtxData.texcoord0;
 #endif
 	outVtx.v_position = vtxData.positionVS.xyz;
-	outVtx.v_normal = vtxData.normalVS.xyz;
+	outVtx.v_normal = normalize(vtxData.normalVS.xyz);
 
 #ifdef REQUIRE_TANGENT
-	outVtx.v_tangent = vtxData.tangentVS.xyz;
+	outVtx.v_tangent = normalize(vtxData.tangentVS.xyz);
 #endif
 	return outVtx;
 }
@@ -219,6 +239,7 @@ Texture2D<uint> inLightTex;
 StructuredBuffer<uint> inLightIndices;
 StructuredBuffer<Light> inLights;
 
+[earlydepthstencil]
 void ps_depthprepass(in VS_OUT _in)
 {
 	PixelData pixData = (PixelData)0;
@@ -226,6 +247,7 @@ void ps_depthprepass(in VS_OUT _in)
 	ShadePixel(PASS_DEPTH_PREPASS, pixData);
 }
 
+[earlydepthstencil]
 void ps_shadow(in VS_OUT _in)
 {
 	PixelData pixData = (PixelData)0;
@@ -233,28 +255,23 @@ void ps_shadow(in VS_OUT _in)
 	ShadePixel(PASS_SHADOW, pixData);
 }
 
+[earlydepthstencil]
 float4 ps_forward(in VS_OUT _in) : SV_TARGET0
 {
 	PixelData pixData = (PixelData)0;
 	pixData.input = _in;
+	pixData.normal = normalize(pixData.input.v_normal.xyz);
 	uint pixMask = ShadePixel(PASS_FORWARD, pixData);
 
 	if(pixMask & PIX_LIGHTING)
 	{
 		const float3 ambient = float3(0.01, 0.01, 0.01);
+		const float3 normal = CalculateNormal(pixData);
 
-		const float3 v_normal = normalize(pixData.input.v_normal.xyz); 
-#ifdef REQUIRE_TANGENT
-		const float3 t_normal = pixData.normal;
-		const float3 v_tangent = normalize(pixData.input.v_tangent.xyz); 
-		const float3x3 v_tbn = BuildTBN(v_normal, v_tangent);
-		const float3 normal = mul(t_normal, v_tbn);
-#else
-		const float3 normal = v_normal;
-#endif
+		//return float4(normal * 0.5 + 0.5, 1.0);
 
 		float3 lightColor = float3(0.0, 0.0, 0.0);
-		lightColor += ambient;
+		lightColor += ambient * pixData.color.rgb;
 
 		int2 lightTexel = DecodeLight(inLightTex[int2(floor(_in.position.xy / l_.tileSize_))]);
 
@@ -279,7 +296,7 @@ float4 ps_forward(in VS_OUT _in) : SV_TARGET0
 		}
 
 		// TODO: LinearToGamma in post process.
-		return float4(LinearToGamma(lightColor), 0.0);
+		return float4(LinearToGamma(lightColor.rgb), 0.0);
 	}
 
 	return pixData.color;

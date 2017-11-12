@@ -1,6 +1,7 @@
 #include "forward_pipeline.h"
 #include "common.h"
 
+#include "core/misc.h"
 #include "gpu/command_list.h"
 #include "gpu/resources.h"
 #include "gpu/utils.h"
@@ -201,9 +202,9 @@ namespace Testbed
 			            data.outLightIndex_ =
 			                builder.Write(builder.Create("LC Light Link Index SB", RenderGraphBufferDesc(sizeof(u32))),
 			                    GPU::BindFlags::UNORDERED_ACCESS);
-			            data.outLightTex_ = builder.Write(builder.Create("LC Light Tex",
-			                                                  RenderGraphTextureDesc(GPU::TextureType::TEX2D,
-			                                                      lightTexFormat, light.numTilesX_, light.numTilesY_)),
+			            data.outLightTex_ = builder.Write(
+			                builder.Create("LC Light Tex", RenderGraphTextureDesc(GPU::TextureType::TEX2D,
+			                                                   lightTexFormat, light.numTilesX_, light.numTilesY_)),
 			                GPU::BindFlags::UNORDERED_ACCESS);
 			            data.outLightIndicesSB_ =
 			                builder.Write(builder.Create("LC Light Indices SB",
@@ -305,13 +306,15 @@ namespace Testbed
 	struct DepthData
 	{
 		RenderGraphResource outDepth_;
+		RenderGraphResource outHiZ_;
 		RenderGraphResource outObjectSB_;
 
 		GPU::FrameBindingSetDesc fbsDesc_;
 	};
 
 	static DepthData AddDepthPasses(DrawFn drawFn, RenderGraph& renderGraph, const CommonBuffers& cbs,
-	    const RenderGraphTextureDesc& depthDesc, RenderGraphResource depth, RenderGraphResource objectSB)
+	    const RenderGraphTextureDesc& depthDesc, Shader* shader, RenderGraphResource depth,
+	    RenderGraphResource objectSB)
 	{
 		struct DepthPassData : BaseDrawFnData
 		{
@@ -323,7 +326,20 @@ namespace Testbed
 			RenderGraphResource outObjectSB_;
 		};
 
-		auto& pass = renderGraph.AddCallbackRenderPass<DepthPassData>("Depth Pass",
+		struct HiZPassData
+		{
+			RenderGraphResource inDepth_;
+			RenderGraphResource outDepth_;
+
+			GPU::Format depthFormat_;
+			Graphics::RenderGraphTextureDesc hizDesc_;
+
+
+			mutable ShaderTechnique tech_;
+			mutable ShaderTechnique techMip_;
+		};
+
+		auto& depthPass = renderGraph.AddCallbackRenderPass<DepthPassData>("Depth Pass",
 		    [&](RenderGraphBuilder& builder, DepthPassData& data) {
 			    data.drawFn_ = drawFn;
 			    data.drawState_.scissorRect_.w_ = depthDesc.width_;
@@ -346,6 +362,7 @@ namespace Testbed
 			},
 
 		    [](RenderGraphResources& res, GPU::CommandList& cmdList, const DepthPassData& data) {
+
 			    auto fbs = res.GetFrameBindingSet();
 
 			    // Clear depth buffer.
@@ -356,10 +373,67 @@ namespace Testbed
 			        res.GetBuffer(data.outObjectSB_), nullptr);
 			});
 
+		auto& hizPass = renderGraph.AddCallbackRenderPass<HiZPassData>("Hi-Z Pass",
+		    [&](RenderGraphBuilder& builder, HiZPassData& data) {
+
+			    data.inDepth_ = builder.Read(depthPass.GetData().outDepth_, GPU::BindFlags::SHADER_RESOURCE);
+
+			    data.depthFormat_ = GPU::GetSRVFormatDepth(depthDesc.format_);
+
+			    data.hizDesc_ = depthDesc;
+			    data.hizDesc_.format_ = GPU::Format::R32G32_FLOAT;
+			    data.hizDesc_.width_ /= 2;
+			    data.hizDesc_.height_ /= 2;
+			    i32 w = data.hizDesc_.width_;
+			    i32 h = data.hizDesc_.height_;
+			    data.hizDesc_.levels_ = 0;
+			    while(w > 0 || h > 0)
+			    {
+				    w /= 2;
+				    h /= 2;
+				    data.hizDesc_.levels_++;
+			    }
+
+			    auto hiz = builder.Create("Hi-Z", data.hizDesc_);
+
+			    data.outDepth_ = builder.Write(hiz, GPU::BindFlags::UNORDERED_ACCESS);
+			    data.tech_ = shader->CreateTechnique("TECH_COMPUTE_HIZ", ShaderTechniqueDesc());
+			    data.techMip_ = shader->CreateTechnique("TECH_COMPUTE_HIZ_MIP", ShaderTechniqueDesc());
+			},
+
+		    [](RenderGraphResources& res, GPU::CommandList& cmdList, const HiZPassData& data) {
+			    data.tech_.Set("inHiZ", res.Texture2D(data.inDepth_, data.depthFormat_, 0, 1));
+			    data.tech_.Set("outHiZ", res.RWTexture2D(data.outDepth_, GPU::Format::R32G32_FLOAT, 0));
+
+			    const i32 tileSize = 8;
+			    auto GetGroups = [tileSize](i32 x) { return Core::PotRoundUp(x, tileSize) / tileSize; };
+
+			    i32 w = data.hizDesc_.width_;
+			    i32 h = data.hizDesc_.height_;
+			    if(auto binding = data.tech_.GetBinding())
+			    {
+				    cmdList.Dispatch(binding, GetGroups(w), GetGroups(h), 1);
+			    }
+
+			    for(i32 idx = 1; idx < data.hizDesc_.levels_; ++idx)
+			    {
+				    w = Core::Max(1, w / 2);
+				    h = Core::Max(1, h / 2);
+				    data.techMip_.Set("inHiZ", res.Texture2D(data.outDepth_, GPU::Format::R32G32_FLOAT, idx - 1, 1));
+				    data.techMip_.Set("outHiZ", res.RWTexture2D(data.outDepth_, GPU::Format::R32G32_FLOAT, idx));
+
+				    if(auto binding = data.techMip_.GetBinding())
+				    {
+					    cmdList.Dispatch(binding, GetGroups(w), GetGroups(h), 1);
+				    }
+			    }
+			});
+
 		DepthData output;
-		output.outDepth_ = pass.GetData().outDepth_;
-		output.outObjectSB_ = pass.GetData().outObjectSB_;
-		output.fbsDesc_ = pass.GetFrameBindingDesc();
+		output.outDepth_ = depthPass.GetData().outDepth_;
+		output.outObjectSB_ = depthPass.GetData().outObjectSB_;
+		output.outHiZ_ = hizPass.GetData().outDepth_;
+		output.fbsDesc_ = depthPass.GetFrameBindingDesc();
 		return output;
 	}
 
@@ -374,7 +448,8 @@ namespace Testbed
 
 	static ForwardData AddForwardPasses(DrawFn drawFn, RenderGraph& renderGraph, const CommonBuffers& cbs,
 	    const LightCullingData& lightCulling, const RenderGraphTextureDesc& colorDesc, RenderGraphResource color,
-	    const RenderGraphTextureDesc& depthDesc, RenderGraphResource depth, RenderGraphResource objectSB)
+	    const RenderGraphTextureDesc& depthDesc, RenderGraphResource depth, RenderGraphResource hiz,
+	    RenderGraphResource objectSB)
 	{
 		struct ForwardPassData : BaseDrawFnData
 		{
@@ -413,6 +488,8 @@ namespace Testbed
 			    data.inLightSB_ = builder.Read(lightCulling.outLightSB_, GPU::BindFlags::SHADER_RESOURCE);
 			    data.inLightTex_ = builder.Read(lightCulling.outLightTex_, GPU::BindFlags::SHADER_RESOURCE);
 			    data.inLightIndicesSB_ = builder.Read(lightCulling.outLightIndicesSB_, GPU::BindFlags::SHADER_RESOURCE);
+
+			    builder.Read(hiz, GPU::BindFlags::SHADER_RESOURCE);
 
 			    // Object buffer.
 			    DBG_ASSERT(objectSB);
@@ -532,18 +609,9 @@ namespace Testbed
 		Resource::Manager::WaitForResource(shader_);
 
 		ShaderTechniqueDesc desc;
-		techComputeTileInfo_ = shader_->CreateTechnique("TECH_COMPUTE_TILE_INFO", desc);
-		techComputeLightLists_ = shader_->CreateTechnique("TECH_COMPUTE_LIGHT_LISTS", desc);
-		techDebugTileInfo_ = shader_->CreateTechnique("TECH_DEBUG_TILE_INFO", desc);
 	}
 
-	ForwardPipeline::~ForwardPipeline()
-	{
-		techComputeTileInfo_ = ShaderTechnique();
-		techComputeLightLists_ = ShaderTechnique();
-		techDebugTileInfo_ = ShaderTechnique();
-		Resource::Manager::ReleaseResource(shader_);
-	}
+	ForwardPipeline::~ForwardPipeline() { Resource::Manager::ReleaseResource(shader_); }
 
 	void ForwardPipeline::CreateTechniques(
 	    Material* material, ShaderTechniqueDesc desc, ShaderTechniques& outTechniques)
@@ -573,7 +641,8 @@ namespace Testbed
 		AddTechnique("RenderPassForward");
 	}
 
-	void ForwardPipeline::SetCamera(const Math::Mat44& view, const Math::Mat44& proj, Math::Vec2 screenDimensions)
+	void ForwardPipeline::SetCamera(
+	    const Math::Mat44& view, const Math::Mat44& proj, Math::Vec2 screenDimensions, bool updateFrustum)
 	{
 		view_.view_ = view;
 		view_.proj_ = proj;
@@ -583,6 +652,9 @@ namespace Testbed
 		view_.invProj_ = proj;
 		view_.invProj_.Inverse();
 		view_.screenDimensions_ = screenDimensions;
+
+		if(updateFrustum)
+			view_.CalculateFrustum();
 	}
 
 	void ForwardPipeline::SetDrawCallback(DrawFn drawFn) { drawFn_ = drawFn; }
@@ -614,7 +686,7 @@ namespace Testbed
 		auto cbs = renderPassCommonBuffers.GetData().cbs_;
 
 		auto renderPassDepth =
-		    AddDepthPasses(drawFn_, renderGraph, cbs, GetDepthTextureDesc(w, h), resources_[1], cbs.objectSB_);
+		    AddDepthPasses(drawFn_, renderGraph, cbs, GetDepthTextureDesc(w, h), shader_, resources_[1], cbs.objectSB_);
 		fbsDescs_.insert("RenderPassDepthPrepass", renderPassDepth.fbsDesc_);
 
 		auto lightCulling = AddLightCullingPasses(drawFn_, renderGraph, cbs, renderPassDepth.outDepth_, shader_,
@@ -633,9 +705,9 @@ namespace Testbed
 		}
 		else
 		{
-			auto renderPassForward =
-			    AddForwardPasses(drawFn_, renderGraph, cbs, lightCulling, GetDefaultTextureDesc(w, h), resources_[0],
-			        GetDepthTextureDesc(w, h), renderPassDepth.outDepth_, renderPassDepth.outObjectSB_);
+			auto renderPassForward = AddForwardPasses(drawFn_, renderGraph, cbs, lightCulling,
+			    GetDefaultTextureDesc(w, h), resources_[0], GetDepthTextureDesc(w, h), renderPassDepth.outDepth_,
+			    renderPassDepth.outHiZ_, renderPassDepth.outObjectSB_);
 
 			SetResource("out_color", renderPassForward.outColor_);
 			SetResource("out_depth", renderPassForward.outDepth_);

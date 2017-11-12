@@ -1,0 +1,6 @@
+{
+   "$internal" : {
+      "dependencies" : [ "shaders/default.esf" ],
+      "outputs" : [ "../../../../.converter_output/default.material.converted" ]
+   }
+}

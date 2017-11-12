@@ -1,8 +1,7 @@
 {
    "$internal" : {
       "dependencies" : [
-         "shaders/textured.esf",
-         "shaders/base_geometry.esh",
+         "shaders/clustered_model.esf",
          "shaders/stdlib.esh",
          "shaders/stdlib/color.esh",
          "shaders/stdlib/constants.esh",
@@ -12,10 +11,8 @@
          "shaders/stdlib/metadata.esh",
          "shaders/stdlib/normals.esh",
          "shaders/stdlib/plane.esh",
-         "shaders/stdlib/view.esh",
-         "shaders/lights.esh",
-         "shaders/brdf.esh"
+         "shaders/stdlib/view.esh"
       ],
-      "outputs" : [ "../../../../.converter_output/shaders/textured.esf.converted" ]
+      "outputs" : [ "../../../../.converter_output/shaders/clustered_model.esf.converted" ]
    }
 }

@@ -175,6 +175,75 @@ Technique TECH_COMPUTE_LIGHT_LISTS =
 	.ComputeShader = cs_compute_light_lists,
 };
 
+///////////////////////////////////////////////////////////////////////
+// Hi-Z
+Texture2D<float2> inHiZ;
+RWTexture2D<float2> outHiZ;
+
+SamplerState SS_POINT_NEAREST = 
+{
+	.AddressU = CLAMP,
+	.AddressV = CLAMP,
+	.MinFilter = NEAREST,
+	.MagFilter = NEAREST,
+};
+
+float2 GetTexcoord(int2 coord, float2 texelSize)
+{
+	float2 halfTexelSize = texelSize * 0.5;
+	return (coord * texelSize) + texelSize;
+}
+
+float2 GetDepthMinMax(float4 depth0, float4 depth1)
+{
+	float depthMin = (min(min(depth0.x, depth0.y), min(depth0.z, depth0.w)));
+	float depthMax = (max(max(depth1.x, depth1.y), max(depth1.z, depth1.w)));
+	return float2(depthMin, depthMax);
+}
+
+float2 SampleDepth(Texture2D<float2> tex, int2 coord)
+{
+	uint w, h, l;
+	tex.GetDimensions(0, w, h, l);
+	float2 texcoord = GetTexcoord(coord, 1.0 / float2(w, h));
+	float4 depth = tex.GatherRed(SS_POINT_NEAREST, texcoord);
+	return float2(GetDepthMinMax(depth, depth));
+}
+
+float2 SampleHiZ(Texture2D<float2> tex, int2 coord)
+{
+	uint w, h, l;
+	tex.GetDimensions(0, w, h, l);
+	float2 texcoord = GetTexcoord(coord, 1.0 / float2(w, h));
+	float4 depth0 = tex.GatherRed(SS_POINT_NEAREST, texcoord);
+	float4 depth1 = tex.GatherGreen(SS_POINT_NEAREST, texcoord);
+	return float2(GetDepthMinMax(depth0, depth1));
+}
+
+[numthreads(8,8,1)]
+void cs_compute_hiz(CS_INPUT _in)
+{
+	outHiZ[_in.dispatchID.xy] = SampleDepth(inHiZ, _in.dispatchID.xy * 2);
+}
+
+[numthreads(8,8,1)]
+void cs_compute_hiz_mip(CS_INPUT _in)
+{
+	outHiZ[_in.dispatchID.xy] = SampleHiZ(inHiZ, _in.dispatchID.xy * 2);
+}
+
+Technique TECH_COMPUTE_HIZ =
+{
+	.ComputeShader = cs_compute_hiz,
+};
+
+Technique TECH_COMPUTE_HIZ_MIP =
+{
+	.ComputeShader = cs_compute_hiz_mip,
+};
+
+///////////////////////////////////////////////////////////////////////
+// Debug tile info.
 Texture2D<uint> inLightTex;
 StructuredBuffer<uint> inLightIndices;
 RWTexture2D<float4> outDebug;

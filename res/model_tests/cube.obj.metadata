@@ -1,7 +1,7 @@
 {
    "$internal" : {
       "dependencies" : [],
-      "outputs" : [ "../../../../.converter_output/model_tests/teapot.obj.converted" ]
+      "outputs" : [ "../../../../.converter_output/model_tests/cube.obj.converted" ]
    },
    "flattenHierarchy" : false,
    "materials" : [
@@ -15,11 +15,13 @@
    ],
    "maxBoneInfluences" : 4,
    "maxBones" : 256,
+   "smoothingAngle" : 0,
    "splitStreams" : true,
    "vertexFormat" : {
       "color" : "R8G8B8A8_UNORM",
-      "normal" : "R16G16B16A16_FLOAT",
+      "normal" : "R8G8B8A8_SNORM",
       "position" : "R32G32B32_FLOAT",
+      "tangent" : "R8G8B8A8_SNORM",
       "texcoord" : "R16G16_FLOAT"
    }
 }

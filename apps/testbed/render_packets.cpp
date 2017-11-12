@@ -51,8 +51,6 @@ namespace Testbed
 				return false;
 		}
 		break;
-
-			break;
 		}
 
 		return false;
@@ -64,6 +62,9 @@ namespace Testbed
 	    GPU::CommandList& cmdList, const GPU::DrawState& drawState, GPU::Handle fbs, GPU::Handle viewCBHandle,
 	    GPU::Handle objectSBHandle, CustomBindFn customBindFn)
 	{
+		if(packets.size() == 0)
+			return;
+
 		// Allocate command list memory.
 		auto* objects = cmdList.Alloc<Testbed::ObjectConstants>(packets.size());
 
@@ -98,16 +99,15 @@ namespace Testbed
 				if(numInstances > 0)
 				{
 					tech.Set("ViewCBuffer", GPU::Binding::CBuffer(viewCBHandle, 0, sizeof(Testbed::ViewConstants)));
-					tech.Set("inObject",
-					    GPU::Binding::Buffer(
-					        objectSBHandle, GPU::Format::INVALID, baseInstanceIdx, numInstances, objectDataSize));
+					tech.Set("inObject", GPU::Binding::Buffer(objectSBHandle, GPU::Format::INVALID, baseInstanceIdx,
+					                         numInstances, objectDataSize));
 					if(auto pbs = tech.GetBinding())
 					{
 						if(auto event = cmdList.Eventf(0x0, "Material: %s", meshPacket->material_->GetName()))
 						{
 							cmdList.Draw(pbs, meshPacket->db_, fbs, drawState, GPU::PrimitiveTopology::TRIANGLE_LIST,
 							    meshPacket->draw_.indexOffset_, meshPacket->draw_.vertexOffset_,
-								meshPacket->draw_.noofIndices_, 0, numInstances);
+							    meshPacket->draw_.noofIndices_, 0, numInstances);
 						}
 					}
 				}

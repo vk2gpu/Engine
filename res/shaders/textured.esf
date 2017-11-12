@@ -1,5 +1,5 @@
 #define REQUIRE_TEXCOORD0
-#define REQUIRE_TANGENT
+//#define REQUIRE_TANGENT
 
 #include "base_geometry.esh"
 

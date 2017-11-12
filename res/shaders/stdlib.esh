@@ -5,6 +5,7 @@
 #include "stdlib/constants.esh"
 #include "stdlib/extensions.esh"
 #include "stdlib/gamma.esh"
+#include "stdlib/indirect.esh"
 #include "stdlib/metadata.esh"
 #include "stdlib/normals.esh"
 #include "stdlib/plane.esh"

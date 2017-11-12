@@ -1,0 +1,8 @@
+{
+   "$internal" : {
+      "dependencies" : [ "shaders/textured.esf" ],
+      "outputs" : [
+         "../../../../.converter_output/model_tests/materials/cube.obj.Material.material.converted"
+      ]
+   }
+}

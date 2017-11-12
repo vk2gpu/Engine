@@ -257,6 +257,8 @@ namespace Testbed
 		view_.invProj_ = proj;
 		view_.invProj_.Inverse();
 		view_.screenDimensions_ = Math::Vec2((f32)settings.width_, (f32)settings.height_);
+		view_.CalculateFrustum();
+
 		settings.view_ = view_;
 
 		auto& renderPassCommonBuffers = renderGraph.AddCallbackRenderPass<ViewConstantData>("Setup Common Buffers",

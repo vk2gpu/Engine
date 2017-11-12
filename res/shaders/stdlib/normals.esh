@@ -3,8 +3,27 @@
 
 float3x3 BuildTBN(float3 normal, float3 tangent)
 {
-	const float3 binormal = cross(normal, tangent);
-	return float3x3(normalize(tangent), normalize(binormal), normalize(normal));
+	const float3 binormal = normalize(cross(tangent, normal));
+	return float3x3(tangent, binormal, normal);
+}
+
+float3x3 BuildTBN(float3 normal, float3 pos, float2 uv)
+{
+	float3 posdx = ddx(pos);
+	float3 posdy = ddy(pos);
+	float2 uvdx = ddx(uv);
+	float2 uvdy = ddy(uv);
+
+	float3 tangent = normalize(uvdy.y * posdx - uvdx.y * posdy);
+	float3 binormal = normalize(uvdy.x * posdx - uvdx.x * posdy);
+
+	tangent = cross(cross(normal, tangent), normal);
+	tangent = normalize(tangent);
+
+	binormal = cross(normal, cross(binormal, normal));
+	binormal = normalize(binormal);
+
+	return float3x3(tangent, binormal, normal);
 }
 
 float3 EncodeNormal(float3 nrm)

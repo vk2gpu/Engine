@@ -27,7 +27,8 @@ namespace Testbed
 
 		void CreateTechniques(
 		    Graphics::Material* material, Graphics::ShaderTechniqueDesc desc, ShaderTechniques& outTechniques);
-		void SetCamera(const Math::Mat44& view, const Math::Mat44& proj, Math::Vec2 screenDimensions);
+		void SetCamera(
+		    const Math::Mat44& view, const Math::Mat44& proj, Math::Vec2 screenDimensions, bool updateFrustum);
 		void SetDrawCallback(DrawFn drawFn);
 		void Setup(Graphics::RenderGraph& renderGraph) override;
 		bool HaveExecuteErrors() const override { return false; }
@@ -37,9 +38,6 @@ namespace Testbed
 		DebugMode debugMode_ = DebugMode::LIGHT_CULLING;
 
 		Graphics::Shader* shader_ = nullptr;
-		Graphics::ShaderTechnique techComputeTileInfo_;
-		Graphics::ShaderTechnique techComputeLightLists_;
-		Graphics::ShaderTechnique techDebugTileInfo_;
 
 		Core::Vector<Light> lights_;
 

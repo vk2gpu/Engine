@@ -1,0 +1,8 @@
+{
+   "shader" : "shaders/textured.esf",
+   "textures" : {
+      "texDiffuse" : "model_tests/textures/diffuse.png",
+      "texHeight" : "model_tests/textures/normal.png",
+      "texNormal" : "model_tests/textures/normal.png"
+   }
+}

@@ -23,11 +23,12 @@
 #include "math/mat44.h"
 #include "math/plane.h"
 
+#include "clustered_model.h"
 #include "texture_compressor.h"
 
 #include <cmath>
 
-#define LOAD_SPONZA (1)
+#define LOAD_SPONZA (0)
 
 namespace
 {
@@ -139,7 +140,7 @@ namespace
 			cameraDistance_ = Core::Clamp(cameraDistance_, 1.0f, 4096.0f);
 			cameraZoom_ = 0.0f;
 
-			f32 walkSpeed = moveFast_ ? 32.0f : 8.0f;
+			f32 walkSpeed = moveFast_ ? 128.0f : 16.0f;
 			Math::Mat44 cameraRotationMatrix = GetCameraRotationMatrix();
 			Math::Vec3 offsetVector = -cameraWalk_ * cameraRotationMatrix;
 			cameraTarget_ += offsetVector * tick * walkSpeed;
@@ -150,9 +151,9 @@ namespace
 			Math::Vec3 viewFromPosition = cameraTarget_ + viewDistance;
 
 			matrix_.Identity();
-			matrix_.LookAt(viewFromPosition, cameraTarget_,
-			    Math::Vec3(
-			        cameraRotationMatrix.Row1().x, cameraRotationMatrix.Row1().y, cameraRotationMatrix.Row1().z));
+			matrix_.LookAt(
+			    viewFromPosition, cameraTarget_, Math::Vec3(cameraRotationMatrix.Row1().x,
+			                                         cameraRotationMatrix.Row1().y, cameraRotationMatrix.Row1().z));
 		}
 
 		Math::Mat44 GetCameraRotationMatrix() const
@@ -427,16 +428,22 @@ namespace
 	}
 
 
+	Core::Mutex packetMutex_;
 	Core::Vector<Testbed::RenderPacketBase*> packets_;
 	Core::Vector<Testbed::ShaderTechniques> shaderTechniques_;
 	i32 w_, h_;
+	bool updateFrustum_ = true;
+	bool clusterCulling_ = true;
 
 	void DrawRenderPackets(GPU::CommandList& cmdList, const char* passName, const GPU::DrawState& drawState,
 	    GPU::Handle fbs, GPU::Handle viewCBHandle, GPU::Handle objectSBHandle, Testbed::CustomBindFn customBindFn)
 	{
 		namespace Binding = GPU::Binding;
 
-		Testbed::SortPackets(packets_);
+		{
+			Core::ScopedMutex lock(packetMutex_);
+			Testbed::SortPackets(packets_);
+		}
 
 		rmt_ScopedCPUSample(DrawRenderPackets, RMTSF_None);
 		if(auto event = cmdList.Eventf(0, "DrawRenderPackets(\"%s\")", passName))
@@ -478,6 +485,9 @@ namespace
 			if(ImGui::Button("Trigger RenderDoc Capture"))
 				GPU::Manager::TriggerDebugCapture();
 
+			ImGui::Checkbox("Update Frustum", &updateFrustum_);
+			ImGui::Checkbox("Cluster Culling", &clusterCulling_);
+
 			static int debugMode = 0;
 			ImGui::Text("Debug Modes:");
 			ImGui::RadioButton("Off", &debugMode, 0);
@@ -511,9 +521,15 @@ void Loop(const Core::CommandLine& cmdLine)
 	Resource::Manager::RequestResource(shader, "shaders/simple-mesh.esf");
 
 	Model* model = nullptr;
-	Resource::Manager::RequestResource(model, "model_tests/teapot.obj");
+	Resource::Manager::RequestResource(model, "model_tests/cube.obj");
 
 	Model* sponzaModel = nullptr;
+
+#if LOAD_SPONZA
+	ClusteredModel* testClusteredModel = new ClusteredModel("model_tests/teapot.obj");
+#else
+	ClusteredModel* testClusteredModel = new ClusteredModel("model_tests/crytek-sponza/sponza.obj");
+#endif
 
 #if LOAD_SPONZA
 	Resource::Manager::RequestResource(sponzaModel, "model_tests/crytek-sponza/sponza.obj");
@@ -535,10 +551,10 @@ void Loop(const Core::CommandLine& cmdLine)
 	// For now, they can be permenent.
 	f32 angle = 0.0;
 	const Math::Vec3 positions[] = {
-	    Math::Vec3(-10.0f, 0.0f, -5.0f), Math::Vec3(-5.0f, 0.0f, -5.0f), Math::Vec3(0.0f, 0.0f, -5.0f),
-	    Math::Vec3(5.0f, 0.0f, -5.0f), Math::Vec3(10.0f, 0.0f, -5.0f), Math::Vec3(-10.0f, 0.0f, 5.0f),
-	    Math::Vec3(-5.0f, 0.0f, 5.0f), Math::Vec3(0.0f, 0.0f, 5.0f), Math::Vec3(5.0f, 0.0f, 5.0f),
-	    Math::Vec3(10.0f, 0.0f, 5.0f),
+	    Math::Vec3(-10.0f, 10.0f, -5.0f), Math::Vec3(-5.0f, 10.0f, -5.0f), Math::Vec3(0.0f, 10.0f, -5.0f),
+	    Math::Vec3(5.0f, 10.0f, -5.0f), Math::Vec3(10.0f, 10.0f, -5.0f), Math::Vec3(-10.0f, 10.0f, 5.0f),
+	    Math::Vec3(-5.0f, 10.0f, 5.0f), Math::Vec3(0.0f, 10.0f, 5.0f), Math::Vec3(5.0f, 10.0f, 5.0f),
+	    Math::Vec3(10.0f, 10.0f, 5.0f),
 	};
 
 	Core::Random rng;
@@ -560,6 +576,25 @@ void Loop(const Core::CommandLine& cmdLine)
 		val /= (f32)large;
 		return min + val * (max - min);
 	};
+
+	if(true)
+	{
+		f32 r = 0.0f, g = 0.0f, b = 0.0f, h = 0.0f, s = 1.0f, v = 1.0f;
+		for(const auto& position : positions)
+		{
+			ImGui::ColorConvertHSVtoRGB(h, s, v, r, g, b);
+			h += 0.1f;
+			light.position_ = position + Math::Vec3(0.0f, 10.0f, 0.0f);
+			light.color_.x = r;
+			light.color_.y = g;
+			light.color_.z = b;
+			light.color_ *= 4.0f;
+			light.radiusInner_ = 15.0f;
+			light.radiusOuter_ = 25.0f;
+
+			forwardPipeline.lights_.push_back(light);
+		}
+	}
 
 #if 0
 	for(i32 idx = 0; idx < 1000; ++idx)
@@ -593,41 +628,32 @@ void Loop(const Core::CommandLine& cmdLine)
 
 	shaderTechniques_.reserve(10000);
 	Testbed::ShaderTechniques* techniques = &*shaderTechniques_.emplace_back();
+	if(!LOAD_SPONZA)
 	{
-		f32 r = 0.0f, g = 0.0f, b = 0.0f, h = 0.0f, s = 1.0f, v = 1.0f;
-		for(const auto& position : positions)
 		{
-			ImGui::ColorConvertHSVtoRGB(h, s, v, r, g, b);
-			h += 0.1f;
-			light.position_ = position + Math::Vec3(0.0f, 10.0f, 0.0f);
-			light.color_.x = r;
-			light.color_.y = g;
-			light.color_.z = b;
-			light.color_ *= 4.0f;
-			light.radiusInner_ = 15.0f;
-			light.radiusOuter_ = 25.0f;
-
-			forwardPipeline.lights_.push_back(light);
-			for(i32 idx = 0; idx < model->GetNumMeshes(); ++idx)
+			for(const auto& position : positions)
 			{
-				ShaderTechniqueDesc techDesc;
-				techDesc.SetVertexElements(model->GetMeshVertexElements(idx));
-				techDesc.SetTopology(GPU::TopologyType::TRIANGLE);
+				for(i32 idx = 0; idx < model->GetNumMeshes(); ++idx)
+				{
+					ShaderTechniqueDesc techDesc;
+					techDesc.SetVertexElements(model->GetMeshVertexElements(idx));
+					techDesc.SetTopology(GPU::TopologyType::TRIANGLE);
 
-				Testbed::MeshRenderPacket packet;
-				packet.db_ = model->GetMeshDrawBinding(idx);
-				packet.draw_ = model->GetMeshDraw(idx);
-				packet.techDesc_ = techDesc;
-				packet.material_ = model->GetMeshMaterial(idx);
-				packet.techs_ = techniques;
+					Testbed::MeshRenderPacket packet;
+					packet.db_ = model->GetMeshDrawBinding(idx);
+					packet.draw_ = model->GetMeshDraw(idx);
+					packet.techDesc_ = techDesc;
+					packet.material_ = model->GetMeshMaterial(idx);
+					packet.techs_ = techniques;
 
-				packet.world_ = model->GetMeshWorldTransform(idx);
-				packet.angle_ = angle;
-				packet.position_ = position;
+					packet.world_ = model->GetMeshWorldTransform(idx);
+					packet.angle_ = angle;
+					packet.position_ = position;
 
-				angle += 0.5f;
+					angle += 0.5f;
 
-				packets_.emplace_back(new Testbed::MeshRenderPacket(packet));
+					packets_.emplace_back(new Testbed::MeshRenderPacket(packet));
+				}
 			}
 		}
 	}
@@ -677,6 +703,7 @@ void Loop(const Core::CommandLine& cmdLine)
 		f64 present_ = 0.0;
 		f64 processDeletions_ = 0.0;
 		f64 frame_ = 0.0;
+		f64 tick_ = 0.0;
 	} times_;
 
 	Job::Counter* frameSubmitCounter = nullptr;
@@ -726,7 +753,7 @@ void Loop(const Core::CommandLine& cmdLine)
 				times_.waitForFrameSubmit_ = Core::Timer::GetAbsoluteTime() - times_.waitForFrameSubmit_;
 			}
 
-			camera_.Update(input, (f32)targetFrameTime);
+			camera_.Update(input, (f32)times_.tick_);
 
 			i32 w = w_;
 			i32 h = h_;
@@ -756,7 +783,7 @@ void Loop(const Core::CommandLine& cmdLine)
 			RenderGraphResource scRes;
 			RenderGraphResource dsRes;
 
-			ImGui::Manager::BeginFrame(input, w_, h_);
+			ImGui::Manager::BeginFrame(input, w_, h_, (f32)times_.tick_);
 
 			times_.profilerUI_ = Core::Timer::GetAbsoluteTime();
 			DrawUIGraphicsDebug(forwardPipeline);
@@ -774,7 +801,8 @@ void Loop(const Core::CommandLine& cmdLine)
 				ImGui::Text("Graph Execute + Submit: %f ms", times_.graphExecute_ * 1000.0);
 				ImGui::Text("Present Time: %f ms", times_.present_ * 1000.0);
 				ImGui::Text("Process deletions: %f ms", times_.processDeletions_ * 1000.0);
-				ImGui::Text("Frame Time: %f ms", times_.frame_ * 1000.0);
+				ImGui::Text("Frame Time: %f ms", times_.frame_ * 1000.0, 1.0f / times_.frame_);
+				ImGui::Text("Tick Time: %f ms (%.2f FPS)", times_.tick_ * 1000.0, 1.0f / times_.tick_);
 			}
 			ImGui::End();
 
@@ -790,7 +818,7 @@ void Loop(const Core::CommandLine& cmdLine)
 					{
 						auto* meshPacket = static_cast<Testbed::MeshRenderPacket*>(packet);
 
-						//meshPacket->angle_ += (f32)targetFrameTime;
+						//meshPacket->angle_ += (f32)times_.frame_;
 						meshPacket->object_.world_.Rotation(Math::Vec3(0.0f, meshPacket->angle_, 0.0f));
 						meshPacket->object_.world_.Translation(meshPacket->position_);
 						meshPacket->object_.world_ = meshPacket->world_ * meshPacket->object_.world_;
@@ -807,7 +835,7 @@ void Loop(const Core::CommandLine& cmdLine)
 			Math::Mat44 proj;
 			view.LookAt(Math::Vec3(0.0f, 5.0f, -15.0f), Math::Vec3(0.0f, 1.0f, 0.0f), Math::Vec3(0.0f, 1.0f, 0.0f));
 			proj.PerspProjectionVertical(Core::F32_PIDIV4, (f32)h_ / (f32)w_, 0.1f, 2000.0f);
-			forwardPipeline.SetCamera(camera_.matrix_, proj, Math::Vec2((f32)w_, (f32)h_));
+			forwardPipeline.SetCamera(camera_.matrix_, proj, Math::Vec2((f32)w_, (f32)h_), updateFrustum_);
 
 			// Setup shadow light + eye pos.
 			shadowPipeline.SetDirectionalLight(camera_.cameraTarget_, forwardPipeline.lights_[0]);
@@ -818,9 +846,32 @@ void Loop(const Core::CommandLine& cmdLine)
 			        GPU::Handle viewCBHandle, GPU::Handle objectSBHandle, Testbed::CustomBindFn customBindFn) {
 				    DrawRenderPackets(cmdList, passName, drawState, fbs, viewCBHandle, objectSBHandle, customBindFn);
 
+				    if(testClusteredModel)
+				    {
+					    testClusteredModel->enableCulling_ = clusterCulling_;
+
+#if LOAD_SPONZA
+					    for(auto position : positions)
+#else
+					    Math::Vec3 position(0.0f, 0.0f, 0.0f);
+					    Math::Mat44 scale;
+					    scale.Scale(Math::Vec3(0.1f, 0.1f, 0.1f));
+#endif
+					    {
+						    Testbed::ObjectConstants object;
+						    object.world_.Rotation(Math::Vec3(0.0f, 0.0f, 0.0f));
+						    object.world_.Translation(position);
+
+#if !LOAD_SPONZA
+						    object.world_ = object.world_ * scale;
+#endif
+						    testClusteredModel->DrawClusters(
+						        cmdList, passName, drawState, fbs, viewCBHandle, objectSBHandle, customBindFn, object);
+					    }
+				    }
 
 				    // Testing code.
-				    texCompressor.Compress(cmdList, texture, finalTextureDesc.format_, finalTexture);
+				    //texCompressor.Compress(cmdList, texture, finalTextureDesc.format_, finalTexture);
 				});
 
 			// Clear graph prior to beginning work.
@@ -877,7 +928,13 @@ void Loop(const Core::CommandLine& cmdLine)
 						    meshPacket->material_, meshPacket->techDesc_, *meshPacket->techs_);
 					}
 				}
+
+				for(auto& techs : testClusteredModel->techs_)
+				{
+					forwardPipeline.CreateTechniques(techs.material_, testClusteredModel->techDesc_, techs);
+				}
 			}
+
 
 			times_.shaderTechniqueSetup_ = Core::Timer::GetAbsoluteTime() - times_.shaderTechniqueSetup_;
 
@@ -896,6 +953,8 @@ void Loop(const Core::CommandLine& cmdLine)
 		{
 			Core::Sleep(targetFrameTime - times_.frame_);
 		}
+
+		times_.tick_ = Core::Timer::GetAbsoluteTime() - beginFrameTime;
 	}
 
 	Job::Manager::WaitForCounter(frameSubmitCounter, 0);
@@ -909,6 +968,8 @@ void Loop(const Core::CommandLine& cmdLine)
 			delete meshPacket;
 		}
 	}
+
+	delete testClusteredModel;
 
 	GPU::Manager::DestroyResource(finalTexture);
 
