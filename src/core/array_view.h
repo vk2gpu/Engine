@@ -21,6 +21,13 @@ namespace Core
 		{
 		}
 
+		ArrayView(const value_type& value)
+		    : begin_(&value)
+		    , end_(begin_ + 1)
+		{
+			DBG_ASSERT(begin_ == nullptr && end_ == nullptr || (begin_ != nullptr && end_ != nullptr));
+		}
+
 		ArrayView(const value_type* begin, const value_type* end)
 		    : begin_(begin)
 		    , end_(end)

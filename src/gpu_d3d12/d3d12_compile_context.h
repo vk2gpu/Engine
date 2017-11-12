@@ -5,14 +5,8 @@
 #include "gpu/resources.h"
 #include "core/map.h"
 
-namespace Core
-{
-	inline u32 Hash(u32 input, const GPU::D3D12Resource* data) { return HashCRC32(input, &data, sizeof(data)); }
-}
-
 namespace GPU
 {
-
 	struct D3D12CompileContext
 	{
 		D3D12CompileContext(class D3D12Backend& backend);
@@ -21,8 +15,30 @@ namespace GPU
 		class D3D12Backend& backend_;
 		ID3D12GraphicsCommandList* d3dCommandList_ = nullptr;
 
-		Core::Map<const D3D12Resource*, D3D12_RESOURCE_STATES> stateTracker_;
-		Core::Map<const D3D12Resource*, D3D12_RESOURCE_BARRIER> pendingBarriers_;
+		struct Subresource
+		{
+			Subresource() = default;
+			Subresource(const D3D12Resource* resource, i32 idx)
+				: resource_(resource)
+				, idx_(idx)
+			{
+			}
+
+			const D3D12Resource* resource_ = nullptr;
+			i32 idx_ = 0;
+		};
+
+		struct SubresourceHasher
+		{
+			u32 operator()(u32 input, const Subresource& data) const
+			{
+				input = Core::HashCRC32(input, &data.resource_, sizeof(data.resource_));
+				return Core::HashCRC32(input, &data.idx_, sizeof(data.idx_));
+			}
+		};
+
+		Core::Map<Subresource, D3D12_RESOURCE_STATES, SubresourceHasher> stateTracker_;
+		Core::Map<Subresource, D3D12_RESOURCE_BARRIER, SubresourceHasher> pendingBarriers_;
 		Core::Vector<D3D12_RESOURCE_BARRIER> barriers_;
 
 		DrawState drawState_;
@@ -51,17 +67,28 @@ namespace GPU
 
 		/**
 		 * Add resource transition.
-		 * @param resource Resource to transition.
+		 * @param subRsc Subresource range.
 		 * @param state States to transition.
-		 * @return Previous state.
+		 * @return Has any state changed?
 		 */
-		D3D12_RESOURCE_STATES AddTransition(const D3D12Resource* resource, D3D12_RESOURCE_STATES state);
+		bool AddTransition(const D3D12SubresourceRange& subRsc, D3D12_RESOURCE_STATES state);
+
+		/**
+		 * Add resource transition.
+		 * @param resource Resource to transition.
+		 * @param firstSubRsc First subresource.
+		 * @param numSubRsc Number of subresources to transition.
+		 * @param state States to transition.
+		 * @return Has any state changed?
+		 */
+		bool AddTransition(const D3D12Resource* resource, i32 firstSubRsc, i32 numSubRsc, D3D12_RESOURCE_STATES state);
+	
 
 		/**
 		 * Add UAV barrier.
-		 * @param resource Resource to insert barrier for.
+		 * @param subRsc Subresource range to add appropriate barriers for.
 		 */
-		void AddUAVBarrier(const D3D12Resource* resource);
+		void AddUAVBarrier(const D3D12SubresourceRange& subRsc);
 
 		/**
 		 * Flush resource transitions.

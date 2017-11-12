@@ -638,11 +638,11 @@ namespace GPU
 		D3D12PipelineBindingSet pbs;
 
 		// Grab all resources to create pipeline binding set with.
-		Core::Array<D3D12Resource*, MAX_SRV_BINDINGS> srvResources = {};
+		Core::Array<D3D12SubresourceRange, MAX_SRV_BINDINGS> srvResources = {};
 		Core::Array<D3D12_SHADER_RESOURCE_VIEW_DESC, MAX_SRV_BINDINGS> srvs = {};
-		Core::Array<D3D12Resource*, MAX_UAV_BINDINGS> uavResources = {};
+		Core::Array<D3D12SubresourceRange, MAX_UAV_BINDINGS> uavResources = {};
 		Core::Array<D3D12_UNORDERED_ACCESS_VIEW_DESC, MAX_UAV_BINDINGS> uavs = {};
-		Core::Array<D3D12Resource*, MAX_CBV_BINDINGS> cbvResources = {};
+		Core::Array<D3D12SubresourceRange, MAX_CBV_BINDINGS> cbvResources = {};
 		Core::Array<D3D12_CONSTANT_BUFFER_VIEW_DESC, MAX_CBV_BINDINGS> cbvs = {};
 		Core::Array<D3D12_SAMPLER_DESC, MAX_SAMPLER_BINDINGS> samplers = {};
 
@@ -685,11 +685,23 @@ namespace GPU
 					continue;
 				DBG_ASSERT(srvHandle.GetType() == ResourceType::BUFFER || srvHandle.GetType() == ResourceType::TEXTURE);
 
-				D3D12Resource* resource = GetD3D12Resource(srvHandle);
-				DBG_ASSERT(resource);
-				srvResources[i] = resource;
+				const D3D12Buffer* bufferRes = nullptr;
+				const D3D12Texture* textureRes = nullptr;
+				if(srvHandle.GetType() == ResourceType::BUFFER)
+					bufferRes = &bufferResources_[srvHandle.GetIndex()];
+				else
+					textureRes = &textureResources_[srvHandle.GetIndex()];
+				
+				i32 firstSubRsc = 0;
+				i32 numSubRsc = 0;
 
 				const auto& srv = desc.srvs_[i];
+
+				i32 mipLevels = srv.mipLevels_NumElements_;
+				if(mipLevels == -1)
+					mipLevels = textureRes->desc_.levels_;
+				DBG_ASSERT(mipLevels > 0);
+
 				srvs[i].Format = GetFormat(srv.format_);
 				srvs[i].ViewDimension = GetSRVDimension(srv.dimension_);
 				srvs[i].Shader4ComponentMapping =
@@ -701,61 +713,84 @@ namespace GPU
 				{
 				case ViewDimension::BUFFER:
 					srvs[i].Buffer.FirstElement = srv.mostDetailedMip_FirstElement_;
-					srvs[i].Buffer.NumElements = srv.mipLevels_NumElements_;
+					srvs[i].Buffer.NumElements = mipLevels;
 					srvs[i].Buffer.StructureByteStride = srv.structureByteStride_;
 					if(srv.structureByteStride_ == 0)
 						srvs[i].Buffer.Flags = D3D12_BUFFER_SRV_FLAG_RAW;
 					else
 						srvs[i].Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
+					firstSubRsc = 0;
+					numSubRsc = 1;
 					break;
 				case ViewDimension::TEX1D:
 					srvs[i].Texture1D.MostDetailedMip = srv.mostDetailedMip_FirstElement_;
-					srvs[i].Texture1D.MipLevels = srv.mipLevels_NumElements_;
+					srvs[i].Texture1D.MipLevels = mipLevels;
 					srvs[i].Texture1D.ResourceMinLODClamp = srv.resourceMinLODClamp_;
+					firstSubRsc = srv.mostDetailedMip_FirstElement_;
+					numSubRsc = mipLevels;
 					break;
 				case ViewDimension::TEX1D_ARRAY:
 					srvs[i].Texture1DArray.MostDetailedMip = srv.mostDetailedMip_FirstElement_;
-					srvs[i].Texture1DArray.MipLevels = srv.mipLevels_NumElements_;
+					srvs[i].Texture1DArray.MipLevels = mipLevels;
 					srvs[i].Texture1DArray.ArraySize = srv.arraySize_;
 					srvs[i].Texture1DArray.FirstArraySlice = srv.firstArraySlice_;
 					srvs[i].Texture1DArray.ResourceMinLODClamp = srv.resourceMinLODClamp_;
+					firstSubRsc = srv.mostDetailedMip_FirstElement_ + (srv.firstArraySlice_ * textureRes->desc_.levels_);
+					numSubRsc = mipLevels;
 					break;
 				case ViewDimension::TEX2D:
 					srvs[i].Texture2D.MostDetailedMip = srv.mostDetailedMip_FirstElement_;
-					srvs[i].Texture2D.MipLevels = srv.mipLevels_NumElements_;
+					srvs[i].Texture2D.MipLevels = mipLevels;
 					srvs[i].Texture2D.PlaneSlice = srv.planeSlice_;
 					srvs[i].Texture2D.ResourceMinLODClamp = srv.resourceMinLODClamp_;
+					firstSubRsc = srv.mostDetailedMip_FirstElement_;
+					numSubRsc = mipLevels;
 					break;
 				case ViewDimension::TEX2D_ARRAY:
 					srvs[i].Texture2DArray.MostDetailedMip = srv.mostDetailedMip_FirstElement_;
-					srvs[i].Texture2DArray.MipLevels = srv.mipLevels_NumElements_;
+					srvs[i].Texture2DArray.MipLevels = mipLevels;
 					srvs[i].Texture2DArray.ArraySize = srv.arraySize_;
 					srvs[i].Texture2DArray.FirstArraySlice = srv.firstArraySlice_;
 					srvs[i].Texture2DArray.PlaneSlice = srv.planeSlice_;
 					srvs[i].Texture2DArray.ResourceMinLODClamp = srv.resourceMinLODClamp_;
+					firstSubRsc = srv.mostDetailedMip_FirstElement_ + (srv.firstArraySlice_ * textureRes->desc_.levels_);
+					numSubRsc = mipLevels;
 					break;
 				case ViewDimension::TEX3D:
 					srvs[i].Texture3D.MostDetailedMip = srv.mostDetailedMip_FirstElement_;
-					srvs[i].Texture3D.MipLevels = srv.mipLevels_NumElements_;
+					srvs[i].Texture3D.MipLevels = mipLevels;
 					srvs[i].Texture3D.ResourceMinLODClamp = srv.resourceMinLODClamp_;
+					firstSubRsc = srv.mostDetailedMip_FirstElement_;
+					numSubRsc = mipLevels;
 					break;
 				case ViewDimension::TEXCUBE:
 					srvs[i].TextureCube.MostDetailedMip = srv.mostDetailedMip_FirstElement_;
-					srvs[i].TextureCube.MipLevels = srv.mipLevels_NumElements_;
+					srvs[i].TextureCube.MipLevels = mipLevels;
 					srvs[i].TextureCube.ResourceMinLODClamp = srv.resourceMinLODClamp_;
+					firstSubRsc = 0;
+					numSubRsc = textureRes->desc_.levels_ * 6;
 					break;
 				case ViewDimension::TEXCUBE_ARRAY:
 					srvs[i].TextureCubeArray.MostDetailedMip = srv.mostDetailedMip_FirstElement_;
-					srvs[i].TextureCubeArray.MipLevels = srv.mipLevels_NumElements_;
+					srvs[i].TextureCubeArray.MipLevels = mipLevels;
 					srvs[i].TextureCubeArray.NumCubes = srv.arraySize_;
 					srvs[i].TextureCubeArray.First2DArrayFace = srv.firstArraySlice_;
 					srvs[i].TextureCubeArray.ResourceMinLODClamp = srv.resourceMinLODClamp_;
+					firstSubRsc = srv.firstArraySlice_ * 6;
+					numSubRsc = (textureRes->desc_.levels_ * 6) * srv.arraySize_;
 					break;
 				default:
 					DBG_BREAK;
 					return ErrorCode::FAIL;
 					break;
 				}
+
+				D3D12Resource* resource = GetD3D12Resource(srvHandle);
+				DBG_ASSERT(resource);
+				srvResources[i].resource_ = resource;
+				srvResources[i].firstSubRsc_ = firstSubRsc;
+				srvResources[i].numSubRsc_ = numSubRsc;
+
 			}
 
 			for(i32 i = 0; i < desc.numUAVs_; ++i)
@@ -765,9 +800,15 @@ namespace GPU
 					continue;
 				DBG_ASSERT(uavHandle.GetType() == ResourceType::BUFFER || uavHandle.GetType() == ResourceType::TEXTURE);
 
-				D3D12Resource* resource = GetD3D12Resource(uavHandle);
-				DBG_ASSERT(resource);
-				uavResources[i] = resource;
+				const D3D12Buffer* bufferRes = nullptr;
+				const D3D12Texture* textureRes = nullptr;
+				if(uavHandle.GetType() == ResourceType::BUFFER)
+					bufferRes = &bufferResources_[uavHandle.GetIndex()];
+				else
+					textureRes = &textureResources_[uavHandle.GetIndex()];
+				
+				i32 firstSubRsc = 0;
+				i32 numSubRsc = 0;
 
 				const auto& uav = desc.uavs_[i];
 				uavs[i].Format = GetFormat(uav.format_);
@@ -782,35 +823,53 @@ namespace GPU
 						uavs[i].Buffer.Flags = D3D12_BUFFER_UAV_FLAG_RAW;
 					else
 						uavs[i].Buffer.Flags = D3D12_BUFFER_UAV_FLAG_NONE;
+					firstSubRsc = 0;
+					numSubRsc = 1;
 					break;
 				case ViewDimension::TEX1D:
 					uavs[i].Texture1D.MipSlice = uav.mipSlice_FirstElement_;
+					firstSubRsc = uav.mipSlice_FirstElement_;
+					numSubRsc = 1;
 					break;
 				case ViewDimension::TEX1D_ARRAY:
 					uavs[i].Texture1DArray.MipSlice = uav.mipSlice_FirstElement_;
-					uavs[i].Texture1DArray.ArraySize = uav.arraySize_PlaneSlice_WSize_;
+					uavs[i].Texture1DArray.ArraySize = uav.arraySize_WSize_;
 					uavs[i].Texture1DArray.FirstArraySlice = uav.firstArraySlice_FirstWSlice_NumElements_;
+					firstSubRsc = uav.mipSlice_FirstElement_ + (uav.firstArraySlice_FirstWSlice_NumElements_ * textureRes->desc_.levels_);
+					numSubRsc = uav.arraySize_WSize_;
 					break;
 				case ViewDimension::TEX2D:
 					uavs[i].Texture2D.MipSlice = uav.mipSlice_FirstElement_;
-					uavs[i].Texture2D.PlaneSlice = uav.arraySize_PlaneSlice_WSize_;
+					uavs[i].Texture2D.PlaneSlice = uav.planeSlice_;
+					firstSubRsc = uav.mipSlice_FirstElement_;
+					numSubRsc = 1;
 					break;
 				case ViewDimension::TEX2D_ARRAY:
 					uavs[i].Texture2DArray.MipSlice = uav.mipSlice_FirstElement_;
-					uavs[i].Texture2DArray.ArraySize = uav.arraySize_PlaneSlice_WSize_;
+					uavs[i].Texture2DArray.ArraySize = uav.arraySize_WSize_;
 					uavs[i].Texture2DArray.FirstArraySlice = uav.firstArraySlice_FirstWSlice_NumElements_;
-					uavs[i].Texture2DArray.PlaneSlice = uav.arraySize_PlaneSlice_WSize_;
+					uavs[i].Texture2DArray.PlaneSlice = uav.planeSlice_;
+					firstSubRsc = uav.mipSlice_FirstElement_ + (uav.firstArraySlice_FirstWSlice_NumElements_ * textureRes->desc_.levels_);
+					numSubRsc = textureRes->desc_.levels_ * uav.arraySize_WSize_;
 					break;
 				case ViewDimension::TEX3D:
 					uavs[i].Texture3D.MipSlice = uav.mipSlice_FirstElement_;
 					uavs[i].Texture3D.FirstWSlice = uav.firstArraySlice_FirstWSlice_NumElements_;
-					uavs[i].Texture3D.WSize = uav.arraySize_PlaneSlice_WSize_;
+					uavs[i].Texture3D.WSize = uav.arraySize_WSize_;
+					firstSubRsc = uav.mipSlice_FirstElement_;
+					numSubRsc = 1;
 					break;
 				default:
 					DBG_BREAK;
 					return ErrorCode::FAIL;
 					break;
 				}
+
+				D3D12Resource* resource = GetD3D12Resource(uavHandle);
+				DBG_ASSERT(resource);
+				uavResources[i].resource_ = resource;
+				uavResources[i].firstSubRsc_ = firstSubRsc;
+				uavResources[i].numSubRsc_ = numSubRsc;
 			}
 
 			for(i32 i = 0; i < desc.numCBVs_; ++i)
@@ -820,7 +879,9 @@ namespace GPU
 					continue;
 				D3D12Resource* resource = GetD3D12Resource(cbvHandle);
 				DBG_ASSERT(resource);
-				cbvResources[i] = resource;
+				cbvResources[i].resource_ = resource;
+				cbvResources[i].firstSubRsc_ = 0;
+				cbvResources[i].numSubRsc_ = 1;
 
 				DBG_ASSERT(cbvHandle.GetType() == ResourceType::BUFFER);
 				DBG_ASSERT(cbvHandle);
@@ -957,15 +1018,14 @@ namespace GPU
 			rtvDescs.resize(MAX_BOUND_RTVS * fbs.numBuffers_);
 			memset(rtvDescs.data(), 0, sizeof(D3D12_RENDER_TARGET_VIEW_DESC) * rtvDescs.size());
 			memset(&dsvDesc, 0, sizeof(D3D12_DEPTH_STENCIL_VIEW_DESC));
-			fbs.rtvResources_.resize(MAX_BOUND_RTVS * fbs.numBuffers_, nullptr);
-			fbs.dsvResource_ = nullptr;
+			fbs.rtvResources_.resize(MAX_BOUND_RTVS * fbs.numBuffers_);
 
 			for(i32 bufferIdx = 0; bufferIdx < fbs.numBuffers_; ++bufferIdx)
 			{
 				for(i32 rtvIdx = 0; rtvIdx < MAX_BOUND_RTVS; ++rtvIdx)
 				{
 					auto& rtvDesc = rtvDescs[rtvIdx + bufferIdx * MAX_BOUND_RTVS];
-					D3D12Resource*& rtvResource = fbs.rtvResources_[rtvIdx + bufferIdx * MAX_BOUND_RTVS];
+					D3D12SubresourceRange& rtvResource = fbs.rtvResources_[rtvIdx + bufferIdx * MAX_BOUND_RTVS];
 					const auto& rtv = desc.rtvs_[rtvIdx];
 					Handle resource = rtv.resource_;
 					if(resource)
@@ -982,7 +1042,9 @@ namespace GPU
 						D3D12Texture* texture = GetD3D12Texture(resource, bufferIdx);
 						DBG_ASSERT(
 						    Core::ContainsAllFlags(texture->supportedStates_, D3D12_RESOURCE_STATE_RENDER_TARGET));
-						rtvResource = texture;
+						rtvResource.resource_ = texture;
+						rtvResource.firstSubRsc_ = 0;
+						rtvResource.numSubRsc_ = texture->numSubResources_;
 
 						rtvDesc.Format = GetFormat(rtv.format_);
 						rtvDesc.ViewDimension = GetRTVDimension(rtv.dimension_);
@@ -1028,12 +1090,14 @@ namespace GPU
 				Handle resource = dsv.resource_;
 				if(resource)
 				{
-					D3D12Resource*& dsvResource = fbs.dsvResource_;
+					D3D12SubresourceRange& dsvResource = fbs.dsvResource_;
 					DBG_ASSERT(resource.GetType() == ResourceType::TEXTURE);
 					D3D12Texture* texture = GetD3D12Texture(resource);
 					DBG_ASSERT(Core::ContainsAnyFlags(
 					    texture->supportedStates_, D3D12_RESOURCE_STATE_DEPTH_WRITE | D3D12_RESOURCE_STATE_DEPTH_READ));
-					dsvResource = texture;
+					dsvResource.resource_ = texture;
+					dsvResource.firstSubRsc_ = 0;
+					dsvResource.numSubRsc_ = texture->numSubResources_;
 
 					dsvDesc.Format = GetFormat(dsv.format_);
 					dsvDesc.ViewDimension = GetDSVDimension(dsv.dimension_);

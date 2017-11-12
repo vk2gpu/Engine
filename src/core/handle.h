@@ -23,6 +23,11 @@ namespace Core
 		{
 		}
 
+		Handle(std::nullptr_t)
+			: handle_(0)
+		{
+		}
+
 		/**
 		 * Get handle index.
 		 */

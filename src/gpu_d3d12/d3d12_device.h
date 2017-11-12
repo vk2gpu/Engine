@@ -18,6 +18,7 @@ namespace GPU
 
 		void CreateCommandQueues();
 		void CreateRootSignatures();
+		void CreateCommandSignatures();
 		void CreateDefaultPSOs();
 		void CreateUploadAllocators();
 		void CreateDescriptorHeapAllocators();
@@ -43,11 +44,11 @@ namespace GPU
 		    D3D12FrameBindingSet& outFrameBindingSet, const FrameBindingSetDesc& desc, const char* debugName);
 		void DestroyFrameBindingSet(D3D12FrameBindingSet& frameBindingSet);
 
-		ErrorCode UpdateSRVs(D3D12PipelineBindingSet& pipelineBindingSet, i32 first, i32 num, D3D12Resource** resources,
+		ErrorCode UpdateSRVs(D3D12PipelineBindingSet& pipelineBindingSet, i32 first, i32 num, D3D12SubresourceRange* resources,
 		    const D3D12_SHADER_RESOURCE_VIEW_DESC* descs);
-		ErrorCode UpdateUAVs(D3D12PipelineBindingSet& pipelineBindingSet, i32 first, i32 num, D3D12Resource** resources,
+		ErrorCode UpdateUAVs(D3D12PipelineBindingSet& pipelineBindingSet, i32 first, i32 num, D3D12SubresourceRange* resources,
 		    const D3D12_UNORDERED_ACCESS_VIEW_DESC* descs);
-		ErrorCode UpdateCBVs(D3D12PipelineBindingSet& pipelineBindingSet, i32 first, i32 num, D3D12Resource** resources,
+		ErrorCode UpdateCBVs(D3D12PipelineBindingSet& pipelineBindingSet, i32 first, i32 num, D3D12SubresourceRange* resources,
 		    const D3D12_CONSTANT_BUFFER_VIEW_DESC* descs);
 		ErrorCode UpdateSamplers(
 		    D3D12PipelineBindingSet& pipelineBindingSet, i32 first, i32 num, const D3D12_SAMPLER_DESC* descs);
@@ -98,7 +99,13 @@ namespace GPU
 		/// Root signatures.
 		Core::Vector<ComPtr<ID3D12RootSignature>> d3dRootSignatures_;
 
+		/// Command signatures
+		ComPtr<ID3D12CommandSignature> d3dDrawCmdSig_;
+		ComPtr<ID3D12CommandSignature> d3dDrawIndexedCmdSig_;
+		ComPtr<ID3D12CommandSignature> d3dDispatchCmdSig_;
+
 		Core::Vector<ComPtr<ID3D12PipelineState>> d3dDefaultPSOs_;
+
 
 		/// Vendor specific extensions.
 		AGSContext* agsContext_ = nullptr;

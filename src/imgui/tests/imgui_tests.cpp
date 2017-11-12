@@ -72,7 +72,7 @@ TEST_CASE("imgui-tests-run")
 		// Clear swapchain.
 		cmdList.ClearRTV(fbsHandle, 0, color);
 
-		ImGui::Manager::BeginFrame(input, scDesc.width_, scDesc.height_);
+		ImGui::Manager::BeginFrame(input, scDesc.width_, scDesc.height_, 1.0f / 60.0f);
 
 		ImGui::ShowTestWindow();
 

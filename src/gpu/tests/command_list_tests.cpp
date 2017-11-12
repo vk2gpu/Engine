@@ -63,10 +63,11 @@ TEST_CASE("commandlist-tests-commands")
 	REQUIRE(commandList.Draw(pipelineBindingHandle, drawBindingHandle, frameBindingHandle, drawState,
 	    GPU::PrimitiveTopology::TRIANGLE_LIST, 0, 0, 3, 0, 1));
 	REQUIRE(commandList.DrawIndirect(
-	    pipelineBindingHandle, drawBindingHandle, frameBindingHandle, drawState, buffer0Handle, 0));
+	    pipelineBindingHandle, drawBindingHandle, frameBindingHandle, drawState, 
+		GPU::PrimitiveTopology::TRIANGLE_LIST, buffer0Handle, 0, nullptr, 0, 1));
 	// Dispatches.
 	REQUIRE(commandList.Dispatch(pipelineBindingHandle, 1, 1, 1));
-	REQUIRE(commandList.DispatchIndirect(pipelineBindingHandle, buffer0Handle, 0));
+	REQUIRE(commandList.DispatchIndirect(pipelineBindingHandle, buffer0Handle, 0, nullptr, 0, 1));
 	// Clears.
 	REQUIRE(commandList.ClearRTV(frameBindingHandle, 0, f));
 	REQUIRE(commandList.ClearDSV(frameBindingHandle, 0.0f, 0));

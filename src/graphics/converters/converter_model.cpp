@@ -63,126 +63,7 @@ namespace
 		i32 offset_ = 0;
 		Core::Vector<u8> data_;
 	};
-
-	bool FloatToVertexDataType(f32* inFloats, GPU::Format format, void* outData, i32& outBytes)
-	{
-		DBG_ASSERT(inFloats != nullptr);
-
-		const auto formatInfo = GPU::GetFormatInfo(format);
-		i32 noofFloats = 0;
-		if(formatInfo.rBits_ > 0)
-			++noofFloats;
-		if(formatInfo.gBits_ > 0)
-			++noofFloats;
-		if(formatInfo.bBits_ > 0)
-			++noofFloats;
-		if(formatInfo.aBits_ > 0)
-			++noofFloats;
-
-		switch(noofFloats)
-		{
-		case 1:
-			DBG_ASSERT(formatInfo.gBits_ == 0);
-			DBG_ASSERT(formatInfo.bBits_ == 0);
-			DBG_ASSERT(formatInfo.aBits_ == 0);
-			break;
-		case 2:
-			DBG_ASSERT(formatInfo.rBits_ > 0);
-			DBG_ASSERT(formatInfo.gBits_ == formatInfo.rBits_);
-			DBG_ASSERT(formatInfo.bBits_ == 0);
-			DBG_ASSERT(formatInfo.aBits_ == 0);
-			break;
-		case 3:
-			DBG_ASSERT(formatInfo.rBits_ > 0);
-			DBG_ASSERT(formatInfo.gBits_ == formatInfo.rBits_);
-			DBG_ASSERT(formatInfo.bBits_ == formatInfo.rBits_);
-			DBG_ASSERT(formatInfo.aBits_ == 0);
-			break;
-		case 4:
-			DBG_ASSERT(formatInfo.rBits_ > 0);
-			DBG_ASSERT(formatInfo.gBits_ == formatInfo.rBits_);
-			DBG_ASSERT(formatInfo.bBits_ == formatInfo.rBits_);
-			DBG_ASSERT(formatInfo.aBits_ == formatInfo.rBits_);
-			break;
-		default:
-			return false;
-			break;
-		};
-
-		const auto bits = formatInfo.rBits_;
-
-		if(outData == nullptr)
-			return true;
-
-		// Calculate total output size.
-		u8* outDataBytes = reinterpret_cast<u8*>(outData);
-		outBytes = (bits * noofFloats) / 8;
-
-#define INTEGER_ELEMENT(_bits, _dataType)                                                                              \
-                                                                                                                       \
-	if(bits == _bits)                                                                                                  \
-		for(i32 idx = 0; idx < noofFloats; ++idx)                                                                      \
-		{                                                                                                              \
-			*reinterpret_cast<_dataType*>(outDataBytes) = Core::Clamp(static_cast<_dataType>(*inFloats++),             \
-			    std::numeric_limits<_dataType>::min(), std::numeric_limits<_dataType>::max());                         \
-			outDataBytes += (bits / 8);                                                                                \
-		}
-
-#define NORM_ELEMENT(_bits, _dataType)                                                                                 \
-	if(bits == _bits)                                                                                                  \
-		for(i32 idx = 0; idx < noofFloats; ++idx)                                                                      \
-		{                                                                                                              \
-			*reinterpret_cast<_dataType*>(outDataBytes) =                                                              \
-			    Core::Clamp(static_cast<_dataType>(*inFloats++ * std::numeric_limits<_dataType>::max()),               \
-			        std::numeric_limits<_dataType>::min(), std::numeric_limits<_dataType>::max());                     \
-			outDataBytes += (bits / 8);                                                                                \
-		}
-
-		if(formatInfo.rgbaFormat_ == GPU::FormatType::FLOAT)
-		{
-			if(bits == 32)
-			{
-				memcpy(outData, inFloats, outBytes);
-			}
-			else if(bits == 16)
-			{
-				Core::FloatToHalf(inFloats, (u16*)outDataBytes, noofFloats);
-			}
-		}
-		else if(formatInfo.rgbaFormat_ == GPU::FormatType::UINT)
-		{
-			INTEGER_ELEMENT(8, u8);
-			INTEGER_ELEMENT(16, u16);
-			INTEGER_ELEMENT(32, u32);
-		}
-		else if(formatInfo.rgbaFormat_ == GPU::FormatType::SINT)
-		{
-			INTEGER_ELEMENT(8, i8);
-			INTEGER_ELEMENT(16, i16);
-			INTEGER_ELEMENT(32, i32);
-		}
-		else if(formatInfo.rgbaFormat_ == GPU::FormatType::UNORM)
-		{
-			NORM_ELEMENT(8, u8);
-			NORM_ELEMENT(16, u16);
-			NORM_ELEMENT(32, u32);
-		}
-		else if(formatInfo.rgbaFormat_ == GPU::FormatType::SNORM)
-		{
-			NORM_ELEMENT(8, i8);
-			NORM_ELEMENT(16, i16);
-			NORM_ELEMENT(32, i32);
-		}
-		else
-		{
-			return false;
-		}
-
-#undef INTEGER_ELEMENT
-#undef NORM_ELEMENT
-		return true;
-	}
-
+	
 	bool GetInStreamDesc(Core::StreamDesc& outDesc, GPU::VertexUsage usage)
 	{
 		switch(usage)
@@ -620,20 +501,14 @@ namespace
 
 					for(i32 idx = 0; idx < numBoneVectors; ++idx)
 					{
-						if(mesh->HasVertexColors(idx))
-						{
-							elements[numElements++] = GPU::VertexElement(
-							    4, 0, GPU::Format::R8G8B8A8_UINT, GPU::VertexUsage::BLENDINDICES, idx);
-						}
+						elements[numElements++] = GPU::VertexElement(
+						    4, 0, GPU::Format::R8G8B8A8_UINT, GPU::VertexUsage::BLENDINDICES, idx);
 					}
 
 					for(i32 idx = 0; idx < numBoneVectors; ++idx)
 					{
-						if(mesh->HasVertexColors(idx))
-						{
-							elements[numElements++] = GPU::VertexElement(
-							    4, 0, GPU::Format::R8G8B8A8_UNORM, GPU::VertexUsage::BLENDWEIGHTS, idx);
-						}
+						elements[numElements++] = GPU::VertexElement(
+						    4, 0, GPU::Format::R8G8B8A8_UNORM, GPU::VertexUsage::BLENDWEIGHTS, idx);
 					}
 				}
 

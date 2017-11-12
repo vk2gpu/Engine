@@ -561,4 +561,41 @@ namespace GPU
 
 		bool operator!=(const DrawState& other) const { return !(*this == other); }
 	};
+
+	/**
+	 * Draw arguments.
+	 * - Should currently match D3D12 & Vulkan structure.
+	 */
+	struct GPU_DLL DrawArgs 
+	{
+		u32 vertexCountPerInstance_ = 0;
+		u32 instanceCount_ = 0;
+		u32 startVertexLocation_ = 0;
+		u32 startInstanceLocation_ = 0;
+	};
+
+	/**
+	 * Draw indexed arguments.
+	 * - Should currently match D3D12 & Vulkan structure.
+	 */
+	struct GPU_DLL DrawIndexedArgs 
+	{
+		u32 indexCountPerInstance_ = 0;
+		u32 instanceCount_ = 0;
+		u32 startVertexLocation_ = 0;
+		i32 baseVertexLocation_ = 0;
+		u32 startInstanceLocation_ = 0;
+	};
+	
+	/**
+	 * Dispatch arguments.
+	 * - Should currently match D3D12 & Vulkan structure.
+	 */
+	struct GPU_DLL DispatchArgs
+	{
+		u32 threadGroupCountX_;
+		u32 threadGroupCountY_;
+		u32 threadGroupCountZ_;
+	};
+
 } // namespace GPU

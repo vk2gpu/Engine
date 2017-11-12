@@ -88,6 +88,7 @@ namespace GPU
 	struct D3D12Resource
 	{
 		ComPtr<ID3D12Resource> resource_;
+		i32 numSubResources_ = 0;
 		D3D12_RESOURCE_STATES supportedStates_ = D3D12_RESOURCE_STATE_COMMON;
 		D3D12_RESOURCE_STATES defaultState_ = D3D12_RESOURCE_STATE_COMMON;
 	};
@@ -120,6 +121,18 @@ namespace GPU
 		D3D12_SAMPLER_DESC desc_ = {};
 	};
 
+	struct D3D12SubresourceRange
+	{
+		D3D12Resource* resource_ = nullptr;
+		i32 firstSubRsc_ = 0;
+		i32 numSubRsc_ = 0;
+
+		operator bool() const
+		{
+			return resource_ && numSubRsc_ > 0;
+		}
+	};
+	
 	struct D3D12GraphicsPipelineState
 	{
 		RootSignatureType rootSignature_ = RootSignatureType::GRAPHICS;
@@ -141,10 +154,10 @@ namespace GPU
 		D3D12DescriptorAllocation uavs_;
 		D3D12DescriptorAllocation cbvs_;
 		D3D12DescriptorAllocation samplers_;
-
-		Core::Array<D3D12Resource*, MAX_SRV_BINDINGS> srvTransitions_ = {};
-		Core::Array<D3D12Resource*, MAX_UAV_BINDINGS> uavTransitions_ = {};
-		Core::Array<D3D12Resource*, MAX_CBV_BINDINGS> cbvTransitions_ = {};
+		
+		Core::Array<D3D12SubresourceRange, MAX_SRV_BINDINGS> srvTransitions_ = {};
+		Core::Array<D3D12SubresourceRange, MAX_UAV_BINDINGS> uavTransitions_ = {};
+		Core::Array<D3D12SubresourceRange, MAX_CBV_BINDINGS> cbvTransitions_ = {};
 	};
 
 	struct D3D12DrawBindingSet
@@ -160,8 +173,9 @@ namespace GPU
 	{
 		D3D12DescriptorAllocation rtvs_;
 		D3D12DescriptorAllocation dsv_;
-		Core::Vector<D3D12Resource*> rtvResources_;
-		D3D12Resource* dsvResource_ = nullptr;
+
+		Core::Vector<D3D12SubresourceRange> rtvResources_;
+		D3D12SubresourceRange dsvResource_;
 		FrameBindingSetDesc desc_;
 		D3D12SwapChain* swapChain_ = nullptr;
 		i32 numRTs_ = 0;

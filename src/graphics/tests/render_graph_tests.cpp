@@ -638,7 +638,7 @@ TEST_CASE("render-graph-tests-pipeline-plugin")
 		Graphics::RenderGraphResource scRes;
 		Graphics::RenderGraphResource dsRes;
 
-		ImGui::Manager::BeginFrame(input, w, h);
+		ImGui::Manager::BeginFrame(input, w, h, 1.0f / 60.0f);
 
 		// Draw UI for previous frame's graph.
 		imguiPipeline.DrawUI(graph);
@@ -716,7 +716,7 @@ TEST_CASE("render-graph-tests-draw-simple")
 
 	while(Client::Manager::Update() && (Core::IsDebuggerAttached() || testRunCounter-- > 0))
 	{
-		ImGui::Manager::BeginFrame(input, w, h);
+		ImGui::Manager::BeginFrame(input, w, h, 1.0f / 60.0f);
 
 		// Setup render graph.
 		graph.Clear();
