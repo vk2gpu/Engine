@@ -69,8 +69,8 @@ namespace GPU
 	}
 
 	INLINE CommandDrawIndirect* CommandList::DrawIndirect(Handle pipelineBinding, Handle drawBinding,
-	    Handle frameBinding, const DrawState& drawState, PrimitiveTopology primitive, Handle indirectBuffer, i32 argByteOffset,
-		Handle countBuffer, i32 countByteOffset, i32 maxCommands)
+	    Handle frameBinding, const DrawState& drawState, PrimitiveTopology primitive, Handle indirectBuffer,
+	    i32 argByteOffset, Handle countBuffer, i32 countByteOffset, i32 maxCommands)
 	{
 		DBG_ASSERT(handleAllocator_.IsValid(pipelineBinding) &&
 		           pipelineBinding.GetType() == ResourceType::PIPELINE_BINDING_SET);
@@ -128,9 +128,8 @@ namespace GPU
 		return command;
 	}
 
-	INLINE CommandDispatchIndirect* CommandList::DispatchIndirect(
-	    Handle pipelineBinding, Handle indirectBuffer, i32 argByteOffset,
-		Handle countBuffer, i32 countByteOffset, i32 maxCommands)
+	INLINE CommandDispatchIndirect* CommandList::DispatchIndirect(Handle pipelineBinding, Handle indirectBuffer,
+	    i32 argByteOffset, Handle countBuffer, i32 countByteOffset, i32 maxCommands)
 	{
 		DBG_ASSERT(handleAllocator_.IsValid(pipelineBinding));
 		DBG_ASSERT(pipelineBinding.GetType() == ResourceType::PIPELINE_BINDING_SET);

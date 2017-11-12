@@ -13,7 +13,8 @@ namespace GPU
 	class D3D12Device
 	{
 	public:
-		D3D12Device(D3D12Backend& backend, const SetupParams& setupParams, IDXGIFactory4* dxgiFactory, IDXGIAdapter1* adapter);
+		D3D12Device(
+		    D3D12Backend& backend, const SetupParams& setupParams, IDXGIFactory4* dxgiFactory, IDXGIAdapter1* adapter);
 		~D3D12Device();
 
 		void CreateCommandQueues();
@@ -44,12 +45,12 @@ namespace GPU
 		    D3D12FrameBindingSet& outFrameBindingSet, const FrameBindingSetDesc& desc, const char* debugName);
 		void DestroyFrameBindingSet(D3D12FrameBindingSet& frameBindingSet);
 
-		ErrorCode UpdateSRVs(D3D12PipelineBindingSet& pipelineBindingSet, i32 first, i32 num, D3D12SubresourceRange* resources,
-		    const D3D12_SHADER_RESOURCE_VIEW_DESC* descs);
-		ErrorCode UpdateUAVs(D3D12PipelineBindingSet& pipelineBindingSet, i32 first, i32 num, D3D12SubresourceRange* resources,
-		    const D3D12_UNORDERED_ACCESS_VIEW_DESC* descs);
-		ErrorCode UpdateCBVs(D3D12PipelineBindingSet& pipelineBindingSet, i32 first, i32 num, D3D12SubresourceRange* resources,
-		    const D3D12_CONSTANT_BUFFER_VIEW_DESC* descs);
+		ErrorCode UpdateSRVs(D3D12PipelineBindingSet& pipelineBindingSet, i32 first, i32 num,
+		    D3D12SubresourceRange* resources, const D3D12_SHADER_RESOURCE_VIEW_DESC* descs);
+		ErrorCode UpdateUAVs(D3D12PipelineBindingSet& pipelineBindingSet, i32 first, i32 num,
+		    D3D12SubresourceRange* resources, const D3D12_UNORDERED_ACCESS_VIEW_DESC* descs);
+		ErrorCode UpdateCBVs(D3D12PipelineBindingSet& pipelineBindingSet, i32 first, i32 num,
+		    D3D12SubresourceRange* resources, const D3D12_CONSTANT_BUFFER_VIEW_DESC* descs);
 		ErrorCode UpdateSamplers(
 		    D3D12PipelineBindingSet& pipelineBindingSet, i32 first, i32 num, const D3D12_SAMPLER_DESC* descs);
 		ErrorCode UpdateFrameBindingSet(D3D12FrameBindingSet& frameBindingSet,
@@ -58,7 +59,7 @@ namespace GPU
 		ErrorCode SubmitCommandList(D3D12CommandList& commandList);
 
 		ErrorCode ResizeSwapChain(D3D12SwapChain& swapChain, i32 width, i32 height);
-		
+
 		operator bool() const { return !!d3dDevice_; }
 
 		ID3D12GraphicsCommandList* GetBarrierCommandList();

@@ -110,8 +110,6 @@ namespace GPU
 		/// Vendor specific extensions.
 		AGSContext* agsContext_ = nullptr;
 		AGSGPUInfo agsGPUInfo_;
-
-
 	};
 
 

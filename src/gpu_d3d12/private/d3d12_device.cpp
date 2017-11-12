@@ -10,7 +10,8 @@
 
 namespace GPU
 {
-	D3D12Device::D3D12Device(D3D12Backend& backend, const SetupParams& setupParams, IDXGIFactory4* dxgiFactory, IDXGIAdapter1* adapter)
+	D3D12Device::D3D12Device(
+	    D3D12Backend& backend, const SetupParams& setupParams, IDXGIFactory4* dxgiFactory, IDXGIAdapter1* adapter)
 	    : dxgiFactory_(dxgiFactory)
 	{
 		HRESULT hr = S_OK;
@@ -30,12 +31,14 @@ namespace GPU
 			return;
 
 		// Vendor specific extensions.
-		
+
 		agsContext_ = backend.agsContext_;
 		if(AGS_SUCCESS == agsDriverExtensionsDX12_Init(agsContext_, d3dDevice_.Get(), &agsFeatureBits_))
 		{
 			Core::Log("AMD AGS features supported:\n");
-#define LOG_AGS_FEATURE(_feature) if(Core::ContainsAnyFlags(agsFeatureBits_, _feature)) Core::Log("- Have: %s\n", #_feature)
+#define LOG_AGS_FEATURE(_feature)                                                                                      \
+	if(Core::ContainsAnyFlags(agsFeatureBits_, _feature))                                                              \
+	Core::Log("- Have: %s\n", #_feature)
 			LOG_AGS_FEATURE(AGS_DX12_EXTENSION_INTRINSIC_READFIRSTLANE);
 			LOG_AGS_FEATURE(AGS_DX12_EXTENSION_INTRINSIC_READLANE);
 			LOG_AGS_FEATURE(AGS_DX12_EXTENSION_INTRINSIC_LANEID);
@@ -263,7 +266,7 @@ namespace GPU
 
 		D3D12_INDIRECT_ARGUMENT_DESC drawIndexedArg = {};
 		drawIndexedArg.Type = D3D12_INDIRECT_ARGUMENT_TYPE_DRAW_INDEXED;
-		
+
 		D3D12_INDIRECT_ARGUMENT_DESC dispatchArg = {};
 		dispatchArg.Type = D3D12_INDIRECT_ARGUMENT_TYPE_DISPATCH;
 
@@ -285,10 +288,12 @@ namespace GPU
 		dispatchDesc.pArgumentDescs = &dispatchArg;
 		dispatchDesc.NodeMask = 0x0;
 
-		CHECK_D3D(d3dDevice_->CreateCommandSignature(&drawDesc, nullptr, IID_ID3D12CommandSignature, (void**)d3dDrawCmdSig_.GetAddressOf()));
-		CHECK_D3D(d3dDevice_->CreateCommandSignature(&drawIndexedDesc, nullptr, IID_ID3D12CommandSignature, (void**)d3dDrawIndexedCmdSig_.GetAddressOf()));
-		CHECK_D3D(d3dDevice_->CreateCommandSignature(&dispatchDesc, nullptr, IID_ID3D12CommandSignature, (void**)d3dDispatchCmdSig_.GetAddressOf()));
-
+		CHECK_D3D(d3dDevice_->CreateCommandSignature(
+		    &drawDesc, nullptr, IID_ID3D12CommandSignature, (void**)d3dDrawCmdSig_.GetAddressOf()));
+		CHECK_D3D(d3dDevice_->CreateCommandSignature(
+		    &drawIndexedDesc, nullptr, IID_ID3D12CommandSignature, (void**)d3dDrawIndexedCmdSig_.GetAddressOf()));
+		CHECK_D3D(d3dDevice_->CreateCommandSignature(
+		    &dispatchDesc, nullptr, IID_ID3D12CommandSignature, (void**)d3dDispatchCmdSig_.GetAddressOf()));
 	}
 
 	void D3D12Device::CreateDefaultPSOs()
@@ -498,7 +503,6 @@ namespace GPU
 			CHECK_ERRORCODE(errorCode = uploadCommandList_->Submit(d3dCopyQueue_.Get()));
 
 			d3dCopyQueue_->Signal(d3dUploadFence_.Get(), Core::AtomicInc(&uploadFenceIdx_));
-
 		}
 
 		// Add barrier for default state.
@@ -659,7 +663,7 @@ namespace GPU
 
 		// Add barrier for default state.
 		if(errorCode == ErrorCode::OK && outResource.defaultState_ != D3D12_RESOURCE_STATE_COMMON)
-		{		
+		{
 			D3D12_RESOURCE_BARRIER barrier;
 			barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
 			barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
@@ -667,7 +671,7 @@ namespace GPU
 			barrier.Transition.Subresource = 0xffffffff;
 			barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COMMON;
 			barrier.Transition.StateAfter = outResource.defaultState_;
-			
+
 			Core::ScopedMutex lock(barrierMutex_);
 			auto barrierCommandList = GetBarrierCommandList();
 			barrierCommandList->ResourceBarrier(1, &barrier);
@@ -753,8 +757,8 @@ namespace GPU
 		dsvAllocator_->Free(frameBindingSet.dsv_);
 	}
 
-	ErrorCode D3D12Device::UpdateSRVs(D3D12PipelineBindingSet& pbs, i32 first, i32 num, D3D12SubresourceRange* resources,
-	    const D3D12_SHADER_RESOURCE_VIEW_DESC* descs)
+	ErrorCode D3D12Device::UpdateSRVs(D3D12PipelineBindingSet& pbs, i32 first, i32 num,
+	    D3D12SubresourceRange* resources, const D3D12_SHADER_RESOURCE_VIEW_DESC* descs)
 	{
 		i32 incr = d3dDevice_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 		D3D12_CPU_DESCRIPTOR_HANDLE handle = pbs.srvs_.cpuDescHandle_;
@@ -770,8 +774,8 @@ namespace GPU
 		return ErrorCode::OK;
 	}
 
-	ErrorCode D3D12Device::UpdateUAVs(D3D12PipelineBindingSet& pbs, i32 first, i32 num, D3D12SubresourceRange* resources,
-	    const D3D12_UNORDERED_ACCESS_VIEW_DESC* descs)
+	ErrorCode D3D12Device::UpdateUAVs(D3D12PipelineBindingSet& pbs, i32 first, i32 num,
+	    D3D12SubresourceRange* resources, const D3D12_UNORDERED_ACCESS_VIEW_DESC* descs)
 	{
 		i32 incr = d3dDevice_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 		D3D12_CPU_DESCRIPTOR_HANDLE handle = pbs.uavs_.cpuDescHandle_;
@@ -787,8 +791,8 @@ namespace GPU
 		return ErrorCode::OK;
 	}
 
-	ErrorCode D3D12Device::UpdateCBVs(D3D12PipelineBindingSet& pbs, i32 first, i32 num, D3D12SubresourceRange* resources,
-	    const D3D12_CONSTANT_BUFFER_VIEW_DESC* descs)
+	ErrorCode D3D12Device::UpdateCBVs(D3D12PipelineBindingSet& pbs, i32 first, i32 num,
+	    D3D12SubresourceRange* resources, const D3D12_CONSTANT_BUFFER_VIEW_DESC* descs)
 	{
 		i32 incr = d3dDevice_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 		D3D12_CPU_DESCRIPTOR_HANDLE handle = pbs.cbvs_.cpuDescHandle_;
@@ -830,8 +834,8 @@ namespace GPU
 				D3D12SubresourceRange& rtvResource = inOutFbs.rtvResources_[rtvIdx + bufferIdx * MAX_BOUND_RTVS];
 				if(rtvResource)
 				{
-					d3dDevice_->CreateRenderTargetView(
-					    rtvResource.resource_->resource_.Get(), &rtvDescs[rtvIdx + bufferIdx * MAX_BOUND_RTVS], rtvHandle);
+					d3dDevice_->CreateRenderTargetView(rtvResource.resource_->resource_.Get(),
+					    &rtvDescs[rtvIdx + bufferIdx * MAX_BOUND_RTVS], rtvHandle);
 				}
 				rtvHandle.ptr += rtvIncr;
 			}

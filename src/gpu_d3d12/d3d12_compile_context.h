@@ -19,8 +19,8 @@ namespace GPU
 		{
 			Subresource() = default;
 			Subresource(const D3D12Resource* resource, i32 idx)
-				: resource_(resource)
-				, idx_(idx)
+			    : resource_(resource)
+			    , idx_(idx)
 			{
 			}
 
@@ -82,7 +82,7 @@ namespace GPU
 		 * @return Has any state changed?
 		 */
 		bool AddTransition(const D3D12Resource* resource, i32 firstSubRsc, i32 numSubRsc, D3D12_RESOURCE_STATES state);
-	
+
 
 		/**
 		 * Add UAV barrier.

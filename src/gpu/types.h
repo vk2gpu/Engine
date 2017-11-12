@@ -566,7 +566,7 @@ namespace GPU
 	 * Draw arguments.
 	 * - Should currently match D3D12 & Vulkan structure.
 	 */
-	struct GPU_DLL DrawArgs 
+	struct GPU_DLL DrawArgs
 	{
 		u32 vertexCountPerInstance_ = 0;
 		u32 instanceCount_ = 0;
@@ -578,7 +578,7 @@ namespace GPU
 	 * Draw indexed arguments.
 	 * - Should currently match D3D12 & Vulkan structure.
 	 */
-	struct GPU_DLL DrawIndexedArgs 
+	struct GPU_DLL DrawIndexedArgs
 	{
 		u32 indexCountPerInstance_ = 0;
 		u32 instanceCount_ = 0;
@@ -586,7 +586,7 @@ namespace GPU
 		i32 baseVertexLocation_ = 0;
 		u32 startInstanceLocation_ = 0;
 	};
-	
+
 	/**
 	 * Dispatch arguments.
 	 * - Should currently match D3D12 & Vulkan structure.

@@ -116,7 +116,7 @@ namespace GPU
 		 */
 		GPU_DLL CommandDrawIndirect* DrawIndirect(Handle pipelineBinding, Handle drawBinding, Handle frameBinding,
 		    const DrawState& drawState, PrimitiveTopology primitive, Handle indirectBuffer, i32 argByteOffset,
-			Handle countBuffer, i32 countByteOffset, i32 maxCommands);
+		    Handle countBuffer, i32 countByteOffset, i32 maxCommands);
 
 		/**
 		 * See @a CommandDispatch.
@@ -138,9 +138,8 @@ namespace GPU
 		 * @pre @a maxCommands >= 1.
 		 * @return Dispatch command. nullptr if failure.
 		 */
-		GPU_DLL CommandDispatchIndirect* DispatchIndirect(
-		    Handle pipelineBinding, Handle indirectBuffer, i32 argByteOffset,
-			Handle countBuffer, i32 countByteOffset, i32 maxCommands);
+		GPU_DLL CommandDispatchIndirect* DispatchIndirect(Handle pipelineBinding, Handle indirectBuffer,
+		    i32 argByteOffset, Handle countBuffer, i32 countByteOffset, i32 maxCommands);
 
 		/**
 		 * See @a CommandClearRTV.

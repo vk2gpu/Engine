@@ -26,7 +26,8 @@ namespace GPU
 		bool supportAGSMarkers = false;
 		auto primaryDevice = backend_.device_;
 
-		if(backend_.agsContext_ && Core::ContainsAllFlags(primaryDevice->agsFeatureBits_, AGS_DX12_EXTENSION_USER_MARKERS))
+		if(backend_.agsContext_ &&
+		    Core::ContainsAllFlags(primaryDevice->agsFeatureBits_, AGS_DX12_EXTENSION_USER_MARKERS))
 			supportAGSMarkers = true;
 
 		if(d3dCommandList_)
@@ -58,14 +59,18 @@ namespace GPU
 				{
 					const auto* eventCommand = static_cast<const CommandBeginEvent*>(command);
 
-					if(supportPIXMarkers) PIXBeginEvent(d3dCommandList_, eventCommand->metaData_, eventCommand->text_);
-					if(supportAGSMarkers) agsDriverExtensionsDX12_PushMarker(backend_.agsContext_, d3dCommandList_, eventCommand->text_);
+					if(supportPIXMarkers)
+						PIXBeginEvent(d3dCommandList_, eventCommand->metaData_, eventCommand->text_);
+					if(supportAGSMarkers)
+						agsDriverExtensionsDX12_PushMarker(backend_.agsContext_, d3dCommandList_, eventCommand->text_);
 				}
 				break;
 				case CommandEndEvent::TYPE:
 				{
-					if(supportPIXMarkers) PIXEndEvent(d3dCommandList_);
-					if(supportAGSMarkers) agsDriverExtensionsDX12_PopMarker(backend_.agsContext_, d3dCommandList_);
+					if(supportPIXMarkers)
+						PIXEndEvent(d3dCommandList_);
+					if(supportAGSMarkers)
+						agsDriverExtensionsDX12_PopMarker(backend_.agsContext_, d3dCommandList_);
 				}
 				break;
 				default:
@@ -119,7 +124,8 @@ namespace GPU
 	ErrorCode D3D12CompileContext::CompileCommand(const CommandDrawIndirect* command)
 	{
 		const auto& indirectBuffer = backend_.bufferResources_[command->indirectBuffer_.GetIndex()];
-		const auto* countBuffer = (command->countBuffer_) ? &backend_.bufferResources_[command->countBuffer_.GetIndex()] : nullptr;
+		const auto* countBuffer =
+		    (command->countBuffer_) ? &backend_.bufferResources_[command->countBuffer_.GetIndex()] : nullptr;
 
 		SetPipelineBinding(command->pipelineBinding_);
 		SetFrameBinding(command->frameBinding_);
@@ -137,13 +143,15 @@ namespace GPU
 			FlushTransitions();
 			if(dbs.ib_.BufferLocation == 0)
 			{
-				d3dCommandList_->ExecuteIndirect(backend_.device_->d3dDrawCmdSig_.Get(), command->maxCommands_, indirectBuffer.resource_.Get(), 
-					command->argByteOffset_, countBuffer->resource_.Get(), command->countByteOffset_);
+				d3dCommandList_->ExecuteIndirect(backend_.device_->d3dDrawCmdSig_.Get(), command->maxCommands_,
+				    indirectBuffer.resource_.Get(), command->argByteOffset_, countBuffer->resource_.Get(),
+				    command->countByteOffset_);
 			}
 			else
 			{
-				d3dCommandList_->ExecuteIndirect(backend_.device_->d3dDrawIndexedCmdSig_.Get(), command->maxCommands_, indirectBuffer.resource_.Get(), 
-					command->argByteOffset_, countBuffer->resource_.Get(), command->countByteOffset_);
+				d3dCommandList_->ExecuteIndirect(backend_.device_->d3dDrawIndexedCmdSig_.Get(), command->maxCommands_,
+				    indirectBuffer.resource_.Get(), command->argByteOffset_, countBuffer->resource_.Get(),
+				    command->countByteOffset_);
 			}
 		}
 		else
@@ -151,8 +159,9 @@ namespace GPU
 			d3dCommandList_->IASetPrimitiveTopology(GetPrimitiveTopology(command->primitive_));
 
 			FlushTransitions();
-			d3dCommandList_->ExecuteIndirect(backend_.device_->d3dDrawCmdSig_.Get(), command->maxCommands_, indirectBuffer.resource_.Get(), 
-				command->argByteOffset_, countBuffer->resource_.Get(), command->countByteOffset_);
+			d3dCommandList_->ExecuteIndirect(backend_.device_->d3dDrawCmdSig_.Get(), command->maxCommands_,
+			    indirectBuffer.resource_.Get(), command->argByteOffset_, countBuffer->resource_.Get(),
+			    command->countByteOffset_);
 		}
 		return ErrorCode::OK;
 	}
@@ -169,7 +178,8 @@ namespace GPU
 	ErrorCode D3D12CompileContext::CompileCommand(const CommandDispatchIndirect* command)
 	{
 		const auto& indirectBuffer = backend_.bufferResources_[command->indirectBuffer_.GetIndex()];
-		const auto* countBuffer = (command->countBuffer_) ? &backend_.bufferResources_[command->countBuffer_.GetIndex()] : nullptr;
+		const auto* countBuffer =
+		    (command->countBuffer_) ? &backend_.bufferResources_[command->countBuffer_.GetIndex()] : nullptr;
 
 		SetPipelineBinding(command->pipelineBinding_);
 		AddTransition(&indirectBuffer, 0, 1, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
@@ -177,8 +187,9 @@ namespace GPU
 			AddTransition(countBuffer, 0, 1, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
 
 		FlushTransitions();
-		d3dCommandList_->ExecuteIndirect(backend_.device_->d3dDispatchCmdSig_.Get(), command->maxCommands_, indirectBuffer.resource_.Get(), 
-			command->argByteOffset_, countBuffer->resource_.Get(), command->countByteOffset_);
+		d3dCommandList_->ExecuteIndirect(backend_.device_->d3dDispatchCmdSig_.Get(), command->maxCommands_,
+		    indirectBuffer.resource_.Get(), command->argByteOffset_, countBuffer->resource_.Get(),
+		    command->countByteOffset_);
 		return ErrorCode::OK;
 	}
 
@@ -519,7 +530,8 @@ namespace GPU
 		return AddTransition(subRsc.resource_, subRsc.firstSubRsc_, subRsc.numSubRsc_, state);
 	}
 
-	bool D3D12CompileContext::AddTransition(const D3D12Resource* resource, i32 firstSubRsc, i32 numSubRsc, D3D12_RESOURCE_STATES state)
+	bool D3D12CompileContext::AddTransition(
+	    const D3D12Resource* resource, i32 firstSubRsc, i32 numSubRsc, D3D12_RESOURCE_STATES state)
 	{
 		DBG_ASSERT(resource);
 		DBG_ASSERT(resource->resource_);
@@ -586,20 +598,16 @@ namespace GPU
 				switch(barrierInfo.Type)
 				{
 				case D3D12_RESOURCE_BARRIER_TYPE_TRANSITION:
-					Core::Log("- Transition %p (%u): %x -> %x\n",
-						barrierInfo.Transition.pResource,
-						barrierInfo.Transition.Subresource,
-						barrierInfo.Transition.StateBefore,
-						barrierInfo.Transition.StateAfter);
+					Core::Log("- Transition %p (%u): %x -> %x\n", barrierInfo.Transition.pResource,
+					    barrierInfo.Transition.Subresource, barrierInfo.Transition.StateBefore,
+					    barrierInfo.Transition.StateAfter);
 					break;
 				case D3D12_RESOURCE_BARRIER_TYPE_ALIASING:
-					Core::Log("- Aliasing %p -> %p\n",
-						barrierInfo.Aliasing.pResourceBefore,
-						barrierInfo.Aliasing.pResourceAfter);
+					Core::Log("- Aliasing %p -> %p\n", barrierInfo.Aliasing.pResourceBefore,
+					    barrierInfo.Aliasing.pResourceAfter);
 					break;
 				case D3D12_RESOURCE_BARRIER_TYPE_UAV:
-					Core::Log("- UAV %p\n",
-						barrierInfo.UAV.pResource);
+					Core::Log("- UAV %p\n", barrierInfo.UAV.pResource);
 					break;
 				}
 
@@ -607,7 +615,7 @@ namespace GPU
 #endif
 			}
 
-			// Perform resource barriers.
+// Perform resource barriers.
 #if !DEBUG_TRANSITIONS
 			d3dCommandList_->ResourceBarrier(barriers_.size(), barriers_.data());
 #endif
@@ -621,7 +629,7 @@ namespace GPU
 		for(auto state : stateTracker_)
 		{
 			auto& subRsc = state.first;
-			AddTransition(subRsc.resource_, subRsc.idx_, 1, subRsc .resource_->defaultState_);
+			AddTransition(subRsc.resource_, subRsc.idx_, 1, subRsc.resource_->defaultState_);
 		}
 		FlushTransitions();
 		stateTracker_.clear();

@@ -63,7 +63,7 @@ namespace
 		i32 offset_ = 0;
 		Core::Vector<u8> data_;
 	};
-	
+
 	bool GetInStreamDesc(Core::StreamDesc& outDesc, GPU::VertexUsage usage)
 	{
 		switch(usage)
@@ -500,14 +500,14 @@ namespace
 
 					for(i32 idx = 0; idx < numBoneVectors; ++idx)
 					{
-						elements[numElements++] = GPU::VertexElement(
-						    4, 0, GPU::Format::R8G8B8A8_UINT, GPU::VertexUsage::BLENDINDICES, idx);
+						elements[numElements++] =
+						    GPU::VertexElement(4, 0, GPU::Format::R8G8B8A8_UINT, GPU::VertexUsage::BLENDINDICES, idx);
 					}
 
 					for(i32 idx = 0; idx < numBoneVectors; ++idx)
 					{
-						elements[numElements++] = GPU::VertexElement(
-						    4, 0, GPU::Format::R8G8B8A8_UNORM, GPU::VertexUsage::BLENDWEIGHTS, idx);
+						elements[numElements++] =
+						    GPU::VertexElement(4, 0, GPU::Format::R8G8B8A8_UNORM, GPU::VertexUsage::BLENDWEIGHTS, idx);
 					}
 				}
 

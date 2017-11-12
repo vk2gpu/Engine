@@ -127,12 +127,9 @@ namespace GPU
 		i32 firstSubRsc_ = 0;
 		i32 numSubRsc_ = 0;
 
-		operator bool() const
-		{
-			return resource_ && numSubRsc_ > 0;
-		}
+		operator bool() const { return resource_ && numSubRsc_ > 0; }
 	};
-	
+
 	struct D3D12GraphicsPipelineState
 	{
 		RootSignatureType rootSignature_ = RootSignatureType::GRAPHICS;
@@ -154,7 +151,7 @@ namespace GPU
 		D3D12DescriptorAllocation uavs_;
 		D3D12DescriptorAllocation cbvs_;
 		D3D12DescriptorAllocation samplers_;
-		
+
 		Core::Array<D3D12SubresourceRange, MAX_SRV_BINDINGS> srvTransitions_ = {};
 		Core::Array<D3D12SubresourceRange, MAX_UAV_BINDINGS> uavTransitions_ = {};
 		Core::Array<D3D12SubresourceRange, MAX_CBV_BINDINGS> cbvTransitions_ = {};

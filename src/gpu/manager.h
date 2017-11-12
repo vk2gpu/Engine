@@ -218,4 +218,3 @@ namespace GPU
 		Manager(const Manager&) = delete;
 	};
 } // namespace GPU
- 

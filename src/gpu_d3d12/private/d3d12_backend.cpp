@@ -109,10 +109,9 @@ namespace GPU
 			for(i32 i = 0; i < agsGPUInfo_.numDevices; ++i)
 			{
 				const auto& device = agsGPUInfo_.devices[i];
-				Core::Log(" - %s (%u CUs, %u MHz, %uMB)\n", device.adapterString, device.numCUs, device.coreClock, (u32)(device.localMemoryInBytes / (1024*1024)));
+				Core::Log(" - %s (%u CUs, %u MHz, %uMB)\n", device.adapterString, device.numCUs, device.coreClock,
+				    (u32)(device.localMemoryInBytes / (1024 * 1024)));
 			}
-
-
 		}
 
 		DXGICreateDXGIFactory2Fn(flags, IID_IDXGIFactory4, (void**)dxgiFactory_.ReleaseAndGetAddressOf());
@@ -691,7 +690,7 @@ namespace GPU
 					bufferRes = &bufferResources_[srvHandle.GetIndex()];
 				else
 					textureRes = &textureResources_[srvHandle.GetIndex()];
-				
+
 				i32 firstSubRsc = 0;
 				i32 numSubRsc = 0;
 
@@ -735,7 +734,8 @@ namespace GPU
 					srvs[i].Texture1DArray.ArraySize = srv.arraySize_;
 					srvs[i].Texture1DArray.FirstArraySlice = srv.firstArraySlice_;
 					srvs[i].Texture1DArray.ResourceMinLODClamp = srv.resourceMinLODClamp_;
-					firstSubRsc = srv.mostDetailedMip_FirstElement_ + (srv.firstArraySlice_ * textureRes->desc_.levels_);
+					firstSubRsc =
+					    srv.mostDetailedMip_FirstElement_ + (srv.firstArraySlice_ * textureRes->desc_.levels_);
 					numSubRsc = mipLevels;
 					break;
 				case ViewDimension::TEX2D:
@@ -753,7 +753,8 @@ namespace GPU
 					srvs[i].Texture2DArray.FirstArraySlice = srv.firstArraySlice_;
 					srvs[i].Texture2DArray.PlaneSlice = srv.planeSlice_;
 					srvs[i].Texture2DArray.ResourceMinLODClamp = srv.resourceMinLODClamp_;
-					firstSubRsc = srv.mostDetailedMip_FirstElement_ + (srv.firstArraySlice_ * textureRes->desc_.levels_);
+					firstSubRsc =
+					    srv.mostDetailedMip_FirstElement_ + (srv.firstArraySlice_ * textureRes->desc_.levels_);
 					numSubRsc = mipLevels;
 					break;
 				case ViewDimension::TEX3D:
@@ -790,7 +791,6 @@ namespace GPU
 				srvResources[i].resource_ = resource;
 				srvResources[i].firstSubRsc_ = firstSubRsc;
 				srvResources[i].numSubRsc_ = numSubRsc;
-
 			}
 
 			for(i32 i = 0; i < desc.numUAVs_; ++i)
@@ -806,7 +806,7 @@ namespace GPU
 					bufferRes = &bufferResources_[uavHandle.GetIndex()];
 				else
 					textureRes = &textureResources_[uavHandle.GetIndex()];
-				
+
 				i32 firstSubRsc = 0;
 				i32 numSubRsc = 0;
 
@@ -835,7 +835,8 @@ namespace GPU
 					uavs[i].Texture1DArray.MipSlice = uav.mipSlice_FirstElement_;
 					uavs[i].Texture1DArray.ArraySize = uav.arraySize_WSize_;
 					uavs[i].Texture1DArray.FirstArraySlice = uav.firstArraySlice_FirstWSlice_NumElements_;
-					firstSubRsc = uav.mipSlice_FirstElement_ + (uav.firstArraySlice_FirstWSlice_NumElements_ * textureRes->desc_.levels_);
+					firstSubRsc = uav.mipSlice_FirstElement_ +
+					              (uav.firstArraySlice_FirstWSlice_NumElements_ * textureRes->desc_.levels_);
 					numSubRsc = uav.arraySize_WSize_;
 					break;
 				case ViewDimension::TEX2D:
@@ -849,7 +850,8 @@ namespace GPU
 					uavs[i].Texture2DArray.ArraySize = uav.arraySize_WSize_;
 					uavs[i].Texture2DArray.FirstArraySlice = uav.firstArraySlice_FirstWSlice_NumElements_;
 					uavs[i].Texture2DArray.PlaneSlice = uav.planeSlice_;
-					firstSubRsc = uav.mipSlice_FirstElement_ + (uav.firstArraySlice_FirstWSlice_NumElements_ * textureRes->desc_.levels_);
+					firstSubRsc = uav.mipSlice_FirstElement_ +
+					              (uav.firstArraySlice_FirstWSlice_NumElements_ * textureRes->desc_.levels_);
 					numSubRsc = textureRes->desc_.levels_ * uav.arraySize_WSize_;
 					break;
 				case ViewDimension::TEX3D:

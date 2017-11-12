@@ -40,7 +40,8 @@ namespace GPU
 	{
 	public:
 		Handle() = default;
-		Handle(std::nullptr_t) : Handle() {};
+		Handle(std::nullptr_t)
+		    : Handle(){};
 		Handle(const Handle&) = default;
 		explicit Handle(const Core::Handle& handle)
 		    : Core::Handle(handle)
