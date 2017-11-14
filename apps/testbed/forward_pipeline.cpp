@@ -34,7 +34,7 @@ namespace Testbed
 	}
 
 	const RenderGraphBufferDesc viewCBDesc = RenderGraphBufferDesc(sizeof(ViewConstants));
-	const RenderGraphBufferDesc objectSBDesc = RenderGraphBufferDesc(sizeof(ObjectConstants) * 1000);
+	const RenderGraphBufferDesc objectSBDesc = RenderGraphBufferDesc(sizeof(ObjectConstants) * 100000);
 
 	struct LightConstants
 	{

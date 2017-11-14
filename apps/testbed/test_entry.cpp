@@ -529,10 +529,13 @@ void Loop(const Core::CommandLine& cmdLine)
 	ClusteredModel* testClusteredModel = new ClusteredModel("model_tests/teapot.obj");
 #else
 	ClusteredModel* testClusteredModel = new ClusteredModel("model_tests/crytek-sponza/sponza.obj");
+	//ClusteredModel* testClusteredModel = new ClusteredModel("model_tests/san_miguel/san-miguel-low-poly.obj");
 #endif
 
 #if LOAD_SPONZA
 	Resource::Manager::RequestResource(sponzaModel, "model_tests/crytek-sponza/sponza.obj");
+	//Resource::Manager::RequestResource(sponzaModel, "model_tests/san_miguel/san-miguel-low-poly.obj");
+	//Resource::Manager::RequestResource(sponzaModel, "model_tests/san_miguel/san-miguel.obj");
 #endif
 
 	Resource::Manager::WaitForResource(texture);
@@ -679,7 +682,7 @@ void Loop(const Core::CommandLine& cmdLine)
 
 			packet.world_ = sponzaModel->GetMeshWorldTransform(idx);
 			Math::Mat44 scale;
-			scale.Scale(Math::Vec3(0.1f, 0.1f, 0.1f));
+			scale.Scale(Math::Vec3(1.0f, 1.0f, 1.0f));
 			packet.world_ = scale * packet.world_;
 			packet.angle_ = 0.0f;
 			packet.position_ = Math::Vec3(0.0f, 0.0f, 0.0f);
@@ -732,7 +735,7 @@ void Loop(const Core::CommandLine& cmdLine)
 
 	while(Client::Manager::Update())
 	{
-		const f64 targetFrameTime = 1.0 / 120.0;
+		const f64 targetFrameTime = 1.0 / 1200.0;
 		f64 beginFrameTime = Core::Timer::GetAbsoluteTime();
 
 		{

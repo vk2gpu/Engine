@@ -371,28 +371,40 @@ namespace GPU
 
 	ErrorCode D3D12CompileContext::SetDrawBinding(Handle dbsHandle, PrimitiveTopology primitive)
 	{
-		const auto& dbs = backend_.drawBindingSets_[dbsHandle.GetIndex()];
-
-		// Setup draw binding.
-		if(dbs.ibResource_)
+		if(dbsBound_ != dbsHandle)
 		{
-			AddTransition(dbs.ibResource_, 0, 1, D3D12_RESOURCE_STATE_INDEX_BUFFER);
-			d3dCommandList_->IASetIndexBuffer(&dbs.ib_);
+			dbsBound_ = dbsHandle;
+
+			const auto& dbs = backend_.drawBindingSets_[dbsHandle.GetIndex()];
+
+			// Setup draw binding.
+			if(dbs.ibResource_)
+			{
+				AddTransition(dbs.ibResource_, 0, 1, D3D12_RESOURCE_STATE_INDEX_BUFFER);
+				d3dCommandList_->IASetIndexBuffer(&dbs.ib_);
+			}
+
+			for(i32 i = 0; i < MAX_VERTEX_STREAMS; ++i)
+				if(dbs.vbResources_[i])
+					AddTransition(dbs.vbResources_[i], 0, 1, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
+
+			d3dCommandList_->IASetVertexBuffers(0, MAX_VERTEX_STREAMS, dbs.vbs_.data());
 		}
 
-		for(i32 i = 0; i < MAX_VERTEX_STREAMS; ++i)
-			if(dbs.vbResources_[i])
-				AddTransition(dbs.vbResources_[i], 0, 1, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
-
-		d3dCommandList_->IASetVertexBuffers(0, MAX_VERTEX_STREAMS, dbs.vbs_.data());
-		d3dCommandList_->IASetPrimitiveTopology(GetPrimitiveTopology(primitive));
-
-
+		if(primitiveBound_ != primitive)
+		{
+			primitiveBound_ = primitive;
+			d3dCommandList_->IASetPrimitiveTopology(GetPrimitiveTopology(primitive));
+		}
 		return ErrorCode::OK;
 	}
 
 	ErrorCode D3D12CompileContext::SetPipelineBinding(Handle pbsHandle)
 	{
+		if(pbsBound_ == pbsHandle)
+			return ErrorCode::OK;
+
+		pbsBound_ = pbsHandle;
 		const auto& pbs = backend_.pipelineBindingSets_[pbsHandle.GetIndex()];
 		ID3D12DescriptorHeap* heaps[] = {
 		    pbs.samplers_.d3dDescriptorHeap_.Get(), pbs.srvs_.d3dDescriptorHeap_.Get(),
@@ -420,16 +432,26 @@ namespace GPU
 		switch(pbs.rootSignature_)
 		{
 		case RootSignatureType::GRAPHICS:
-			d3dCommandList_->SetGraphicsRootSignature(
-			    backend_.device_->d3dRootSignatures_[(i32)pbs.rootSignature_].Get());
+			if(rootSigBound_ != pbs.rootSignature_)
+			{
+				d3dCommandList_->SetGraphicsRootSignature(
+				    backend_.device_->d3dRootSignatures_[(i32)pbs.rootSignature_].Get());
+				rootSigBound_ = pbs.rootSignature_;
+			}
+
 			d3dCommandList_->SetGraphicsRootDescriptorTable(0, pbs.samplers_.gpuDescHandle_);
 			d3dCommandList_->SetGraphicsRootDescriptorTable(1, pbs.cbvs_.gpuDescHandle_);
 			d3dCommandList_->SetGraphicsRootDescriptorTable(2, pbs.srvs_.gpuDescHandle_);
 			d3dCommandList_->SetGraphicsRootDescriptorTable(3, pbs.uavs_.gpuDescHandle_);
 			break;
 		case RootSignatureType::COMPUTE:
-			d3dCommandList_->SetComputeRootSignature(
-			    backend_.device_->d3dRootSignatures_[(i32)pbs.rootSignature_].Get());
+			if(rootSigBound_ != pbs.rootSignature_)
+			{
+				d3dCommandList_->SetComputeRootSignature(
+				    backend_.device_->d3dRootSignatures_[(i32)pbs.rootSignature_].Get());
+				rootSigBound_ = pbs.rootSignature_;
+			}
+
 			d3dCommandList_->SetComputeRootDescriptorTable(0, pbs.samplers_.gpuDescHandle_);
 			d3dCommandList_->SetComputeRootDescriptorTable(1, pbs.cbvs_.gpuDescHandle_);
 			d3dCommandList_->SetComputeRootDescriptorTable(2, pbs.srvs_.gpuDescHandle_);
@@ -445,6 +467,10 @@ namespace GPU
 
 	ErrorCode D3D12CompileContext::SetFrameBinding(Handle fbsHandle)
 	{
+		if(fbsBound_ == fbsHandle)
+			return ErrorCode::OK;
+
+		fbsBound_ = fbsHandle;
 		const auto& fbs = backend_.frameBindingSets_[fbsHandle.GetIndex()];
 
 		D3D12_CPU_DESCRIPTOR_HANDLE rtvDescLocal;

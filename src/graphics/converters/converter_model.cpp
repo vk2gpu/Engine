@@ -258,6 +258,7 @@ namespace
 			aiSetImportPropertyInteger(propertyStore, AI_CONFIG_PP_LBW_MAX_WEIGHTS, metaData_.maxBoneInfluences_);
 			aiSetImportPropertyInteger(propertyStore, AI_CONFIG_IMPORT_MD5_NO_ANIM_AUTOLOAD, true);
 			aiSetImportPropertyInteger(propertyStore, AI_CONFIG_PP_ICL_PTCACHE_SIZE, 64);
+			aiSetImportPropertyInteger(propertyStore, AI_CONFIG_PP_SLM_VERTEX_LIMIT, 65535);
 			aiSetImportPropertyFloat(propertyStore, AI_CONFIG_PP_GSN_MAX_SMOOTHING_ANGLE, metaData_.smoothingAngle_);
 
 			aiLogStream assimpLogger = {AssimpLogStream, (char*)this};

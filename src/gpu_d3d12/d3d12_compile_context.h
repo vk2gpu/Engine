@@ -47,6 +47,14 @@ namespace GPU
 		ScissorRect cachedScissorRect_;
 		u8 cachedStencilRef_ = 0;
 
+		GPU::Handle dbsBound_;
+		PrimitiveTopology primitiveBound_;
+
+		GPU::Handle fbsBound_;
+
+		GPU::Handle pbsBound_;
+		RootSignatureType rootSigBound_;
+
 		ErrorCode CompileCommandList(class D3D12CommandList& outCommandList, const class CommandList& commandList);
 		ErrorCode CompileCommand(const struct CommandDraw* command);
 		ErrorCode CompileCommand(const struct CommandDrawIndirect* command);

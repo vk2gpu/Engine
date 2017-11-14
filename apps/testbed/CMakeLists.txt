@@ -16,11 +16,21 @@ SET(SOURCES_PUBLIC
 	"shadow_pipeline.cpp"
 )
 
-SET(SIMPLYGON_PATH "C:/Program Files/Simplygon/8/Tools")
-SET(SIMPLYGON_SDK_PATH "${SIMPLYGON_PATH}/SimplygonRedistUE4/Dependencies/Common/Engine/Source/ThirdParty/NotForLicensees")
-SET(SIMPLYGON_BINARIES_PATH "${SIMPLYGON_PATH}/SimplygonRedistUE4/Dependencies/Common/Engine/Binaries/ThirdParty/NotForLicensees/Simplygon")
-SET(SIMPLYGON_SPL_LIB "${SIMPLYGON_SDK_PATH}/SPL/lib/win64/vs2015/SPL.lib")
-SET(SIMPLYGON_SSF_LIB "${SIMPLYGON_SDK_PATH}/SSF/lib/win64/vs2015/SSF.lib")
+IF(ENABLE_SIMPLYGON)
+	SET(SIMPLYGON_PATH "C:/Program Files/Simplygon/8/Tools")
+	SET(SIMPLYGON_SDK_PATH "${SIMPLYGON_PATH}/SimplygonRedistUE4/Dependencies/Common/Engine/Source/ThirdParty/NotForLicensees")
+	SET(SIMPLYGON_BINARIES_PATH "${SIMPLYGON_PATH}/SimplygonRedistUE4/Dependencies/Common/Engine/Binaries/ThirdParty/NotForLicensees/Simplygon")
+
+	SET(SIMPLYGON_SPL_LIB "${SIMPLYGON_SDK_PATH}/SPL/lib/win64/vs2015/SPL.lib")
+	SET(SIMPLYGON_SSF_LIB "${SIMPLYGON_SDK_PATH}/SSF/lib/win64/vs2015/SSF.lib")
+ELSE()
+	SET(SIMPLYGON_PATH)
+	SET(SIMPLYGON_SDK_PATH)
+	SET(SIMPLYGON_BINARIES_PATH)
+
+	SET(SIMPLYGON_SPL_LIB "")
+	SET(SIMPLYGON_SSF_LIB "")
+ENDIF()
 
 
 INCLUDE_DIRECTORIES(
@@ -36,9 +46,11 @@ ADD_ENGINE_EXECUTABLE(testbed ${SOURCES_PUBLIC})
 SET_TARGET_PROPERTIES(testbed PROPERTIES FOLDER Apps)
 TARGET_LINK_LIBRARIES(testbed core graphics imgui plugin assimp ${SIMPLYGON_SPL_LIB} ${SIMPLYGON_SSF_LIB})
 
-# Copy Simplygon runtime.
-ADD_CUSTOM_COMMAND(
-        TARGET testbed POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy
-                ${SIMPLYGON_BINARIES_PATH}/SimplygonSDKRuntimeReleasex64.dll
-                ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/$<CONFIG>/SimplygonSDKRuntimeReleasex64.dll)
+IF(ENABLE_SIMPLYGON)
+	# Copy Simplygon runtime.
+	ADD_CUSTOM_COMMAND(
+        	TARGET testbed POST_BUILD
+        	COMMAND ${CMAKE_COMMAND} -E copy
+                	${SIMPLYGON_BINARIES_PATH}/SimplygonSDKRuntimeReleasex64.dll
+                	${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/$<CONFIG>/SimplygonSDKRuntimeReleasex64.dll)
+ENDIF()

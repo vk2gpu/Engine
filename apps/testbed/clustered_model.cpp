@@ -14,6 +14,9 @@
 #include "gpu/manager.h"
 #include "gpu/utils.h"
 #include "graphics/converters/import_model.h"
+#include "job/concurrency.h"
+#include "job/function_job.h"
+#include "job/manager.h"
 #include "math/aabb.h"
 #include "math/mat44.h"
 #include "resource/converter.h"
@@ -25,7 +28,9 @@
 #include "assimp/mesh.h"
 #include "assimp/postprocess.h"
 
+#if ENABLE_SIMPLYGON
 #include "SimplygonSDK.h"
+#endif
 
 #include <cstring>
 #include <regex>
@@ -193,6 +198,7 @@ namespace
 		}
 	}
 
+#if ENABLE_SIMPLYGON
 	SimplygonSDK::ISimplygonSDK* GetSimplygon()
 	{
 		SimplygonSDK::ISimplygonSDK* sdk = nullptr;
@@ -241,6 +247,7 @@ namespace
 		}
 		return nullptr;
 	}
+#endif
 
 	Graphics::MaterialRef GetMaterial(Core::String sourceFile, aiMaterial* material)
 	{
@@ -375,6 +382,7 @@ namespace MeshTools
 		Mesh() = default;
 
 		Core::Vector<Vertex> vertices_;
+		Core::Vector<u32> vertexHashes_;
 		Core::Vector<Triangle> triangles_;
 		Math::AABB bounds_;
 
@@ -384,12 +392,21 @@ namespace MeshTools
 				i32 idx = vertices_.size();
 #if 1
 				auto it = std::find_if(
-				    vertices_.begin(), vertices_.end(), [&a](const Vertex& b) { return a.hash_ == b.hash_ && a == b; });
+				    vertexHashes_.begin(), vertexHashes_.end(), [&a, this](const u32& b)
+				{
+						if(a.hash_ == b)
+						{
+							i32 idx = (i32)(&b - vertexHashes_.begin());
+							return a == vertices_[idx];
+						}
+						return false;
+				});
 
-				if(it != vertices_.end())
-					return (i32)(it - vertices_.data());
+				if(it != vertexHashes_.end())
+					return (i32)(it - vertexHashes_.begin());
 #endif
 				vertices_.push_back(a);
+				vertexHashes_.push_back(a.hash_);
 				return idx;
 			};
 
@@ -404,39 +421,42 @@ namespace MeshTools
 
 		void ImportAssimpMesh(const aiMesh* mesh)
 		{
+			vertices_.reserve(mesh->mNumFaces * 3);
+			vertexHashes_.reserve(mesh->mNumFaces * 3);
+			triangles_.reserve(mesh->mNumFaces);
+
 			for(unsigned int i = 0; i < mesh->mNumFaces; ++i)
 			{
-				int ia = mesh->mFaces[i].mIndices[0];
-				int ib = mesh->mFaces[i].mIndices[1];
-				int ic = mesh->mFaces[i].mIndices[2];
+				// Skip anything that isn't a triangle.
+				if(mesh->mFaces[i].mNumIndices == 3)
+				{
+					int ia = mesh->mFaces[i].mIndices[0];
+					int ib = mesh->mFaces[i].mIndices[1];
+					int ic = mesh->mFaces[i].mIndices[2];
 
-				auto GetVertex = [mesh](int idx) {
-					Vertex v = {};
-					v.position_ = &mesh->mVertices[idx].x;
-					if(mesh->mNormals)
-						v.normal_ = &mesh->mNormals[idx].x;
-					if(mesh->mTangents)
-						v.tangent_ = &mesh->mTangents[idx].x;
-					if(mesh->mTextureCoords[0])
-						v.texcoord_ = &mesh->mTextureCoords[0][idx].x;
-					if(mesh->mColors[0])
-						v.color_ = &mesh->mColors[0][idx].r;
-					else
-						v.color_ = Math::Vec4(1.0f, 1.0f, 1.0f, 1.0f);
-					v.Initialize();
-					return v;
-				};
+					auto GetVertex = [mesh](int idx) {
+						Vertex v = {};
+						v.position_ = &mesh->mVertices[idx].x;
+						if(mesh->mNormals)
+							v.normal_ = &mesh->mNormals[idx].x;
+						if(mesh->mTangents)
+							v.tangent_ = &mesh->mTangents[idx].x;
+						if(mesh->mTextureCoords[0])
+							v.texcoord_ = &mesh->mTextureCoords[0][idx].x;
+						if(mesh->mColors[0])
+							v.color_ = &mesh->mColors[0][idx].r;
+						else
+							v.color_ = Math::Vec4(1.0f, 1.0f, 1.0f, 1.0f);
+						v.Initialize();
+						return v;
+					};
 
-				Vertex a = GetVertex(ia);
-				Vertex b = GetVertex(ib);
-				Vertex c = GetVertex(ic);
+					Vertex a = GetVertex(ia);
+					Vertex b = GetVertex(ib);
+					Vertex c = GetVertex(ic);
 
-				AddFace(a, b, c);
-			}
-
-			for(auto& v : vertices_)
-			{
-				v.Initialize();
+					AddFace(a, b, c);
+				}
 			}
 		}
 
@@ -470,6 +490,7 @@ namespace MeshTools
 		}
 	};
 
+#if ENABLE_SIMPLYGON
 	SimplygonSDK::spGeometryData CreateSGGeometry(SimplygonSDK::ISimplygonSDK* sg, const Mesh* mesh)
 	{
 		using namespace SimplygonSDK;
@@ -624,14 +645,12 @@ namespace MeshTools
 		}
 		return nullptr;
 	}
-
+#endif
 
 } // namespace MeshTools
 
 ClusteredModel::ClusteredModel(const char* sourceFile)
 {
-	using namespace SimplygonSDK;
-
 	const aiScene* scene = nullptr;
 
 	Core::String fileName = "../../../../res/";
@@ -643,11 +662,14 @@ ClusteredModel::ClusteredModel(const char* sourceFile)
 		Core::ScopedMutex lock(assimpMutex_);
 		aiAttachLogStream(&assimpLogger);
 
-		int flags = aiProcessPreset_TargetRealtime_MaxQuality | aiProcess_SplitByBoneCount |
-		            aiProcess_LimitBoneWeights | aiProcess_ConvertToLeftHanded;
-		flags |= aiProcess_OptimizeGraph | aiProcess_RemoveComponent;
+		int flags = aiProcess_Triangulate | aiProcess_GenUVCoords | aiProcess_FindDegenerates | aiProcess_SortByPType |
+					aiProcess_FindInvalidData | aiProcess_RemoveRedundantMaterials | aiProcess_SplitLargeMeshes |
+					aiProcess_GenSmoothNormals | aiProcess_ValidateDataStructure | aiProcess_SplitByBoneCount |
+		            aiProcess_LimitBoneWeights | aiProcess_MakeLeftHanded | aiProcess_FlipUVs | aiProcess_FlipWindingOrder |
+					aiProcess_OptimizeGraph | aiProcess_OptimizeMeshes | aiProcess_RemoveComponent;
 		aiSetImportPropertyInteger(
 		    propertyStore, AI_CONFIG_PP_RVC_FLAGS, aiComponent_ANIMATIONS | aiComponent_LIGHTS | aiComponent_CAMERAS);
+		aiSetImportPropertyInteger(propertyStore, AI_CONFIG_PP_SLM_VERTEX_LIMIT, 256 * 1024);
 
 		scene = aiImportFileExWithProperties(fileName.c_str(), flags, nullptr, propertyStore);
 
@@ -657,25 +679,44 @@ ClusteredModel::ClusteredModel(const char* sourceFile)
 
 	if(scene)
 	{
-		i32 clusterSize = 512;
+		i32 clusterSize = 64;
 		Core::Vector<MeshTools::Mesh*> meshes;
 		Core::Vector<MeshTools::Mesh*> meshClusters;
 		i32 numVertices = 0;
 		i32 numIndices = 0;
 
+		// Create meshes.
 		for(unsigned int i = 0; i < scene->mNumMeshes; ++i)
 		{
 			auto* mesh = new MeshTools::Mesh();
-			mesh->ImportAssimpMesh(scene->mMeshes[i]);
+			meshes.push_back(mesh);
+		}
 
+		// Spin up jobs for all meshes to perform importing.
+		Job::FunctionJob importJob("cluster_model_import", 
+			[&scene, &meshes](i32 param)
+		{
+			meshes[param]->ImportAssimpMesh(scene->mMeshes[param]);
+		});
+		Job::Counter* counter = nullptr;
+		importJob.RunMultiple(0, meshes.size() - 1, &counter);
+		Job::Manager::WaitForCounter(counter, 0);
+
+		Job::FunctionJob sortJob("cluster_model_sort", 
+			[&meshes](i32 param)
+		{
+			meshes[param]->SortTriangles();
+		});
+		sortJob.RunMultiple(0, meshes.size() - 1, &counter);
+		Job::Manager::WaitForCounter(counter, 0);
+
+		for(i32 i = 0; i < meshes.size(); ++i)
+		{
+			auto* mesh = meshes[i];
 			auto material = GetMaterial(sourceFile, scene->mMaterials[scene->mMeshes[i]->mMaterialIndex]);
 			if(!material)
 				material = "default.material";
 			materials_.emplace_back(std::move(material));
-
-			mesh->SortTriangles();
-
-			meshes.push_back(mesh);
 
 			Core::Log("Mesh %u: Diameter: %.3f\n", i, mesh->bounds_.Diameter());
 
@@ -716,10 +757,6 @@ ClusteredModel::ClusteredModel(const char* sourceFile)
 
 		elements[numElements++] =
 		    GPU::VertexElement(currStream, 0, GPU::Format::R8G8B8A8_SNORM, GPU::VertexUsage::NORMAL, 0);
-
-		elements[numElements++] =
-		    GPU::VertexElement(currStream, 0, GPU::Format::R8G8B8A8_SNORM, GPU::VertexUsage::TANGENT, 0);
-		currStream++;
 
 		elements[numElements++] =
 		    GPU::VertexElement(currStream, 0, GPU::Format::R16G16_FLOAT, GPU::VertexUsage::TEXCOORD, 0);
@@ -918,9 +955,6 @@ void ClusteredModel::DrawClusters(GPU::CommandList& cmdList, const char* passNam
     GPU::Handle fbs, GPU::Handle viewCBHandle, GPU::Handle objectSBHandle, Testbed::CustomBindFn customBindFn,
     Testbed::ObjectConstants object)
 {
-	static Core::Mutex mutex;
-	Core::ScopedMutex lock(mutex);
-
 	if(auto event = cmdList.Eventf(0x0, "ClusteredModel"))
 	{
 		i32 numObjects = 1;
@@ -936,6 +970,9 @@ void ClusteredModel::DrawClusters(GPU::CommandList& cmdList, const char* passNam
 
 		if(enableCulling_)
 		{
+			static Job::SpinLock spinLock;
+			Job::ScopedSpinLock lock(spinLock);
+
 			cullClusterTech_.Set("inCluster",
 			    GPU::Binding::Buffer(clusterBuffer_, GPU::Format::INVALID, 0, clusters_.size(), sizeof(MeshCluster)));
 			cullClusterTech_.Set("inClusterBounds", GPU::Binding::Buffer(boundsBuffer_, GPU::Format::INVALID, 0,
@@ -970,19 +1007,22 @@ void ClusteredModel::DrawClusters(GPU::CommandList& cmdList, const char* passNam
 					auto it = techs_[meshIdx].passIndices_.find(passName);
 					if(it != techs_[meshIdx].passIndices_.end())
 					{
-						auto& tech = techs_[meshIdx].passTechniques_[it->second];
-						if(customBindFn)
-							customBindFn(techs_[meshIdx].material_->GetShader(), tech);
-
-						tech.Set("ViewCBuffer", GPU::Binding::CBuffer(viewCBHandle, 0, sizeof(Testbed::ViewConstants)));
-						tech.Set("inObject",
-						    GPU::Binding::Buffer(objectSBHandle, GPU::Format::INVALID, 0, 1, objectDataSize));
-						if(auto pbs = tech.GetBinding())
+						const auto& mesh = meshes_[meshIdx];
+						if(mesh.numClusters_ > 0)
 						{
-							const auto& mesh = meshes_[meshIdx];
-							cmdList.DrawIndirect(pbs, dbs_, fbs, drawState, GPU::PrimitiveTopology::TRIANGLE_LIST,
-							    drawArgsBuffer_, mesh.baseCluster_ * sizeof(GPU::DrawIndexedArgs), drawCountBuffer_,
-							    meshIdx * sizeof(i32), mesh.numClusters_);
+							auto& tech = techs_[meshIdx].passTechniques_[it->second];
+							if(customBindFn)
+								customBindFn(techs_[meshIdx].material_->GetShader(), tech);
+
+							tech.Set("ViewCBuffer", GPU::Binding::CBuffer(viewCBHandle, 0, sizeof(Testbed::ViewConstants)));
+							tech.Set("inObject",
+								GPU::Binding::Buffer(objectSBHandle, GPU::Format::INVALID, 0, 1, objectDataSize));
+							if(auto pbs = tech.GetBinding())
+							{
+								cmdList.DrawIndirect(pbs, dbs_, fbs, drawState, GPU::PrimitiveTopology::TRIANGLE_LIST,
+									drawArgsBuffer_, mesh.baseCluster_ * sizeof(GPU::DrawIndexedArgs), drawCountBuffer_,
+									meshIdx * sizeof(i32), mesh.numClusters_);
+							}
 						}
 					}
 				}
@@ -997,20 +1037,24 @@ void ClusteredModel::DrawClusters(GPU::CommandList& cmdList, const char* passNam
 					auto it = techs_[meshIdx].passIndices_.find(passName);
 					if(it != techs_[meshIdx].passIndices_.end())
 					{
-						auto& tech = techs_[meshIdx].passTechniques_[it->second];
-						if(customBindFn)
-							customBindFn(techs_[meshIdx].material_->GetShader(), tech);
-
-						tech.Set("ViewCBuffer", GPU::Binding::CBuffer(viewCBHandle, 0, sizeof(Testbed::ViewConstants)));
-						tech.Set("inObject",
-						    GPU::Binding::Buffer(objectSBHandle, GPU::Format::INVALID, 0, 1, objectDataSize));
-						if(auto pbs = tech.GetBinding())
+						const auto& mesh = meshes_[meshIdx];
+						if(mesh.numClusters_ > 0)
 						{
-							auto baseCluster = clusters_[meshes_[meshIdx].baseCluster_];
+							auto& tech = techs_[meshIdx].passTechniques_[it->second];
+							if(customBindFn)
+								customBindFn(techs_[meshIdx].material_->GetShader(), tech);
 
-							cmdList.Draw(pbs, dbs_, fbs, drawState, GPU::PrimitiveTopology::TRIANGLE_LIST,
-							    baseCluster.baseIndex_, 0, meshes_[meshIdx].numClusters_ * baseCluster.numIndices_, 0,
-							    1);
+							tech.Set("ViewCBuffer", GPU::Binding::CBuffer(viewCBHandle, 0, sizeof(Testbed::ViewConstants)));
+							tech.Set("inObject",
+								GPU::Binding::Buffer(objectSBHandle, GPU::Format::INVALID, 0, 1, objectDataSize));
+							if(auto pbs = tech.GetBinding())
+							{
+								auto baseCluster = clusters_[meshes_[meshIdx].baseCluster_];
+
+								cmdList.Draw(pbs, dbs_, fbs, drawState, GPU::PrimitiveTopology::TRIANGLE_LIST,
+									baseCluster.baseIndex_, 0, mesh.numClusters_ * baseCluster.numIndices_, 0,
+									1);
+							}
 						}
 					}
 				}

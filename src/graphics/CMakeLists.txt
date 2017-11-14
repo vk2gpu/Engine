@@ -10,6 +10,10 @@ SET(SOURCES_PUBLIC
 	"texture.h"
 )
 
+SET(SOURCES_ISPC 
+	"ispc/image_processing.ispc"
+)
+
 SET(SOURCES_PRIVATE 
 	"private/model.cpp"
 	"private/model_impl.h"
@@ -50,7 +54,7 @@ SET(SOURCES_TESTS
 	"converters/shader_preprocessor.cpp"
 )
 
-ADD_ENGINE_LIBRARY(graphics ${SOURCES_PUBLIC} ${SOURCES_PRIVATE} ${SOURCES_TESTS})
+ADD_ENGINE_LIBRARY(graphics ${SOURCES_PUBLIC} ${SOURCES_ISPC} ${SOURCES_PRIVATE} ${SOURCES_TESTS})
 TARGET_LINK_LIBRARIES(graphics gpu job math resource)
 TARGET_LINK_LIBRARIES(graphics_test client imgui fcpp)
 
