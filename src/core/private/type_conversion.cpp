@@ -39,10 +39,13 @@ namespace Core
 		{
 			auto* outValT = ((TYPE*)outVal);
 			const auto* inValT = (const f32*)val;
-			const u64 MAX_VALUE_I = (1LL << (sizeof(TYPE) * 8)) - 1;
-			const f32 MAX_VALUE = (f32)MAX_VALUE_I;
+			const f32 SCALE = (powf(2.0f, sizeof(TYPE) * 8) - 1.0f);
 			for(int i = 0; i < c; ++i)
-				outValT[i] = (TYPE)(Core::Clamp(inValT[i], 0.0f, 1.0f) * MAX_VALUE);
+			{
+				f32 v = Core::Clamp(inValT[i], 0.0f, 1.0f) * SCALE;
+				v += 0.5f;
+				outValT[i] = (TYPE)v;
+			}
 		}
 
 		template<typename TYPE>
@@ -50,10 +53,9 @@ namespace Core
 		{
 			auto* outValT = (f32*)outVal;
 			const auto* inValT = (const TYPE*)val;
-			const u64 MAX_VALUE_I = (1LL << (sizeof(TYPE) * 8)) - 1;
-			const f32 MAX_VALUE = (f32)MAX_VALUE_I;
+			const f32 SCALE = (powf(2.0f, sizeof(TYPE) * 8) - 1.0f);
 			for(int i = 0; i < c; ++i)
-				outValT[i] = ((f32)inValT[i]) / MAX_VALUE;
+				outValT[i] = ((f32)inValT[i]) / SCALE;
 		}
 
 		template<typename TYPE>
@@ -61,10 +63,13 @@ namespace Core
 		{
 			auto* outValT = ((TYPE*)outVal);
 			const auto* inValT = (const f32*)val;
-			const u64 MAX_VALUE_I = (1LL << (sizeof(TYPE) * 8)) - 1;
-			const f32 MAX_VALUE = (f32)MAX_VALUE_I;
+			const f32 SCALE = (powf(2.0f, sizeof(TYPE) * 8 - 1) - 1.0f);
 			for(int i = 0; i < c; ++i)
-				outValT[i] = (TYPE)(Core::Clamp(inValT[i] * 0.5f + 0.5f, 0.0f, 1.0f) * MAX_VALUE);
+			{
+				f32 v = Core::Clamp(inValT[i], -1.0f, 1.0f) * SCALE;
+				v = v >= 0.0f ? v + 0.5f : v - 0.5f;
+				outValT[i] = (TYPE)v;
+			}
 		}
 
 		template<typename TYPE>
@@ -72,10 +77,9 @@ namespace Core
 		{
 			auto* outValT = (f32*)outVal;
 			const auto* inValT = (const TYPE*)val;
-			const u64 MAX_VALUE_I = (1LL << (sizeof(TYPE) * 8)) - 1;
-			const f32 MAX_VALUE = (f32)MAX_VALUE_I;
+			const f32 SCALE = (powf(2.0f, sizeof(TYPE) * 8 - 1) - 1.0f);
 			for(int i = 0; i < c; ++i)
-				outValT[i] = ((((f32)inValT[i]) / MAX_VALUE) - 0.5f) / 0.5f;
+				outValT[i] = Core::Clamp((f32)inValT[i] / SCALE, -1.0f, 1.0f);
 		}
 
 		void F16toF32(void* outVal, const void* val, int c) { HalfToFloat((const u16*)val, (f32*)outVal, c); }
@@ -120,11 +124,11 @@ namespace Core
 		    nullptr, nullptr, nullptr,
 
 		    // 16 -> (8, 16, 32)
-		    Adapter<f32, F16toF32, F32toSNORM<u8>>, Adapter<f32, F16toF32, F32toSNORM<u16>>,
-		    Adapter<f32, F16toF32, F32toSNORM<u32>>,
+		    Adapter<f32, F16toF32, F32toSNORM<i8>>, Adapter<f32, F16toF32, F32toSNORM<i16>>,
+		    Adapter<f32, F16toF32, F32toSNORM<i32>>,
 
 		    // 32 -> (8, 16, 32)
-		    F32toSNORM<u8>, F32toSNORM<u16>, F32toSNORM<u32>,
+		    F32toSNORM<i8>, F32toSNORM<i16>, F32toSNORM<i32>,
 		};
 
 		ConvertFn* UNORMtoFLOATFns[] = {
@@ -140,13 +144,13 @@ namespace Core
 
 		ConvertFn* SNORMtoFLOATFns[] = {
 		    // 8 -> (8, 16, 32)
-		    nullptr, Adapter<f32, SNORMtoF32<u8>, F32toF16>, SNORMtoF32<u8>,
+		    nullptr, Adapter<f32, SNORMtoF32<i8>, F32toF16>, SNORMtoF32<i8>,
 
 		    // 16 -> (8, 16, 32)
-		    nullptr, Adapter<f32, SNORMtoF32<u16>, F32toF16>, SNORMtoF32<u16>,
+		    nullptr, Adapter<f32, SNORMtoF32<i16>, F32toF16>, SNORMtoF32<i16>,
 
 		    // 32 -> (8, 16, 32)
-		    nullptr, Adapter<f32, SNORMtoF32<u32>, F32toF16>, SNORMtoF32<u32>,
+		    nullptr, Adapter<f32, SNORMtoF32<i32>, F32toF16>, SNORMtoF32<i32>,
 		};
 
 		ConvertFn* UNORMtoUNORMFns[] = {
@@ -162,41 +166,41 @@ namespace Core
 
 		ConvertFn* SNORMtoSNORMFns[] = {
 		    // 8 -> (8, 16, 32)
-		    Copy<1>, Adapter<f32, SNORMtoF32<u8>, F32toSNORM<u16>>, Adapter<f32, SNORMtoF32<u8>, F32toSNORM<u32>>,
+		    Copy<1>, Adapter<f32, SNORMtoF32<i8>, F32toSNORM<i16>>, Adapter<f32, SNORMtoF32<i8>, F32toSNORM<i32>>,
 
 		    // 16 -> (8, 16, 32)
-		    Adapter<f32, SNORMtoF32<u16>, F32toSNORM<u8>>, Copy<2>, Adapter<f32, SNORMtoF32<u16>, F32toSNORM<u32>>,
+		    Adapter<f32, SNORMtoF32<i16>, F32toSNORM<i8>>, Copy<2>, Adapter<f32, SNORMtoF32<i16>, F32toSNORM<i32>>,
 
 		    // 32 -> (8, 16, 32)
-		    Adapter<f32, SNORMtoF32<u32>, F32toSNORM<u8>>, Adapter<f32, SNORMtoF32<u32>, F32toSNORM<u16>>, Copy<4>,
+		    Adapter<f32, SNORMtoF32<i32>, F32toSNORM<i8>>, Adapter<f32, SNORMtoF32<i32>, F32toSNORM<i16>>, Copy<4>,
 		};
 
 		ConvertFn* UNORMtoSNORMFns[] = {
 		    // 8 -> (8, 16, 32)
-		    Adapter<f32, UNORMtoF32<u8>, F32toSNORM<u8>>, Adapter<f32, UNORMtoF32<u8>, F32toSNORM<u16>>,
-		    Adapter<f32, UNORMtoF32<u8>, F32toSNORM<u32>>,
+		    Adapter<f32, UNORMtoF32<u8>, F32toSNORM<i8>>, Adapter<f32, UNORMtoF32<u8>, F32toSNORM<i16>>,
+		    Adapter<f32, UNORMtoF32<u8>, F32toSNORM<i32>>,
 
 		    // 16 -> (8, 16, 32)
-		    Adapter<f32, UNORMtoF32<u16>, F32toSNORM<u8>>, Adapter<f32, UNORMtoF32<u16>, F32toSNORM<u16>>,
-		    Adapter<f32, UNORMtoF32<u16>, F32toSNORM<u32>>,
+		    Adapter<f32, UNORMtoF32<u16>, F32toSNORM<i8>>, Adapter<f32, UNORMtoF32<u16>, F32toSNORM<i16>>,
+		    Adapter<f32, UNORMtoF32<u16>, F32toSNORM<i32>>,
 
 		    // 32 -> (8, 16, 32)
-		    Adapter<f32, UNORMtoF32<u32>, F32toSNORM<u8>>, Adapter<f32, UNORMtoF32<u32>, F32toSNORM<u16>>,
-		    Adapter<f32, UNORMtoF32<u32>, F32toSNORM<u32>>,
+		    Adapter<f32, UNORMtoF32<u32>, F32toSNORM<i8>>, Adapter<f32, UNORMtoF32<u32>, F32toSNORM<i16>>,
+		    Adapter<f32, UNORMtoF32<u32>, F32toSNORM<i32>>,
 		};
 
 		ConvertFn* SNORMtoUNORMFns[] = {
 		    // 8 -> (8, 16, 32)
-		    Adapter<f32, SNORMtoF32<u8>, F32toUNORM<u16>>, Adapter<f32, SNORMtoF32<u8>, F32toUNORM<u16>>,
-		    Adapter<f32, SNORMtoF32<u8>, F32toUNORM<u32>>,
+		    Adapter<f32, SNORMtoF32<i8>, F32toUNORM<u16>>, Adapter<f32, SNORMtoF32<i8>, F32toUNORM<u16>>,
+		    Adapter<f32, SNORMtoF32<i8>, F32toUNORM<u32>>,
 
 		    // 16 -> (8, 16, 32)
-		    Adapter<f32, SNORMtoF32<u16>, F32toUNORM<u8>>, Adapter<f32, SNORMtoF32<u16>, F32toUNORM<u16>>,
-		    Adapter<f32, SNORMtoF32<u16>, F32toUNORM<u32>>,
+		    Adapter<f32, SNORMtoF32<i16>, F32toUNORM<u8>>, Adapter<f32, SNORMtoF32<i16>, F32toUNORM<u16>>,
+		    Adapter<f32, SNORMtoF32<i16>, F32toUNORM<u32>>,
 
 		    // 32 -> (8, 16, 32)
-		    Adapter<f32, SNORMtoF32<u32>, F32toUNORM<u8>>, Adapter<f32, SNORMtoF32<u32>, F32toUNORM<u16>>,
-		    Adapter<f32, SNORMtoF32<u32>, F32toUNORM<u32>>,
+		    Adapter<f32, SNORMtoF32<i32>, F32toUNORM<u8>>, Adapter<f32, SNORMtoF32<i32>, F32toUNORM<u16>>,
+		    Adapter<f32, SNORMtoF32<i32>, F32toUNORM<u32>>,
 		};
 
 		ConvertFn* UINTtoUINTFns[] = {

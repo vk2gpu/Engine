@@ -40,6 +40,8 @@ namespace GPU
 	{
 	public:
 		Handle() = default;
+		Handle(std::nullptr_t)
+		    : Handle(){};
 		Handle(const Handle&) = default;
 		explicit Handle(const Core::Handle& handle)
 		    : Core::Handle(handle)
@@ -264,7 +266,8 @@ namespace GPU
 	{
 		i32 mipSlice_FirstElement_ = 0;
 		i32 firstArraySlice_FirstWSlice_NumElements_ = 0;
-		i32 arraySize_PlaneSlice_WSize_ = 0;
+		i32 planeSlice_ = 0;
+		i32 arraySize_WSize_ = 0;
 		i32 structureByteStride_ = 0;
 	};
 

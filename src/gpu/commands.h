@@ -115,10 +115,18 @@ namespace GPU
 		Handle frameBinding_;
 		/// Draw state.
 		const DrawState* drawState_ = nullptr;
+		/// Primitive type to rasterize.
+		PrimitiveTopology primitive_ = PrimitiveTopology::INVALID;
 		/// Indirect buffer with draw parameters.
 		Handle indirectBuffer_;
 		/// Byte offset in indirect buffer to start reading arguments from.
-		i32 argByteOffset = 0;
+		i32 argByteOffset_ = 0;
+		/// Count buffer.
+		Handle countBuffer_;
+		/// Byte offset in indirect buffer to start reading counts from.
+		i32 countByteOffset_ = 0;
+		/// Maximum number of commands to invoke.
+		i32 maxCommands_ = 0;
 	};
 
 	/**
@@ -150,7 +158,13 @@ namespace GPU
 		/// Indirect buffer with dispatch parameters.
 		Handle indirectBuffer_;
 		/// Byte offset in indirect buffer to start reading arguments from.
-		i32 argByteOffset = 0;
+		i32 argByteOffset_ = 0;
+		/// Count buffer.
+		Handle countBuffer_;
+		/// Byte offset in indirect buffer to start reading counts from.
+		i32 countByteOffset_ = 0;
+		/// Maximum number of commands to invoke.
+		i32 maxCommands_ = 0;
 	};
 
 	/**

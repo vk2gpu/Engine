@@ -23,7 +23,7 @@ namespace Core
 	inline bool CompareFloat(f32 a, f32 b, f32 e = F32_EPSILON)
 	{
 		f32 c = (a - b);
-		return c > 0.0f ? (c > e) : (c < -e);
+		return c > 0.0f ? (c < e) : (c > -e);
 	}
 
 	CORE_DLL bool CheckFloat(f32 T);

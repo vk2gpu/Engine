@@ -1,6 +1,8 @@
 #ifndef STDLIB_VIEW_ESH
 #define STDLIB_VIEW_ESH
 
+#include "stdlib/plane.esh"
+
 ///////////////////////////////////////////////////////////////////////
 // Common view parameters.
 struct ViewParams
@@ -10,7 +12,8 @@ struct ViewParams
     float4x4 viewProj_;
     float4x4 invView_;
     float4x4 invProj_;
-    float2 screenDimensions_;
+    Plane frustumPlanes_[6];
+    float2 screenDimensions_;    
 };
 
 float4 ClipToView(in ViewParams v, float4 clipPos)

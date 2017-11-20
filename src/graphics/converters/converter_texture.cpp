@@ -46,9 +46,8 @@ namespace
 		bool SupportsFileType(const char* fileExt, const Core::UUID& type) const override
 		{
 			return (type == Graphics::Texture::GetTypeUUID()) ||
-			       (fileExt &&
-			           (strcmp(fileExt, "png") == 0 || strcmp(fileExt, "jpg") == 0 || strcmp(fileExt, "tga") == 0 ||
-			               strcmp(fileExt, "dds") == 0));
+			       (fileExt && (strcmp(fileExt, "png") == 0 || strcmp(fileExt, "jpg") == 0 ||
+			                       strcmp(fileExt, "tga") == 0 || strcmp(fileExt, "dds") == 0));
 		}
 
 		bool Convert(Resource::IConverterContext& context, const char* sourceFile, const char* destPath) override
@@ -264,7 +263,7 @@ namespace
 				}
 
 				auto outImage = Graphics::Image(
-				    image.type_, format, image.width_, image.height_, image.depth_, image.levels_, nullptr, nullptr);
+				    image.type_, format, Core::PotRoundUp(image.width_, formatInfo.blockW_), Core::PotRoundUp(image.height_, formatInfo.blockH_), image.depth_, image.levels_, nullptr, nullptr);
 
 				// Setup jobs.
 				struct JobParams
@@ -307,24 +306,27 @@ namespace
 					{
 						squish::CompressImage(inData, w, h, outData, squishFormat);
 					}
-					// If less than block size, copy into a 4x4 block.
-					else if((w < 4 || h < 4) && !(w > 4 || h > 4))
+					// If less than block size, copy into a the appropriate block size block.
+					else if(w < 4 || h < 4)
 					{
-						Core::Array<u32, 4 * 4> block;
+						auto rw = Core::PotRoundUp(w, 4);
+						auto rh = Core::PotRoundUp(h, 4);
+
+						Core::Vector<u32> block(rw * rh);
 
 						// Copy into single block.
 						for(i32 y = 0; y < h; ++y)
 						{
 							for(i32 x = 0; x < w; ++x)
 							{
-								i32 srcIdx = x + y * w * 4; // 4 bytes per pixel.
+								i32 srcIdx = x + y * rw * 4; // 4 bytes per pixel.
 								i32 dstIdx = x + y * 4;
 								memcpy(&block[dstIdx], &inData[srcIdx], 4);
 							}
 						}
 
 						// Now encode.
-						squish::CompressImage(reinterpret_cast<squish::u8*>(block.data()), 4, 4, outData, squishFormat);
+						squish::CompressImage(reinterpret_cast<squish::u8*>(block.data()), rw, rh, outData, squishFormat);
 					}
 					else
 					{

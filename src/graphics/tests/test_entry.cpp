@@ -6,7 +6,6 @@
 #include <catch.hpp>
 
 
-
 int main(int argc, char* const argv[])
 {
 	Client::Manager::Scoped clientManager;

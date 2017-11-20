@@ -1,0 +1,101 @@
+#include "stdlib.esh"
+
+///////////////////////////////////////////////////////////////////////
+// Structures.
+cbuffer ViewCBuffer
+{
+	ViewParams v_;
+};
+
+struct Object
+{
+	float4x4 world_;
+};
+
+struct Cluster
+{
+	int meshIdx;
+	int baseDrawArg;
+	int baseVertex;
+	int baseIndex;
+	int numIndices;
+
+};
+
+struct ClusterBounds
+{
+	float3 minimum;
+	float3 maximum;
+};
+
+struct CS_INPUT
+{
+	int groupID : SV_GroupID;
+	int groupThreadID : SV_GroupThreadID;
+	int dispatchID : SV_DispatchThreadID;
+};
+
+///////////////////////////////////////////////////////////////////////
+// Utility.
+StructuredBuffer<Object> inObject;
+
+bool IntersectWithFrustum(ViewParams v, ClusterBounds bounds, int id)
+{
+	float3 centre = (bounds.minimum + bounds.maximum) * 0.5;
+	float radius = length(bounds.maximum - bounds.minimum) * 0.5;
+
+	Object obj = inObject[id];
+	centre = mul(obj.world_, float4(centre, 1.0)).xyz;
+
+	float3 radiusAxis = mul(obj.world_, float4(radius.xxx, 0.0)) / length(float3(1,1,1));
+	radius = length(radiusAxis);
+
+	[unroll]
+	for(int i = 0; i < 6; ++i)
+	{
+		float dist = PlaneDistance(v.frustumPlanes_[i], centre);
+		if(dist > radius)
+			return false;
+	}
+	return true;
+}
+
+///////////////////////////////////////////////////////////////////////
+// Build draw list.
+StructuredBuffer<Cluster> inCluster;
+StructuredBuffer<ClusterBounds> inClusterBounds;
+
+RWStructuredBuffer<DrawIndexedArgs> outDrawArgs;
+globallycoherent RWStructuredBuffer<uint> outDrawCount;
+
+#define CULL_GROUP_SIZE 64
+
+[numthreads(CULL_GROUP_SIZE,1,1)]
+void cs_cull_clusters(CS_INPUT _in)
+{
+	int clusterIdx = _in.dispatchID;
+	ClusterBounds bounds = inClusterBounds[clusterIdx];
+
+	if(IntersectWithFrustum(v_, bounds, 0))
+	{
+		Cluster cluster = inCluster[clusterIdx];
+		DrawIndexedArgs outArgs = (DrawIndexedArgs)0;
+
+		outArgs.noofVertices = cluster.numIndices;
+		outArgs.noofInstances = 1;
+		//outArgs.vertexOffset = cluster.baseVertex;
+		outArgs.indexOffset = cluster.baseIndex;
+
+		if(cluster.numIndices > 0)
+		{
+			uint outIdx = 0;
+			InterlockedAdd(outDrawCount[cluster.meshIdx], 1, outIdx);
+			outDrawArgs[outIdx + cluster.baseDrawArg] = outArgs;
+		}
+	}
+}
+
+Technique TECH_CULL_CLUSTERS =
+{
+	.ComputeShader = cs_cull_clusters,
+};

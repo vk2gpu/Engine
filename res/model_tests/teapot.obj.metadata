@@ -8,7 +8,7 @@
       {
          "regex" : "(.*)",
          "template" : {
-            "shader" : "shaders/default.esf",
+            "shader" : "shaders/textured.esf",
             "textures" : {}
          }
       }

@@ -38,7 +38,7 @@ namespace Math
 		bool LineIntersection(const Vec3& A, const Vec3& B, f32& Distance, Vec3& Intersection) const;
 
 		// Classification
-		f32 Distance(const Vec3& P) const { return (Normal_.Dot(P)) + D_; }
+		f32 Distance(const Vec3& P) const { return (Normal_.Dot(P)) - D_; }
 		eClassify Classify(const Vec3& Point, f32 Radius = 1e-3f) const;
 
 		// Operator

@@ -1,0 +1,18 @@
+{
+   "$internal" : {
+      "dependencies" : [
+         "shaders/clustered_model.esf",
+         "shaders/stdlib.esh",
+         "shaders/stdlib/color.esh",
+         "shaders/stdlib/constants.esh",
+         "shaders/stdlib/extensions.esh",
+         "shaders/stdlib/gamma.esh",
+         "shaders/stdlib/indirect.esh",
+         "shaders/stdlib/metadata.esh",
+         "shaders/stdlib/normals.esh",
+         "shaders/stdlib/plane.esh",
+         "shaders/stdlib/view.esh"
+      ],
+      "outputs" : [ "../../../../.converter_output/shaders/clustered_model.esf.converted" ]
+   }
+}

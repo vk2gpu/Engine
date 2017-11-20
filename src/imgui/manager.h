@@ -38,7 +38,7 @@ namespace ImGui
 		/**
 		 * Begin ImGui frame.
  		 */
-		static void BeginFrame(const Client::IInputProvider& input, i32 w, i32 h);
+		static void BeginFrame(const Client::IInputProvider& input, i32 w, i32 h, f32 tick);
 
 		/**
 		 * End ImGui frame.

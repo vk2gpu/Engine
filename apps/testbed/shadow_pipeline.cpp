@@ -13,7 +13,7 @@ namespace Testbed
 	using namespace Graphics;
 
 	const RenderGraphBufferDesc viewCBDesc = RenderGraphBufferDesc(sizeof(ViewConstants));
-	const RenderGraphBufferDesc objectSBDesc = RenderGraphBufferDesc(sizeof(ObjectConstants) * 1000);
+	const RenderGraphBufferDesc objectSBDesc = RenderGraphBufferDesc(sizeof(ObjectConstants) * 100000);
 
 	struct BaseDrawFnData
 	{
@@ -257,6 +257,8 @@ namespace Testbed
 		view_.invProj_ = proj;
 		view_.invProj_.Inverse();
 		view_.screenDimensions_ = Math::Vec2((f32)settings.width_, (f32)settings.height_);
+		view_.CalculateFrustum();
+
 		settings.view_ = view_;
 
 		auto& renderPassCommonBuffers = renderGraph.AddCallbackRenderPass<ViewConstantData>("Setup Common Buffers",

@@ -13,11 +13,13 @@ namespace GPU
 	class D3D12Device
 	{
 	public:
-		D3D12Device(D3D12Backend& backend, const SetupParams& setupParams, IDXGIFactory4* dxgiFactory, IDXGIAdapter1* adapter);
+		D3D12Device(
+		    D3D12Backend& backend, const SetupParams& setupParams, IDXGIFactory4* dxgiFactory, IDXGIAdapter1* adapter);
 		~D3D12Device();
 
 		void CreateCommandQueues();
 		void CreateRootSignatures();
+		void CreateCommandSignatures();
 		void CreateDefaultPSOs();
 		void CreateUploadAllocators();
 		void CreateDescriptorHeapAllocators();
@@ -43,12 +45,12 @@ namespace GPU
 		    D3D12FrameBindingSet& outFrameBindingSet, const FrameBindingSetDesc& desc, const char* debugName);
 		void DestroyFrameBindingSet(D3D12FrameBindingSet& frameBindingSet);
 
-		ErrorCode UpdateSRVs(D3D12PipelineBindingSet& pipelineBindingSet, i32 first, i32 num, D3D12Resource** resources,
-		    const D3D12_SHADER_RESOURCE_VIEW_DESC* descs);
-		ErrorCode UpdateUAVs(D3D12PipelineBindingSet& pipelineBindingSet, i32 first, i32 num, D3D12Resource** resources,
-		    const D3D12_UNORDERED_ACCESS_VIEW_DESC* descs);
-		ErrorCode UpdateCBVs(D3D12PipelineBindingSet& pipelineBindingSet, i32 first, i32 num, D3D12Resource** resources,
-		    const D3D12_CONSTANT_BUFFER_VIEW_DESC* descs);
+		ErrorCode UpdateSRVs(D3D12PipelineBindingSet& pipelineBindingSet, i32 first, i32 num,
+		    D3D12SubresourceRange* resources, const D3D12_SHADER_RESOURCE_VIEW_DESC* descs);
+		ErrorCode UpdateUAVs(D3D12PipelineBindingSet& pipelineBindingSet, i32 first, i32 num,
+		    D3D12SubresourceRange* resources, const D3D12_UNORDERED_ACCESS_VIEW_DESC* descs);
+		ErrorCode UpdateCBVs(D3D12PipelineBindingSet& pipelineBindingSet, i32 first, i32 num,
+		    D3D12SubresourceRange* resources, const D3D12_CONSTANT_BUFFER_VIEW_DESC* descs);
 		ErrorCode UpdateSamplers(
 		    D3D12PipelineBindingSet& pipelineBindingSet, i32 first, i32 num, const D3D12_SAMPLER_DESC* descs);
 		ErrorCode UpdateFrameBindingSet(D3D12FrameBindingSet& frameBindingSet,
@@ -57,7 +59,7 @@ namespace GPU
 		ErrorCode SubmitCommandLists(Core::ArrayView<D3D12CommandList*> commandLists);
 
 		ErrorCode ResizeSwapChain(D3D12SwapChain& swapChain, i32 width, i32 height);
-		
+
 		operator bool() const { return !!d3dDevice_; }
 
 		bool FlushUploads(i64 minCommands, i64 minBytes);
@@ -94,7 +96,13 @@ namespace GPU
 		/// Root signatures.
 		Core::Vector<ComPtr<ID3D12RootSignature>> d3dRootSignatures_;
 
+		/// Command signatures
+		ComPtr<ID3D12CommandSignature> d3dDrawCmdSig_;
+		ComPtr<ID3D12CommandSignature> d3dDrawIndexedCmdSig_;
+		ComPtr<ID3D12CommandSignature> d3dDispatchCmdSig_;
+
 		Core::Vector<ComPtr<ID3D12PipelineState>> d3dDefaultPSOs_;
+
 
 		/// Vendor specific extensions.
 		AGSContext* agsContext_ = nullptr;

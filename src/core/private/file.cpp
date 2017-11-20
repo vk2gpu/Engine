@@ -311,7 +311,7 @@ namespace Core
 		BOOL foundFile = TRUE;
 		while(handle != INVALID_HANDLE_VALUE && foundFile)
 		{
-			if(outInfos)
+			if(outInfos && numFound < maxInfos)
 			{
 				FileInfo& outInfo = outInfos[numFound];
 				outInfo.created_ = GetTimestamp(findData.ftCreationTime);

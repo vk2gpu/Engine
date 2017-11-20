@@ -1,0 +1,27 @@
+{
+   "$internal" : {
+      "dependencies" : [],
+      "outputs" : [ "../../../../.converter_output/model_tests/cube.obj.converted" ]
+   },
+   "flattenHierarchy" : false,
+   "materials" : [
+      {
+         "regex" : "(.*)",
+         "template" : {
+            "shader" : "shaders/textured.esf",
+            "textures" : {}
+         }
+      }
+   ],
+   "maxBoneInfluences" : 4,
+   "maxBones" : 256,
+   "smoothingAngle" : 0,
+   "splitStreams" : true,
+   "vertexFormat" : {
+      "color" : "R8G8B8A8_UNORM",
+      "normal" : "R8G8B8A8_SNORM",
+      "position" : "R32G32B32_FLOAT",
+      "tangent" : "R8G8B8A8_SNORM",
+      "texcoord" : "R16G16_FLOAT"
+   }
+}

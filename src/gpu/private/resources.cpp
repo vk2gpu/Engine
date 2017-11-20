@@ -178,7 +178,7 @@ namespace GPU
 			binding.dimension_ = GPU::ViewDimension::TEX1D_ARRAY;
 			binding.mipSlice_FirstElement_ = mipSlice;
 			binding.firstArraySlice_FirstWSlice_NumElements_ = firstArraySlice;
-			binding.arraySize_PlaneSlice_WSize_ = arraySize;
+			binding.arraySize_WSize_ = arraySize;
 			return binding;
 		}
 
@@ -190,7 +190,7 @@ namespace GPU
 			binding.format_ = format;
 			binding.dimension_ = GPU::ViewDimension::TEX2D;
 			binding.mipSlice_FirstElement_ = mipSlice;
-			binding.arraySize_PlaneSlice_WSize_ = planeSlice;
+			binding.planeSlice_ = planeSlice;
 			return binding;
 		}
 
@@ -203,9 +203,9 @@ namespace GPU
 			binding.format_ = format;
 			binding.dimension_ = GPU::ViewDimension::TEX2D_ARRAY;
 			binding.mipSlice_FirstElement_ = mipSlice;
-			binding.arraySize_PlaneSlice_WSize_ = planeSlice;
+			binding.planeSlice_ = planeSlice;
 			binding.firstArraySlice_FirstWSlice_NumElements_ = firstArraySlice;
-			binding.arraySize_PlaneSlice_WSize_ = arraySize;
+			binding.arraySize_WSize_ = arraySize;
 			return binding;
 		}
 
@@ -218,7 +218,7 @@ namespace GPU
 			binding.dimension_ = GPU::ViewDimension::TEX3D;
 			binding.mipSlice_FirstElement_ = mipSlice;
 			binding.firstArraySlice_FirstWSlice_NumElements_ = firstWSlice;
-			binding.arraySize_PlaneSlice_WSize_ = wSize;
+			binding.arraySize_WSize_ = wSize;
 			return binding;
 		}
 	} // namespace Binding

@@ -69,7 +69,8 @@ namespace GPU
 	}
 
 	INLINE CommandDrawIndirect* CommandList::DrawIndirect(Handle pipelineBinding, Handle drawBinding,
-	    Handle frameBinding, const DrawState& drawState, Handle indirectBuffer, i32 argByteOffset)
+	    Handle frameBinding, const DrawState& drawState, PrimitiveTopology primitive, Handle indirectBuffer,
+	    i32 argByteOffset, Handle countBuffer, i32 countByteOffset, i32 maxCommands)
 	{
 		DBG_ASSERT(handleAllocator_.IsValid(pipelineBinding) &&
 		           pipelineBinding.GetType() == ResourceType::PIPELINE_BINDING_SET);
@@ -77,16 +78,22 @@ namespace GPU
 		           (drawBinding.GetType() == ResourceType::DRAW_BINDING_SET && handleAllocator_.IsValid(drawBinding)));
 		DBG_ASSERT(handleAllocator_.IsValid(frameBinding) && frameBinding.GetType() == ResourceType::FRAME_BINDING_SET);
 		DBG_ASSERT(handleAllocator_.IsValid(indirectBuffer) && indirectBuffer.GetType() == ResourceType::BUFFER);
+		DBG_ASSERT(!handleAllocator_.IsValid(countBuffer) || countBuffer.GetType() == ResourceType::BUFFER);
 		DBG_ASSERT(argByteOffset >= 0);
+		DBG_ASSERT(countByteOffset >= 0);
+		DBG_ASSERT(maxCommands >= 1);
 
 		queueType_ |= CommandDraw::QUEUE_TYPE;
 		auto* command = Alloc<CommandDrawIndirect>();
 		command->pipelineBinding_ = pipelineBinding;
 		command->drawBinding_ = drawBinding;
 		command->frameBinding_ = frameBinding;
+		command->primitive_ = primitive;
 		command->indirectBuffer_ = indirectBuffer;
-		command->argByteOffset = argByteOffset;
-
+		command->argByteOffset_ = argByteOffset;
+		command->countBuffer_ = countBuffer;
+		command->countByteOffset_ = countByteOffset;
+		command->maxCommands_ = maxCommands;
 		if(cachedDrawState_ && drawState == *cachedDrawState_)
 		{
 			command->drawState_ = cachedDrawState_;
@@ -121,20 +128,26 @@ namespace GPU
 		return command;
 	}
 
-	INLINE CommandDispatchIndirect* CommandList::DispatchIndirect(
-	    Handle pipelineBinding, Handle indirectBuffer, i32 argByteOffset)
+	INLINE CommandDispatchIndirect* CommandList::DispatchIndirect(Handle pipelineBinding, Handle indirectBuffer,
+	    i32 argByteOffset, Handle countBuffer, i32 countByteOffset, i32 maxCommands)
 	{
 		DBG_ASSERT(handleAllocator_.IsValid(pipelineBinding));
 		DBG_ASSERT(pipelineBinding.GetType() == ResourceType::PIPELINE_BINDING_SET);
 		DBG_ASSERT(handleAllocator_.IsValid(indirectBuffer));
 		DBG_ASSERT(indirectBuffer.GetType() == ResourceType::BUFFER);
+		DBG_ASSERT(!handleAllocator_.IsValid(countBuffer) || countBuffer.GetType() == ResourceType::BUFFER);
 		DBG_ASSERT(argByteOffset >= 0);
+		DBG_ASSERT(countByteOffset >= 0);
+		DBG_ASSERT(maxCommands >= 1);
 
 		queueType_ |= CommandDispatchIndirect::QUEUE_TYPE;
 		auto* command = Alloc<CommandDispatchIndirect>();
 		command->pipelineBinding_ = pipelineBinding;
 		command->indirectBuffer_ = indirectBuffer;
-		command->argByteOffset = argByteOffset;
+		command->argByteOffset_ = argByteOffset;
+		command->indirectBuffer_ = countBuffer;
+		command->argByteOffset_ = countByteOffset;
+		command->maxCommands_ = maxCommands;
 		commands_.push_back(command);
 		return command;
 	}

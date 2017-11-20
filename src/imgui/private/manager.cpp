@@ -246,7 +246,7 @@ namespace ImGui
 
 	bool Manager::IsInitialized() { return isInitialized_; }
 
-	void Manager::BeginFrame(const Client::IInputProvider& input, i32 w, i32 h)
+	void Manager::BeginFrame(const Client::IInputProvider& input, i32 w, i32 h, f32 tick)
 	{
 		DBG_ASSERT(IsInitialized());
 
@@ -262,6 +262,8 @@ namespace ImGui
 		IO.MouseDown[3] = input.IsMouseButtonDown(3);
 		IO.MouseDown[4] = input.IsMouseButtonDown(4);
 		IO.MouseWheel = input.GetMouseWheelDelta().y;
+
+		IO.DeltaTime = tick;
 
 		// Handle keyboard input.
 		IO.KeyCtrl = input.IsKeyDown(Client::KeyCode::LCTRL) || input.IsKeyDown(Client::KeyCode::RCTRL);
