@@ -949,6 +949,12 @@ ClusteredModel::ClusteredModel(const char* sourceFile)
 
 ClusteredModel::~ClusteredModel()
 {
+	GPU::Manager::DestroyResource(vertexBuffer_);
+	GPU::Manager::DestroyResource(indexBuffer_);
+	GPU::Manager::DestroyResource(boundsBuffer_);
+	GPU::Manager::DestroyResource(clusterBuffer_);
+	GPU::Manager::DestroyResource(drawArgsBuffer_);
+	GPU::Manager::DestroyResource(drawCountBuffer_);
 }
 
 void ClusteredModel::DrawClusters(GPU::CommandList& cmdList, const char* passName, const GPU::DrawState& drawState,
