@@ -46,8 +46,9 @@ namespace
 		bool SupportsFileType(const char* fileExt, const Core::UUID& type) const override
 		{
 			return (type == Graphics::Texture::GetTypeUUID()) ||
-			       (fileExt && (strcmp(fileExt, "png") == 0 || strcmp(fileExt, "jpg") == 0 ||
-			                       strcmp(fileExt, "tga") == 0 || strcmp(fileExt, "dds") == 0));
+			       (fileExt &&
+			           (strcmp(fileExt, "png") == 0 || strcmp(fileExt, "jpg") == 0 || strcmp(fileExt, "tga") == 0 ||
+			               strcmp(fileExt, "dds") == 0));
 		}
 
 		bool Convert(Resource::IConverterContext& context, const char* sourceFile, const char* destPath) override
@@ -262,8 +263,8 @@ namespace
 					DBG_BREAK;
 				}
 
-				auto outImage = Graphics::Image(
-				    image.type_, format, Core::PotRoundUp(image.width_, formatInfo.blockW_), Core::PotRoundUp(image.height_, formatInfo.blockH_), image.depth_, image.levels_, nullptr, nullptr);
+				auto outImage = Graphics::Image(image.type_, format, Core::PotRoundUp(image.width_, formatInfo.blockW_),
+				    Core::PotRoundUp(image.height_, formatInfo.blockH_), image.depth_, image.levels_, nullptr, nullptr);
 
 				// Setup jobs.
 				struct JobParams
@@ -326,7 +327,8 @@ namespace
 						}
 
 						// Now encode.
-						squish::CompressImage(reinterpret_cast<squish::u8*>(block.data()), rw, rh, outData, squishFormat);
+						squish::CompressImage(
+						    reinterpret_cast<squish::u8*>(block.data()), rw, rh, outData, squishFormat);
 					}
 					else
 					{

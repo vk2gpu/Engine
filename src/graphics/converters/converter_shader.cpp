@@ -139,11 +139,12 @@ namespace
 
 				struct CompileInfo
 				{
-					CompileInfo(const Core::String& name, const Core::String& code, const Core::String& entryPoint, GPU::ShaderType type)
-						: name_(name)
-						, code_(code)
-						, entryPoint_(entryPoint)
-						, type_(type)
+					CompileInfo(const Core::String& name, const Core::String& code, const Core::String& entryPoint,
+					    GPU::ShaderType type)
+					    : name_(name)
+					    , code_(code)
+					    , entryPoint_(entryPoint)
+					    , type_(type)
 					{
 					}
 
@@ -154,8 +155,9 @@ namespace
 				};
 
 				Graphics::ShaderCompilerHLSL compilerHLSL;
-				auto GenerateAndCompile = [&](const Graphics::BindingMap& bindingMap, Core::Vector<CompileInfo>& outCompileInfo, Core::Vector<Graphics::ShaderCompileOutput>& outCompileOutput)
-				{
+				auto GenerateAndCompile = [&](const Graphics::BindingMap& bindingMap,
+				    Core::Vector<CompileInfo>& outCompileInfo,
+				    Core::Vector<Graphics::ShaderCompileOutput>& outCompileOutput) {
 					outCompileInfo.clear();
 					outCompileOutput.clear();
 
@@ -176,12 +178,12 @@ namespace
 					for(i32 idx = 0; idx < shaders.size(); ++idx)
 						for(const auto& shader : shaders[idx])
 							outCompileInfo.emplace_back(
-								sourceFile, backendHLSL.GetOutputCode(), shader, (GPU::ShaderType)idx);
+							    sourceFile, backendHLSL.GetOutputCode(), shader, (GPU::ShaderType)idx);
 
 					for(const auto& compile : outCompileInfo)
 					{
-						auto outCompile =
-							compilerHLSL.Compile(compile.name_.c_str(), compile.code_.c_str(), compile.entryPoint_.c_str(), compile.type_);
+						auto outCompile = compilerHLSL.Compile(
+						    compile.name_.c_str(), compile.code_.c_str(), compile.entryPoint_.c_str(), compile.type_);
 						if(outCompile)
 						{
 							outCompileOutput.emplace_back(outCompile);
@@ -208,8 +210,8 @@ namespace
 
 				// Get list of all used bindings.
 				Graphics::BindingMap usedBindings;
-				const auto AddBindings = [](
-				    const Core::Vector<Graphics::ShaderBinding>& inBindings, Graphics::BindingMap& outBindings, i32 bindingIdx) {
+				const auto AddBindings = [](const Core::Vector<Graphics::ShaderBinding>& inBindings,
+				    Graphics::BindingMap& outBindings, i32 bindingIdx) {
 					for(const auto& binding : inBindings)
 					{
 						if(outBindings.find(binding.name_) == outBindings.end())

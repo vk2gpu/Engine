@@ -304,8 +304,7 @@ namespace Graphics
 			{
 				PARSE_TOKEN();
 				Core::String stringParam;
-				auto FlushStringParam = [&]()
-				{
+				auto FlushStringParam = [&]() {
 					if(stringParam.size() > 0)
 					{
 						node->parameters_.emplace_back(stringParam);

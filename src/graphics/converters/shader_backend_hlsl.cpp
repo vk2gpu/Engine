@@ -23,8 +23,8 @@ namespace
 namespace Graphics
 {
 	ShaderBackendHLSL::ShaderBackendHLSL(const BindingMap& bindingMap, bool autoReg)
-		: bindingMap_(bindingMap)
-		, autoReg_(autoReg)
+	    : bindingMap_(bindingMap)
+	    , autoReg_(autoReg)
 	{
 		for(const char* attribute : HLSL_ATTRIBUTES)
 			hlslAttributes_.insert(attribute);
@@ -324,10 +324,10 @@ namespace Graphics
 				else if(node->type_->baseType_->metaData_ == "CBV")
 					reg.Printf("register(b%i)", cbufferReg_++);
 
-				if(node->type_->baseType_->struct_)
-					if(auto attr = node->type_->baseType_->struct_->FindAttribute("internal"))
-						if(attr->HasParameter(0) && attr->GetParameter(0) == "SamplerState")
-							reg.Printf("register(s%i)", samplerReg_++);
+			if(node->type_->baseType_->struct_)
+				if(auto attr = node->type_->baseType_->struct_->FindAttribute("internal"))
+					if(attr->HasParameter(0) && attr->GetParameter(0) == "SamplerState")
+						reg.Printf("register(s%i)", samplerReg_++);
 
 			if(inCBuffer_ == 0)
 			{
