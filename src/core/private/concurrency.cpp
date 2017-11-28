@@ -312,6 +312,26 @@ namespace Core
 		return !!::ReleaseSemaphore(impl_->handle_, count, nullptr);
 	}
 
+	SpinLock::SpinLock() {}
+
+	SpinLock::~SpinLock() { DBG_ASSERT(count_ == 0); }
+
+	void SpinLock::Lock()
+	{
+		while(Core::AtomicCmpExchgAcq(&count_, 1, 0) == 1)
+		{
+			Core::YieldCPU();
+		}
+	}
+
+	bool SpinLock::TryLock() { return (Core::AtomicCmpExchgAcq(&count_, 1, 0) == 0); }
+
+	void SpinLock::Unlock()
+	{
+		i32 count = Core::AtomicExchg(&count_, 0);
+		DBG_ASSERT(count == 1);
+	}
+
 	struct MutexImpl
 	{
 		CRITICAL_SECTION critSec_;

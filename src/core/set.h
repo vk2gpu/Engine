@@ -116,27 +116,29 @@ namespace Core
 
 		const_iterator find(const KEY_TYPE& key) const
 		{
-			const u32 keyHash = hasher_(0, key);
-			const index_type indicesidx = keyHash & mask_;
-			const index_type idx = indices_[indicesidx];
-			if(idx != INVALID_INDEX)
+			if(indices_.size() > 0)
 			{
-				return values_.data() + idx;
+				const u32 keyHash = hasher_(0, key);
+				const index_type indicesidx = keyHash & mask_;
+				const index_type idx = indices_[indicesidx];
+				if(idx != INVALID_INDEX)
+					return values_.data() + idx;
 			}
 			return end();
 		}
 
 		iterator find(const KEY_TYPE& key)
 		{
-			const u32 keyHash = hasher_(0, key);
-			const index_type indicesidx = keyHash & mask_;
-			const index_type idx = indices_[indicesidx];
-			if(idx != INVALID_INDEX)
+			if(indices_.size() > 0)
 			{
-				iterator retVal = values_.data() + idx;
-				if(hasher_(0, *retVal) == keyHash)
+				const u32 keyHash = hasher_(0, key);
+				const index_type indicesidx = keyHash & mask_;
+				const index_type idx = indices_[indicesidx];
+				if(idx != INVALID_INDEX)
 				{
-					return retVal;
+					iterator retVal = values_.data() + idx;
+					if(hasher_(0, *retVal) == keyHash)
+						return retVal;
 				}
 			}
 			return end();
