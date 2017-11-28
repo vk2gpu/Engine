@@ -391,15 +391,13 @@ namespace MeshTools
 			auto AddVertex = [this](Vertex a) -> i32 {
 				i32 idx = vertices_.size();
 #if 1
-				auto it = std::find_if(
-				    vertexHashes_.begin(), vertexHashes_.end(), [&a, this](const u32& b)
-				{
-						if(a.hash_ == b)
-						{
-							i32 idx = (i32)(&b - vertexHashes_.begin());
-							return a == vertices_[idx];
-						}
-						return false;
+				auto it = std::find_if(vertexHashes_.begin(), vertexHashes_.end(), [&a, this](const u32& b) {
+					if(a.hash_ == b)
+					{
+						i32 idx = (i32)(&b - vertexHashes_.begin());
+						return a == vertices_[idx];
+					}
+					return false;
 				});
 
 				if(it != vertexHashes_.end())
@@ -663,10 +661,11 @@ ClusteredModel::ClusteredModel(const char* sourceFile)
 		aiAttachLogStream(&assimpLogger);
 
 		int flags = aiProcess_Triangulate | aiProcess_GenUVCoords | aiProcess_FindDegenerates | aiProcess_SortByPType |
-					aiProcess_FindInvalidData | aiProcess_RemoveRedundantMaterials | aiProcess_SplitLargeMeshes |
-					aiProcess_GenSmoothNormals | aiProcess_ValidateDataStructure | aiProcess_SplitByBoneCount |
-		            aiProcess_LimitBoneWeights | aiProcess_MakeLeftHanded | aiProcess_FlipUVs | aiProcess_FlipWindingOrder |
-					aiProcess_OptimizeGraph | aiProcess_OptimizeMeshes | aiProcess_RemoveComponent;
+		            aiProcess_FindInvalidData | aiProcess_RemoveRedundantMaterials | aiProcess_SplitLargeMeshes |
+		            aiProcess_GenSmoothNormals | aiProcess_ValidateDataStructure | aiProcess_SplitByBoneCount |
+		            aiProcess_LimitBoneWeights | aiProcess_MakeLeftHanded | aiProcess_FlipUVs |
+		            aiProcess_FlipWindingOrder | aiProcess_OptimizeGraph | aiProcess_OptimizeMeshes |
+		            aiProcess_RemoveComponent;
 		aiSetImportPropertyInteger(
 		    propertyStore, AI_CONFIG_PP_RVC_FLAGS, aiComponent_ANIMATIONS | aiComponent_LIGHTS | aiComponent_CAMERAS);
 		aiSetImportPropertyInteger(propertyStore, AI_CONFIG_PP_SLM_VERTEX_LIMIT, 256 * 1024);
@@ -693,20 +692,13 @@ ClusteredModel::ClusteredModel(const char* sourceFile)
 		}
 
 		// Spin up jobs for all meshes to perform importing.
-		Job::FunctionJob importJob("cluster_model_import", 
-			[&scene, &meshes](i32 param)
-		{
-			meshes[param]->ImportAssimpMesh(scene->mMeshes[param]);
-		});
+		Job::FunctionJob importJob("cluster_model_import",
+		    [&scene, &meshes](i32 param) { meshes[param]->ImportAssimpMesh(scene->mMeshes[param]); });
 		Job::Counter* counter = nullptr;
 		importJob.RunMultiple(0, meshes.size() - 1, &counter);
 		Job::Manager::WaitForCounter(counter, 0);
 
-		Job::FunctionJob sortJob("cluster_model_sort", 
-			[&meshes](i32 param)
-		{
-			meshes[param]->SortTriangles();
-		});
+		Job::FunctionJob sortJob("cluster_model_sort", [&meshes](i32 param) { meshes[param]->SortTriangles(); });
 		sortJob.RunMultiple(0, meshes.size() - 1, &counter);
 		Job::Manager::WaitForCounter(counter, 0);
 
@@ -981,12 +973,14 @@ void ClusteredModel::DrawClusters(GPU::CommandList& cmdList, const char* passNam
 
 			cullClusterTech_.Set("inCluster",
 			    GPU::Binding::Buffer(clusterBuffer_, GPU::Format::INVALID, 0, clusters_.size(), sizeof(MeshCluster)));
-			cullClusterTech_.Set("inClusterBounds", GPU::Binding::Buffer(boundsBuffer_, GPU::Format::INVALID, 0,
-			                                            clusterBounds_.size(), sizeof(Math::AABB)));
+			cullClusterTech_.Set("inClusterBounds",
+			    GPU::Binding::Buffer(
+			        boundsBuffer_, GPU::Format::INVALID, 0, clusterBounds_.size(), sizeof(Math::AABB)));
 			cullClusterTech_.Set(
 			    "inObject", GPU::Binding::Buffer(objectSBHandle, GPU::Format::INVALID, 0, 1, objectDataSize));
-			cullClusterTech_.Set("outDrawArgs", GPU::Binding::RWBuffer(drawArgsBuffer_, GPU::Format::INVALID, 0,
-			                                        clusters_.size(), sizeof(GPU::DrawIndexedArgs)));
+			cullClusterTech_.Set("outDrawArgs",
+			    GPU::Binding::RWBuffer(
+			        drawArgsBuffer_, GPU::Format::INVALID, 0, clusters_.size(), sizeof(GPU::DrawIndexedArgs)));
 			cullClusterTech_.Set("outDrawCount",
 			    GPU::Binding::RWBuffer(drawCountBuffer_, GPU::Format::INVALID, 0, meshes_.size(), sizeof(u32)));
 			cullClusterTech_.Set("ViewCBuffer", GPU::Binding::CBuffer(viewCBHandle, 0, sizeof(Testbed::ViewConstants)));
@@ -1020,14 +1014,15 @@ void ClusteredModel::DrawClusters(GPU::CommandList& cmdList, const char* passNam
 							if(customBindFn)
 								customBindFn(techs_[meshIdx].material_->GetShader(), tech);
 
-							tech.Set("ViewCBuffer", GPU::Binding::CBuffer(viewCBHandle, 0, sizeof(Testbed::ViewConstants)));
+							tech.Set(
+							    "ViewCBuffer", GPU::Binding::CBuffer(viewCBHandle, 0, sizeof(Testbed::ViewConstants)));
 							tech.Set("inObject",
-								GPU::Binding::Buffer(objectSBHandle, GPU::Format::INVALID, 0, 1, objectDataSize));
+							    GPU::Binding::Buffer(objectSBHandle, GPU::Format::INVALID, 0, 1, objectDataSize));
 							if(auto pbs = tech.GetBinding())
 							{
 								cmdList.DrawIndirect(pbs, dbs_, fbs, drawState, GPU::PrimitiveTopology::TRIANGLE_LIST,
-									drawArgsBuffer_, mesh.baseCluster_ * sizeof(GPU::DrawIndexedArgs), drawCountBuffer_,
-									meshIdx * sizeof(i32), mesh.numClusters_);
+								    drawArgsBuffer_, mesh.baseCluster_ * sizeof(GPU::DrawIndexedArgs), drawCountBuffer_,
+								    meshIdx * sizeof(i32), mesh.numClusters_);
 							}
 						}
 					}
@@ -1050,16 +1045,16 @@ void ClusteredModel::DrawClusters(GPU::CommandList& cmdList, const char* passNam
 							if(customBindFn)
 								customBindFn(techs_[meshIdx].material_->GetShader(), tech);
 
-							tech.Set("ViewCBuffer", GPU::Binding::CBuffer(viewCBHandle, 0, sizeof(Testbed::ViewConstants)));
+							tech.Set(
+							    "ViewCBuffer", GPU::Binding::CBuffer(viewCBHandle, 0, sizeof(Testbed::ViewConstants)));
 							tech.Set("inObject",
-								GPU::Binding::Buffer(objectSBHandle, GPU::Format::INVALID, 0, 1, objectDataSize));
+							    GPU::Binding::Buffer(objectSBHandle, GPU::Format::INVALID, 0, 1, objectDataSize));
 							if(auto pbs = tech.GetBinding())
 							{
 								auto baseCluster = clusters_[meshes_[meshIdx].baseCluster_];
 
 								cmdList.Draw(pbs, dbs_, fbs, drawState, GPU::PrimitiveTopology::TRIANGLE_LIST,
-									baseCluster.baseIndex_, 0, mesh.numClusters_ * baseCluster.numIndices_, 0,
-									1);
+								    baseCluster.baseIndex_, 0, mesh.numClusters_ * baseCluster.numIndices_, 0, 1);
 							}
 						}
 					}

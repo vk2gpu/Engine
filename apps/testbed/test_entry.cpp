@@ -28,7 +28,7 @@
 
 #include <cmath>
 
-#define LOAD_SPONZA (0)
+#define LOAD_SPONZA (1)
 
 namespace
 {
@@ -151,9 +151,9 @@ namespace
 			Math::Vec3 viewFromPosition = cameraTarget_ + viewDistance;
 
 			matrix_.Identity();
-			matrix_.LookAt(
-			    viewFromPosition, cameraTarget_, Math::Vec3(cameraRotationMatrix.Row1().x,
-			                                         cameraRotationMatrix.Row1().y, cameraRotationMatrix.Row1().z));
+			matrix_.LookAt(viewFromPosition, cameraTarget_,
+			    Math::Vec3(
+			        cameraRotationMatrix.Row1().x, cameraRotationMatrix.Row1().y, cameraRotationMatrix.Row1().z));
 		}
 
 		Math::Mat44 GetCameraRotationMatrix() const
@@ -529,13 +529,13 @@ void Loop(const Core::CommandLine& cmdLine)
 	ClusteredModel* testClusteredModel = new ClusteredModel("model_tests/teapot.obj");
 #else
 	ClusteredModel* testClusteredModel = new ClusteredModel("model_tests/crytek-sponza/sponza.obj");
-	//ClusteredModel* testClusteredModel = new ClusteredModel("model_tests/san_miguel/san-miguel-low-poly.obj");
+//ClusteredModel* testClusteredModel = new ClusteredModel("model_tests/san_miguel/san-miguel-low-poly.obj");
 #endif
 
 #if LOAD_SPONZA
 	Resource::Manager::RequestResource(sponzaModel, "model_tests/crytek-sponza/sponza.obj");
-	//Resource::Manager::RequestResource(sponzaModel, "model_tests/san_miguel/san-miguel-low-poly.obj");
-	//Resource::Manager::RequestResource(sponzaModel, "model_tests/san_miguel/san-miguel.obj");
+//Resource::Manager::RequestResource(sponzaModel, "model_tests/san_miguel/san-miguel-low-poly.obj");
+//Resource::Manager::RequestResource(sponzaModel, "model_tests/san_miguel/san-miguel.obj");
 #endif
 
 	Resource::Manager::WaitForResource(texture);
