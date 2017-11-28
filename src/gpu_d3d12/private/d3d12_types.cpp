@@ -424,7 +424,8 @@ namespace GPU
 		return resourceDesc;
 	}
 
-	D3D12_RESOURCE_BARRIER TransitionBarrier(ID3D12Resource* res, UINT subRsc, D3D12_RESOURCE_STATES before, D3D12_RESOURCE_STATES after)
+	D3D12_RESOURCE_BARRIER TransitionBarrier(
+	    ID3D12Resource* res, UINT subRsc, D3D12_RESOURCE_STATES before, D3D12_RESOURCE_STATES after)
 	{
 		D3D12_RESOURCE_BARRIER barrier;
 		barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
@@ -458,5 +459,102 @@ namespace GPU
 		}
 	}
 
+	void ClearDescriptorRange(
+	    ID3D12DescriptorHeap* d3dDescriptorHeap, DescriptorHeapSubType subType, i32 offset, i32 numDescriptors)
+	{
+		auto d3dDesc = d3dDescriptorHeap->GetDesc();
+		ComPtr<ID3D12Device> d3dDevice;
+		d3dDescriptorHeap->GetDevice(IID_ID3D12Device, (void**)d3dDevice.GetAddressOf());
+		auto descriptorSize = d3dDevice->GetDescriptorHandleIncrementSize(d3dDesc.Type);
+		D3D12_CPU_DESCRIPTOR_HANDLE handle = d3dDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
+		handle.ptr += offset * descriptorSize;
+		for(i32 i = offset; i < (offset + numDescriptors); ++i)
+		{
+			if(subType == DescriptorHeapSubType::INVALID)
+			{
+				switch(d3dDesc.Type)
+				{
+				case D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV:
+				{
+					D3D12_CONSTANT_BUFFER_VIEW_DESC desc = {};
+					d3dDevice->CreateConstantBufferView(&desc, handle);
+					break;
+				}
+				case D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER:
+				{
+					D3D12_SAMPLER_DESC desc = {};
+					// Setup easy to spot when debugging, but valid default.
+					desc.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+					desc.AddressV = D3D12_TEXTURE_ADDRESS_MODE_MIRROR;
+					desc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+					desc.BorderColor[0] = 1.0f;
+					desc.BorderColor[1] = 2.0f;
+					desc.BorderColor[2] = 3.0f;
+					desc.BorderColor[3] = 4.0f;
+					d3dDevice->CreateSampler(&desc, handle);
+					break;
+				}
+				case D3D12_DESCRIPTOR_HEAP_TYPE_RTV:
+				case D3D12_DESCRIPTOR_HEAP_TYPE_DSV:
+					// Don't need to clear these ranges.
+					break;
+				default:
+					DBG_BREAK;
+					break;
+				};
+			}
+			else
+			{
+				switch(subType)
+				{
+				case DescriptorHeapSubType::CBV:
+				{
+					D3D12_CONSTANT_BUFFER_VIEW_DESC desc = {};
+					d3dDevice->CreateConstantBufferView(&desc, handle);
+					break;
+				}
+				case DescriptorHeapSubType::SRV:
+				{
+					D3D12_SHADER_RESOURCE_VIEW_DESC desc = {};
+					desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+					desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+					desc.Shader4ComponentMapping = D3D12_ENCODE_SHADER_4_COMPONENT_MAPPING(
+					    D3D12_SHADER_COMPONENT_MAPPING_FORCE_VALUE_0, D3D12_SHADER_COMPONENT_MAPPING_FORCE_VALUE_0,
+					    D3D12_SHADER_COMPONENT_MAPPING_FORCE_VALUE_0, D3D12_SHADER_COMPONENT_MAPPING_FORCE_VALUE_0);
+					d3dDevice->CreateShaderResourceView(nullptr, &desc, handle);
+					break;
+				}
+				case DescriptorHeapSubType::UAV:
+				{
+					D3D12_UNORDERED_ACCESS_VIEW_DESC desc = {};
+					desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+					desc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
+					d3dDevice->CreateUnorderedAccessView(nullptr, nullptr, &desc, handle);
+					break;
+				}
+				case DescriptorHeapSubType::SAMPLER:
+				{
+					D3D12_SAMPLER_DESC desc = {};
+					// Setup easy to spot when debugging, but valid default.
+					desc.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+					desc.AddressV = D3D12_TEXTURE_ADDRESS_MODE_MIRROR;
+					desc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+					desc.BorderColor[0] = 1.0f;
+					desc.BorderColor[1] = 2.0f;
+					desc.BorderColor[2] = 3.0f;
+					desc.BorderColor[3] = 4.0f;
+					d3dDevice->CreateSampler(&desc, handle);
+					break;
+				}
+				default:
+					DBG_BREAK;
+					break;
+				};
+			}
+
+			// Advance handle.
+			handle.ptr += descriptorSize;
+		}
+	}
 
 } // namespace GPU

@@ -1,5 +1,6 @@
 #include "gpu_d3d12/d3d12_device.h"
 #include "gpu_d3d12/d3d12_command_list.h"
+#include "gpu_d3d12/d3d12_linear_descriptor_allocator.h"
 #include "gpu_d3d12/d3d12_linear_heap_allocator.h"
 #include "gpu_d3d12/d3d12_descriptor_heap_allocator.h"
 #include "gpu_d3d12/private/shaders/default_cs.h"
@@ -96,8 +97,8 @@ namespace GPU
 		// setup upload allocator.
 		CreateUploadAllocators();
 
-		// setup descriptor heap allocators.
-		CreateDescriptorHeapAllocators();
+		// setup descriptor allocators.
+		CreateDescriptorAllocators();
 
 		// Frame fence.
 		d3dDevice_->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_ID3D12Fence, (void**)d3dFrameFence_.GetAddressOf());
@@ -118,7 +119,15 @@ namespace GPU
 		d3dDrawIndexedCmdSig_.Reset();
 		d3dDispatchCmdSig_.Reset();
 
-		delete cbvSrvUavAllocator_;
+		for(auto& allocator : descriptorAllocators_)
+		{
+			delete allocator.viewAllocator_;
+			delete allocator.samplerAllocator_;
+			delete allocator.rtvAllocator_;
+			delete allocator.dsvAllocator_;
+		}
+
+		delete viewAllocator_;
 		delete samplerAllocator_;
 		delete rtvAllocator_;
 		delete dsvAllocator_;
@@ -185,6 +194,7 @@ namespace GPU
 			}
 			CHECK_D3D(hr = d3dDevice_->CreateRootSignature(0, outBlob->GetBufferPointer(), outBlob->GetBufferSize(),
 			              IID_PPV_ARGS(d3dRootSignatures_[(i32)type].GetAddressOf())));
+			return d3dRootSignatures_[(i32)type];
 		};
 
 		D3D12_ROOT_PARAMETER parameters[16];
@@ -214,7 +224,7 @@ namespace GPU
 			parameters[3].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
 			parameters[3].DescriptorTable.NumDescriptorRanges = 1;
 			parameters[3].DescriptorTable.pDescriptorRanges = &descriptorRanges[3];
-			parameters[3].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
+			parameters[3].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 
 			D3D12_ROOT_SIGNATURE_DESC rootSignatureDesc;
 			rootSignatureDesc.NumParameters = 4;
@@ -222,7 +232,8 @@ namespace GPU
 			rootSignatureDesc.pParameters = parameters;
 			rootSignatureDesc.pStaticSamplers = nullptr;
 			rootSignatureDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
-			CreateRootSignature(rootSignatureDesc, RootSignatureType::GRAPHICS);
+			auto rootSig = CreateRootSignature(rootSignatureDesc, RootSignatureType::GRAPHICS);
+			SetObjectName(rootSig.Get(), "Graphics");
 		}
 
 		// COMPUTE
@@ -247,7 +258,8 @@ namespace GPU
 			                          D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS |
 			                          D3D12_ROOT_SIGNATURE_FLAG_DENY_PIXEL_SHADER_ROOT_ACCESS;
 
-			CreateRootSignature(rootSignatureDesc, RootSignatureType::COMPUTE);
+			auto rootSig = CreateRootSignature(rootSignatureDesc, RootSignatureType::COMPUTE);
+			SetObjectName(rootSig.Get(), "Compute");
 		}
 	}
 
@@ -282,10 +294,15 @@ namespace GPU
 
 		CHECK_D3D(d3dDevice_->CreateCommandSignature(
 		    &drawDesc, nullptr, IID_ID3D12CommandSignature, (void**)d3dDrawCmdSig_.GetAddressOf()));
+		SetObjectName(d3dDrawCmdSig_.Get(), "DrawIndirect");
+
 		CHECK_D3D(d3dDevice_->CreateCommandSignature(
 		    &drawIndexedDesc, nullptr, IID_ID3D12CommandSignature, (void**)d3dDrawIndexedCmdSig_.GetAddressOf()));
+		SetObjectName(d3dDrawIndexedCmdSig_.Get(), "DrawIndexedIndirect");
+
 		CHECK_D3D(d3dDevice_->CreateCommandSignature(
 		    &dispatchDesc, nullptr, IID_ID3D12CommandSignature, (void**)d3dDispatchCmdSig_.GetAddressOf()));
+		SetObjectName(d3dDispatchCmdSig_.Get(), "DispatchIndirect");
 	}
 
 	void D3D12Device::CreateDefaultPSOs()
@@ -315,6 +332,7 @@ namespace GPU
 			ComPtr<ID3D12PipelineState> pipelineState;
 			CHECK_D3D(hr = d3dDevice_->CreateGraphicsPipelineState(
 			              &defaultPSO, IID_ID3D12PipelineState, (void**)pipelineState.GetAddressOf()));
+			SetObjectName(pipelineState.Get(), "Default Graphics");
 			d3dDefaultPSOs_.push_back(pipelineState);
 		};
 
@@ -327,6 +345,7 @@ namespace GPU
 			ComPtr<ID3D12PipelineState> pipelineState;
 			CHECK_D3D(hr = d3dDevice_->CreateComputePipelineState(
 			              &defaultPSO, IID_ID3D12PipelineState, (void**)pipelineState.GetAddressOf()));
+			SetObjectName(pipelineState.Get(), "Default Compute");
 			d3dDefaultPSOs_.push_back(pipelineState);
 		};
 
@@ -344,19 +363,31 @@ namespace GPU
 		uploadFenceEvent_ = ::CreateEvent(nullptr, FALSE, FALSE, "Upload fence");
 	}
 
-	void D3D12Device::CreateDescriptorHeapAllocators()
+	void D3D12Device::CreateDescriptorAllocators()
 	{
-		cbvSrvUavAllocator_ = new D3D12DescriptorHeapAllocator(d3dDevice_.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
-		    D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE,
-		    Core::Min(32768, D3D12_MAX_SHADER_VISIBLE_DESCRIPTOR_HEAP_SIZE_TIER_1),
-		    "CBV, SRV, and UAV Descriptor Heap");
+		viewAllocator_ = new D3D12DescriptorHeapAllocator(d3dDevice_.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
+		    D3D12_DESCRIPTOR_HEAP_FLAG_NONE, Core::Min(32768, D3D12_MAX_SHADER_VISIBLE_DESCRIPTOR_HEAP_SIZE_TIER_1),
+		    "View Descriptor Heap");
 		samplerAllocator_ = new D3D12DescriptorHeapAllocator(d3dDevice_.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER,
-		    D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE, D3D12_MAX_SHADER_VISIBLE_SAMPLER_HEAP_SIZE,
-		    "Sampler Descriptor Heap");
+		    D3D12_DESCRIPTOR_HEAP_FLAG_NONE, D3D12_MAX_SHADER_VISIBLE_SAMPLER_HEAP_SIZE, "Sampler Descriptor Heap");
 		rtvAllocator_ = new D3D12DescriptorHeapAllocator(d3dDevice_.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_RTV,
 		    D3D12_DESCRIPTOR_HEAP_FLAG_NONE, 1024, "RTV Descriptor Heap");
 		dsvAllocator_ = new D3D12DescriptorHeapAllocator(d3dDevice_.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_DSV,
 		    D3D12_DESCRIPTOR_HEAP_FLAG_NONE, 1024, "DSV Descriptor Heap");
+
+		for(auto& allocator : descriptorAllocators_)
+		{
+			allocator.viewAllocator_ = new D3D12LinearDescriptorAllocator(d3dDevice_.Get(),
+			    D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE,
+			    Core::Min(32768, D3D12_MAX_SHADER_VISIBLE_DESCRIPTOR_HEAP_SIZE_TIER_1), "View Descriptors");
+			allocator.samplerAllocator_ = new D3D12LinearDescriptorAllocator(d3dDevice_.Get(),
+			    D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE,
+			    D3D12_MAX_SHADER_VISIBLE_SAMPLER_HEAP_SIZE, "Sampler Descriptors");
+			allocator.rtvAllocator_ = new D3D12LinearDescriptorAllocator(d3dDevice_.Get(),
+			    D3D12_DESCRIPTOR_HEAP_TYPE_RTV, D3D12_DESCRIPTOR_HEAP_FLAG_NONE, 1024, "RTV Descriptors");
+			allocator.dsvAllocator_ = new D3D12LinearDescriptorAllocator(d3dDevice_.Get(),
+			    D3D12_DESCRIPTOR_HEAP_TYPE_DSV, D3D12_DESCRIPTOR_HEAP_FLAG_NONE, 1024, "DSV Descriptors");
+		}
 	}
 
 	void D3D12Device::NextFrame()
@@ -383,8 +414,12 @@ namespace GPU
 				}
 			}
 
-			// Reset upload allocators as we go along.
+			// Reset allocators as we go along.
 			GetUploadAllocator().Reset();
+			GetSamplerDescriptorAllocator().Reset();
+			GetViewDescriptorAllocator().Reset();
+			GetRTVDescriptorAllocator().Reset();
+			GetDSVDescriptorAllocator().Reset();
 			d3dDirectQueue_->Signal(d3dFrameFence_.Get(), frameIdx_);
 		}
 	}
@@ -456,9 +491,6 @@ namespace GPU
 		outResource.supportedStates_ = GetResourceStates(desc.bindFlags_);
 		outResource.defaultState_ = GetDefaultResourceState(desc.bindFlags_);
 
-		// Add on copy src/dest flags to supported flags, copy dest to default.
-		outResource.supportedStates_ |= D3D12_RESOURCE_STATE_COPY_SOURCE;
-		outResource.supportedStates_ |= D3D12_RESOURCE_STATE_COPY_DEST;
 
 		D3D12_HEAP_PROPERTIES heapProperties;
 		heapProperties.Type = D3D12_HEAP_TYPE_DEFAULT;
@@ -466,6 +498,20 @@ namespace GPU
 		heapProperties.MemoryPoolPreference = D3D12_MEMORY_POOL::D3D12_MEMORY_POOL_UNKNOWN;
 		heapProperties.CreationNodeMask = 0x0;
 		heapProperties.VisibleNodeMask = 0x0;
+
+		// If we have any bind flags, infer copy source & dest flags, otherwise infer copy dest & readback.
+		if(desc.bindFlags_ != BindFlags::NONE)
+		{
+			outResource.supportedStates_ |= D3D12_RESOURCE_STATE_COPY_SOURCE;
+			outResource.supportedStates_ |= D3D12_RESOURCE_STATE_COPY_DEST;
+		}
+		else
+		{
+			outResource.supportedStates_ |= D3D12_RESOURCE_STATE_COPY_DEST;
+
+			heapProperties.Type = D3D12_HEAP_TYPE_READBACK;
+			heapProperties.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_WRITE_BACK;
+		}
 
 		D3D12_RESOURCE_DESC resourceDesc = GetResourceDesc(desc);
 		ComPtr<ID3D12Resource> d3dResource;
@@ -490,22 +536,16 @@ namespace GPU
 			Core::ScopedMutex lock(uploadMutex_);
 			if(auto* d3dCommandList = uploadCommandList_->Get())
 			{
-				D3D12_RESOURCE_BARRIER copyBarrier =
-					TransitionBarrier(outResource.resource_.Get(),
-					0xffffffff,
-					D3D12_RESOURCE_STATE_COMMON,
-					D3D12_RESOURCE_STATE_COPY_DEST);
+				D3D12_RESOURCE_BARRIER copyBarrier = TransitionBarrier(outResource.resource_.Get(), 0xffffffff,
+				    D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_COPY_DEST);
 
-				D3D12_RESOURCE_BARRIER defaultBarrier =
-					TransitionBarrier(outResource.resource_.Get(),
-					0xffffffff,
-					D3D12_RESOURCE_STATE_COPY_DEST,
-					outResource.defaultState_);
+				D3D12_RESOURCE_BARRIER defaultBarrier = TransitionBarrier(
+				    outResource.resource_.Get(), 0xffffffff, D3D12_RESOURCE_STATE_COPY_DEST, outResource.defaultState_);
 
 				d3dCommandList->ResourceBarrier(1, &copyBarrier);
 
 				d3dCommandList->CopyBufferRegion(d3dResource.Get(), 0, resAlloc.baseResource_.Get(),
-					resAlloc.offsetInBaseResource_, resourceDesc.Width);
+				    resAlloc.offsetInBaseResource_, resourceDesc.Width);
 
 				d3dCommandList->ResourceBarrier(1, &defaultBarrier);
 
@@ -526,11 +566,8 @@ namespace GPU
 				Core::ScopedMutex lock(uploadMutex_);
 				if(auto* d3dCommandList = uploadCommandList_->Get())
 				{
-					D3D12_RESOURCE_BARRIER defaultBarrier =
-						TransitionBarrier(outResource.resource_.Get(),
-						0xffffffff,
-						D3D12_RESOURCE_STATE_COMMON,
-						outResource.defaultState_);
+					D3D12_RESOURCE_BARRIER defaultBarrier = TransitionBarrier(outResource.resource_.Get(), 0xffffffff,
+					    D3D12_RESOURCE_STATE_COMMON, outResource.defaultState_);
 
 					d3dCommandList->ResourceBarrier(1, &defaultBarrier);
 
@@ -552,16 +589,26 @@ namespace GPU
 		outResource.supportedStates_ = GetResourceStates(desc.bindFlags_);
 		outResource.defaultState_ = GetDefaultResourceState(desc.bindFlags_);
 
-		// Add on copy src/dest flags to supported flags, copy dest to default.
-		outResource.supportedStates_ |= D3D12_RESOURCE_STATE_COPY_SOURCE;
-		outResource.supportedStates_ |= D3D12_RESOURCE_STATE_COPY_DEST;
-
 		D3D12_HEAP_PROPERTIES heapProperties;
 		heapProperties.Type = D3D12_HEAP_TYPE_DEFAULT;
 		heapProperties.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
 		heapProperties.MemoryPoolPreference = D3D12_MEMORY_POOL::D3D12_MEMORY_POOL_UNKNOWN;
 		heapProperties.CreationNodeMask = 0x0;
 		heapProperties.VisibleNodeMask = 0x0;
+
+		// If we have any bind flags, infer copy source & dest flags, otherwise infer copy dest & readback.
+		if(desc.bindFlags_ != BindFlags::NONE)
+		{
+			outResource.supportedStates_ |= D3D12_RESOURCE_STATE_COPY_SOURCE;
+			outResource.supportedStates_ |= D3D12_RESOURCE_STATE_COPY_DEST;
+		}
+		else
+		{
+			outResource.supportedStates_ |= D3D12_RESOURCE_STATE_COPY_DEST;
+
+			heapProperties.Type = D3D12_HEAP_TYPE_READBACK;
+			heapProperties.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_WRITE_BACK;
+		}
 
 		D3D12_RESOURCE_DESC resourceDesc = GetResourceDesc(desc);
 
@@ -652,17 +699,11 @@ namespace GPU
 			Core::ScopedMutex lock(uploadMutex_);
 			if(auto* d3dCommandList = uploadCommandList_->Get())
 			{
-				D3D12_RESOURCE_BARRIER copyBarrier =
-					TransitionBarrier(outResource.resource_.Get(),
-					0xffffffff,
-					D3D12_RESOURCE_STATE_COMMON,
-					D3D12_RESOURCE_STATE_COPY_DEST);
+				D3D12_RESOURCE_BARRIER copyBarrier = TransitionBarrier(outResource.resource_.Get(), 0xffffffff,
+				    D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_COPY_DEST);
 
-				D3D12_RESOURCE_BARRIER defaultBarrier =
-					TransitionBarrier(outResource.resource_.Get(),
-					0xffffffff,
-					D3D12_RESOURCE_STATE_COPY_DEST,
-					outResource.defaultState_);
+				D3D12_RESOURCE_BARRIER defaultBarrier = TransitionBarrier(
+				    outResource.resource_.Get(), 0xffffffff, D3D12_RESOURCE_STATE_COPY_DEST, outResource.defaultState_);
 
 				d3dCommandList->ResourceBarrier(1, &copyBarrier);
 
@@ -696,15 +737,12 @@ namespace GPU
 		{
 			// Add barrier for default state.
 			if(errorCode == ErrorCode::OK && outResource.defaultState_ != D3D12_RESOURCE_STATE_COMMON)
-			{		
+			{
 				Core::ScopedMutex lock(uploadMutex_);
 				if(auto* d3dCommandList = uploadCommandList_->Get())
 				{
-					D3D12_RESOURCE_BARRIER defaultBarrier =
-						TransitionBarrier(outResource.resource_.Get(),
-						0xffffffff,
-						D3D12_RESOURCE_STATE_COMMON,
-						outResource.defaultState_);
+					D3D12_RESOURCE_BARRIER defaultBarrier = TransitionBarrier(outResource.resource_.Get(), 0xffffffff,
+					    D3D12_RESOURCE_STATE_COMMON, outResource.defaultState_);
 
 					d3dCommandList->ResourceBarrier(1, &defaultBarrier);
 
@@ -750,35 +788,18 @@ namespace GPU
 	ErrorCode D3D12Device::CreatePipelineBindingSet(
 	    D3D12PipelineBindingSet& outPipelineBindingSet, const PipelineBindingSetDesc& desc, const char* debugName)
 	{
-		auto allocCbvSrvUav = cbvSrvUavAllocator_->Alloc(desc.numCBVs_, desc.numSRVs_, desc.numUAVs_);
-
-		i32 incr = d3dDevice_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-
-		outPipelineBindingSet.cbvs_ = allocCbvSrvUav;
-		allocCbvSrvUav.cpuDescHandle_.ptr += incr * MAX_CBV_BINDINGS;
-		allocCbvSrvUav.gpuDescHandle_.ptr += incr * MAX_CBV_BINDINGS;
-		allocCbvSrvUav.offset_ += MAX_CBV_BINDINGS;
-
-		outPipelineBindingSet.srvs_ = allocCbvSrvUav;
-		allocCbvSrvUav.cpuDescHandle_.ptr += incr * MAX_SRV_BINDINGS;
-		allocCbvSrvUav.gpuDescHandle_.ptr += incr * MAX_SRV_BINDINGS;
-		allocCbvSrvUav.offset_ += MAX_SRV_BINDINGS;
-
-		outPipelineBindingSet.uavs_ = allocCbvSrvUav;
-		allocCbvSrvUav.cpuDescHandle_.ptr += incr * MAX_UAV_BINDINGS;
-		allocCbvSrvUav.gpuDescHandle_.ptr += incr * MAX_UAV_BINDINGS;
-		allocCbvSrvUav.offset_ += MAX_UAV_BINDINGS;
-
-		outPipelineBindingSet.samplers_ = samplerAllocator_->Alloc(MAX_SAMPLER_BINDINGS);
-
+		outPipelineBindingSet.cbvs_ = viewAllocator_->Alloc(desc.numCBVs_);
+		outPipelineBindingSet.srvs_ = viewAllocator_->Alloc(desc.numSRVs_);
+		outPipelineBindingSet.uavs_ = viewAllocator_->Alloc(desc.numUAVs_);
+		outPipelineBindingSet.samplers_ = samplerAllocator_->Alloc(desc.numSamplers_);
 		return ErrorCode::OK;
 	}
 
 	void D3D12Device::DestroyPipelineBindingSet(D3D12PipelineBindingSet& pbs)
 	{
-		cbvSrvUavAllocator_->Free(pbs.cbvs_);
-		// cbvAllocator_->Free(pbs.srvs_);
-		// uavAllocator_->Free(pbs.uavs_);
+		viewAllocator_->Free(pbs.cbvs_);
+		viewAllocator_->Free(pbs.srvs_);
+		viewAllocator_->Free(pbs.uavs_);
 		samplerAllocator_->Free(pbs.samplers_);
 	}
 

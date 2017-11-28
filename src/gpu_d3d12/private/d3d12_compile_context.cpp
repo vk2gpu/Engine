@@ -2,6 +2,7 @@
 #include "gpu_d3d12/d3d12_command_list.h"
 #include "gpu_d3d12/d3d12_backend.h"
 #include "gpu_d3d12/d3d12_device.h"
+#include "gpu_d3d12/d3d12_linear_descriptor_allocator.h"
 #include "gpu_d3d12/d3d12_linear_heap_allocator.h"
 #include "gpu/command_list.h"
 #include "gpu/commands.h"
@@ -24,10 +25,9 @@ namespace GPU
 		d3dCommandList_ = outCommandList.Open();
 		bool supportPIXMarkers = true;
 		bool supportAGSMarkers = false;
-		auto primaryDevice = backend_.device_;
+		auto device = backend_.device_;
 
-		if(backend_.agsContext_ &&
-		    Core::ContainsAllFlags(primaryDevice->agsFeatureBits_, AGS_DX12_EXTENSION_USER_MARKERS))
+		if(backend_.agsContext_ && Core::ContainsAllFlags(device->agsFeatureBits_, AGS_DX12_EXTENSION_USER_MARKERS))
 			supportAGSMarkers = true;
 
 		if(d3dCommandList_)
@@ -80,6 +80,7 @@ namespace GPU
 
 #undef CASE_COMMAND
 
+			FlushDescriptors();
 			RestoreDefault();
 			return outCommandList.Close();
 		}
@@ -406,9 +407,38 @@ namespace GPU
 
 		pbsBound_ = pbsHandle;
 		const auto& pbs = backend_.pipelineBindingSets_[pbsHandle.GetIndex()];
-		ID3D12DescriptorHeap* heaps[] = {
-		    pbs.samplers_.d3dDescriptorHeap_.Get(), pbs.srvs_.d3dDescriptorHeap_.Get(),
-		};
+
+		auto device = backend_.device_;
+
+		// TEST: Copy descriptors.
+		auto& samplerAllocator = device->GetSamplerDescriptorAllocator();
+		auto& viewAllocator = device->GetViewDescriptorAllocator();
+
+		auto descSamplers = samplerAllocator.Copy(pbs.samplers_, MAX_CBV_BINDINGS, DescriptorHeapSubType::SAMPLER);
+		auto descCBVs = viewAllocator.Alloc(MAX_CBV_BINDINGS, DescriptorHeapSubType::CBV);
+		auto descSRVs = viewAllocator.Alloc(MAX_SRV_BINDINGS, DescriptorHeapSubType::SRV);
+		auto descUAVs = viewAllocator.Alloc(MAX_UAV_BINDINGS, DescriptorHeapSubType::UAV);
+
+		if(pbs.cbvs_.size_ > 0)
+		{
+			viewDescCopyParams_.dstHandles_.push_back(descCBVs.cpuDescHandle_);
+			viewDescCopyParams_.srcHandles_.push_back(pbs.cbvs_.cpuDescHandle_);
+			viewDescCopyParams_.numHandles_.push_back(pbs.cbvs_.size_);
+		}
+
+		if(pbs.srvs_.size_ > 0)
+		{
+			viewDescCopyParams_.dstHandles_.push_back(descSRVs.cpuDescHandle_);
+			viewDescCopyParams_.srcHandles_.push_back(pbs.srvs_.cpuDescHandle_);
+			viewDescCopyParams_.numHandles_.push_back(pbs.srvs_.size_);
+		}
+
+		if(pbs.uavs_.size_ > 0)
+		{
+			viewDescCopyParams_.dstHandles_.push_back(descUAVs.cpuDescHandle_);
+			viewDescCopyParams_.srcHandles_.push_back(pbs.uavs_.cpuDescHandle_);
+			viewDescCopyParams_.numHandles_.push_back(pbs.uavs_.size_);
+		}
 
 		// Lazily setup transitions.
 		// TODO: Some better transition management here.
@@ -426,8 +456,22 @@ namespace GPU
 			if(pbs.uavTransitions_[i] && pbs.uavTransitions_[i].resource_->resource_)
 				AddUAVBarrier(pbs.uavTransitions_[i]);
 
-		d3dCommandList_->SetDescriptorHeaps(2, heaps);
-		d3dCommandList_->SetPipelineState(pbs.pipelineState_.Get());
+		ID3D12DescriptorHeap* heaps[] = {
+		    samplerAllocator.GetDescriptorHeap().Get(), viewAllocator.GetDescriptorHeap().Get(),
+		};
+
+		if(descHeapsBound_[0] != heaps[0] || descHeapsBound_[1] != heaps[1])
+		{
+			d3dCommandList_->SetDescriptorHeaps(2, heaps);
+			descHeapsBound_[0] = heaps[0];
+			descHeapsBound_[1] = heaps[1];
+		}
+
+		if(psBound_ != pbs.pipelineState_.Get())
+		{
+			d3dCommandList_->SetPipelineState(pbs.pipelineState_.Get());
+			psBound_ = pbs.pipelineState_.Get();
+		}
 
 		switch(pbs.rootSignature_)
 		{
@@ -439,10 +483,30 @@ namespace GPU
 				rootSigBound_ = pbs.rootSignature_;
 			}
 
-			d3dCommandList_->SetGraphicsRootDescriptorTable(0, pbs.samplers_.gpuDescHandle_);
-			d3dCommandList_->SetGraphicsRootDescriptorTable(1, pbs.cbvs_.gpuDescHandle_);
-			d3dCommandList_->SetGraphicsRootDescriptorTable(2, pbs.srvs_.gpuDescHandle_);
-			d3dCommandList_->SetGraphicsRootDescriptorTable(3, pbs.uavs_.gpuDescHandle_);
+			//if(gfxDescHandlesBound_[0].ptr != descSamplers.gpuDescHandle_.ptr)
+			{
+				d3dCommandList_->SetGraphicsRootDescriptorTable(0, descSamplers.gpuDescHandle_);
+				gfxDescHandlesBound_[0] = descSamplers.gpuDescHandle_;
+			}
+
+			//if(gfxDescHandlesBound_[1].ptr != descCBVs.gpuDescHandle_.ptr)
+			{
+				d3dCommandList_->SetGraphicsRootDescriptorTable(1, descCBVs.gpuDescHandle_);
+				gfxDescHandlesBound_[1] = descCBVs.gpuDescHandle_;
+			}
+
+			//if(gfxDescHandlesBound_[2].ptr != descSRVs.gpuDescHandle_.ptr)
+			{
+				d3dCommandList_->SetGraphicsRootDescriptorTable(2, descSRVs.gpuDescHandle_);
+				gfxDescHandlesBound_[2] = descSRVs.gpuDescHandle_;
+			}
+
+			//if(gfxDescHandlesBound_[3].ptr != descUAVs.gpuDescHandle_.ptr)
+			{
+				d3dCommandList_->SetGraphicsRootDescriptorTable(3, descUAVs.gpuDescHandle_);
+				gfxDescHandlesBound_[3] = descUAVs.gpuDescHandle_;
+			}
+
 			break;
 		case RootSignatureType::COMPUTE:
 			if(rootSigBound_ != pbs.rootSignature_)
@@ -452,10 +516,29 @@ namespace GPU
 				rootSigBound_ = pbs.rootSignature_;
 			}
 
-			d3dCommandList_->SetComputeRootDescriptorTable(0, pbs.samplers_.gpuDescHandle_);
-			d3dCommandList_->SetComputeRootDescriptorTable(1, pbs.cbvs_.gpuDescHandle_);
-			d3dCommandList_->SetComputeRootDescriptorTable(2, pbs.srvs_.gpuDescHandle_);
-			d3dCommandList_->SetComputeRootDescriptorTable(3, pbs.uavs_.gpuDescHandle_);
+			//if(compDescHandlesBound_[0].ptr != descSamplers.gpuDescHandle_.ptr)
+			{
+				d3dCommandList_->SetComputeRootDescriptorTable(0, descSamplers.gpuDescHandle_);
+				compDescHandlesBound_[0] = descSamplers.gpuDescHandle_;
+			}
+
+			//if(compDescHandlesBound_[1].ptr != descCBVs.gpuDescHandle_.ptr)
+			{
+				d3dCommandList_->SetComputeRootDescriptorTable(1, descCBVs.gpuDescHandle_);
+				compDescHandlesBound_[1] = descCBVs.gpuDescHandle_;
+			}
+
+			//if(compDescHandlesBound_[2].ptr != descSRVs.gpuDescHandle_.ptr)
+			{
+				d3dCommandList_->SetComputeRootDescriptorTable(2, descSRVs.gpuDescHandle_);
+				compDescHandlesBound_[2] = descSRVs.gpuDescHandle_;
+			}
+
+			//if(compDescHandlesBound_[3].ptr != descUAVs.gpuDescHandle_.ptr)
+			{
+				d3dCommandList_->SetComputeRootDescriptorTable(3, descUAVs.gpuDescHandle_);
+				compDescHandlesBound_[3] = descUAVs.gpuDescHandle_;
+			}
 			break;
 		default:
 			DBG_BREAK;
@@ -647,6 +730,21 @@ namespace GPU
 #endif
 			pendingBarriers_.clear();
 			barriers_.clear();
+		}
+	}
+
+	void D3D12CompileContext::FlushDescriptors()
+	{
+		if(viewDescCopyParams_.numHandles_.size() > 0)
+		{
+			auto d3dDevice = backend_.device_->d3dDevice_;
+			d3dDevice->CopyDescriptors(viewDescCopyParams_.numHandles_.size(), viewDescCopyParams_.dstHandles_.data(),
+			    viewDescCopyParams_.numHandles_.data(), viewDescCopyParams_.numHandles_.size(),
+			    viewDescCopyParams_.srcHandles_.data(), viewDescCopyParams_.numHandles_.data(),
+			    D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+			viewDescCopyParams_.dstHandles_.clear();
+			viewDescCopyParams_.srcHandles_.clear();
+			viewDescCopyParams_.numHandles_.clear();
 		}
 	}
 

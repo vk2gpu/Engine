@@ -41,6 +41,15 @@ namespace GPU
 		Core::Map<Subresource, D3D12_RESOURCE_BARRIER, SubresourceHasher> pendingBarriers_;
 		Core::Vector<D3D12_RESOURCE_BARRIER> barriers_;
 
+		struct DescriptorCopyParams
+		{
+			Core::Vector<D3D12_CPU_DESCRIPTOR_HANDLE> dstHandles_;
+			Core::Vector<D3D12_CPU_DESCRIPTOR_HANDLE> srcHandles_;
+			Core::Vector<UINT> numHandles_;
+		};
+
+		DescriptorCopyParams viewDescCopyParams_;
+
 		DrawState drawState_;
 		DrawState* cachedDrawState_ = nullptr;
 		Viewport cachedViewport_;
@@ -48,12 +57,15 @@ namespace GPU
 		u8 cachedStencilRef_ = 0;
 
 		GPU::Handle dbsBound_;
-		PrimitiveTopology primitiveBound_;
-
+		PrimitiveTopology primitiveBound_ = PrimitiveTopology::INVALID;
 		GPU::Handle fbsBound_;
-
 		GPU::Handle pbsBound_;
-		RootSignatureType rootSigBound_;
+		RootSignatureType rootSigBound_ = RootSignatureType::INVALID;
+		ID3D12PipelineState* psBound_ = nullptr;
+
+		Core::Array<ID3D12DescriptorHeap*, 2> descHeapsBound_ = {};
+		Core::Array<D3D12_GPU_DESCRIPTOR_HANDLE, 8> gfxDescHandlesBound_ = {};
+		Core::Array<D3D12_GPU_DESCRIPTOR_HANDLE, 8> compDescHandlesBound_ = {};
 
 		ErrorCode CompileCommandList(class D3D12CommandList& outCommandList, const class CommandList& commandList);
 		ErrorCode CompileCommand(const struct CommandDraw* command);
@@ -102,6 +114,11 @@ namespace GPU
 		 * Flush resource transitions.
 		 */
 		void FlushTransitions();
+
+		/**
+		 * Flush descriptors.
+		 */
+		void FlushDescriptors();
 
 		/**
 		 * Restore default state of resources.

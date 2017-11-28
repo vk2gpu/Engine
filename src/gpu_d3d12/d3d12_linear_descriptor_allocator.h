@@ -16,14 +16,14 @@ namespace GPU
 		/**
 		 * Allocate a new set of descriptors.
 		 */
-		D3D12DescriptorAllocation Alloc(i32 numDescriptors);
+		D3D12DescriptorAllocation Alloc(i32 numDescriptors, DescriptorHeapSubType subType);
 
 		/**
 		 * Create a copy of a set of descriptors.
 		 * @param src Where to copy from.
 		 * @param size Size of allocation.
 		 */
-		D3D12DescriptorAllocation Copy(const D3D12DescriptorAllocation& src, i32 size);
+		D3D12DescriptorAllocation Copy(const D3D12DescriptorAllocation& src, i32 size, DescriptorHeapSubType subType);
 
 		/**
 		 * Reset allocator.

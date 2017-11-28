@@ -31,9 +31,9 @@ namespace GPU
 
 	D3D12LinearDescriptorAllocator::~D3D12LinearDescriptorAllocator() {}
 
-	D3D12DescriptorAllocation D3D12LinearDescriptorAllocator::Alloc(i32 numDescriptors)
+	D3D12DescriptorAllocation D3D12LinearDescriptorAllocator::Alloc(i32 numDescriptors, DescriptorHeapSubType subType)
 	{
-		auto offset = Core::AtomicAdd(&allocOffset_, numDescriptors);
+		auto offset = Core::AtomicAdd(&allocOffset_, numDescriptors) - numDescriptors;
 
 		if((offset + numDescriptors) <= blockSize_)
 		{
@@ -50,6 +50,10 @@ namespace GPU
 				retVal.cpuDescHandle_.ptr += (offset * handleIncrementSize_);
 				retVal.gpuDescHandle_.ptr += (offset * handleIncrementSize_);
 			}
+
+			if(subType != DescriptorHeapSubType::INVALID)
+				ClearDescriptorRange(d3dDescriptorHeap_.Get(), subType, retVal.offset_, retVal.size_);
+
 			return retVal;
 		}
 		// Failure.
@@ -57,10 +61,11 @@ namespace GPU
 		return D3D12DescriptorAllocation();
 	}
 
-	D3D12DescriptorAllocation D3D12LinearDescriptorAllocator::Copy(const D3D12DescriptorAllocation& src, i32 size)
+	D3D12DescriptorAllocation D3D12LinearDescriptorAllocator::Copy(
+	    const D3D12DescriptorAllocation& src, i32 size, DescriptorHeapSubType subType)
 	{
 		i32 copySize = Core::Min(size, src.size_);
-		auto retVal = Alloc(size);
+		auto retVal = Alloc(size, subType);
 		if(copySize > 0)
 			d3dDevice_->CopyDescriptorsSimple(copySize, retVal.cpuDescHandle_, src.cpuDescHandle_, heapType_);
 		return retVal;

@@ -1231,7 +1231,7 @@ namespace GPU
 			}
 
 			device_->SubmitCommandLists(Core::ArrayView<D3D12CommandList*>(commandLists.data(), numHandles));
-		}	
+		}
 		return ErrorCode::OK;
 	}
 

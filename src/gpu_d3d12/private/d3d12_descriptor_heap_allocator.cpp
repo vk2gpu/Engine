@@ -21,20 +21,24 @@ namespace GPU
 
 	D3D12DescriptorHeapAllocator::~D3D12DescriptorHeapAllocator() {}
 
-	D3D12DescriptorAllocation D3D12DescriptorHeapAllocator::Alloc(i32 numDescriptors)
+	D3D12DescriptorAllocation D3D12DescriptorHeapAllocator::Alloc(i32 size)
 	{
+		if(size == 0)
+			return D3D12DescriptorAllocation();
+
 		Core::ScopedMutex lock(allocMutex_);
 
 		for(i32 i = 0; i < blocks_.size(); ++i)
 		{
 			auto& block = blocks_[i];
 
-			auto allocId = block.allocator_.AllocRange(numDescriptors);
+			auto allocId = block.allocator_.AllocRange(size);
 			if(auto alloc = block.allocator_.GetAlloc(allocId))
 			{
 				D3D12DescriptorAllocation retVal;
 				retVal.d3dDescriptorHeap_ = block.d3dDescriptorHeap_;
 				retVal.offset_ = alloc.offset_;
+				retVal.size_ = size;
 				retVal.allocId_ = ((u32)i << 16) | (u32)allocId;
 				retVal.cpuDescHandle_ = block.d3dDescriptorHeap_->GetCPUDescriptorHandleForHeapStart();
 				retVal.cpuDescHandle_.ptr += (alloc.offset_ * handleIncrementSize_);
@@ -56,20 +60,11 @@ namespace GPU
 		return D3D12DescriptorAllocation();
 	}
 
-	D3D12DescriptorAllocation D3D12DescriptorHeapAllocator::Alloc(i32 numCBV, i32 numSRV, i32 numUAV)
-	{
-		auto alloc = Alloc(MAX_CBV_BINDINGS + MAX_SRV_BINDINGS + MAX_UAV_BINDINGS);
-		i32 offset = alloc.offset_;
-		ClearRange(alloc.d3dDescriptorHeap_.Get(), DescriptorHeapSubType::CBV, offset, MAX_CBV_BINDINGS);
-		offset += MAX_CBV_BINDINGS;
-		ClearRange(alloc.d3dDescriptorHeap_.Get(), DescriptorHeapSubType::SRV, offset, MAX_SRV_BINDINGS);
-		offset += MAX_SRV_BINDINGS;
-		ClearRange(alloc.d3dDescriptorHeap_.Get(), DescriptorHeapSubType::UAV, offset, MAX_UAV_BINDINGS);
-		return alloc;
-	}
-
 	void D3D12DescriptorHeapAllocator::Free(D3D12DescriptorAllocation alloc)
 	{
+		if(alloc.allocId_ == 0)
+			return;
+
 		Core::ScopedMutex lock(allocMutex_);
 		auto& block = blocks_[alloc.allocId_ >> 16];
 		DBG_ASSERT(block.numAllocs_ >= 1);
@@ -91,90 +86,10 @@ namespace GPU
 		    &desc, IID_ID3D12DescriptorHeap, (void**)block.d3dDescriptorHeap_.GetAddressOf()));
 		SetObjectName(block.d3dDescriptorHeap_.Get(), debugName_);
 
-		ClearRange(block.d3dDescriptorHeap_.Get(), DescriptorHeapSubType::INVALID, 0, blockSize_);
+		ClearDescriptorRange(block.d3dDescriptorHeap_.Get(), DescriptorHeapSubType::INVALID, 0, blockSize_);
 
 		blocks_.emplace_back(std::move(block));
 	}
 
-	void D3D12DescriptorHeapAllocator::ClearRange(
-	    ID3D12DescriptorHeap* d3dDescriptorHeap, DescriptorHeapSubType subType, i32 offset, i32 numDescriptors)
-	{
-		auto descriptorSize = d3dDevice_->GetDescriptorHandleIncrementSize(heapType_);
-		D3D12_CPU_DESCRIPTOR_HANDLE handle = d3dDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
-		handle.ptr += offset * descriptorSize;
-		for(i32 i = offset; i < (offset + numDescriptors); ++i)
-		{
-			if(subType == DescriptorHeapSubType::INVALID)
-			{
-				switch(heapType_)
-				{
-				case D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV:
-				{
-					D3D12_CONSTANT_BUFFER_VIEW_DESC desc = {};
-					d3dDevice_->CreateConstantBufferView(&desc, handle);
-					break;
-				}
-				case D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER:
-				{
-					D3D12_SAMPLER_DESC desc = {};
-					// Setup easy to spot when debugging, but valid default.
-					desc.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-					desc.AddressV = D3D12_TEXTURE_ADDRESS_MODE_MIRROR;
-					desc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
-					desc.BorderColor[0] = 1.0f;
-					desc.BorderColor[1] = 2.0f;
-					desc.BorderColor[2] = 3.0f;
-					desc.BorderColor[3] = 4.0f;
-					d3dDevice_->CreateSampler(&desc, handle);
-					break;
-				}
-				case D3D12_DESCRIPTOR_HEAP_TYPE_RTV:
-				case D3D12_DESCRIPTOR_HEAP_TYPE_DSV:
-					// Don't need to clear these ranges.
-					break;
-				default:
-					DBG_BREAK;
-					break;
-				};
-			}
-			else
-			{
-				switch(subType)
-				{
-				case DescriptorHeapSubType::CBV:
-				{
-					D3D12_CONSTANT_BUFFER_VIEW_DESC desc = {};
-					d3dDevice_->CreateConstantBufferView(&desc, handle);
-					break;
-				}
-				case DescriptorHeapSubType::SRV:
-				{
-					D3D12_SHADER_RESOURCE_VIEW_DESC desc = {};
-					desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-					desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-					desc.Shader4ComponentMapping = D3D12_ENCODE_SHADER_4_COMPONENT_MAPPING(
-					    D3D12_SHADER_COMPONENT_MAPPING_FORCE_VALUE_0, D3D12_SHADER_COMPONENT_MAPPING_FORCE_VALUE_0,
-					    D3D12_SHADER_COMPONENT_MAPPING_FORCE_VALUE_0, D3D12_SHADER_COMPONENT_MAPPING_FORCE_VALUE_0);
-					d3dDevice_->CreateShaderResourceView(nullptr, &desc, handle);
-					break;
-				}
-				case DescriptorHeapSubType::UAV:
-				{
-					D3D12_UNORDERED_ACCESS_VIEW_DESC desc = {};
-					desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-					desc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
-					d3dDevice_->CreateUnorderedAccessView(nullptr, nullptr, &desc, handle);
-					break;
-				}
-				default:
-					DBG_BREAK;
-					break;
-				};
-			}
-
-			// Advance handle.
-			handle.ptr += descriptorSize;
-		}
-	}
 
 } // namespace GPU

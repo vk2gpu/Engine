@@ -22,7 +22,7 @@ namespace GPU
 		void CreateCommandSignatures();
 		void CreateDefaultPSOs();
 		void CreateUploadAllocators();
-		void CreateDescriptorHeapAllocators();
+		void CreateDescriptorAllocators();
 
 		void NextFrame();
 
@@ -67,8 +67,8 @@ namespace GPU
 		ComPtr<IDXGIFactory4> dxgiFactory_;
 		ComPtr<ID3D12Device> d3dDevice_;
 
-		ComPtr<ID3D12CommandQueue> d3dDirectQueue_;			// direct
-		ComPtr<ID3D12CommandQueue> d3dAsyncComputeQueue_;	// compute
+		ComPtr<ID3D12CommandQueue> d3dDirectQueue_;       // direct
+		ComPtr<ID3D12CommandQueue> d3dAsyncComputeQueue_; // compute
 
 		/// Frame counter.
 		i64 frameIdx_ = 0;
@@ -85,11 +85,39 @@ namespace GPU
 		volatile i64 uploadCommandsPending_ = 0;
 		volatile i64 uploadFenceIdx_ = 0;
 
-		/// Descriptor heap allocators.
-		class D3D12DescriptorHeapAllocator* cbvSrvUavAllocator_ = nullptr;
+		/// Descriptor allocators.
+		class D3D12DescriptorHeapAllocator* viewAllocator_ = nullptr;
 		class D3D12DescriptorHeapAllocator* samplerAllocator_ = nullptr;
 		class D3D12DescriptorHeapAllocator* rtvAllocator_ = nullptr;
 		class D3D12DescriptorHeapAllocator* dsvAllocator_ = nullptr;
+
+		struct DescriptorAllocators
+		{
+			class D3D12LinearDescriptorAllocator* viewAllocator_ = nullptr;
+			class D3D12LinearDescriptorAllocator* samplerAllocator_ = nullptr;
+			class D3D12LinearDescriptorAllocator* rtvAllocator_ = nullptr;
+			class D3D12LinearDescriptorAllocator* dsvAllocator_ = nullptr;
+		};
+
+		Core::Array<DescriptorAllocators, MAX_GPU_FRAMES> descriptorAllocators_ = {};
+
+		D3D12LinearDescriptorAllocator& GetSamplerDescriptorAllocator()
+		{
+			return *descriptorAllocators_[frameIdx_ % MAX_GPU_FRAMES].samplerAllocator_;
+		}
+		D3D12LinearDescriptorAllocator& GetViewDescriptorAllocator()
+		{
+			return *descriptorAllocators_[frameIdx_ % MAX_GPU_FRAMES].viewAllocator_;
+		}
+		D3D12LinearDescriptorAllocator& GetRTVDescriptorAllocator()
+		{
+			return *descriptorAllocators_[frameIdx_ % MAX_GPU_FRAMES].rtvAllocator_;
+		}
+		D3D12LinearDescriptorAllocator& GetDSVDescriptorAllocator()
+		{
+			return *descriptorAllocators_[frameIdx_ % MAX_GPU_FRAMES].dsvAllocator_;
+		}
+
 
 		D3D12LinearHeapAllocator& GetUploadAllocator() { return *uploadAllocators_[frameIdx_ % MAX_GPU_FRAMES]; }
 

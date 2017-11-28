@@ -81,7 +81,8 @@ namespace GPU
 	/**
 	 * Barriers.
 	 */
-	D3D12_RESOURCE_BARRIER TransitionBarrier(ID3D12Resource* res, UINT subRsc, D3D12_RESOURCE_STATES before, D3D12_RESOURCE_STATES after);
+	D3D12_RESOURCE_BARRIER TransitionBarrier(
+	    ID3D12Resource* res, UINT subRsc, D3D12_RESOURCE_STATES before, D3D12_RESOURCE_STATES after);
 
 	/**
 	 * Utility.
@@ -93,6 +94,30 @@ namespace GPU
 	static const i64 UPLOAD_AUTO_FLUSH_COMMANDS = 30;
 	static const i64 UPLOAD_AUTO_FLUSH_BYTES = 8 * 1024 * 1024;
 
+	/**
+	 * Descriptor heap allocation.
+	 */
+	struct D3D12DescriptorAllocation
+	{
+		/// Descriptor heap we're pointing to.
+		ComPtr<ID3D12DescriptorHeap> d3dDescriptorHeap_;
+		/// Offset in descriptor heap.
+		i32 offset_ = 0;
+		/// Size of allocation.
+		i32 size_ = 0;
+		/// CPU descriptor handle.
+		D3D12_CPU_DESCRIPTOR_HANDLE cpuDescHandle_ = D3D12_CPU_DESCRIPTOR_HANDLE();
+		/// GPU descriptor handle.
+		D3D12_GPU_DESCRIPTOR_HANDLE gpuDescHandle_ = D3D12_GPU_DESCRIPTOR_HANDLE();
+		/// Allocation id.
+		u32 allocId_ = 0;
+	};
+
+	/**
+	 * Clear descriptor range.
+	 */
+	void ClearDescriptorRange(
+	    ID3D12DescriptorHeap* d3dDescriptorHeap, DescriptorHeapSubType subType, i32 offset, i32 numDescriptors);
 
 } // namespace GPU
 

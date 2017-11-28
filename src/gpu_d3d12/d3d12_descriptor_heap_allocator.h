@@ -7,21 +7,6 @@
 
 namespace GPU
 {
-	struct D3D12DescriptorAllocation
-	{
-		/// Descriptor heap we're pointing to.
-		ComPtr<ID3D12DescriptorHeap> d3dDescriptorHeap_;
-		/// Offset in descriptor heap.
-		i32 offset_ = 0;
-		/// CPU descriptor handle.
-		D3D12_CPU_DESCRIPTOR_HANDLE cpuDescHandle_ = D3D12_CPU_DESCRIPTOR_HANDLE();
-		/// GPU descriptor handle.
-		D3D12_GPU_DESCRIPTOR_HANDLE gpuDescHandle_ = D3D12_GPU_DESCRIPTOR_HANDLE();
-		/// Allocation id.
-		u32 allocId_ = 0;
-	};
-
-
 	class D3D12DescriptorHeapAllocator
 	{
 	public:
@@ -29,10 +14,7 @@ namespace GPU
 		    D3D12_DESCRIPTOR_HEAP_FLAGS heapFlags, i32 blockSize, const char* debugName);
 		~D3D12DescriptorHeapAllocator();
 
-		D3D12DescriptorAllocation Alloc(i32 numDescriptors);
-
-		// Bit of a hack until there is a better desc heap management.
-		D3D12DescriptorAllocation Alloc(i32 numCBV, i32 numSRV, i32 numUAV);
+		D3D12DescriptorAllocation Alloc(i32 size);
 
 		void Free(D3D12DescriptorAllocation alloc);
 
@@ -40,9 +22,6 @@ namespace GPU
 		D3D12DescriptorHeapAllocator(const D3D12DescriptorHeapAllocator&) = delete;
 
 		void AddBlock();
-
-		void ClearRange(
-		    ID3D12DescriptorHeap* d3dDescriptorHeap, DescriptorHeapSubType subType, i32 offset, i32 numDescriptors);
 
 		struct DescriptorBlock
 		{
