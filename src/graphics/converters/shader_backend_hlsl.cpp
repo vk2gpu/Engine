@@ -2,9 +2,33 @@
 
 #include <cstdarg>
 
+namespace
+{
+	// clang-format off
+	const char* HLSL_ATTRIBUTES[] = 
+	{
+		"domain",
+		"earlydepthstencil",
+		"instance",
+		"maxtessfactor",
+		"numthreads",
+		"outputcontrolpoints",
+		"outputtopology",
+		"partitioning",
+		"patchconstantfunc",
+	};
+	// clang-format on
+}
+
 namespace Graphics
 {
-	ShaderBackendHLSL::ShaderBackendHLSL() {}
+	ShaderBackendHLSL::ShaderBackendHLSL(const BindingMap& bindingMap, bool autoReg)
+		: bindingMap_(bindingMap)
+		, autoReg_(autoReg)
+	{
+		for(const char* attribute : HLSL_ATTRIBUTES)
+			hlslAttributes_.insert(attribute);
+	}
 
 	ShaderBackendHLSL::~ShaderBackendHLSL() {}
 
@@ -41,8 +65,11 @@ namespace Graphics
 		{
 			if(!IsInternal(intNode))
 			{
-				intNode->Visit(this);
-				NextLine();
+				if(bindingMap_.size() == 0 || bindingMap_.find(intNode->name_) != bindingMap_.end())
+				{
+					intNode->Visit(this);
+					NextLine();
+				}
 			}
 		}
 
@@ -86,25 +113,26 @@ namespace Graphics
 
 	bool ShaderBackendHLSL::VisitEnter(AST::NodeAttribute* node)
 	{
-		// TODO: Only write if an HLSL compatible attribute.
-
-		if(node->parameters_.size() == 0)
+		if(hlslAttributes_.find(node->name_) != hlslAttributes_.end())
 		{
-			Write("[%s]\n", node->name_.c_str());
-		}
-		else
-		{
-			Write("[%s(", node->name_.c_str());
-			const i32 num = node->parameters_.size();
-			for(i32 idx = 0; idx < num; ++idx)
+			if(node->parameters_.size() == 0)
 			{
-				const auto& param = node->parameters_[idx];
-				Write("%s", param.c_str());
-				if(idx < (num - 1))
-					Write(", ");
+				Write("[%s]\n", node->name_.c_str());
 			}
-			Write(")]");
-			NextLine();
+			else
+			{
+				Write("[%s(", node->name_.c_str());
+				const i32 num = node->parameters_.size();
+				for(i32 idx = 0; idx < num; ++idx)
+				{
+					const auto& param = node->parameters_[idx];
+					Write("%s", param.c_str());
+					if(idx < (num - 1))
+						Write(", ");
+				}
+				Write(")]");
+				NextLine();
+			}
 		}
 		return true;
 	}
@@ -162,8 +190,9 @@ namespace Graphics
 
 		Write("%s %s", node->isCBuffer_ ? "cbuffer" : "struct", node->name_.c_str());
 
-		if(node->isCBuffer_)
-			Write(": register(b%i)", cbufferReg_++);
+		if(autoReg_)
+			if(node->isCBuffer_)
+				Write(": register(b%i)", cbufferReg_++);
 
 		NextLine();
 		Write("{");
@@ -173,6 +202,8 @@ namespace Graphics
 
 		if(node->isCBuffer_)
 			++inCBuffer_;
+		else
+			++inStruct_;
 
 		for(auto* member : node->type_->members_)
 		{
@@ -181,6 +212,8 @@ namespace Graphics
 
 		if(node->isCBuffer_)
 			--inCBuffer_;
+		else
+			--inStruct_;
 
 		--indent_;
 
@@ -196,6 +229,24 @@ namespace Graphics
 		if(writeInternalDeclaration_ != nullptr && !IsInternal(node, writeInternalDeclaration_))
 			return false;
 		else if(writeInternalDeclaration_ == nullptr && IsInternal(node))
+			return false;
+
+		bool isBinding = false;
+		isBinding |= node->type_->baseType_->metaData_ == "SRV";
+		isBinding |= node->type_->baseType_->metaData_ == "UAV";
+		isBinding |= node->type_->baseType_->metaData_ == "CBV";
+		if(node->type_->baseType_->struct_)
+		{
+			if(auto attr = node->type_->baseType_->struct_->FindAttribute("internal"))
+			{
+				isBinding |= attr->HasParameter(0) && attr->GetParameter(0) == "SamplerState";
+			}
+			isBinding |= node->type_->baseType_->struct_->isCBuffer_;
+		}
+
+		isBinding &= !inStruct_ && !inParams_ && !inCBuffer_ && !node->isFunction_;
+
+		if(isBinding && bindingMap_.size() > 0 && bindingMap_.find(node->name_) == bindingMap_.end())
 			return false;
 
 		if(!writeInternalDeclaration_)
@@ -264,15 +315,20 @@ namespace Graphics
 					reg.Printf("register(%s)", node->register_.c_str());
 				else
 					reg.Printf("register(%s, %s)", node->register_.c_str(), node->space_.c_str());
-			else if(node->type_->baseType_->metaData_ == "SRV")
-				reg.Printf("register(t%i)", srvReg_++);
-			else if(node->type_->baseType_->metaData_ == "UAV")
-				reg.Printf("register(u%i)", uavReg_++);
 
-			if(node->type_->baseType_->struct_)
-				if(auto attr = node->type_->baseType_->struct_->FindAttribute("internal"))
-					if(attr->HasParameter(0) && attr->GetParameter(0) == "SamplerState")
-						reg.Printf("register(s%i)", samplerReg_++);
+			else if(autoReg_)
+				if(node->type_->baseType_->metaData_ == "SRV")
+					reg.Printf("register(t%i)", srvReg_++);
+				else if(node->type_->baseType_->metaData_ == "UAV")
+					reg.Printf("register(u%i)", uavReg_++);
+				else if(node->type_->baseType_->metaData_ == "CBV")
+					reg.Printf("register(b%i)", cbufferReg_++);
+
+				if(node->type_->baseType_->struct_)
+					if(auto attr = node->type_->baseType_->struct_->FindAttribute("internal"))
+						if(attr->HasParameter(0) && attr->GetParameter(0) == "SamplerState")
+							reg.Printf("register(s%i)", samplerReg_++);
+
 			if(inCBuffer_ == 0)
 			{
 				if(node->semantic_.size() > 0)

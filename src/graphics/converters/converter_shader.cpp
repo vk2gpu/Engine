@@ -25,6 +25,11 @@
 
 #include <cstring>
 
+#define DEBUG_DUMP_SHADERS 0
+
+#define DUMP_ESF_PATH "C:\\Dev\\tmp.esf"
+#define DUMP_HLSL_PATH "C:\\Dev\\tmp.hlsl"
+
 namespace
 {
 	class ConverterShader : public Resource::IConverter
@@ -80,6 +85,15 @@ namespace
 				if(!preprocessor.Preprocess(fullPath, shaderSource.data()))
 					return false;
 
+#if DEBUG_DUMP_SHADERS
+				if(Core::FileExists(DUMP_ESF_PATH))
+					Core::FileRemove(DUMP_ESF_PATH);
+				if(auto outTmpFile = Core::File(DUMP_ESF_PATH, Core::FileFlags::WRITE | Core::FileFlags::CREATE))
+				{
+					outTmpFile.Write(preprocessor.GetOutput().c_str(), preprocessor.GetOutput().size());
+				}
+#endif
+
 				// Add dependencies from preprocessor stage.
 				Core::Array<char, Core::MAX_PATH_LENGTH> originalPath;
 				for(const char* dep : preprocessor.GetDependencies())
@@ -123,62 +137,79 @@ namespace
 				// Grab sampler states.
 				const auto& samplerStates = backendMetadata.GetSamplerStates();
 
-				// Generate HLSL for the whole ESF.
-				Graphics::ShaderBackendHLSL backendHLSL;
-				node->Visit(&backendHLSL);
-
-				// Compile HLSL.
-				Graphics::ShaderCompilerHLSL compilerHLSL;
-
 				struct CompileInfo
 				{
-					CompileInfo(const char* name, const char* code, const char* entryPoint, GPU::ShaderType type)
-					    : name_(name)
-					    , code_(code)
-					    , entryPoint_(entryPoint)
-					    , type_(type)
+					CompileInfo(const Core::String& name, const Core::String& code, const Core::String& entryPoint, GPU::ShaderType type)
+						: name_(name)
+						, code_(code)
+						, entryPoint_(entryPoint)
+						, type_(type)
 					{
 					}
 
-					const char* name_;
-					const char* code_;
-					const char* entryPoint_;
+					Core::String name_;
+					Core::String code_;
+					Core::String entryPoint_;
 					GPU::ShaderType type_;
 				};
 
-				Core::Vector<CompileInfo> compiles;
-				for(i32 idx = 0; idx < shaders.size(); ++idx)
-					for(const auto& shader : shaders[idx])
-						compiles.emplace_back(
-						    sourceFile, backendHLSL.GetOutputCode().c_str(), shader.c_str(), (GPU::ShaderType)idx);
-
-				Core::Vector<Graphics::ShaderCompileOutput> outputCompiles;
-				for(const auto& compile : compiles)
+				Graphics::ShaderCompilerHLSL compilerHLSL;
+				auto GenerateAndCompile = [&](const Graphics::BindingMap& bindingMap, Core::Vector<CompileInfo>& outCompileInfo, Core::Vector<Graphics::ShaderCompileOutput>& outCompileOutput)
 				{
-					auto outCompile =
-					    compilerHLSL.Compile(compile.name_, compile.code_, compile.entryPoint_, compile.type_);
-					if(outCompile)
+					outCompileInfo.clear();
+					outCompileOutput.clear();
+
+					// Generate HLSL for the whole ESF.
+					Graphics::ShaderBackendHLSL backendHLSL(bindingMap, true);
+					node->Visit(&backendHLSL);
+
+#if DEBUG_DUMP_SHADERS
+					if(Core::FileExists(DUMP_HLSL_PATH))
+						Core::FileRemove(DUMP_HLSL_PATH);
+					if(auto outTmpFile = Core::File(DUMP_HLSL_PATH, Core::FileFlags::WRITE | Core::FileFlags::CREATE))
 					{
-						outputCompiles.emplace_back(outCompile);
+						outTmpFile.Write(backendHLSL.GetOutputCode().c_str(), backendHLSL.GetOutputCode().size());
 					}
-					else
+#endif
+
+					// Compile HLSL.
+					for(i32 idx = 0; idx < shaders.size(); ++idx)
+						for(const auto& shader : shaders[idx])
+							outCompileInfo.emplace_back(
+								sourceFile, backendHLSL.GetOutputCode(), shader, (GPU::ShaderType)idx);
+
+					for(const auto& compile : outCompileInfo)
 					{
-						Core::String errStr(outCompile.errorsBegin_, outCompile.errorsEnd_);
-						Core::Log("%s", errStr.c_str());
-						return false;
+						auto outCompile =
+							compilerHLSL.Compile(compile.name_.c_str(), compile.code_.c_str(), compile.entryPoint_.c_str(), compile.type_);
+						if(outCompile)
+						{
+							outCompileOutput.emplace_back(outCompile);
+						}
+						else
+						{
+							Core::String errStr(outCompile.errorsBegin_, outCompile.errorsEnd_);
+							Core::Log("%s", errStr.c_str());
+							return false;
+						}
 					}
+
+					return true;
+				};
+
+				// Generate and compile initial pass.
+				Core::Vector<CompileInfo> compileInfo;
+				Core::Vector<Graphics::ShaderCompileOutput> compileOutput;
+				if(!GenerateAndCompile(Graphics::BindingMap(), compileInfo, compileOutput))
+				{
+					// ERROR.
+					return false;
 				}
 
-				// Build set of all bindings used.
-				using BindingMap = Core::Map<Core::String, i32>;
-				BindingMap cbuffers;
-				BindingMap samplers;
-				BindingMap srvs;
-				BindingMap uavs;
-				i32 bindingIdx = 0;
-
-				const auto AddBindings = [&](
-				    const Core::Vector<Graphics::ShaderBinding>& inBindings, BindingMap& outBindings) {
+				// Get list of all used bindings.
+				Graphics::BindingMap usedBindings;
+				const auto AddBindings = [](
+				    const Core::Vector<Graphics::ShaderBinding>& inBindings, Graphics::BindingMap& outBindings, i32 bindingIdx) {
 					for(const auto& binding : inBindings)
 					{
 						if(outBindings.find(binding.name_) == outBindings.end())
@@ -186,16 +217,41 @@ namespace
 							outBindings.insert(binding.name_, bindingIdx++);
 						}
 					}
+					return bindingIdx;
 				};
 
-				for(const auto& compile : outputCompiles)
-					AddBindings(compile.cbuffers_, cbuffers);
-				for(const auto& compile : outputCompiles)
-					AddBindings(compile.samplers_, samplers);
-				for(const auto& compile : outputCompiles)
-					AddBindings(compile.srvs_, srvs);
-				for(const auto& compile : outputCompiles)
-					AddBindings(compile.uavs_, uavs);
+				i32 bindingIdx = 0;
+				for(const auto& compile : compileOutput)
+					bindingIdx = AddBindings(compile.cbuffers_, usedBindings, bindingIdx);
+				for(const auto& compile : compileOutput)
+					bindingIdx = AddBindings(compile.samplers_, usedBindings, bindingIdx);
+				for(const auto& compile : compileOutput)
+					bindingIdx = AddBindings(compile.srvs_, usedBindings, bindingIdx);
+				for(const auto& compile : compileOutput)
+					bindingIdx = AddBindings(compile.uavs_, usedBindings, bindingIdx);
+
+				// Regenerate HLSL with only the used bindings.
+				if(!GenerateAndCompile(usedBindings, compileInfo, compileOutput))
+				{
+					// ERROR.
+					return false;
+				}
+
+				// Build set of all bindings used.
+				Graphics::BindingMap cbuffers;
+				Graphics::BindingMap samplers;
+				Graphics::BindingMap srvs;
+				Graphics::BindingMap uavs;
+				bindingIdx = 0;
+
+				for(const auto& compile : compileOutput)
+					bindingIdx = AddBindings(compile.cbuffers_, cbuffers, bindingIdx);
+				for(const auto& compile : compileOutput)
+					bindingIdx = AddBindings(compile.samplers_, samplers, bindingIdx);
+				for(const auto& compile : compileOutput)
+					bindingIdx = AddBindings(compile.srvs_, srvs, bindingIdx);
+				for(const auto& compile : compileOutput)
+					bindingIdx = AddBindings(compile.uavs_, uavs, bindingIdx);
 
 				// Setup data ready to serialize.
 				Graphics::ShaderHeader outHeader;
@@ -203,13 +259,13 @@ namespace
 				outHeader.numSamplers_ = samplers.size();
 				outHeader.numSRVs_ = srvs.size();
 				outHeader.numUAVs_ = uavs.size();
-				outHeader.numShaders_ = outputCompiles.size();
+				outHeader.numShaders_ = compileOutput.size();
 				outHeader.numTechniques_ = techniques.size();
 				outHeader.numSamplerStates_ = samplerStates.size();
 				Core::Vector<Graphics::ShaderBindingHeader> outBindingHeaders;
 				outBindingHeaders.reserve(cbuffers.size() + samplers.size() + srvs.size() + uavs.size());
 
-				const auto PopulateoutBindingHeaders = [&outBindingHeaders](const BindingMap& bindings) {
+				const auto PopulateoutBindingHeaders = [&outBindingHeaders](const Graphics::BindingMap& bindings) {
 					for(const auto& binding : bindings)
 					{
 						Graphics::ShaderBindingHeader bindingHeader;
@@ -236,7 +292,7 @@ namespace
 				Core::Vector<Graphics::ShaderBytecodeHeader> outBytecodeHeaders;
 				Core::Vector<Graphics::ShaderBindingMapping> outBindingMappings;
 				i32 bytecodeOffset = 0;
-				for(const auto& compile : outputCompiles)
+				for(const auto& compile : compileOutput)
 				{
 					Graphics::ShaderBytecodeHeader bytecodeHeader;
 					bytecodeHeader.numCBuffers_ = compile.cbuffers_.size();
@@ -251,7 +307,7 @@ namespace
 					outBytecodeHeaders.push_back(bytecodeHeader);
 
 					const auto AddBindingMapping = [&](
-					    const BindingMap& bindingMap, const Core::Vector<Graphics::ShaderBinding>& bindings) {
+					    const Graphics::BindingMap& bindingMap, const Core::Vector<Graphics::ShaderBinding>& bindings) {
 						for(const auto& binding : bindings)
 						{
 							auto it = bindingMap.find(binding.name_);
@@ -280,9 +336,9 @@ namespace
 						if(!name)
 							return -1;
 						i32 idx = 0;
-						for(const auto& compile : compiles)
+						for(const auto& compile : compileInfo)
 						{
-							if(strcmp(compile.entryPoint_, name) == 0)
+							if(compile.entryPoint_ == name)
 								return idx;
 							++idx;
 						}
@@ -295,13 +351,15 @@ namespace
 					techniqueHeader.ps_ = FindShaderIdx(technique.ps_.c_str());
 					techniqueHeader.cs_ = FindShaderIdx(technique.cs_.c_str());
 					techniqueHeader.rs_ = technique.rs_.state_;
+
+					DBG_ASSERT(techniqueHeader.vs_ != -1 || techniqueHeader.cs_ != -1);
+
 					outTechniqueHeaders.push_back(techniqueHeader);
 				}
 
 				auto WriteShader = [&](const char* outFilename) {
 					// Write out shader data.
-					Core::File outFile(outFilename, Core::FileFlags::CREATE | Core::FileFlags::WRITE);
-					if(outFile)
+					if(auto outFile = Core::File(outFilename, Core::FileFlags::CREATE | Core::FileFlags::WRITE))
 					{
 						outFile.Write(&outHeader, sizeof(outHeader));
 						if(outBindingHeaders.size() > 0)
@@ -321,7 +379,7 @@ namespace
 							    outSamplerStateHeaders.size() * sizeof(Graphics::ShaderSamplerStateHeader));
 
 						i64 outBytes = 0;
-						for(const auto& compile : outputCompiles)
+						for(const auto& compile : compileOutput)
 						{
 							outBytes +=
 							    outFile.Write(compile.byteCodeBegin_, compile.byteCodeEnd_ - compile.byteCodeBegin_);

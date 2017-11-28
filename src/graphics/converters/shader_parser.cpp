@@ -303,12 +303,28 @@ namespace Graphics
 			if(token_.value_ == "(")
 			{
 				PARSE_TOKEN();
+				Core::String stringParam;
+				auto FlushStringParam = [&]()
+				{
+					if(stringParam.size() > 0)
+					{
+						node->parameters_.emplace_back(stringParam);
+						stringParam.clear();
+					}
+				};
+
 				while(token_.value_ != ")")
 				{
-					if(token_.type_ == AST::TokenType::INT || token_.type_ == AST::TokenType::FLOAT ||
-					    token_.type_ == AST::TokenType::STRING)
+					if(token_.type_ == AST::TokenType::INT || token_.type_ == AST::TokenType::FLOAT)
 					{
+						FlushStringParam();
+
 						node->parameters_.emplace_back(token_.value_);
+						PARSE_TOKEN();
+					}
+					else if(token_.type_ == AST::TokenType::STRING)
+					{
+						stringParam.append(token_.value_.c_str());
 						PARSE_TOKEN();
 					}
 					else
@@ -322,9 +338,13 @@ namespace Graphics
 
 					if(token_.type_ == AST::TokenType::CHAR && token_.value_ == ",")
 					{
+						FlushStringParam();
+
 						PARSE_TOKEN();
 					}
 				}
+				FlushStringParam();
+
 				PARSE_TOKEN();
 			}
 			CHECK_TOKEN(AST::TokenType::CHAR, "]");

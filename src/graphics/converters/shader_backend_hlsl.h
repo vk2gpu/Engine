@@ -4,10 +4,12 @@
 
 namespace Graphics
 {
+	using BindingMap = Core::Map<Core::String, i32>;
+
 	class ShaderBackendHLSL : public AST::IVisitor
 	{
 	public:
-		ShaderBackendHLSL();
+		ShaderBackendHLSL(const BindingMap& bindingMap, bool autoReg);
 		virtual ~ShaderBackendHLSL();
 		bool VisitEnter(AST::NodeShaderFile* node) override;
 		void VisitExit(AST::NodeShaderFile* node) override;
@@ -39,15 +41,21 @@ namespace Graphics
 		void NextLine();
 		bool IsInternal(AST::Node* node, const char* internalType = nullptr) const;
 
+		const BindingMap& bindingMap_;
+		bool autoReg_ = false;
+
 		bool isNewLine_ = false;
 		i32 indent_ = 0;
 		i32 inParams_ = 0;
 		i32 inCBuffer_ = 0;
+		i32 inStruct_ = 0;
 
 		i32 cbufferReg_ = 0;
 		i32 samplerReg_ = 0;
 		i32 srvReg_ = 0;
 		i32 uavReg_ = 0;
+
+		Core::Set<Core::String> hlslAttributes_;
 
 		const char* writeInternalDeclaration_ = nullptr;
 

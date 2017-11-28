@@ -616,6 +616,7 @@ namespace Graphics
 			const auto& desc = techniqueDescs_[impl->descIdx_];
 			Core::Array<char, 128> debugName = {};
 			sprintf_s(debugName.data(), debugName.size(), "%s/%s", name_.c_str(), impl->header_.name_);
+			DBG_ASSERT(techHeader->vs_ != -1 || techHeader->cs_ != -1);
 
 			if(techHeader->cs_ != -1)
 			{
