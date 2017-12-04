@@ -156,6 +156,20 @@ namespace GPU
 		HRESULT hr = S_OK;
 		ComPtr<ID3DBlob> outBlob, errorBlob;
 
+		// Setup default samplers as static samplers.
+		const auto& defaultSamplers = GetDefaultSamplerStates();
+		Core::Vector<D3D12_STATIC_SAMPLER_DESC> staticSamplers(defaultSamplers.size());
+
+		i32 baseSamplerReg = 0;
+		for(i32 idx = 0; idx != defaultSamplers.size(); ++idx)
+		{
+			auto staticSampler = GetStaticSampler(defaultSamplers[idx]);
+			staticSampler.RegisterSpace = 8;
+			staticSampler.ShaderRegister = baseSamplerReg + idx;
+			staticSampler.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+			staticSamplers[idx] = staticSampler;
+		}
+
 		// Setup descriptor ranges.
 		D3D12_DESCRIPTOR_RANGE descriptorRanges[4];
 		descriptorRanges[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER;
@@ -228,9 +242,9 @@ namespace GPU
 
 			D3D12_ROOT_SIGNATURE_DESC rootSignatureDesc;
 			rootSignatureDesc.NumParameters = 4;
-			rootSignatureDesc.NumStaticSamplers = 0;
+			rootSignatureDesc.NumStaticSamplers = staticSamplers.size();
 			rootSignatureDesc.pParameters = parameters;
-			rootSignatureDesc.pStaticSamplers = nullptr;
+			rootSignatureDesc.pStaticSamplers = staticSamplers.data();
 			rootSignatureDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
 			auto rootSig = CreateRootSignature(rootSignatureDesc, RootSignatureType::GRAPHICS);
 			SetObjectName(rootSig.Get(), "Graphics");
@@ -249,9 +263,9 @@ namespace GPU
 
 			D3D12_ROOT_SIGNATURE_DESC rootSignatureDesc;
 			rootSignatureDesc.NumParameters = 4;
-			rootSignatureDesc.NumStaticSamplers = 0;
+			rootSignatureDesc.NumStaticSamplers = staticSamplers.size();
 			rootSignatureDesc.pParameters = parameters;
-			rootSignatureDesc.pStaticSamplers = nullptr;
+			rootSignatureDesc.pStaticSamplers = staticSamplers.data();
 			rootSignatureDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_DENY_VERTEX_SHADER_ROOT_ACCESS |
 			                          D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
 			                          D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS |

@@ -473,6 +473,7 @@ namespace GPU
 			psBound_ = pbs.pipelineState_.Get();
 		}
 
+		bool rootSigChanged = false;
 		switch(pbs.rootSignature_)
 		{
 		case RootSignatureType::GRAPHICS:
@@ -481,27 +482,28 @@ namespace GPU
 				d3dCommandList_->SetGraphicsRootSignature(
 				    backend_.device_->d3dRootSignatures_[(i32)pbs.rootSignature_].Get());
 				rootSigBound_ = pbs.rootSignature_;
+				rootSigChanged = true;
 			}
 
-			//if(gfxDescHandlesBound_[0].ptr != descSamplers.gpuDescHandle_.ptr)
+			if(rootSigChanged || gfxDescHandlesBound_[0].ptr != descSamplers.gpuDescHandle_.ptr)
 			{
 				d3dCommandList_->SetGraphicsRootDescriptorTable(0, descSamplers.gpuDescHandle_);
 				gfxDescHandlesBound_[0] = descSamplers.gpuDescHandle_;
 			}
 
-			//if(gfxDescHandlesBound_[1].ptr != descCBVs.gpuDescHandle_.ptr)
+			if(rootSigChanged || gfxDescHandlesBound_[1].ptr != descCBVs.gpuDescHandle_.ptr)
 			{
 				d3dCommandList_->SetGraphicsRootDescriptorTable(1, descCBVs.gpuDescHandle_);
 				gfxDescHandlesBound_[1] = descCBVs.gpuDescHandle_;
 			}
 
-			//if(gfxDescHandlesBound_[2].ptr != descSRVs.gpuDescHandle_.ptr)
+			if(rootSigChanged || gfxDescHandlesBound_[2].ptr != descSRVs.gpuDescHandle_.ptr)
 			{
 				d3dCommandList_->SetGraphicsRootDescriptorTable(2, descSRVs.gpuDescHandle_);
 				gfxDescHandlesBound_[2] = descSRVs.gpuDescHandle_;
 			}
 
-			//if(gfxDescHandlesBound_[3].ptr != descUAVs.gpuDescHandle_.ptr)
+			if(rootSigChanged || gfxDescHandlesBound_[3].ptr != descUAVs.gpuDescHandle_.ptr)
 			{
 				d3dCommandList_->SetGraphicsRootDescriptorTable(3, descUAVs.gpuDescHandle_);
 				gfxDescHandlesBound_[3] = descUAVs.gpuDescHandle_;
@@ -514,27 +516,28 @@ namespace GPU
 				d3dCommandList_->SetComputeRootSignature(
 				    backend_.device_->d3dRootSignatures_[(i32)pbs.rootSignature_].Get());
 				rootSigBound_ = pbs.rootSignature_;
+				rootSigChanged = true;
 			}
 
-			//if(compDescHandlesBound_[0].ptr != descSamplers.gpuDescHandle_.ptr)
+			if(rootSigChanged || compDescHandlesBound_[0].ptr != descSamplers.gpuDescHandle_.ptr)
 			{
 				d3dCommandList_->SetComputeRootDescriptorTable(0, descSamplers.gpuDescHandle_);
 				compDescHandlesBound_[0] = descSamplers.gpuDescHandle_;
 			}
 
-			//if(compDescHandlesBound_[1].ptr != descCBVs.gpuDescHandle_.ptr)
+			if(rootSigChanged || compDescHandlesBound_[1].ptr != descCBVs.gpuDescHandle_.ptr)
 			{
 				d3dCommandList_->SetComputeRootDescriptorTable(1, descCBVs.gpuDescHandle_);
 				compDescHandlesBound_[1] = descCBVs.gpuDescHandle_;
 			}
 
-			//if(compDescHandlesBound_[2].ptr != descSRVs.gpuDescHandle_.ptr)
+			if(rootSigChanged || compDescHandlesBound_[2].ptr != descSRVs.gpuDescHandle_.ptr)
 			{
 				d3dCommandList_->SetComputeRootDescriptorTable(2, descSRVs.gpuDescHandle_);
 				compDescHandlesBound_[2] = descSRVs.gpuDescHandle_;
 			}
 
-			//if(compDescHandlesBound_[3].ptr != descUAVs.gpuDescHandle_.ptr)
+			if(rootSigChanged || compDescHandlesBound_[3].ptr != descUAVs.gpuDescHandle_.ptr)
 			{
 				d3dCommandList_->SetComputeRootDescriptorTable(3, descUAVs.gpuDescHandle_);
 				compDescHandlesBound_[3] = descUAVs.gpuDescHandle_;

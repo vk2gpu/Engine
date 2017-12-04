@@ -10,5 +10,6 @@
 #undef ERROR
 #undef DELETE
 #undef LoadImage
+#undef TRANSPARENT
 
 #endif

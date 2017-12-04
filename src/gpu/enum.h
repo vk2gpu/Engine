@@ -10,6 +10,7 @@ namespace Core
 	GPU_DLL const char* EnumToString(GPU::TextureType val);
 	GPU_DLL const char* EnumToString(GPU::AddressingMode val);
 	GPU_DLL const char* EnumToString(GPU::FilteringMode val);
+	GPU_DLL const char* EnumToString(GPU::BorderColor val);
 	GPU_DLL const char* EnumToString(GPU::FillMode val);
 	GPU_DLL const char* EnumToString(GPU::CullMode val);
 	GPU_DLL const char* EnumToString(GPU::BlendType val);

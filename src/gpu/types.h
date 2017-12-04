@@ -30,7 +30,7 @@ namespace GPU
 	/// Maximum number of CBV bindings.
 	static const i32 MAX_CBV_BINDINGS = 14;
 	/// Maximum number of sampler bindings.
-	static const i32 MAX_SAMPLER_BINDINGS = 16;
+	static const i32 MAX_SAMPLER_BINDINGS = 8;
 	/// Resource data alignment.
 	static const i32 RESOURCE_DATA_ALIGNMENT = 256;
 
@@ -327,6 +327,16 @@ namespace GPU
 		LINEAR_MIPMAP_NEAREST,
 		NEAREST_MIPMAP_LINEAR,
 		LINEAR_MIPMAP_LINEAR,
+
+		MAX,
+	};
+
+	enum class BorderColor : i32
+	{
+		INVALID = -1,
+		TRANSPARENT = 0,
+		BLACK,
+		WHITE,
 
 		MAX,
 	};

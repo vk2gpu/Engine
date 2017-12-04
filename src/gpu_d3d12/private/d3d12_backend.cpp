@@ -226,71 +226,7 @@ namespace GPU
 	{
 		D3D12SamplerState samplerState;
 
-		auto GetAddessingMode = [](AddressingMode addressMode) {
-			switch(addressMode)
-			{
-			case AddressingMode::WRAP:
-				return D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-			case AddressingMode::MIRROR:
-				return D3D12_TEXTURE_ADDRESS_MODE_MIRROR;
-			case AddressingMode::CLAMP:
-				return D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
-			case AddressingMode::BORDER:
-				return D3D12_TEXTURE_ADDRESS_MODE_BORDER;
-			default:
-				DBG_BREAK;
-				return D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-			}
-		};
-
-		auto GetFilteringMode = [](FilteringMode min, FilteringMode mag, u32 anisotropy) {
-			if(min == FilteringMode::NEAREST && mag == FilteringMode::NEAREST)
-			{
-				return D3D12_FILTER_MIN_MAG_MIP_POINT;
-			}
-			else if(min == FilteringMode::NEAREST_MIPMAP_LINEAR && mag == FilteringMode::NEAREST)
-			{
-				return D3D12_FILTER_MIN_MAG_POINT_MIP_LINEAR;
-			}
-			else if(min == FilteringMode::LINEAR && mag == FilteringMode::NEAREST)
-			{
-				return D3D12_FILTER_MIN_POINT_MAG_LINEAR_MIP_POINT;
-			}
-			else if(min == FilteringMode::LINEAR_MIPMAP_LINEAR && mag == FilteringMode::NEAREST)
-			{
-				return D3D12_FILTER_MIN_POINT_MAG_MIP_LINEAR;
-			}
-			else if(min == FilteringMode::LINEAR && mag == FilteringMode::LINEAR)
-			{
-				return D3D12_FILTER_MIN_MAG_MIP_LINEAR;
-			}
-			else if(min == FilteringMode::LINEAR_MIPMAP_LINEAR && mag == FilteringMode::LINEAR)
-			{
-				if(anisotropy > 1)
-				{
-					return D3D12_FILTER_ANISOTROPIC;
-				}
-				else
-				{
-					return D3D12_FILTER_MIN_MAG_MIP_LINEAR;
-				}
-			}
-			return D3D12_FILTER_MIN_MAG_MIP_POINT;
-		};
-
-		memset(&samplerState, 0, sizeof(samplerState));
-		samplerState.desc_.AddressU = GetAddessingMode(state.addressU_);
-		samplerState.desc_.AddressV = GetAddessingMode(state.addressV_);
-		samplerState.desc_.AddressW = GetAddessingMode(state.addressW_);
-		samplerState.desc_.Filter = GetFilteringMode(state.minFilter_, state.magFilter_, state.maxAnisotropy_);
-		samplerState.desc_.MipLODBias = state.mipLODBias_;
-		samplerState.desc_.MaxAnisotropy = state.maxAnisotropy_;
-		samplerState.desc_.BorderColor[0] = state.borderColor_[0];
-		samplerState.desc_.BorderColor[1] = state.borderColor_[1];
-		samplerState.desc_.BorderColor[2] = state.borderColor_[2];
-		samplerState.desc_.BorderColor[3] = state.borderColor_[3];
-		samplerState.desc_.MinLOD = state.minLOD_;
-		samplerState.desc_.MaxLOD = state.maxLOD_;
+		samplerState.desc_ = GetSampler(state);
 
 		Core::ScopedWriteLock lock(resLock_);
 		samplerStates_[handle.GetIndex()] = samplerState;

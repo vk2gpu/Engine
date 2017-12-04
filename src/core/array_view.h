@@ -41,6 +41,14 @@ namespace Core
 		{
 		}
 
+		template<i32 SIZE>
+		ArrayView(const value_type (&arr)[SIZE])
+		    : begin_(&arr[0])
+		    , end_(&arr[0] + SIZE)
+
+		{
+		}
+
 		~ArrayView() = default;
 
 		const_iterator begin() const { return begin_; }

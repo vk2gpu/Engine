@@ -424,6 +424,125 @@ namespace GPU
 		return resourceDesc;
 	}
 
+	D3D12_TEXTURE_ADDRESS_MODE GetAddressingMode(AddressingMode addressMode)
+	{
+		switch(addressMode)
+		{
+		case AddressingMode::WRAP:
+			return D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+		case AddressingMode::MIRROR:
+			return D3D12_TEXTURE_ADDRESS_MODE_MIRROR;
+		case AddressingMode::CLAMP:
+			return D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+		case AddressingMode::BORDER:
+			return D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+		default:
+			DBG_BREAK;
+			return D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+		}
+	};
+
+	D3D12_FILTER GetFilteringMode(FilteringMode min, FilteringMode mag, u32 anisotropy)
+	{
+		if(min == FilteringMode::NEAREST && mag == FilteringMode::NEAREST)
+		{
+			return D3D12_FILTER_MIN_MAG_MIP_POINT;
+		}
+		else if(min == FilteringMode::NEAREST_MIPMAP_LINEAR && mag == FilteringMode::NEAREST)
+		{
+			return D3D12_FILTER_MIN_MAG_POINT_MIP_LINEAR;
+		}
+		else if(min == FilteringMode::LINEAR && mag == FilteringMode::NEAREST)
+		{
+			return D3D12_FILTER_MIN_POINT_MAG_LINEAR_MIP_POINT;
+		}
+		else if(min == FilteringMode::LINEAR_MIPMAP_LINEAR && mag == FilteringMode::NEAREST)
+		{
+			return D3D12_FILTER_MIN_POINT_MAG_MIP_LINEAR;
+		}
+		else if(min == FilteringMode::LINEAR && mag == FilteringMode::LINEAR)
+		{
+			return D3D12_FILTER_MIN_MAG_MIP_LINEAR;
+		}
+		else if(min == FilteringMode::LINEAR_MIPMAP_LINEAR && mag == FilteringMode::LINEAR)
+		{
+			if(anisotropy > 1)
+			{
+				return D3D12_FILTER_ANISOTROPIC;
+			}
+			else
+			{
+				return D3D12_FILTER_MIN_MAG_MIP_LINEAR;
+			}
+		}
+		return D3D12_FILTER_MIN_MAG_MIP_POINT;
+	};
+
+	D3D12_SAMPLER_DESC GetSampler(const GPU::SamplerState& state)
+	{
+		D3D12_SAMPLER_DESC desc = {};
+		memset(&desc, 0, sizeof(desc));
+		desc.AddressU = GetAddressingMode(state.addressU_);
+		desc.AddressV = GetAddressingMode(state.addressV_);
+		desc.AddressW = GetAddressingMode(state.addressW_);
+		desc.Filter = GetFilteringMode(state.minFilter_, state.magFilter_, state.maxAnisotropy_);
+		desc.MipLODBias = state.mipLODBias_;
+		desc.MaxAnisotropy = state.maxAnisotropy_;
+
+		switch(state.borderColor_)
+		{
+		case BorderColor::TRANSPARENT:
+			desc.BorderColor[0] = 0.0f;
+			desc.BorderColor[1] = 0.0f;
+			desc.BorderColor[2] = 0.0f;
+			desc.BorderColor[3] = 0.0f;
+			break;
+		case BorderColor::BLACK:
+			desc.BorderColor[0] = 0.0f;
+			desc.BorderColor[1] = 0.0f;
+			desc.BorderColor[2] = 0.0f;
+			desc.BorderColor[3] = 1.0f;
+			break;
+		case BorderColor::WHITE:
+			desc.BorderColor[0] = 1.0f;
+			desc.BorderColor[1] = 1.0f;
+			desc.BorderColor[2] = 1.0f;
+			desc.BorderColor[3] = 1.0f;
+			break;
+		}
+		desc.MinLOD = state.minLOD_;
+		desc.MaxLOD = state.maxLOD_;
+		return desc;
+	}
+
+	D3D12_STATIC_SAMPLER_DESC GetStaticSampler(const GPU::SamplerState& state)
+	{
+		D3D12_STATIC_SAMPLER_DESC desc = {};
+		memset(&desc, 0, sizeof(desc));
+		desc.AddressU = GetAddressingMode(state.addressU_);
+		desc.AddressV = GetAddressingMode(state.addressV_);
+		desc.AddressW = GetAddressingMode(state.addressW_);
+		desc.Filter = GetFilteringMode(state.minFilter_, state.magFilter_, state.maxAnisotropy_);
+		desc.MipLODBias = state.mipLODBias_;
+		desc.MaxAnisotropy = state.maxAnisotropy_;
+
+		switch(state.borderColor_)
+		{
+		case BorderColor::TRANSPARENT:
+			desc.BorderColor = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK;
+			break;
+		case BorderColor::BLACK:
+			desc.BorderColor = D3D12_STATIC_BORDER_COLOR_OPAQUE_BLACK;
+			break;
+		case BorderColor::WHITE:
+			desc.BorderColor = D3D12_STATIC_BORDER_COLOR_OPAQUE_WHITE;
+			break;
+		}
+		desc.MinLOD = state.minLOD_;
+		desc.MaxLOD = state.maxLOD_;
+		return desc;
+	}
+
 	D3D12_RESOURCE_BARRIER TransitionBarrier(
 	    ID3D12Resource* res, UINT subRsc, D3D12_RESOURCE_STATES before, D3D12_RESOURCE_STATES after)
 	{

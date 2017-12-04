@@ -3,6 +3,7 @@
 #include "gpu/dll.h"
 #include "gpu/types.h"
 
+#include "core/array_view.h"
 #include "core/float.h"
 
 namespace GPU
@@ -112,11 +113,15 @@ namespace GPU
 		FilteringMode magFilter_ = FilteringMode::NEAREST;
 		f32 mipLODBias_ = 0.0f;
 		u32 maxAnisotropy_ = 1;
-		float borderColor_[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+		BorderColor borderColor_ = BorderColor::TRANSPARENT;
 		f32 minLOD_ = -Core::F32_MAX;
 		f32 maxLOD_ = Core::F32_MAX;
 	};
 
+	/**
+	 * Get engine default sampler states.
+	 */
+	GPU_DLL Core::ArrayView<SamplerState> GetDefaultSamplerStates();
 
 	/**
 	 * ShaderDesc.

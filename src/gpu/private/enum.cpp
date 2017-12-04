@@ -175,6 +175,23 @@ case GPU::FilteringMode::##ENUM_VALUE : return #ENUM_VALUE;
 		return nullptr;
 	}
 
+	const char* EnumToString(GPU::BorderColor val)
+	{
+#define CASE_STRING(ENUM_VALUE)                                                                                        \
+	\
+case GPU::BorderColor::##ENUM_VALUE : return #ENUM_VALUE;
+
+		switch(val)
+		{
+			CASE_STRING(TRANSPARENT)
+			CASE_STRING(BLACK)
+			CASE_STRING(WHITE)
+		}
+
+#undef CASE_STRING
+		return nullptr;
+	}
+
 	const char* EnumToString(GPU::FillMode val)
 	{
 #define CASE_STRING(ENUM_VALUE)                                                                                        \

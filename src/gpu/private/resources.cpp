@@ -11,6 +11,41 @@
 
 namespace GPU
 {
+	Core::ArrayView<SamplerState> GetDefaultSamplerStates()
+	{
+		auto CreateSampler = [](AddressingMode addr, FilteringMode min, FilteringMode mag, u32 maxAnisotropy) {
+			SamplerState ss;
+			ss.addressU_ = addr;
+			ss.addressV_ = addr;
+			ss.addressW_ = addr;
+			ss.minFilter_ = min;
+			ss.magFilter_ = mag;
+			ss.maxAnisotropy_ = maxAnisotropy;
+			return ss;
+		};
+
+		static SamplerState samplerStates[] = {
+		    // SS_NEAREST_CLAMP
+		    CreateSampler(AddressingMode::CLAMP, FilteringMode::NEAREST, FilteringMode::NEAREST, 1),
+		    // SS_NEAREST_WRAP
+		    CreateSampler(AddressingMode::WRAP, FilteringMode::NEAREST, FilteringMode::NEAREST, 1),
+		    // SS_LINEAR_CLAMP
+		    CreateSampler(AddressingMode::CLAMP, FilteringMode::LINEAR, FilteringMode::LINEAR, 1),
+		    // SS_LINEAR_WRAP
+		    CreateSampler(AddressingMode::WRAP, FilteringMode::LINEAR, FilteringMode::LINEAR, 1),
+		    // SS_MIP_CLAMP
+		    CreateSampler(AddressingMode::CLAMP, FilteringMode::LINEAR_MIPMAP_LINEAR, FilteringMode::LINEAR, 1),
+		    // SS_MIP_WRAP
+		    CreateSampler(AddressingMode::WRAP, FilteringMode::LINEAR_MIPMAP_LINEAR, FilteringMode::LINEAR, 1),
+		    // SS_ANISO_CLAMP
+		    CreateSampler(AddressingMode::CLAMP, FilteringMode::LINEAR_MIPMAP_LINEAR, FilteringMode::LINEAR, 8),
+		    // SS_ANISO_WRAP
+		    CreateSampler(AddressingMode::WRAP, FilteringMode::LINEAR_MIPMAP_LINEAR, FilteringMode::LINEAR, 8),
+		};
+
+		return samplerStates;
+	}
+
 	namespace Binding
 	{
 		BindingCBV CBuffer(GPU::Handle res, i32 offset, i32 size)

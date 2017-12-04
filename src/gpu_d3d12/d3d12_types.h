@@ -79,6 +79,14 @@ namespace GPU
 	D3D12_RESOURCE_DESC GetResourceDesc(const TextureDesc& desc);
 
 	/**
+	 * Sampler.
+	 */
+	D3D12_TEXTURE_ADDRESS_MODE GetAddressingMode(AddressingMode addressMode);
+	D3D12_FILTER GetFilteringMode(FilteringMode min, FilteringMode mag, u32 anisotropy);
+	D3D12_SAMPLER_DESC GetSampler(const GPU::SamplerState& state);
+	D3D12_STATIC_SAMPLER_DESC GetStaticSampler(const GPU::SamplerState& state);
+
+	/**
 	 * Barriers.
 	 */
 	D3D12_RESOURCE_BARRIER TransitionBarrier(
