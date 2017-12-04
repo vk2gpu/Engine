@@ -72,6 +72,11 @@ namespace
 		{"TriangleStream", -1, "STREAM"}, 
 	};
 
+	NodeType CBV_TYPES[] =
+	{
+		{"ConstantBuffer", -1, "CBV"}, 
+	};
+
 	NodeType SRV_TYPES[] =
 	{
 		{"Buffer", -1, "SRV"}, 
@@ -104,6 +109,7 @@ namespace
 	{
 		{"AddressingMode", GPU::AddressingMode::MAX},
 		{"FilteringMode", GPU::FilteringMode::MAX},
+		{"BorderColor", GPU::BorderColor::MAX},
 		{"FillMode", GPU::FillMode::MAX},
 		{"CullMode", GPU::CullMode::MAX},
 		{"BlendType", GPU::BlendType::MAX},
@@ -126,6 +132,7 @@ namespace Graphics
 		AddReserved(MODIFIERS);
 		AddNodes(BASE_TYPES);
 		AddNodes(STREAM_TYPES);
+		AddNodes(CBV_TYPES);
 		AddNodes(SRV_TYPES);
 		AddNodes(UAV_TYPES);
 		AddNodes(ENUM_TYPES);
@@ -253,14 +260,7 @@ namespace Graphics
 					if(structNode)
 					{
 						structNodes_.Add(structNode);
-						if(structNode->isCBuffer_)
-						{
-							node->cbuffers_.push_back(structNode);
-						}
-						else
-						{
-							node->structs_.push_back(structNode);
-						}
+						node->structs_.push_back(structNode);
 					}
 				}
 				else
@@ -319,6 +319,13 @@ namespace Graphics
 						FlushStringParam();
 
 						node->parameters_.emplace_back(token_.value_);
+						PARSE_TOKEN();
+					}
+					else if(token_.type_ == AST::TokenType::IDENTIFIER)
+					{
+						FlushStringParam();
+
+						stringParam.append(token_.value_.c_str());
 						PARSE_TOKEN();
 					}
 					else if(token_.type_ == AST::TokenType::STRING)
@@ -433,29 +440,18 @@ namespace Graphics
 	{
 		AST::NodeStruct* node = nullptr;
 
-		// Check if cbuffer or struct.
-		bool isCBuffer = false;
-		if(token_.value_ == "cbuffer")
-		{
-			isCBuffer = true;
-		}
-		else
-		{
-			CHECK_TOKEN(AST::TokenType::IDENTIFIER, "struct");
-		}
+		CHECK_TOKEN(AST::TokenType::IDENTIFIER, "struct");
 
 		// Parse name.
 		PARSE_TOKEN();
 		CHECK_TOKEN(AST::TokenType::IDENTIFIER, "");
 		node = AddNode<AST::NodeStruct>(token_.value_.c_str());
-		node->isCBuffer_ = isCBuffer;
 
 		NodeType* nodeType = nullptr;
 		if(Find(nodeType, token_.value_))
 		{
 			Error(node, ErrorType::TYPE_REDEFINITION,
-			    Core::String().Printf(
-			        "\'%s\': '%s' type redefinition.", isCBuffer ? "cbuffer" : "struct", token_.value_.c_str()));
+			    Core::String().Printf("\'%s\': '%s' type redefinition.", "struct", token_.value_.c_str()));
 			return node;
 		}
 

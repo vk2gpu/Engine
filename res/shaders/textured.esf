@@ -8,14 +8,6 @@ Texture2D<float4> texNormal;
 Texture2D<float4> texMetallic;
 Texture2D<float4> texRoughness;
 
-SamplerState SS_DEFAULT =
-{
-	.AddressU = WRAP,
-	.AddressV = WRAP,
-	.MinFilter = LINEAR_MIPMAP_LINEAR,
-	.MagFilter = LINEAR,
-};
-
 uint ShadeVertex(uniform int passID, in Object obj, inout VertexData vtxData)
 {
 	return VTX_DEFAULT;
@@ -27,11 +19,11 @@ uint ShadePixel(uniform int passID, inout PixelData pixData)
 	{
 		const float2 texcoord = pixData.input.texcoord0;
 
-		pixData.normal = DecodeNormal(texNormal.Sample(SS_DEFAULT, texcoord)).rgb;
-		pixData.color.rgb = GammaToLinear(texDiffuse.Sample(SS_DEFAULT, texcoord).rgb);
+		pixData.normal = DecodeNormal(texNormal.Sample(SS_MIP_WRAP, texcoord)).rgb;
+		pixData.color.rgb = GammaToLinear(texDiffuse.Sample(SS_MIP_WRAP, texcoord).rgb);
 		pixData.color.a = 1.0;
-		pixData.roughness = texRoughness.Sample(SS_DEFAULT, texcoord).r;
-		pixData.metallic = texMetallic.Sample(SS_DEFAULT, texcoord).r;
+		pixData.roughness = texRoughness.Sample(SS_MIP_WRAP, texcoord).r;
+		pixData.metallic = texMetallic.Sample(SS_MIP_WRAP, texcoord).r;
 		pixData.specular = DIELECTRIC_F0;
 		return PIX_LIGHTING;
 	}

@@ -2,10 +2,7 @@
 
 ///////////////////////////////////////////////////////////////////////
 // Render shadow map.
-cbuffer ViewCBuffer
-{
-	ViewParams v_;
-};
+ConstantBuffer<ViewParams> viewParams;
 
 ///////////////////////////////////////////////////////////////////////
 // Fullscreen shader.
@@ -28,18 +25,10 @@ VS_FULLSCREEN_OUTPUT vs_fullscreen(uint id : SV_VertexID)
 }
 
 Texture2D<float> debugTex;
-SamplerState SS_FULLSCREEN = 
-{
-	.AddressU = CLAMP,
-	.AddressV = CLAMP,
-	.AddressW = CLAMP,
-	.MinFilter = NEAREST,
-	.MagFilter = NEAREST,
-};
 
 float4 ps_fullscreen(VS_FULLSCREEN_OUTPUT _in) : SV_TARGET0
 {
-	return debugTex.Sample(SS_FULLSCREEN, _in.texcoord_);
+	return debugTex.Sample(SS_NEAREST_CLAMP, _in.texcoord_);
 }
 
 RenderState RS_FULLSCREEN =

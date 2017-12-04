@@ -2,15 +2,8 @@
 #include "lights.esh"
 #include "brdf.esh"
 
-cbuffer ViewCBuffer
-{
-	ViewParams v_;
-};
-
-cbuffer LightCBuffer
-{
-	LightParams l_;
-};
+ConstantBuffer<ViewParams> viewParams;
+ConstantBuffer<LightParams> lightParams;
 
 struct Object
 {
@@ -40,9 +33,9 @@ VS_OUT vs_main(in VS_IN _in, uint _id : SV_INSTANCEID)
 	VS_OUT _out = (VS_OUT)0;
 	float4 position = mul(o.world_, float4(_in.position, 1.0));
 	float3 normal = mul((float3x3)o.world_, _in.normal);
-	_out.position = mul(v_.viewProj_, position);
-	_out.v_position = mul(v_.view_, position).xyz;
-	_out.v_normal = mul(v_.view_, normal);
+	_out.position = mul(viewParams.viewProj_, position);
+	_out.v_position = mul(viewParams.view_, position).xyz;
+	_out.v_normal = mul(viewParams.view_, normal);
 	return _out;
 }
 
@@ -68,7 +61,7 @@ float4 ps_forward(in VS_OUT _in) : SV_TARGET0
 	float3 lightColor = float3(0.0, 0.0, 0.0);
 	lightColor += ambient;
 
-	int2 lightTexel = DecodeLight(inLightTex[int2(floor(_in.position.xy / l_.tileSize_))]);
+	int2 lightTexel = DecodeLight(inLightTex[int2(floor(_in.position.xy / lightParams.tileSize_))]);
 
 	Material material;
 
@@ -84,7 +77,7 @@ float4 ps_forward(in VS_OUT _in) : SV_TARGET0
 	{	
 		const int lightIdx = inLightIndices[lightTexel.x + idx];
 		Light light = inLights[lightIdx];
-		light.position_ = mul(v_.view_, float4(light.position_, 1.0)).xyz;
+		light.position_ = mul(viewParams.view_, float4(light.position_, 1.0)).xyz;
 
 		LightParameters lightParams = CreatePointLight(light, surface);
 	

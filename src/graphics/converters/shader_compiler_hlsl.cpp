@@ -61,33 +61,10 @@ namespace Graphics
 		impl_ = nullptr;
 	}
 
-	ShaderCompileOutput ShaderCompilerHLSL::Compile(
-	    const char* shaderName, const char* shaderSource, const char* entryPoint, GPU::ShaderType type)
+	ShaderCompileOutput ShaderCompilerHLSL::Compile(const char* shaderName, const char* shaderSource,
+	    const char* entryPoint, GPU::ShaderType type, const char* target)
 	{
 		DBG_ASSERT(impl_);
-
-		const char* target = nullptr;
-		switch(type)
-		{
-		case GPU::ShaderType::VS:
-			target = "vs_5_0";
-			break;
-		case GPU::ShaderType::GS:
-			target = "gs_5_0";
-			break;
-		case GPU::ShaderType::HS:
-			target = "hs_5_0";
-			break;
-		case GPU::ShaderType::DS:
-			target = "ds_5_0";
-			break;
-		case GPU::ShaderType::PS:
-			target = "ps_5_0";
-			break;
-		case GPU::ShaderType::CS:
-			target = "cs_5_0";
-			break;
-		}
 
 		ComPtr<ID3DBlob> byteCode;
 		ComPtr<ID3DBlob> errors;

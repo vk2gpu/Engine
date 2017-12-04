@@ -81,7 +81,7 @@ namespace Graphics
 
 			auto OnFailure = [impl]() { delete impl; };
 
-			impl->bindingHeaders_.resize(header.numCBuffers_ + header.numSamplers_ + header.numSRVs_ + header.numUAVs_);
+			impl->bindingHeaders_.resize(header.numCBuffers_ + header.numSRVs_ + header.numUAVs_ + header.numSamplers_);
 			readBytes = impl->bindingHeaders_.size() * sizeof(ShaderBindingHeader);
 			if(inFile.Read(impl->bindingHeaders_.data(), readBytes) != readBytes)
 			{
@@ -285,6 +285,7 @@ namespace Graphics
 
 	bool ShaderTechnique::Set(i32 idx, const GPU::BindingCBV& binding)
 	{
+		idx -= impl_->cbvOffset_;
 		if(idx >= 0 && idx < impl_->cbvs_.size())
 		{
 			if(binding != impl_->cbvs_[idx])
@@ -365,7 +366,7 @@ namespace Graphics
 					{
 						const i32 dst = mapping[idx].dstSlot_;
 						const i32 binding = mapping[idx].binding_;
-						impl_->bs_.cbvs_[dst] = impl_->cbvs_[binding];
+						impl_->bs_.cbvs_[dst] = impl_->cbvs_[binding - impl_->cbvOffset_];
 						impl_->bs_.numCBVs_ = Core::Max(impl_->bs_.numCBVs_, dst + 1);
 					}
 					return mapping + numMappings;
@@ -412,9 +413,9 @@ namespace Graphics
 					const auto* mappings = impl_->shader_->shaderBindingMappings_[shaderIdx];
 
 					mappings = SetupCBV(mappings, bytecode.numCBuffers_);
-					mappings = SetupSampler(mappings, bytecode.numSamplers_);
 					mappings = SetupSRV(mappings, bytecode.numSRVs_);
 					mappings = SetupUAV(mappings, bytecode.numUAVs_);
+					mappings = SetupSampler(mappings, bytecode.numSamplers_);
 				};
 
 				SetupBindings(impl_->header_.vs_);
@@ -660,16 +661,25 @@ namespace Graphics
 		impl->shader_ = this;
 		impl->header_ = *techHeader;
 		impl->cbvs_.resize(header_.numCBuffers_);
-		impl->samplers_.resize(header_.numSamplers_);
 		impl->srvs_.resize(header_.numSRVs_);
 		impl->uavs_.resize(header_.numUAVs_);
+		impl->samplers_.resize(header_.numSamplers_);
 		impl->bs_.pipelineState_ = psHandle;
 		impl->bsDirty_ = true;
 
 		// Calculate offset into vectors for setting.
-		impl->samplerOffset_ = impl->cbvs_.size();
-		impl->srvOffset_ = impl->samplers_.size() + impl->samplerOffset_;
-		impl->uavOffset_ = impl->srvs_.size() + impl->srvOffset_;
+		i32 offset = 0;
+		impl->cbvOffset_ = offset;
+		offset += impl->cbvs_.size();
+
+		impl->srvOffset_ = offset;
+		offset += impl->srvs_.size();
+
+		impl->uavOffset_ = offset;
+		offset += impl->uavs_.size();
+
+		impl->samplerOffset_ = offset;
+		offset += impl->samplers_.size();
 
 		// Set samplers.
 		for(i32 idx = 0; idx < impl->samplers_.size(); ++idx)

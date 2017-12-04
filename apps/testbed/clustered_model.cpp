@@ -933,7 +933,6 @@ ClusteredModel::ClusteredModel(const char* sourceFile)
 		cullClusterTech_ = coreShader_->CreateTechnique("TECH_CULL_CLUSTERS", Graphics::ShaderTechniqueDesc());
 		DBG_ASSERT(cullClusterTech_);
 
-
 		techDesc_.SetVertexElements(elements_);
 		techDesc_.SetTopology(GPU::TopologyType::TRIANGLE);
 	}
@@ -947,6 +946,7 @@ ClusteredModel::~ClusteredModel()
 	GPU::Manager::DestroyResource(clusterBuffer_);
 	GPU::Manager::DestroyResource(drawArgsBuffer_);
 	GPU::Manager::DestroyResource(drawCountBuffer_);
+	GPU::Manager::DestroyResource(dbs_);
 }
 
 void ClusteredModel::DrawClusters(GPU::CommandList& cmdList, const char* passName, const GPU::DrawState& drawState,
@@ -983,7 +983,7 @@ void ClusteredModel::DrawClusters(GPU::CommandList& cmdList, const char* passNam
 			        drawArgsBuffer_, GPU::Format::INVALID, 0, clusters_.size(), sizeof(GPU::DrawIndexedArgs)));
 			cullClusterTech_.Set("outDrawCount",
 			    GPU::Binding::RWBuffer(drawCountBuffer_, GPU::Format::INVALID, 0, meshes_.size(), sizeof(u32)));
-			cullClusterTech_.Set("ViewCBuffer", GPU::Binding::CBuffer(viewCBHandle, 0, sizeof(Testbed::ViewConstants)));
+			cullClusterTech_.Set("viewParams", GPU::Binding::CBuffer(viewCBHandle, 0, sizeof(Testbed::ViewConstants)));
 
 			const i32 groupSize = 64;
 
@@ -1015,7 +1015,7 @@ void ClusteredModel::DrawClusters(GPU::CommandList& cmdList, const char* passNam
 								customBindFn(techs_[meshIdx].material_->GetShader(), tech);
 
 							tech.Set(
-							    "ViewCBuffer", GPU::Binding::CBuffer(viewCBHandle, 0, sizeof(Testbed::ViewConstants)));
+							    "viewParams", GPU::Binding::CBuffer(viewCBHandle, 0, sizeof(Testbed::ViewConstants)));
 							tech.Set("inObject",
 							    GPU::Binding::Buffer(objectSBHandle, GPU::Format::INVALID, 0, 1, objectDataSize));
 							if(auto pbs = tech.GetBinding())
@@ -1046,7 +1046,7 @@ void ClusteredModel::DrawClusters(GPU::CommandList& cmdList, const char* passNam
 								customBindFn(techs_[meshIdx].material_->GetShader(), tech);
 
 							tech.Set(
-							    "ViewCBuffer", GPU::Binding::CBuffer(viewCBHandle, 0, sizeof(Testbed::ViewConstants)));
+							    "viewParams", GPU::Binding::CBuffer(viewCBHandle, 0, sizeof(Testbed::ViewConstants)));
 							tech.Set("inObject",
 							    GPU::Binding::Buffer(objectSBHandle, GPU::Format::INVALID, 0, 1, objectDataSize));
 							if(auto pbs = tech.GetBinding())

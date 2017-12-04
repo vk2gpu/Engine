@@ -320,8 +320,8 @@ TEST_CASE("graphics-tests-shader-compute-create-technique")
 	{
 		auto& cmdList = window.Begin();
 
-		const auto particleParamsIdx = shader->GetBindingIndex("ParticleConfig");
-		const auto cameraIdx = shader->GetBindingIndex("Camera");
+		const auto particleParamsIdx = shader->GetBindingIndex("particleParams");
+		const auto cameraIdx = shader->GetBindingIndex("cameraParams");
 		const auto inoutParticlesIdx = shader->GetBindingIndex("inout_particles");
 		const auto inParticlesIdx = shader->GetBindingIndex("in_particles");
 		if(particleParamsIdx >= 0)

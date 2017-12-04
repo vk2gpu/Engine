@@ -25,7 +25,7 @@
 
 #include <cstring>
 
-#define DEBUG_DUMP_SHADERS 0
+#define DEBUG_DUMP_SHADERS 1
 
 #define DUMP_ESF_PATH "C:\\Dev\\tmp.esf"
 #define DUMP_HLSL_PATH "C:\\Dev\\tmp.hlsl"
@@ -140,11 +140,12 @@ namespace
 				struct CompileInfo
 				{
 					CompileInfo(const Core::String& name, const Core::String& code, const Core::String& entryPoint,
-					    GPU::ShaderType type)
+					    GPU::ShaderType type, const Core::String& target)
 					    : name_(name)
 					    , code_(code)
 					    , entryPoint_(entryPoint)
 					    , type_(type)
+					    , target_(target)
 					{
 					}
 
@@ -152,6 +153,7 @@ namespace
 					Core::String code_;
 					Core::String entryPoint_;
 					GPU::ShaderType type_;
+					Core::String target_;
 				};
 
 				Graphics::ShaderCompilerHLSL compilerHLSL;
@@ -174,16 +176,40 @@ namespace
 					}
 #endif
 
+					auto GetTarget = [](GPU::ShaderType type, i32 major, i32 minor) {
+						DBG_ASSERT(major >= 4 && major <= 5);
+						DBG_ASSERT(minor >= 0 && minor <= 1);
+						switch(type)
+						{
+						case GPU::ShaderType::VS:
+							return Core::String().Printf("vs_%i_%i", major, minor);
+						case GPU::ShaderType::HS:
+							return Core::String().Printf("hs_%i_%i", major, minor);
+						case GPU::ShaderType::DS:
+							return Core::String().Printf("ds_%i_%i", major, minor);
+						case GPU::ShaderType::GS:
+							return Core::String().Printf("gs_%i_%i", major, minor);
+						case GPU::ShaderType::PS:
+							return Core::String().Printf("ps_%i_%i", major, minor);
+						case GPU::ShaderType::CS:
+							return Core::String().Printf("cs_%i_%i", major, minor);
+						}
+						DBG_BREAK;
+						return Core::String();
+					};
+
 					// Compile HLSL.
+					const i32 majorVer = 5;
+					const i32 minorVer = 1;
 					for(i32 idx = 0; idx < shaders.size(); ++idx)
 						for(const auto& shader : shaders[idx])
-							outCompileInfo.emplace_back(
-							    sourceFile, backendHLSL.GetOutputCode(), shader, (GPU::ShaderType)idx);
+							outCompileInfo.emplace_back(sourceFile, backendHLSL.GetOutputCode(), shader,
+							    (GPU::ShaderType)idx, GetTarget((GPU::ShaderType)idx, majorVer, minorVer));
 
 					for(const auto& compile : outCompileInfo)
 					{
-						auto outCompile = compilerHLSL.Compile(
-						    compile.name_.c_str(), compile.code_.c_str(), compile.entryPoint_.c_str(), compile.type_);
+						auto outCompile = compilerHLSL.Compile(compile.name_.c_str(), compile.code_.c_str(),
+						    compile.entryPoint_.c_str(), compile.type_, compile.target_.c_str());
 						if(outCompile)
 						{
 							outCompileOutput.emplace_back(outCompile);
@@ -226,11 +252,11 @@ namespace
 				for(const auto& compile : compileOutput)
 					bindingIdx = AddBindings(compile.cbuffers_, usedBindings, bindingIdx);
 				for(const auto& compile : compileOutput)
-					bindingIdx = AddBindings(compile.samplers_, usedBindings, bindingIdx);
-				for(const auto& compile : compileOutput)
 					bindingIdx = AddBindings(compile.srvs_, usedBindings, bindingIdx);
 				for(const auto& compile : compileOutput)
 					bindingIdx = AddBindings(compile.uavs_, usedBindings, bindingIdx);
+				for(const auto& compile : compileOutput)
+					bindingIdx = AddBindings(compile.samplers_, usedBindings, bindingIdx);
 
 				// Regenerate HLSL with only the used bindings.
 				if(!GenerateAndCompile(usedBindings, compileInfo, compileOutput))
@@ -249,25 +275,25 @@ namespace
 				for(const auto& compile : compileOutput)
 					bindingIdx = AddBindings(compile.cbuffers_, cbuffers, bindingIdx);
 				for(const auto& compile : compileOutput)
-					bindingIdx = AddBindings(compile.samplers_, samplers, bindingIdx);
-				for(const auto& compile : compileOutput)
 					bindingIdx = AddBindings(compile.srvs_, srvs, bindingIdx);
 				for(const auto& compile : compileOutput)
 					bindingIdx = AddBindings(compile.uavs_, uavs, bindingIdx);
+				for(const auto& compile : compileOutput)
+					bindingIdx = AddBindings(compile.samplers_, samplers, bindingIdx);
 
 				// Setup data ready to serialize.
 				Graphics::ShaderHeader outHeader;
 				outHeader.numCBuffers_ = cbuffers.size();
-				outHeader.numSamplers_ = samplers.size();
 				outHeader.numSRVs_ = srvs.size();
 				outHeader.numUAVs_ = uavs.size();
+				outHeader.numSamplers_ = samplers.size();
 				outHeader.numShaders_ = compileOutput.size();
 				outHeader.numTechniques_ = techniques.size();
 				outHeader.numSamplerStates_ = samplerStates.size();
 				Core::Vector<Graphics::ShaderBindingHeader> outBindingHeaders;
 				outBindingHeaders.reserve(cbuffers.size() + samplers.size() + srvs.size() + uavs.size());
 
-				const auto PopulateoutBindingHeaders = [&outBindingHeaders](const Graphics::BindingMap& bindings) {
+				const auto PopulateOutBindingHeaders = [&outBindingHeaders](const Graphics::BindingMap& bindings) {
 					for(const auto& binding : bindings)
 					{
 						Graphics::ShaderBindingHeader bindingHeader;
@@ -287,10 +313,10 @@ namespace
 					outSamplerStateHeaders.emplace_back(outSamplerState);
 				}
 
-				PopulateoutBindingHeaders(cbuffers);
-				PopulateoutBindingHeaders(samplers);
-				PopulateoutBindingHeaders(srvs);
-				PopulateoutBindingHeaders(uavs);
+				PopulateOutBindingHeaders(cbuffers);
+				PopulateOutBindingHeaders(srvs);
+				PopulateOutBindingHeaders(uavs);
+				PopulateOutBindingHeaders(samplers);
 				Core::Vector<Graphics::ShaderBytecodeHeader> outBytecodeHeaders;
 				Core::Vector<Graphics::ShaderBindingMapping> outBindingMappings;
 				i32 bytecodeOffset = 0;
@@ -298,9 +324,9 @@ namespace
 				{
 					Graphics::ShaderBytecodeHeader bytecodeHeader;
 					bytecodeHeader.numCBuffers_ = compile.cbuffers_.size();
-					bytecodeHeader.numSamplers_ = compile.samplers_.size();
 					bytecodeHeader.numSRVs_ = compile.srvs_.size();
 					bytecodeHeader.numUAVs_ = compile.uavs_.size();
+					bytecodeHeader.numSamplers_ = compile.samplers_.size();
 					bytecodeHeader.type_ = compile.type_;
 					bytecodeHeader.offset_ = bytecodeOffset;
 					bytecodeHeader.numBytes_ = (i32)(compile.byteCodeEnd_ - compile.byteCodeBegin_);
@@ -322,9 +348,9 @@ namespace
 					};
 
 					AddBindingMapping(cbuffers, compile.cbuffers_);
-					AddBindingMapping(samplers, compile.samplers_);
 					AddBindingMapping(srvs, compile.srvs_);
 					AddBindingMapping(uavs, compile.uavs_);
+					AddBindingMapping(samplers, compile.samplers_);
 				};
 
 				Core::Vector<Graphics::ShaderTechniqueHeader> outTechniqueHeaders;

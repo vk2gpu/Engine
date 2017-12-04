@@ -63,7 +63,7 @@ uint packShorts(uint a, uint b)
 
 #define USE_LOOKUP_TABLE 1
 
-cbuffer LookupTableCB
+struct LookupTable
 {
 	uint4 stb__Expand5[8];
 	uint4 stb__Expand6[16];
@@ -71,10 +71,12 @@ cbuffer LookupTableCB
 	uint4 stb__OMatch6[64][2];
 };
 
+ConstantBuffer<LookupTable> lookupTable;
+
 int stb__Expand5Func(int i)
 {
 #if USE_LOOKUP_TABLE
-	return stb__Expand5[i/4][i%4];
+	return lookupTable.stb__Expand5[i/4][i%4];
 #else
 	return (i<<3)|(i>>2);
 #endif
@@ -83,7 +85,7 @@ int stb__Expand5Func(int i)
 int stb__Expand6Func(int i)
 {
 #if USE_LOOKUP_TABLE
-	return stb__Expand6[i/4][i%4];
+	return lookupTable.stb__Expand6[i/4][i%4];
 #else
 	return (i<<2)|(i>>4);
 #endif
@@ -127,12 +129,12 @@ void stb__Lerp13RGB(out int3 _out, in int3 p1, in int3 p2)
 
 uint stb__OMatch5Func(int i, int j)
 {
-	return stb__OMatch5[i/4][j][i%4];
+	return lookupTable.stb__OMatch5[i/4][j][i%4];
 }
 
 uint stb__OMatch6Func(int i, int j)
 {
-	return stb__OMatch6[i/4][j][i%4];
+	return lookupTable.stb__OMatch6[i/4][j][i%4];
 }
 
 void stb__EvalColors(out int4 color[4], uint c0, uint c1)

@@ -2,10 +2,7 @@
 
 ///////////////////////////////////////////////////////////////////////
 // Structures.
-cbuffer ViewCBuffer
-{
-	ViewParams v_;
-};
+ConstantBuffer<ViewParams> viewParams;
 
 struct Object
 {
@@ -76,7 +73,7 @@ void cs_cull_clusters(CS_INPUT _in)
 	int clusterIdx = _in.dispatchID;
 	ClusterBounds bounds = inClusterBounds[clusterIdx];
 
-	if(IntersectWithFrustum(v_, bounds, 0))
+	if(IntersectWithFrustum(viewParams, bounds, 0))
 	{
 		Cluster cluster = inCluster[clusterIdx];
 		DrawIndexedArgs outArgs = (DrawIndexedArgs)0;

@@ -16,7 +16,7 @@ namespace Graphics
 		/// Magic number.
 		static const u32 MAGIC = 0x229C08ED;
 		/// Major version signifies a breaking change to the binary format.
-		static const i16 MAJOR_VERSION = 0x0001;
+		static const i16 MAJOR_VERSION = 0x0002;
 		/// Mimor version signifies non-breaking change to binary format.
 		static const i16 MINOR_VERSION = 0x0000;
 
@@ -25,9 +25,9 @@ namespace Graphics
 		i16 minorVersion_ = MINOR_VERSION;
 
 		i32 numCBuffers_ = 0;
-		i32 numSamplers_ = 0;
 		i32 numSRVs_ = 0;
 		i32 numUAVs_ = 0;
+		i32 numSamplers_ = 0;
 		i32 numShaders_ = 0;
 		i32 numTechniques_ = 0;
 		i32 numSamplerStates_ = 0;
@@ -124,15 +124,16 @@ namespace Graphics
 		GPU::PipelineBindingSetDesc bs_;
 		GPU::Handle bsHandle_;
 
-		i32 samplerOffset_ = 0;
+		i32 cbvOffset_ = 0;
 		i32 srvOffset_ = 0;
 		i32 uavOffset_ = 0;
+		i32 samplerOffset_ = 0;
 		i32 maxBindings = 0;
 
 		Core::Vector<GPU::BindingBuffer> cbvs_;
-		Core::Vector<GPU::BindingSampler> samplers_;
 		Core::Vector<GPU::BindingSRV> srvs_;
 		Core::Vector<GPU::BindingUAV> uavs_;
+		Core::Vector<GPU::BindingSampler> samplers_;
 
 		void Invalidate()
 		{

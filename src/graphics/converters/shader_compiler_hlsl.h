@@ -51,8 +51,8 @@ namespace Graphics
 		 * Compile shader.
 		 * @return Compile output. Contains errors and bytecode (if successful). Only valid to use while this ShaderCompilerHLSL object remains in scope.
 		 */
-		ShaderCompileOutput Compile(
-		    const char* shaderName, const char* shaderSource, const char* entryPoint, GPU::ShaderType type);
+		ShaderCompileOutput Compile(const char* shaderName, const char* shaderSource, const char* entryPoint,
+		    GPU::ShaderType type, const char* target);
 
 	private:
 		struct ShaderCompilerHLSLImpl* impl_ = nullptr;

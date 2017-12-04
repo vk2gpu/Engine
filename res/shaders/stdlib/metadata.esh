@@ -11,7 +11,7 @@ struct SamplerState
 	FilteringMode MagFilter;
 	float MipLODBias;
 	uint MaxAnisotropy;
-	float BorderColor;//[4];
+	BorderColor BorderColor;
 	float MinLOD;
 	float MaxLOD;
 };

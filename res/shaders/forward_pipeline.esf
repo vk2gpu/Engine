@@ -3,15 +3,8 @@
 
 ///////////////////////////////////////////////////////////////////////
 // Compute light tiles.
-cbuffer ViewCBuffer
-{
-	ViewParams v_;
-};
-
-cbuffer LightCBuffer
-{
-	LightParams l_;
-};
+ConstantBuffer<ViewParams> viewParams;
+ConstantBuffer<LightParams> lightParams;
 
 struct CS_INPUT
 {
@@ -41,7 +34,7 @@ void cs_compute_tile_info(CS_INPUT _in)
 
 	// Calculate corners offsets.
 	const uint2 id = _in.groupID;
-	const uint4 corners = uint4(id.x, id.y, id.x + 1, id.y + 1) * l_.tileSize_.xyxy;
+	const uint4 corners = uint4(id.x, id.y, id.x + 1, id.y + 1) * lightParams.tileSize_.xyxy;
 
 	// Screen space tile corners:
 	// TL, TR, BR, BL
@@ -54,7 +47,7 @@ void cs_compute_tile_info(CS_INPUT _in)
 	// Convert to view space.
 	float3 vsCorners[4];
 	for(int i = 0; i < 4; ++i)
-		vsCorners[i] = ScreenToView(v_, ssCorners[i]).xyz;
+		vsCorners[i] = ScreenToView(viewParams, ssCorners[i]).xyz;
 
 	// Calculate planes in view space.
 	TileInfo tileInfo = (TileInfo)0;
@@ -66,7 +59,7 @@ void cs_compute_tile_info(CS_INPUT _in)
 	// Only one thread should write.
 	if(_in.groupThreadID.x == 0 && _in.groupThreadID.y == 0)
 	{
-		const uint tileIdx = GetTileIdx(l_, id);
+		const uint tileIdx = GetTileIdx(lightParams, id);
 		outTileInfo[tileIdx] = tileInfo;
 	}
 }
@@ -100,11 +93,11 @@ void cs_compute_light_lists(CS_INPUT _in)
 	InterlockedMax(gDepthMax, depthInt, outTemp);
 	GroupMemoryBarrierWithGroupSync();
 
-	float depthMin = ClipToView(v_, float4(0.0, 0.0, asfloat(gDepthMin), 1.0)).z;
-	float depthMax = ClipToView(v_, float4(0.0, 0.0, asfloat(gDepthMax), 1.0)).z;
+	float depthMin = ClipToView(viewParams, float4(0.0, 0.0, asfloat(gDepthMin), 1.0)).z;
+	float depthMax = ClipToView(viewParams, float4(0.0, 0.0, asfloat(gDepthMax), 1.0)).z;
 
 	// Grab tile info.
-	const uint tileIdx = GetTileIdx(l_, _in.groupID.xy);
+	const uint tileIdx = GetTileIdx(lightParams, _in.groupID.xy);
 	const TileInfo tileInfo = inTileInfo[tileIdx];
 
 	// Build up local light list with multiple threads within the same group,
@@ -112,10 +105,10 @@ void cs_compute_light_lists(CS_INPUT _in)
 	uint advanceRate = LIGHT_LIST_GROUP_SIZE * LIGHT_LIST_GROUP_SIZE;
 	uint startLightIdx = _in.groupThreadID.x + _in.groupThreadID.y * LIGHT_LIST_GROUP_SIZE;
 
-	for(uint idx = startLightIdx; idx < l_.numLights_ && localLightLinkIdx < MAX_LIGHTS_PER_TILE; idx += advanceRate)
+	for(uint idx = startLightIdx; idx < lightParams.numLights_ && localLightLinkIdx < MAX_LIGHTS_PER_TILE; idx += advanceRate)
 	{
 		Light light = inLights[idx];
-		float4 vsLightPos = mul(v_.view_, float4(light.position_.xyz, 1.0));
+		float4 vsLightPos = mul(viewParams.view_, float4(light.position_.xyz, 1.0));
 		float radius = light.radiusOuter_;
 
 		// Reject any fully outside of any planes.
@@ -180,14 +173,6 @@ Technique TECH_COMPUTE_LIGHT_LISTS =
 Texture2D<float2> inHiZ;
 RWTexture2D<float2> outHiZ;
 
-SamplerState SS_POINT_NEAREST = 
-{
-	.AddressU = CLAMP,
-	.AddressV = CLAMP,
-	.MinFilter = NEAREST,
-	.MagFilter = NEAREST,
-};
-
 float2 GetTexcoord(int2 coord, float2 texelSize)
 {
 	float2 halfTexelSize = texelSize * 0.5;
@@ -206,7 +191,7 @@ float2 SampleDepth(Texture2D<float2> tex, int2 coord)
 	uint w, h, l;
 	tex.GetDimensions(0, w, h, l);
 	float2 texcoord = GetTexcoord(coord, 1.0 / float2(w, h));
-	float4 depth = tex.GatherRed(SS_POINT_NEAREST, texcoord);
+	float4 depth = tex.GatherRed(SS_NEAREST_CLAMP, texcoord);
 	return float2(GetDepthMinMax(depth, depth));
 }
 
@@ -215,8 +200,8 @@ float2 SampleHiZ(Texture2D<float2> tex, int2 coord)
 	uint w, h, l;
 	tex.GetDimensions(0, w, h, l);
 	float2 texcoord = GetTexcoord(coord, 1.0 / float2(w, h));
-	float4 depth0 = tex.GatherRed(SS_POINT_NEAREST, texcoord);
-	float4 depth1 = tex.GatherGreen(SS_POINT_NEAREST, texcoord);
+	float4 depth0 = tex.GatherRed(SS_NEAREST_CLAMP, texcoord);
+	float4 depth1 = tex.GatherGreen(SS_NEAREST_CLAMP, texcoord);
 	return float2(GetDepthMinMax(depth0, depth1));
 }
 
@@ -252,7 +237,7 @@ RWTexture2D<float4> outDebug;
 void cs_debug_tile_info(CS_INPUT _in)
 {
 	const uint2 id = _in.dispatchID.xy;
-	const uint tileIdx = GetTileIdx(l_, id);
+	const uint tileIdx = GetTileIdx(lightParams, id);
 	const TileInfo tileInfo = inTileInfo[tileIdx];
 
 #if 0
@@ -292,18 +277,10 @@ VS_FULLSCREEN_OUTPUT vs_fullscreen(uint id : SV_VertexID)
 }
 
 Texture2D<float4> debugTex;
-SamplerState SS_FULLSCREEN = 
-{
-	.AddressU = CLAMP,
-	.AddressV = CLAMP,
-	.AddressW = CLAMP,
-	.MinFilter = NEAREST,
-	.MagFilter = NEAREST,
-};
 
 float4 ps_fullscreen(VS_FULLSCREEN_OUTPUT _in) : SV_TARGET0
 {
-	return debugTex.Sample(SS_FULLSCREEN, _in.texcoord_);
+	return debugTex.Sample(SS_NEAREST_CLAMP, _in.texcoord_);
 }
 
 RenderState RS_FULLSCREEN =

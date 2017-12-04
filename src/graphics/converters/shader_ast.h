@@ -162,7 +162,6 @@ namespace Graphics
 
 			Core::String code_;
 			Core::Vector<NodeStruct*> structs_;
-			Core::Vector<NodeStruct*> cbuffers_;
 			Core::Vector<NodeDeclaration*> variables_;
 			Core::Vector<NodeDeclaration*> functions_;
 		};
@@ -277,7 +276,6 @@ namespace Graphics
 
 			NodeAttribute* FindAttribute(const char* name) const;
 
-			bool isCBuffer_ = false;
 			Core::Vector<AST::NodeAttribute*> attributes_;
 			NodeType* type_ = nullptr;
 		};

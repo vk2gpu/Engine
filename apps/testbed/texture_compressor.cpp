@@ -112,7 +112,7 @@ bool TextureCompressor::Compress(GPU::CommandList& cmdList, Graphics::Texture* i
 	GPU::Handle intermediateTexture = GPU::Manager::CreateTexture(outTextureDesc, nullptr, "outCompressed");
 	DBG_ASSERT(intermediateTexture);
 
-	tech.Set("LookupTableCB", GPU::Binding::CBuffer(lookupTableCB_, 0, sizeof(LookupTable)));
+	tech.Set("lookupTable", GPU::Binding::CBuffer(lookupTableCB_, 0, sizeof(LookupTable)));
 	tech.Set("inTexture", GPU::Binding::Texture2D(inTexture->GetHandle(), desc.format_, 0, 1));
 	tech.Set("outTexture", GPU::Binding::RWTexture2D(intermediateTexture, uavFormat));
 	if(auto binding = tech.GetBinding())

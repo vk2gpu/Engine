@@ -12,6 +12,7 @@
          "shaders/stdlib/metadata.esh",
          "shaders/stdlib/normals.esh",
          "shaders/stdlib/plane.esh",
+         "shaders/stdlib/samplers.esh",
          "shaders/stdlib/view.esh",
          "shaders/lights.esh",
          "shaders/brdf.esh"

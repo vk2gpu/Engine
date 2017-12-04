@@ -98,7 +98,7 @@ namespace Testbed
 			{
 				if(numInstances > 0)
 				{
-					tech.Set("ViewCBuffer", GPU::Binding::CBuffer(viewCBHandle, 0, sizeof(Testbed::ViewConstants)));
+					tech.Set("viewParams", GPU::Binding::CBuffer(viewCBHandle, 0, sizeof(Testbed::ViewConstants)));
 					tech.Set("inObject",
 					    GPU::Binding::Buffer(
 					        objectSBHandle, GPU::Format::INVALID, baseInstanceIdx, numInstances, objectDataSize));

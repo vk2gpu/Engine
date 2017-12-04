@@ -58,24 +58,6 @@ namespace Graphics
 
 		Write("////////////////////////////////////////////////////////////////////////////////////////////////////");
 		NextLine();
-		Write("// cbuffers");
-		NextLine();
-
-		for(auto* intNode : node->cbuffers_)
-		{
-			if(!IsInternal(intNode))
-			{
-				if(bindingMap_.size() == 0 || bindingMap_.find(intNode->name_) != bindingMap_.end())
-				{
-					intNode->Visit(this);
-					NextLine();
-				}
-			}
-		}
-
-
-		Write("////////////////////////////////////////////////////////////////////////////////////////////////////");
-		NextLine();
 		Write("// sampler states");
 		NextLine();
 
@@ -188,11 +170,7 @@ namespace Graphics
 		for(auto* attrib : node->attributes_)
 			attrib->Visit(this);
 
-		Write("%s %s", node->isCBuffer_ ? "cbuffer" : "struct", node->name_.c_str());
-
-		if(autoReg_)
-			if(node->isCBuffer_)
-				Write(": register(b%i)", cbufferReg_++);
+		Write("%s %s", "struct", node->name_.c_str());
 
 		NextLine();
 		Write("{");
@@ -200,20 +178,14 @@ namespace Graphics
 
 		++indent_;
 
-		if(node->isCBuffer_)
-			++inCBuffer_;
-		else
-			++inStruct_;
+		++inStruct_;
 
 		for(auto* member : node->type_->members_)
 		{
 			member->Visit(this);
 		}
 
-		if(node->isCBuffer_)
-			--inCBuffer_;
-		else
-			--inStruct_;
+		--inStruct_;
 
 		--indent_;
 
@@ -232,6 +204,7 @@ namespace Graphics
 			return false;
 
 		bool isBinding = false;
+		bool isSampler = false;
 		isBinding |= node->type_->baseType_->metaData_ == "SRV";
 		isBinding |= node->type_->baseType_->metaData_ == "UAV";
 		isBinding |= node->type_->baseType_->metaData_ == "CBV";
@@ -239,9 +212,9 @@ namespace Graphics
 		{
 			if(auto attr = node->type_->baseType_->struct_->FindAttribute("internal"))
 			{
-				isBinding |= attr->HasParameter(0) && attr->GetParameter(0) == "SamplerState";
+				isSampler = attr->HasParameter(0) && attr->GetParameter(0) == "SamplerState";
+				isBinding |= isSampler;
 			}
-			isBinding |= node->type_->baseType_->struct_->isCBuffer_;
 		}
 
 		isBinding &= !inStruct_ && !inParams_ && !inCBuffer_ && !node->isFunction_;
@@ -327,7 +300,17 @@ namespace Graphics
 			if(node->type_->baseType_->struct_)
 				if(auto attr = node->type_->baseType_->struct_->FindAttribute("internal"))
 					if(attr->HasParameter(0) && attr->GetParameter(0) == "SamplerState")
-						reg.Printf("register(s%i)", samplerReg_++);
+					{
+						if(auto staticAttr = node->FindAttribute("static"))
+						{
+							reg.Printf("register(s%s, %s)", staticAttr->GetParameter(0).c_str(),
+							    staticAttr->GetParameter(1).c_str());
+						}
+						else
+						{
+							reg.Printf("register(s%i)", samplerReg_++);
+						}
+					}
 
 			if(inCBuffer_ == 0)
 			{

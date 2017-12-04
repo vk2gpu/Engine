@@ -9,6 +9,7 @@
 #include "stdlib/metadata.esh"
 #include "stdlib/normals.esh"
 #include "stdlib/plane.esh"
+#include "stdlib/samplers.esh"
 #include "stdlib/view.esh"
 
 #endif // STDLIB_ESH

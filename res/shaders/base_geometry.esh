@@ -5,21 +5,13 @@
 #include "lights.esh"
 #include "brdf.esh"
 
-cbuffer ViewCBuffer
-{
-	ViewParams v_;
-};
-
-cbuffer LightCBuffer
-{
-	LightParams l_;
-};
+ConstantBuffer<ViewParams> viewParams;
+ConstantBuffer<LightParams> lightParams;
 
 struct Object
 {
 	float4x4 world_;
 };
-
 
 struct VS_IN
 {
@@ -171,12 +163,12 @@ VS_OUT vs_position(in float3 _in : POSITION, uint _id : SV_INSTANCEID)
 	vtxData.input.position = _in;
 	vtxData.instanceID = _id;
 	vtxData.positionWS = GetPositionWS(o, _in);
-	vtxData.positionVS = GetPositionVS(v_, vtxData.positionWS.xyz);
-	vtxData.positionCS = GetPositionCS(v_, vtxData.positionWS.xyz);
+	vtxData.positionVS = GetPositionVS(viewParams, vtxData.positionWS.xyz);
+	vtxData.positionCS = GetPositionCS(viewParams, vtxData.positionWS.xyz);
 
 	if(ShadeVertex(PASS_DEPTH_PREPASS, o, vtxData))
 	{
-		vtxData.positionCS = GetPositionCS(v_, vtxData.positionWS.xyz);
+		vtxData.positionCS = GetPositionCS(viewParams, vtxData.positionWS.xyz);
 	}
 
 	VS_OUT outVtx = (VS_OUT)0;
@@ -202,14 +194,14 @@ VS_OUT vs_main(in VS_IN _in, uint _id : SV_INSTANCEID)
 	vtxData.input = _in;
 	vtxData.instanceID = _id;
 	vtxData.positionWS = GetPositionWS(o, _in.position);
-	vtxData.positionVS = GetPositionVS(v_, vtxData.positionWS.xyz);
-	vtxData.positionCS = GetPositionCS(v_, vtxData.positionWS.xyz);
+	vtxData.positionVS = GetPositionVS(viewParams, vtxData.positionWS.xyz);
+	vtxData.positionCS = GetPositionCS(viewParams, vtxData.positionWS.xyz);
 	vtxData.normalWS = GetNormalWS(o, _in.normal).xyz;
-	vtxData.normalVS = GetNormalVS(v_, vtxData.normalWS).xyz;
+	vtxData.normalVS = GetNormalVS(viewParams, vtxData.normalWS).xyz;
 
 #ifdef REQUIRE_TANGENT
 	vtxData.tangentWS = GetNormalWS(o, _in.tangent).xyz;
-	vtxData.tangentVS = GetNormalVS(v_, vtxData.tangentWS).xyz;
+	vtxData.tangentVS = GetNormalVS(viewParams, vtxData.tangentWS).xyz;
 #endif
 
 #ifdef REQUIRE_TEXCOORD0
@@ -218,7 +210,7 @@ VS_OUT vs_main(in VS_IN _in, uint _id : SV_INSTANCEID)
 
 	if(ShadeVertex(PASS_DEPTH_PREPASS, o, vtxData))
 	{
-		vtxData.positionCS = GetPositionCS(v_, vtxData.positionWS.xyz);
+		vtxData.positionCS = GetPositionCS(viewParams, vtxData.positionWS.xyz);
 	}
 
 	VS_OUT outVtx = (VS_OUT)0;
@@ -273,7 +265,7 @@ float4 ps_forward(in VS_OUT _in) : SV_TARGET0
 		float3 lightColor = float3(0.0, 0.0, 0.0);
 		lightColor += ambient * pixData.color.rgb;
 
-		int2 lightTexel = DecodeLight(inLightTex[int2(floor(_in.position.xy / l_.tileSize_))]);
+		int2 lightTexel = DecodeLight(inLightTex[int2(floor(_in.position.xy / lightParams.tileSize_))]);
 
 		Material material;
 		material.color_ = pixData.color.rgb;
@@ -288,7 +280,7 @@ float4 ps_forward(in VS_OUT _in) : SV_TARGET0
 		{	
 			const int lightIdx = inLightIndices[lightTexel.x + idx];
 			Light light = inLights[lightIdx];
-			light.position_ = mul(v_.view_, float4(light.position_, 1.0)).xyz;
+			light.position_ = mul(viewParams.view_, float4(light.position_, 1.0)).xyz;
 
 			LightParameters lightParams = CreatePointLight(light, surface);
 		
@@ -355,7 +347,6 @@ Technique RenderPassForward =
 {
 	.VertexShader = vs_main,
 	.PixelShader = ps_forward,
-
 	.RenderState = RS_FORWARD,
 };
 

@@ -170,8 +170,8 @@ namespace Testbed
 			            data.tech_ = shader->CreateTechnique("TECH_COMPUTE_TILE_INFO", ShaderTechniqueDesc());
 			        },
 		            [](RenderGraphResources& res, GPU::CommandList& cmdList, const ComputeTileInfoPassData& data) {
-			            data.tech_.Set("ViewCBuffer", res.CBuffer(data.inViewCB_, 0, sizeof(ViewConstants)));
-			            data.tech_.Set("LightCBuffer", res.CBuffer(data.inLightCB_, 0, sizeof(LightConstants)));
+			            data.tech_.Set("viewParams", res.CBuffer(data.inViewCB_, 0, sizeof(ViewConstants)));
+			            data.tech_.Set("lightParams", res.CBuffer(data.inLightCB_, 0, sizeof(LightConstants)));
 			            data.tech_.Set("outTileInfo",
 			                res.RWBuffer(data.outTileInfoSB_, GPU::Format::INVALID, 0,
 			                    data.light_.numTilesX_ * data.light_.numTilesY_, sizeof(TileInfo)));
@@ -219,8 +219,8 @@ namespace Testbed
 			            cmdList.UpdateBuffer(
 			                res.GetBuffer(data.outLightIndex_), 0, sizeof(u32), cmdList.Push(&baseLightIndex));
 
-			            data.tech_.Set("ViewCBuffer", res.CBuffer(data.inViewCB_, 0, sizeof(ViewConstants)));
-			            data.tech_.Set("LightCBuffer", res.CBuffer(data.inLightCB_, 0, sizeof(LightConstants)));
+			            data.tech_.Set("viewParams", res.CBuffer(data.inViewCB_, 0, sizeof(ViewConstants)));
+			            data.tech_.Set("lightParams", res.CBuffer(data.inLightCB_, 0, sizeof(LightConstants)));
 			            data.tech_.Set("inTileInfo",
 			                res.Buffer(data.inTileInfoSB_, GPU::Format::INVALID, 0,
 			                    data.light_.numTilesX_ * data.light_.numTilesY_, sizeof(TileInfo)));
@@ -271,8 +271,8 @@ namespace Testbed
 			        },
 		            [lightTexFormat](
 		                RenderGraphResources& res, GPU::CommandList& cmdList, const DebugOutputPassData& data) {
-			            data.tech_.Set("ViewCBuffer", res.CBuffer(data.inViewCB_, 0, sizeof(ViewConstants)));
-			            data.tech_.Set("LightCBuffer", res.CBuffer(data.inLightCB_, 0, sizeof(LightConstants)));
+			            data.tech_.Set("viewParams", res.CBuffer(data.inViewCB_, 0, sizeof(ViewConstants)));
+			            data.tech_.Set("lightParams", res.CBuffer(data.inLightCB_, 0, sizeof(LightConstants)));
 			            data.tech_.Set("inTileInfo",
 			                res.Buffer(data.inTileInfoSB_, GPU::Format::INVALID, 0,
 			                    data.light_.numTilesX_ * data.light_.numTilesY_, sizeof(TileInfo)));
@@ -512,7 +512,7 @@ namespace Testbed
 
 			    data.drawFn_(cmdList, "RenderPassForward", data.drawState_, fbs, res.GetBuffer(data.inViewCB_),
 			        res.GetBuffer(data.outObjectSB_), [&](Shader* shader, ShaderTechnique& tech) {
-				        tech.Set("LightCBuffer", res.CBuffer(data.inLightCB_, 0, sizeof(LightConstants)));
+				        tech.Set("lightParams", res.CBuffer(data.inLightCB_, 0, sizeof(LightConstants)));
 				        tech.Set("inLights",
 				            res.Buffer(data.inLightSB_, GPU::Format::INVALID, 0, data.numLights_, sizeof(Light)));
 				        tech.Set("inLightTex", res.Texture2D(data.inLightTex_, lightTexDesc.format_, 0, 1));

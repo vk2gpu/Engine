@@ -229,14 +229,21 @@ namespace Graphics
 	{
 		if(IsDeclSamplerState(node))
 		{
-			ShaderSamplerStateInfo samp;
-			samp.name_ = node->name_;
-
-			if(node->value_)
+			if(auto staticAttr = node->FindAttribute("static"))
 			{
-				SamplerStateEval eval(samp, file_, *this);
-				node->value_->Visit(&eval);
-				samplerStates_.push_back(samp);
+				// We don't care about static samplers.
+			}
+			else
+			{
+				ShaderSamplerStateInfo samp;
+				samp.name_ = node->name_;
+
+				if(node->value_)
+				{
+					SamplerStateEval eval(samp, file_, *this);
+					node->value_->Visit(&eval);
+					samplerStates_.push_back(samp);
+				}
 			}
 		}
 		else if(IsDeclRenderState(node))
