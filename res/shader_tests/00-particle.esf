@@ -8,12 +8,14 @@ struct Particle
 	float3 velocity;
 };
 
-cbuffer ParticleConfig
+struct ParticleParams
 {
 	float4 time;
 	float4 tick;
 	int maxWidth;
 };
+
+ConstantBuffer<ParticleParams> particleParams;
 
 float noise(float x)
 {
@@ -30,14 +32,14 @@ RWStructuredBuffer<Particle> inout_particles;
 [numthreads(1,1,1)]
 void cs_main(int3 id : SV_DispatchThreadID)
 {
-	const uint idx = id.x + id.y * maxWidth;
+	const uint idx = id.x + id.y * particleParams.maxWidth;
 	Particle particle = inout_particles[idx];
 
-	particle.position = particle.position + particle.velocity * tick.x;
+	particle.position = particle.position + particle.velocity * particleParams.tick.x;
 	particle.velocity += float3(0.0, -9.8, 0.0) * tick.x;
 
 	float offset = (float)idx / 1024.0;
-	particle.velocity.y += noise(time.x + offset) * 0.01;
+	particle.velocity.y += noise(particleParams.time.x + offset) * 0.01;
 
 	if(particle.position.y < 0.0)
 	{
@@ -59,11 +61,13 @@ Technique TECH_PARTICLE_UPDATE =
 // Particle draw.
 StructuredBuffer<Particle> in_particles;
 
-cbuffer Camera
+struct CameraParams
 {
 	float4x4 view;
 	float4x4 viewProj;
 };
+
+ConstantBuffer<CameraParams> cameraParams;
 
 struct VS_IN
 {
@@ -81,7 +85,7 @@ VS_OUT vs_main(in VS_IN _in, uint idx : SV_INSTANCEID)
 	Particle particle = in_particles[idx];
 
 	VS_OUT _out = (VS_OUT)0;
-	_out.position = mul(viewProj, float4(_in.position.xyz + particle.position.xyz, 1.0));
+	_out.position = mul(cameraParams.viewProj, float4(_in.position.xyz + particle.position.xyz, 1.0));
 	_out.idx = idx;
 	return _out;
 }
