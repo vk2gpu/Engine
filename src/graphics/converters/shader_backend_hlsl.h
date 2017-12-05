@@ -36,7 +36,9 @@ namespace Graphics
 
 		void WriteStruct(AST::NodeStruct* node);
 		void WriteBindingSet(AST::NodeStruct* node);
-		void WriteDeclaration(AST::NodeDeclaration* node);
+		void WriteFunction(AST::NodeDeclaration* node);
+		void WriteVariable(AST::NodeDeclaration* node);
+		void WriteParameter(AST::NodeDeclaration* node);
 
 		const Core::String& GetOutputCode() const { return outCode_; }
 
@@ -50,9 +52,6 @@ namespace Graphics
 
 		bool isNewLine_ = false;
 		i32 indent_ = 0;
-		i32 inParams_ = 0;
-		i32 inCBuffer_ = 0;
-		i32 inStruct_ = 0;
 
 		i32 cbufferReg_ = 0;
 		i32 samplerReg_ = 0;
@@ -61,11 +60,13 @@ namespace Graphics
 
 		Core::Set<Core::String> hlslAttributes_;
 
-		const char* writeInternalDeclaration_ = nullptr;
-
 		Core::String outCode_;
 
 		Core::Vector<AST::NodeStruct*> structs_;
 		Core::Vector<AST::NodeStruct*> bindingSets_;
+
+		Core::Vector<AST::NodeDeclaration*> samplerStates_;
+		Core::Vector<AST::NodeDeclaration*> variables_;
+		Core::Vector<AST::NodeDeclaration*> functions_;
 	};
 } // namespace Graphics

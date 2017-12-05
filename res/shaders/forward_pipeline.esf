@@ -9,6 +9,7 @@ struct CS_INPUT
 	int3 groupID : SV_GroupID;
 	int3 groupThreadID : SV_GroupThreadID;
 	int3 dispatchID : SV_DispatchThreadID;
+	int groupIdx : SV_GroupIndex;
 };
 
 ///////////////////////////////////////////////////////////////////////
@@ -70,9 +71,9 @@ Technique TECH_COMPUTE_TILE_INFO =
 	.ComputeShader = cs_compute_tile_info,
 };
 
-groupshared uint gDepthMin = 0xffffffff;
-groupshared uint gDepthMax = 0;
-groupshared uint gNumLights = 0;
+groupshared uint gDepthMin;
+groupshared uint gDepthMax;
+groupshared uint gNumLights;
 groupshared int gLightIndices[MAX_LIGHTS_PER_TILE];
 
 #define LIGHT_LIST_GROUP_SIZE 16
@@ -81,6 +82,13 @@ groupshared int gLightIndices[MAX_LIGHTS_PER_TILE];
 [numthreads(LIGHT_LIST_GROUP_SIZE,LIGHT_LIST_GROUP_SIZE,1)]
 void cs_compute_light_lists(CS_INPUT _in)
 {
+	if(_in.groupIdx == 0)
+	{
+		gDepthMin = 0xffffffff;
+		gDepthMax = 0;
+		gNumLights = 0;
+	}
+
 	GroupMemoryBarrierWithGroupSync();
 
 	float depth = depthTex.Load(uint3(_in.dispatchID.xy, 0));

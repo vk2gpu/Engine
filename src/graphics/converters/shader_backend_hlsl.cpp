@@ -34,11 +34,13 @@ namespace Graphics
 
 	bool ShaderBackendHLSL::VisitEnter(AST::NodeShaderFile* node)
 	{
-		// Visit all parsed struct types to gather stucts, binding sets, etc...
+		// Collect all types that we need to export to HLSL.
 		for(auto* intNode : node->structs_)
-		{
 			intNode->Visit(this);
-		}
+
+		for(auto* intNode : node->variables_)
+			intNode->Visit(this);
+
 
 		// Write out generated shader.
 		Write("////////////////////////////////////////////////////////////////////////////////////////////////////");
@@ -55,19 +57,26 @@ namespace Graphics
 		NextLine();
 
 		for(auto* intNode : structs_)
-		{
 			WriteStruct(intNode);
-		}
+		NextLine();
+
+		Write("////////////////////////////////////////////////////////////////////////////////////////////////////");
+		NextLine();
+		Write("// variables");
+		NextLine();
+
+		for(auto* intNode : variables_)
+			WriteVariable(intNode);
+		NextLine();
 
 		Write("////////////////////////////////////////////////////////////////////////////////////////////////////");
 		NextLine();
 		Write("// sampler states");
 		NextLine();
 
-		writeInternalDeclaration_ = "SamplerState";
-		for(auto* intNode : node->variables_)
-			intNode->Visit(this);
-		writeInternalDeclaration_ = nullptr;
+		for(auto* intNode : samplerStates_)
+			if(bindingMap_.size() == 0 || bindingMap_.find(intNode->name_) != bindingMap_.end())
+				WriteVariable(intNode);
 		NextLine();
 
 		Write("////////////////////////////////////////////////////////////////////////////////////////////////////");
@@ -76,20 +85,7 @@ namespace Graphics
 		NextLine();
 
 		for(auto* intNode : bindingSets_)
-		{
 			WriteBindingSet(intNode);
-		}
-
-		NextLine();
-
-		Write("////////////////////////////////////////////////////////////////////////////////////////////////////");
-		NextLine();
-		Write("// vars");
-		NextLine();
-
-		for(auto* intNode : node->variables_)
-			intNode->Visit(this);
-
 		NextLine();
 
 		Write("////////////////////////////////////////////////////////////////////////////////////////////////////");
@@ -98,10 +94,8 @@ namespace Graphics
 		NextLine();
 
 		for(auto* intNode : node->functions_)
-		{
-			intNode->Visit(this);
-			NextLine();
-		}
+			WriteFunction(intNode);
+		NextLine();
 
 		return false;
 	}
@@ -198,7 +192,26 @@ namespace Graphics
 
 	bool ShaderBackendHLSL::VisitEnter(AST::NodeDeclaration* node)
 	{
-		WriteDeclaration(node);
+		if(node->isFunction_)
+		{
+			functions_.push_back(node);
+		}
+		else
+		{
+			bool isSampler = false;
+			if(node->type_->baseType_->struct_)
+			{
+				if(auto attr = node->type_->baseType_->struct_->FindAttribute("internal"))
+				{
+					isSampler = attr->HasParameter(0) && attr->GetParameter(0) == "SamplerState";
+				}
+			}
+
+			if(isSampler)
+				samplerStates_.push_back(node);
+			else
+				variables_.push_back(node);
+		}
 		return false;
 	}
 
@@ -304,14 +317,13 @@ namespace Graphics
 
 		++indent_;
 
-		++inStruct_;
-
 		for(auto* member : node->type_->members_)
 		{
-			member->Visit(this);
-		}
+			WriteParameter(member);
 
-		--inStruct_;
+			Write(";");
+			NextLine();
+		}
 
 		--indent_;
 
@@ -325,45 +337,77 @@ namespace Graphics
 		Write("// - %s", node->name_.c_str());
 		NextLine();
 
+		bool writeBindingSet = false;
 		for(auto* member : node->type_->members_)
-		{
-			member->Visit(this);
-		}
+			writeBindingSet |= (bindingMap_.size() == 0 || bindingMap_.find(member->name_) != bindingMap_.end());
 
-		NextLine();
+
+		if(writeBindingSet)
+			for(auto* member : node->type_->members_)
+				WriteVariable(member);
+
 		NextLine();
 	}
 
-	void ShaderBackendHLSL::WriteDeclaration(AST::NodeDeclaration* node)
+	void ShaderBackendHLSL::WriteFunction(AST::NodeDeclaration* node)
 	{
-		if(writeInternalDeclaration_ != nullptr && !IsInternal(node, writeInternalDeclaration_))
-			return;
-		else if(writeInternalDeclaration_ == nullptr && IsInternal(node))
-			return;
+		for(auto* attrib : node->attributes_)
+			attrib->Visit(this);
 
-		bool isBinding = false;
-		bool isSampler = false;
-		isBinding |= node->type_->baseType_->metaData_ == "SRV";
-		isBinding |= node->type_->baseType_->metaData_ == "UAV";
-		isBinding |= node->type_->baseType_->metaData_ == "CBV";
+		for(auto* storageClass : node->storageClasses_)
+			Write("%s ", storageClass->name_.c_str());
+
+		node->type_->Visit(this);
+		Write(" %s", node->name_.c_str());
+
+		Write("(");
+		const i32 num = node->parameters_.size();
+		for(i32 idx = 0; idx < num; ++idx)
+		{
+			auto* param = node->parameters_[idx];
+			WriteParameter(param);
+			if(idx < (num - 1))
+				Write(", ");
+		}
+		Write(")");
+
+		if(node->semantic_.size() > 0)
+			Write(" : %s", node->semantic_.c_str());
+
+		if(node->value_)
+		{
+			NextLine();
+			if(node->line_ >= 0)
+				Write("#line %i %s\n", node->line_, node->file_.c_str());
+
+			Write("{");
+			node->value_->Visit(this);
+			NextLine();
+			Write("}");
+			NextLine();
+		}
+		else
+		{
+			Write(";");
+			NextLine();
+
+			if(node->line_ >= 0)
+				Write("#line %i %s\n", node->line_, node->file_.c_str());
+		}
+	}
+
+	void ShaderBackendHLSL::WriteVariable(AST::NodeDeclaration* node)
+	{
+		bool isSamplerState = false;
 		if(node->type_->baseType_->struct_)
 		{
 			if(auto attr = node->type_->baseType_->struct_->FindAttribute("internal"))
 			{
-				isSampler = attr->HasParameter(0) && attr->GetParameter(0) == "SamplerState";
-				isBinding |= isSampler;
+				isSamplerState = attr->HasParameter(0) && attr->GetParameter(0) == "SamplerState";
+
+				if(isSamplerState == false)
+					return;
 			}
-		}
-
-		isBinding &= !inStruct_ && !inParams_ && !inCBuffer_ && !node->isFunction_;
-
-		if(isBinding && bindingMap_.size() > 0 && bindingMap_.find(node->name_) == bindingMap_.end())
-			return;
-
-		if(!writeInternalDeclaration_)
-		{
-			for(auto* attrib : node->attributes_)
-				attrib->Visit(this);
 		}
 
 		for(auto* storageClass : node->storageClasses_)
@@ -376,105 +420,68 @@ namespace Graphics
 		{
 			if(arrayDim > 0)
 				Write("[%u]", arrayDim);
+			else if(arrayDim < 0)
+				Write("[]");
 		}
 
-		if(node->isFunction_)
-		{
-			++inParams_;
-			Write("(");
-			const i32 num = node->parameters_.size();
-			for(i32 idx = 0; idx < num; ++idx)
-			{
-				auto* param = node->parameters_[idx];
-				param->Visit(this);
-				if(idx < (num - 1))
-					Write(", ");
-			}
-			Write(")");
-			--inParams_;
-
-
-			if(node->semantic_.size() > 0)
-				Write(" : %s", node->semantic_.c_str());
-
-			if(node->value_)
-			{
-				NextLine();
-				if(node->line_ >= 0)
-					Write("#line %i %s\n", node->line_, node->file_.c_str());
-
-				Write("{");
-				node->value_->Visit(this);
-				NextLine();
-				Write("}");
-				NextLine();
-			}
+		// Determine register.
+		Core::String reg;
+		if(node->register_.size() > 0)
+			if(node->space_.size() == 0)
+				reg.Printf("register(%s)", node->register_.c_str());
 			else
-			{
-				Write(";");
-				NextLine();
+				reg.Printf("register(%s, %s)", node->register_.c_str(), node->space_.c_str());
 
-				if(node->line_ >= 0)
-					Write("#line %i %s\n", node->line_, node->file_.c_str());
-			}
-		}
-		else
+		else if(autoReg_)
+			if(node->type_->baseType_->metaData_ == "SRV")
+				reg.Printf("register(t%i)", srvReg_++);
+			else if(node->type_->baseType_->metaData_ == "UAV")
+				reg.Printf("register(u%i)", uavReg_++);
+			else if(node->type_->baseType_->metaData_ == "CBV")
+				reg.Printf("register(b%i)", cbufferReg_++);
+
+		if(isSamplerState)
+			if(auto staticAttr = node->FindAttribute("static"))
+				reg.Printf(
+				    "register(s%s, %s)", staticAttr->GetParameter(0).c_str(), staticAttr->GetParameter(1).c_str());
+			else
+				reg.Printf("register(s%i)", samplerReg_++);
+
+		if(reg.size() > 0)
+			Write(" : %s", reg.c_str());
+
+		if(node->value_)
 		{
-			Core::String reg;
-			if(node->register_.size() > 0)
-				if(node->space_.size() == 0)
-					reg.Printf("register(%s)", node->register_.c_str());
-				else
-					reg.Printf("register(%s, %s)", node->register_.c_str(), node->space_.c_str());
-
-			else if(autoReg_)
-				if(node->type_->baseType_->metaData_ == "SRV")
-					reg.Printf("register(t%i)", srvReg_++);
-				else if(node->type_->baseType_->metaData_ == "UAV")
-					reg.Printf("register(u%i)", uavReg_++);
-				else if(node->type_->baseType_->metaData_ == "CBV")
-					reg.Printf("register(b%i)", cbufferReg_++);
-
-			if(node->type_->baseType_->struct_)
-				if(auto attr = node->type_->baseType_->struct_->FindAttribute("internal"))
-					if(attr->HasParameter(0) && attr->GetParameter(0) == "SamplerState")
-					{
-						if(auto staticAttr = node->FindAttribute("static"))
-						{
-							reg.Printf("register(s%s, %s)", staticAttr->GetParameter(0).c_str(),
-							    staticAttr->GetParameter(1).c_str());
-						}
-						else
-						{
-							reg.Printf("register(s%i)", samplerReg_++);
-						}
-					}
-
-			if(inCBuffer_ == 0)
+			// Only output simple values.
+			if(node->value_->nodeType_ == AST::Nodes::VALUE)
 			{
-				if(node->semantic_.size() > 0)
-					Write(" : %s", node->semantic_.c_str());
-
-				if(reg.size() > 0)
-					Write(" : %s", reg.c_str());
-			}
-
-			if(node->value_)
-			{
-				// Only output simple values.
-				if(node->value_->nodeType_ == AST::Nodes::VALUE)
-				{
-					Write(" = ");
-					node->value_->Visit(this);
-				}
-			}
-
-			if(inParams_ == 0)
-			{
-				Write(";");
-				NextLine();
+				Write(" = ");
+				node->value_->Visit(this);
 			}
 		}
+
+		Write(";");
+		NextLine();
+	}
+
+	void ShaderBackendHLSL::WriteParameter(AST::NodeDeclaration* node)
+	{
+		for(auto* storageClass : node->storageClasses_)
+			Write("%s ", storageClass->name_.c_str());
+
+		node->type_->Visit(this);
+		Write(" %s", node->name_.c_str());
+
+		for(auto arrayDim : node->arrayDims_)
+		{
+			if(arrayDim > 0)
+				Write("[%u]", arrayDim);
+			else if(arrayDim < 0)
+				Write("[]");
+		}
+
+		if(node->semantic_.size() > 0)
+			Write(" : %s", node->semantic_.c_str());
 	}
 
 } /// namespace Graphics
