@@ -341,10 +341,13 @@ namespace Graphics
 		for(auto* member : node->type_->members_)
 			writeBindingSet |= (bindingMap_.size() == 0 || bindingMap_.find(member->name_) != bindingMap_.end());
 
-
 		if(writeBindingSet)
+		{
 			for(auto* member : node->type_->members_)
 				WriteVariable(member);
+
+			usedBindingSets_.insert(node->name_);
+		}
 
 		NextLine();
 	}

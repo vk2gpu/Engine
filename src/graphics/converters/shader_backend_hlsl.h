@@ -41,6 +41,7 @@ namespace Graphics
 		void WriteParameter(AST::NodeDeclaration* node);
 
 		const Core::String& GetOutputCode() const { return outCode_; }
+		const Core::Set<Core::String>& GetUsedBindingSets() const { return usedBindingSets_; }
 
 	private:
 		void Write(const char* msg, ...);
@@ -68,5 +69,7 @@ namespace Graphics
 		Core::Vector<AST::NodeDeclaration*> samplerStates_;
 		Core::Vector<AST::NodeDeclaration*> variables_;
 		Core::Vector<AST::NodeDeclaration*> functions_;
+
+		Core::Set<Core::String> usedBindingSets_;
 	};
 } // namespace Graphics

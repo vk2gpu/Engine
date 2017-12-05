@@ -7,13 +7,26 @@ uint ShadeVertex(uniform int passID, in Object obj, inout VertexData vtxData)
 
 uint ShadePixel(uniform int passID, inout PixelData pixData)
 {
-	if(passID == PASS_FORWARD)
+	switch(passID)
 	{
-		pixData.color.rgb = float4(1.0, 1.0, 1.0, 1.0);
-		pixData.roughness = 0.5;
-		pixData.metallic = 0.0;
-		pixData.specular = DIELECTRIC_F0;
-		return PIX_LIGHTING;
+		case PASS_DEPTH_PREPASS:
+		{
+			return PIX_DEFAULT;
+		}
+
+		case PASS_SHADOW:
+		{
+			return PIX_DEFAULT;
+		}
+
+		case PASS_FORWARD:
+		{
+			pixData.color.rgb = float4(1.0, 1.0, 1.0, 1.0);
+			pixData.roughness = 0.5;
+			pixData.metallic = 0.0;
+			pixData.specular = DIELECTRIC_F0;
+			return PIX_LIGHTING;
+		}
 	}
 
 	return PIX_DEFAULT;

@@ -14,6 +14,7 @@ struct CS_INPUT
 
 ///////////////////////////////////////////////////////////////////////
 // Compute light tiles.
+[frequency(HIGH)]
 BindingSet LightTileComputeBindings
 {
 	globallycoherent RWBuffer<uint> lightIndex;
@@ -177,6 +178,7 @@ Technique TECH_COMPUTE_LIGHT_LISTS =
 
 ///////////////////////////////////////////////////////////////////////
 // Hi-Z
+[frequency(HIGH)]
 BindingSet HiZBindings
 {
 	Texture2D<float2> inHiZ;

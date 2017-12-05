@@ -212,7 +212,6 @@ namespace Graphics
 		};
 	}
 
-
 	ShaderBackendMetadata::ShaderBackendMetadata() {}
 
 	ShaderBackendMetadata::~ShaderBackendMetadata() {}
@@ -224,6 +223,35 @@ namespace Graphics
 	}
 
 	void ShaderBackendMetadata::VisitExit(AST::NodeShaderFile* node) { file_ = nullptr; }
+
+	bool ShaderBackendMetadata::VisitEnter(AST::NodeStruct* node)
+	{
+		if(IsStructBindingSet(node))
+		{
+			ShaderBindingSetInfo bindingSetInfo;
+			bindingSetInfo.name_ = node->name_;
+			if(auto attr = node->FindAttribute("frequency"))
+				bindingSetInfo.frequency_ = attr->parameters_[0];
+
+			if(auto attr = node->FindAttribute("shared"))
+				bindingSetInfo.shared_ = true;
+
+			for(auto* member : node->type_->members_)
+			{
+				if(member->type_->baseType_->metaData_ == "CBV")
+					bindingSetInfo.numCBVs_++;
+				if(member->type_->baseType_->metaData_ == "SRV")
+					bindingSetInfo.numSRVs_++;
+				if(member->type_->baseType_->metaData_ == "UAV")
+					bindingSetInfo.numUAVs_++;
+				if(IsDeclSamplerState(member))
+					bindingSetInfo.numSamplers_++;
+			}
+
+			bindingSets_.push_back(bindingSetInfo);
+		}
+		return false;
+	}
 
 	bool ShaderBackendMetadata::VisitEnter(AST::NodeDeclaration* node)
 	{
@@ -322,6 +350,11 @@ namespace Graphics
 				if(attrib->HasParameter(0))
 					return attrib->GetParameter(0) == "Technique";
 		return false;
+	}
+
+	bool ShaderBackendMetadata::IsStructBindingSet(AST::NodeStruct* node) const
+	{
+		return (node->typeName_ == "BindingSet");
 	}
 
 } /// namespace Graphics

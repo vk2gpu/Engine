@@ -5,6 +5,7 @@
 
 ///////////////////////////////////////////////////////////////////////
 // Binding sets
+[frequency(HIGH)]
 BindingSet MaterialBindings
 {
 	Texture2D<float4> texDiffuse;
@@ -22,17 +23,30 @@ uint ShadeVertex(uniform int passID, in Object obj, inout VertexData vtxData)
 
 uint ShadePixel(uniform int passID, inout PixelData pixData)
 {
-	if(passID == PASS_FORWARD)
+	switch(passID)
 	{
-		const float2 texcoord = pixData.input.texcoord0;
+		case PASS_DEPTH_PREPASS:
+		{
+			return PIX_DEFAULT;
+		}
 
-		pixData.normal = DecodeNormal(texNormal.Sample(SS_MIP_WRAP, texcoord)).rgb;
-		pixData.color.rgb = GammaToLinear(texDiffuse.Sample(SS_MIP_WRAP, texcoord).rgb);
-		pixData.color.a = 1.0;
-		pixData.roughness = texRoughness.Sample(SS_MIP_WRAP, texcoord).r;
-		pixData.metallic = texMetallic.Sample(SS_MIP_WRAP, texcoord).r;
-		pixData.specular = DIELECTRIC_F0;
-		return PIX_LIGHTING;
+		case PASS_SHADOW:
+		{
+			return PIX_DEFAULT;
+		}
+
+		case PASS_FORWARD:
+		{
+			const float2 texcoord = pixData.input.texcoord0;
+
+			pixData.normal = DecodeNormal(texNormal.Sample(SS_MIP_WRAP, texcoord)).rgb;
+			pixData.color.rgb = GammaToLinear(texDiffuse.Sample(SS_MIP_WRAP, texcoord).rgb);
+			pixData.color.a = 1.0;
+			pixData.roughness = texRoughness.Sample(SS_MIP_WRAP, texcoord).r;
+			pixData.metallic = texMetallic.Sample(SS_MIP_WRAP, texcoord).r;
+			pixData.specular = DIELECTRIC_F0;
+			return PIX_LIGHTING;
+		}
 	}
 
 	return PIX_DEFAULT;

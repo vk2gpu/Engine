@@ -12,32 +12,42 @@ struct Object
 
 ///////////////////////////////////////////////////////////////////////
 // Binding sets
+[shared]
+[frequency(LOW)]
 BindingSet ViewBindings
 {
 	ConstantBuffer<ViewParams> viewParams;
 	ConstantBuffer<LightParams> lightParams;
 };
 
+[shared]
+[frequency(LOW)]
 BindingSet LightBindings
 {
 	StructuredBuffer<Light> inLights;
 };
 
+[shared]
+[frequency(LOW)]
 BindingSet LightTileBindings
 {
 	Texture2D<uint> inLightTex;
 	StructuredBuffer<uint> inLightIndices;
 };
 
-BindingSet ObjectBindings
-{
-	StructuredBuffer<Object> inObject;
-};
-
+[shared]
+[frequency(LOW)]
 BindingSet DebugBindings
 {
 	Texture2D<float> debugTex;
 	RWTexture2D<float4> outDebug;
+};
+
+[shared]
+[frequency(MEDIUM)]
+BindingSet ObjectBindings
+{
+	StructuredBuffer<Object> inObject;
 };
 
 #endif // COMMON_BINDINGS_ESH

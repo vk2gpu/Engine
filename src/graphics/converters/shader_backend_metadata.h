@@ -6,6 +6,17 @@
 
 namespace Graphics
 {
+	struct ShaderBindingSetInfo
+	{
+		Core::String name_;
+		Core::String frequency_;
+		bool shared_ = false;
+		i32 numCBVs_ = 0;
+		i32 numSRVs_ = 0;
+		i32 numUAVs_ = 0;
+		i32 numSamplers_ = 0;
+	};
+
 	struct ShaderSamplerStateInfo
 	{
 		Core::String name_;
@@ -50,7 +61,7 @@ namespace Graphics
 
 		bool VisitEnter(AST::NodeShaderFile* node) override;
 		void VisitExit(AST::NodeShaderFile* node) override;
-		bool VisitEnter(AST::NodeStruct* node) override { return false; }
+		bool VisitEnter(AST::NodeStruct* node) override;
 		bool VisitEnter(AST::NodeDeclaration* node) override;
 
 		const auto& GetSamplerStates() const { return samplerStates_; }
@@ -62,6 +73,7 @@ namespace Graphics
 		bool IsDeclStencilFaceState(AST::NodeDeclaration* node) const;
 		bool IsDeclRenderState(AST::NodeDeclaration* node) const;
 		bool IsDeclTechnique(AST::NodeDeclaration* node) const;
+		bool IsStructBindingSet(AST::NodeStruct* node) const;
 
 		template<typename PARSE_TYPE>
 		class BaseEval : public AST::IVisitor
@@ -142,6 +154,7 @@ namespace Graphics
 		};
 
 		AST::NodeShaderFile* file_ = nullptr;
+		Core::Vector<ShaderBindingSetInfo> bindingSets_;
 		Core::Vector<ShaderSamplerStateInfo> samplerStates_;
 		Core::Vector<ShaderBlendStateInfo> blendStates_;
 		Core::Vector<ShaderStencilFaceStateInfo> stencilFaceStates_;

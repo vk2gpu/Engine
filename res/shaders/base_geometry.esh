@@ -108,8 +108,8 @@ float3 GetNormalCS(ViewParams v, float3 nrm)
 }
 
 #define PASS_DEPTH_PREPASS 0
-#define PASS_FORWARD 1
-#define PASS_SHADOW 2
+#define PASS_SHADOW 1
+#define PASS_FORWARD 2
 
 #define VTX_DEFAULT 0x0
 #define VTX_CHANGED_POSITION 0x1
