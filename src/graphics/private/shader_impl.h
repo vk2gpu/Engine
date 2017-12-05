@@ -7,11 +7,16 @@
 #include "graphics/shader.h"
 #include "job/concurrency.h"
 
+namespace Serialization
+{
+	class Serializer;
+} // namespace Serialization
+
 namespace Graphics
 {
 	static const i32 MAX_NAME_LENGTH = 64;
 
-	struct ShaderHeader
+	struct GRAPHICS_DLL ShaderHeader
 	{
 		/// Magic number.
 		static const u32 MAGIC = 0x229C08ED;
@@ -31,14 +36,18 @@ namespace Graphics
 		i32 numShaders_ = 0;
 		i32 numTechniques_ = 0;
 		i32 numSamplerStates_ = 0;
+
+		bool Serialize(Serialization::Serializer& serializer);
 	};
 
-	struct ShaderBindingHeader
+	struct GRAPHICS_DLL ShaderBindingHeader
 	{
 		char name_[MAX_NAME_LENGTH];
+
+		bool Serialize(Serialization::Serializer& serializer);
 	};
 
-	struct ShaderBytecodeHeader
+	struct GRAPHICS_DLL ShaderBytecodeHeader
 	{
 		i32 numCBuffers_ = 0;
 		i32 numSamplers_ = 0;
@@ -47,15 +56,19 @@ namespace Graphics
 		GPU::ShaderType type_ = GPU::ShaderType::INVALID;
 		i32 offset_ = 0;
 		i32 numBytes_ = 0;
+
+		bool Serialize(Serialization::Serializer& serializer);
 	};
 
-	struct ShaderBindingMapping
+	struct GRAPHICS_DLL ShaderBindingMapping
 	{
 		i32 binding_ = 0;
 		i32 dstSlot_ = 0;
+
+		bool Serialize(Serialization::Serializer& serializer);
 	};
 
-	struct ShaderTechniqueHeader
+	struct GRAPHICS_DLL ShaderTechniqueHeader
 	{
 		char name_[MAX_NAME_LENGTH] = {'\0'};
 		i32 vs_ = -1;
@@ -65,12 +78,16 @@ namespace Graphics
 		i32 ps_ = -1;
 		i32 cs_ = -1;
 		GPU::RenderState rs_; // TODO: Store separately.
+
+		bool Serialize(Serialization::Serializer& serializer);
 	};
 
-	struct ShaderSamplerStateHeader
+	struct GRAPHICS_DLL ShaderSamplerStateHeader
 	{
 		char name_[MAX_NAME_LENGTH] = {'\0'};
 		GPU::SamplerState state_;
+
+		bool Serialize(Serialization::Serializer& serializer);
 	};
 
 	struct ShaderImpl

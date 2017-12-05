@@ -17,4 +17,5 @@ namespace Core
 	GPU_DLL const char* EnumToString(GPU::BlendFunc val);
 	GPU_DLL const char* EnumToString(GPU::CompareMode val);
 	GPU_DLL const char* EnumToString(GPU::StencilFunc val);
+	GPU_DLL const char* EnumToString(GPU::ShaderType val);
 }

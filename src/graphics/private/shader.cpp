@@ -8,7 +8,9 @@
 #include "core/file.h"
 #include "core/hash.h"
 #include "core/misc.h"
+#include "gpu/enum.h"
 #include "gpu/manager.h"
+#include "serialization/serializer.h"
 
 #include <algorithm>
 
@@ -25,6 +27,66 @@ namespace GPU
 
 namespace Graphics
 {
+	bool ShaderHeader::Serialize(Serialization::Serializer& serializer)
+	{
+		SERIALIZE_MEMBER(magic_);
+		SERIALIZE_MEMBER(majorVersion_);
+		SERIALIZE_MEMBER(minorVersion_);
+		SERIALIZE_MEMBER(numCBuffers_);
+		SERIALIZE_MEMBER(numSRVs_);
+		SERIALIZE_MEMBER(numUAVs_);
+		SERIALIZE_MEMBER(numSamplers_);
+		SERIALIZE_MEMBER(numShaders_);
+		SERIALIZE_MEMBER(numTechniques_);
+		SERIALIZE_MEMBER(numSamplerStates_);
+		return true;
+	}
+
+	bool ShaderBindingHeader::Serialize(Serialization::Serializer& serializer)
+	{
+		SERIALIZE_STRING_MEMBER(name_);
+		return true;
+	}
+
+	bool ShaderBytecodeHeader::Serialize(Serialization::Serializer& serializer)
+	{
+		SERIALIZE_MEMBER(numCBuffers_);
+		SERIALIZE_MEMBER(numSamplers_);
+		SERIALIZE_MEMBER(numSRVs_);
+		SERIALIZE_MEMBER(numUAVs_);
+		SERIALIZE_MEMBER(type_);
+		SERIALIZE_MEMBER(offset_);
+		SERIALIZE_MEMBER(numBytes_);
+		return true;
+	}
+
+	bool ShaderBindingMapping::Serialize(Serialization::Serializer& serializer)
+	{
+		SERIALIZE_MEMBER(binding_);
+		SERIALIZE_MEMBER(dstSlot_);
+		return true;
+	}
+
+	bool ShaderTechniqueHeader::Serialize(Serialization::Serializer& serializer)
+	{
+		SERIALIZE_STRING_MEMBER(name_);
+		SERIALIZE_MEMBER(vs_);
+		SERIALIZE_MEMBER(gs_);
+		SERIALIZE_MEMBER(hs_);
+		SERIALIZE_MEMBER(ds_);
+		SERIALIZE_MEMBER(ps_);
+		SERIALIZE_MEMBER(cs_);
+		SERIALIZE_BINARY_MEMBER(rs_);
+		return true;
+	}
+
+	bool ShaderSamplerStateHeader::Serialize(Serialization::Serializer& serializer)
+	{
+		SERIALIZE_STRING_MEMBER(name_);
+		SERIALIZE_BINARY_MEMBER(state_);
+		return true;
+	}
+
 	class ShaderFactory : public Resource::IFactory
 	{
 	public:

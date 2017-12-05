@@ -318,4 +318,25 @@ case GPU::StencilFunc::##ENUM_VALUE : return #ENUM_VALUE;
 		return nullptr;
 	}
 
+	const char* EnumToString(GPU::ShaderType val)
+	{
+#define CASE_STRING(ENUM_VALUE)                                                                                        \
+	\
+case GPU::ShaderType::##ENUM_VALUE : return #ENUM_VALUE;
+
+		switch(val)
+		{
+			CASE_STRING(INVALID)
+			CASE_STRING(VS)
+			CASE_STRING(GS)
+			CASE_STRING(HS)
+			CASE_STRING(DS)
+			CASE_STRING(PS)
+			CASE_STRING(CS)
+		}
+
+#undef CASE_STRING
+		return nullptr;
+	}
+
 } // namespace Core

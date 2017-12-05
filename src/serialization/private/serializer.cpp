@@ -254,7 +254,10 @@ namespace Serialization
 	{
 		virtual ~SerializerImpl() {}
 		virtual bool Serialize(const char* key, bool& value) = 0;
+		virtual bool Serialize(const char* key, i16& value) = 0;
+		virtual bool Serialize(const char* key, u16& value) = 0;
 		virtual bool Serialize(const char* key, i32& value) = 0;
+		virtual bool Serialize(const char* key, u32& value) = 0;
 		virtual bool Serialize(const char* key, f32& value) = 0;
 		virtual bool SerializeString(const char* key, char* str, i32 maxLength) = 0;
 		virtual bool SerializeBinary(const char* key, char* data, i32 size) = 0;
@@ -303,7 +306,37 @@ namespace Serialization
 			return true;
 		}
 
+		bool Serialize(const char* key, i16& value) override
+		{
+			auto& object = GetObject();
+			if(key)
+				object[key] = value;
+			else
+				object.append(value);
+			return true;
+		}
+
+		bool Serialize(const char* key, u16& value) override
+		{
+			auto& object = GetObject();
+			if(key)
+				object[key] = value;
+			else
+				object.append(value);
+			return true;
+		}
+
 		bool Serialize(const char* key, i32& value) override
+		{
+			auto& object = GetObject();
+			if(key)
+				object[key] = value;
+			else
+				object.append(value);
+			return true;
+		}
+
+		bool Serialize(const char* key, u32& value) override
 		{
 			auto& object = GetObject();
 			if(key)
@@ -441,7 +474,40 @@ namespace Serialization
 			return false;
 		}
 
+		bool Serialize(const char* key, i16& value) override
+		{
+			auto& object = GetObjectWithKey(key);
+			if(object.isInt())
+			{
+				value = (i16)object.asInt();
+				return true;
+			}
+			return false;
+		}
+
+		bool Serialize(const char* key, u16& value) override
+		{
+			auto& object = GetObjectWithKey(key);
+			if(object.isInt())
+			{
+				value = (u16)object.asInt();
+				return true;
+			}
+			return false;
+		}
+
 		bool Serialize(const char* key, i32& value) override
+		{
+			auto& object = GetObjectWithKey(key);
+			if(object.isInt())
+			{
+				value = object.asInt();
+				return true;
+			}
+			return false;
+		}
+
+		bool Serialize(const char* key, u32& value) override
 		{
 			auto& object = GetObjectWithKey(key);
 			if(object.isInt())
@@ -554,7 +620,10 @@ namespace Serialization
 
 	bool Serializer::Serialize(const char* key, bool& value) { return impl_->Serialize(key, value); }
 
+	bool Serializer::Serialize(const char* key, i16& value) { return impl_->Serialize(key, value); }
+	bool Serializer::Serialize(const char* key, u16& value) { return impl_->Serialize(key, value); }
 	bool Serializer::Serialize(const char* key, i32& value) { return impl_->Serialize(key, value); }
+	bool Serializer::Serialize(const char* key, u32& value) { return impl_->Serialize(key, value); }
 
 	bool Serializer::Serialize(const char* key, f32& value) { return impl_->Serialize(key, value); }
 
@@ -599,7 +668,10 @@ namespace Serialization
 		return impl_->SerializeBinary(key, data, size);
 	}
 
-	Serializer::ScopedObject Serializer::Object(const char* key) { return Serializer::ScopedObject(*this, key); }
+	Serializer::ScopedObject Serializer::Object(const char* key, bool isArray)
+	{
+		return Serializer::ScopedObject(*this, key, isArray);
+	}
 
 	i32 Serializer::BeginObject(const char* key, bool isArray) { return impl_->BeginObject(key, isArray); }
 

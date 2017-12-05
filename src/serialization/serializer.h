@@ -24,6 +24,19 @@ namespace Serialization
 		BINARY = 0x2
 	};
 
+/**
+	 * Helper macros.
+	 */
+#define SERIALIZE_MEMBER(_name)                                                                                        \
+	if(!serializer.Serialize(#_name, _name))                                                                           \
+		return false;
+#define SERIALIZE_STRING_MEMBER(_name)                                                                                 \
+	if(!serializer.SerializeString(#_name, _name, sizeof(_name)))                                                      \
+		return false;
+#define SERIALIZE_BINARY_MEMBER(_name)                                                                                 \
+	if(!serializer.SerializeBinary(#_name, (char*)&_name, sizeof(_name)))                                              \
+		return false;
+
 	/**
 	 * General purpose serializer.
 	 * Handles both reading and writing via the same interface.
@@ -39,7 +52,10 @@ namespace Serialization
 		Serializer& operator=(Serializer&&);
 
 		bool Serialize(const char* key, bool& value);
+		bool Serialize(const char* key, i16& value);
+		bool Serialize(const char* key, u16& value);
 		bool Serialize(const char* key, i32& value);
+		bool Serialize(const char* key, u32& value);
 		bool Serialize(const char* key, f32& value);
 		bool Serialize(const char* key, Core::UUID& value);
 		bool Serialize(const char* key, Core::String& value);
@@ -71,11 +87,11 @@ namespace Serialization
 		/// Object serialization.
 		struct ScopedObject
 		{
-			ScopedObject(Serializer& serializer, const char* key)
+			ScopedObject(Serializer& serializer, const char* key, bool isArray)
 			    : serializer_(serializer)
 			    , key_(key)
 			{
-				valid_ = serializer_.BeginObject(key) != -1;
+				valid_ = serializer_.BeginObject(key, isArray) != -1;
 			}
 
 			~ScopedObject()
@@ -91,7 +107,7 @@ namespace Serialization
 			bool valid_ = false;
 		};
 
-		ScopedObject Object(const char* key);
+		ScopedObject Object(const char* key, bool isArray = false);
 
 		template<typename TYPE, typename = typename std::enable_if<std::is_object<TYPE>::value>::type,
 		    typename = typename std::enable_if<!std::is_enum<TYPE>::value>::type>
