@@ -3,6 +3,10 @@
 #include "core/types.h"
 #include "core/dll.h"
 
+#ifndef FINAL
+#include "core/string.h"
+#endif
+
 namespace Core
 {
 	/// Maximum path length supported. Platform may vary.
@@ -344,5 +348,8 @@ namespace Core
 		File(const File&) = delete;
 
 		class FileImpl* impl_ = nullptr;
+#ifndef FINAL
+		Core::String path_;
+#endif
 	};
 } // namespace Core
