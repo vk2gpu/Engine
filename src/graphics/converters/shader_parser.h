@@ -32,6 +32,7 @@ namespace Graphics
 		INVALID_MEMBER,
 		INVALID_TYPE,
 		INVALID_VALUE,
+		INTERNAL_ERROR,
 	};
 
 	class IShaderParserCallbacks
@@ -162,6 +163,8 @@ namespace Graphics
 		NodeMap<AST::NodeModifier> modifierNodes_;
 		NodeMap<AST::NodeType> typeNodes_;
 		NodeMap<AST::NodeStruct> structNodes_;
+
+		Core::Set<Core::String> structTypes_;
 
 		struct LineDirective
 		{

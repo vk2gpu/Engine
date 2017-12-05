@@ -12,7 +12,9 @@
          "shaders/stdlib/normals.esh",
          "shaders/stdlib/plane.esh",
          "shaders/stdlib/samplers.esh",
-         "shaders/stdlib/view.esh"
+         "shaders/stdlib/view.esh",
+         "shaders/common_bindings.esh",
+         "shaders/lights.esh"
       ],
       "outputs" : [ "../../../../.converter_output/shaders/shadow_pipeline.esf.converted" ]
    }

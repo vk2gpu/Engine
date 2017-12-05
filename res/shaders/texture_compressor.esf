@@ -71,7 +71,20 @@ struct LookupTable
 	uint4 stb__OMatch6[64][2];
 };
 
-ConstantBuffer<LookupTable> lookupTable;
+BindingSet TextureCompressorBindings
+{
+	ConstantBuffer<LookupTable> lookupTable;
+
+	// Expects anything UNORM.
+	Texture2D<unorm float4> inTexture;
+
+	// Formats expected:
+	// - BC1: R32G32_UINT
+	// - BC3: R32G32B32A32_UINT
+	// - BC4: R32G32_UINT
+	// - BC5: R32G32B32A32_UINT
+	RWTexture2D<uint4> outTexture;
+};
 
 int stb__Expand5Func(int i)
 {
@@ -508,16 +521,6 @@ struct BlockInput
 {
 	int4 color[16];
 };
-
-// Expects anything UNORM.
-Texture2D<unorm float4> inTexture;
-
-// Formats expected:
-// - BC1: R32G32_UINT
-// - BC3: R32G32B32A32_UINT
-// - BC4: R32G32_UINT
-// - BC5: R32G32B32A32_UINT
-RWTexture2D<uint4> outTexture;
 
 BlockInput ReadBlock(Texture2D<unorm float4> inTex, int2 base)
 {

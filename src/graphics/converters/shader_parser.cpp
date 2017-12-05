@@ -136,6 +136,8 @@ namespace Graphics
 		AddNodes(SRV_TYPES);
 		AddNodes(UAV_TYPES);
 		AddNodes(ENUM_TYPES);
+
+		structTypes_.insert("struct");
 	}
 
 	ShaderParser::~ShaderParser()
@@ -254,7 +256,19 @@ namespace Graphics
 			break;
 			case AST::TokenType::IDENTIFIER:
 			{
-				if(token_.value_ == "struct" || token_.value_ == "cbuffer")
+				if(token_.value_ == "struct_type")
+				{
+					PARSE_TOKEN();
+					CHECK_TOKEN(AST::TokenType::IDENTIFIER, "");
+
+					structTypes_.insert(token_.value_);
+
+					PARSE_TOKEN();
+					CHECK_TOKEN(AST::TokenType::CHAR, ";");
+
+					attributeNodes_.clear();
+				}
+				else if(structTypes_.find(token_.value_) != structTypes_.end())
 				{
 					auto* structNode = ParseStruct();
 					if(structNode)
@@ -440,7 +454,14 @@ namespace Graphics
 	{
 		AST::NodeStruct* node = nullptr;
 
-		CHECK_TOKEN(AST::TokenType::IDENTIFIER, "struct");
+		CHECK_TOKEN(AST::TokenType::IDENTIFIER, "");
+		auto typeName = token_.value_;
+
+		if(structTypes_.find(token_.value_) == structTypes_.end())
+		{
+			Error(node, ErrorType::INTERNAL_ERROR, Core::String().Printf("%s:%u: Internal error.", __FILE__, __LINE__));
+			return node;
+		}
 
 		// Parse name.
 		PARSE_TOKEN();
@@ -464,6 +485,7 @@ namespace Graphics
 		}
 
 		//
+		node->typeName_ = typeName;
 		node->type_ = AddNode<AST::NodeType>(token_.value_.c_str(), -1);
 		node->type_->struct_ = node;
 

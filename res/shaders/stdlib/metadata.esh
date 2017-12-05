@@ -84,4 +84,7 @@ struct Technique
 	RenderState RenderState;
 };
 
+[internal("BindingSet")]
+struct_type BindingSet;
+
 #endif

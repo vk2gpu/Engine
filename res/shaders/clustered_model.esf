@@ -1,14 +1,8 @@
 #include "stdlib.esh"
+#include "common_bindings.esh"
 
 ///////////////////////////////////////////////////////////////////////
 // Structures.
-ConstantBuffer<ViewParams> viewParams;
-
-struct Object
-{
-	float4x4 world_;
-};
-
 struct Cluster
 {
 	int meshIdx;
@@ -34,8 +28,6 @@ struct CS_INPUT
 
 ///////////////////////////////////////////////////////////////////////
 // Utility.
-StructuredBuffer<Object> inObject;
-
 bool IntersectWithFrustum(ViewParams v, ClusterBounds bounds, int id)
 {
 	float3 centre = (bounds.minimum + bounds.maximum) * 0.5;
@@ -59,11 +51,14 @@ bool IntersectWithFrustum(ViewParams v, ClusterBounds bounds, int id)
 
 ///////////////////////////////////////////////////////////////////////
 // Build draw list.
-StructuredBuffer<Cluster> inCluster;
-StructuredBuffer<ClusterBounds> inClusterBounds;
+BindingSet ClusterBindings
+{
+	StructuredBuffer<Cluster> inCluster;
+	StructuredBuffer<ClusterBounds> inClusterBounds;
 
-RWStructuredBuffer<DrawIndexedArgs> outDrawArgs;
-globallycoherent RWStructuredBuffer<uint> outDrawCount;
+	RWStructuredBuffer<DrawIndexedArgs> outDrawArgs;
+	globallycoherent RWStructuredBuffer<uint> outDrawCount;
+};
 
 #define CULL_GROUP_SIZE 64
 

@@ -276,6 +276,7 @@ namespace Graphics
 
 			NodeAttribute* FindAttribute(const char* name) const;
 
+			Core::String typeName_;
 			Core::Vector<AST::NodeAttribute*> attributes_;
 			NodeType* type_ = nullptr;
 		};

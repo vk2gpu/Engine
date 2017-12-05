@@ -1,17 +1,7 @@
 #include "stdlib.esh"
 #include "lights.esh"
 #include "brdf.esh"
-
-ConstantBuffer<ViewParams> viewParams;
-ConstantBuffer<LightParams> lightParams;
-
-struct Object
-{
-	float4x4 world_;
-};
-
-StructuredBuffer<Object> inObject;
-
+#include "common_bindings.esh"
 
 struct VS_IN
 {
@@ -49,9 +39,6 @@ void ps_shadow(in VS_OUT _in)
 
 }
 
-Texture2D<uint> inLightTex;
-StructuredBuffer<uint> inLightIndices;
-StructuredBuffer<Light> inLights;
 
 float4 ps_forward(in VS_OUT _in) : SV_TARGET0
 {

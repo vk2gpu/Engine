@@ -34,6 +34,10 @@ namespace Graphics
 		bool VisitEnter(AST::NodeMemberValue* node) override;
 		void VisitExit(AST::NodeMemberValue* node) override;
 
+		void WriteStruct(AST::NodeStruct* node);
+		void WriteBindingSet(AST::NodeStruct* node);
+		void WriteDeclaration(AST::NodeDeclaration* node);
+
 		const Core::String& GetOutputCode() const { return outCode_; }
 
 	private:
@@ -60,5 +64,8 @@ namespace Graphics
 		const char* writeInternalDeclaration_ = nullptr;
 
 		Core::String outCode_;
+
+		Core::Vector<AST::NodeStruct*> structs_;
+		Core::Vector<AST::NodeStruct*> bindingSets_;
 	};
 } // namespace Graphics

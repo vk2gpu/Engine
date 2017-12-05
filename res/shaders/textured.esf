@@ -3,11 +3,18 @@
 
 #include "base_geometry.esh"
 
-Texture2D<float4> texDiffuse;
-Texture2D<float4> texNormal;
-Texture2D<float4> texMetallic;
-Texture2D<float4> texRoughness;
+///////////////////////////////////////////////////////////////////////
+// Binding sets
+BindingSet MaterialBindings
+{
+	Texture2D<float4> texDiffuse;
+	Texture2D<float4> texNormal;
+	Texture2D<float4> texMetallic;
+	Texture2D<float4> texRoughness;
+};
 
+///////////////////////////////////////////////////////////////////////
+// Shaders
 uint ShadeVertex(uniform int passID, in Object obj, inout VertexData vtxData)
 {
 	return VTX_DEFAULT;

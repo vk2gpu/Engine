@@ -13,7 +13,8 @@
          "shaders/stdlib/plane.esh",
          "shaders/stdlib/samplers.esh",
          "shaders/stdlib/view.esh",
-         "shaders/lights.esh"
+         "shaders/lights.esh",
+         "shaders/common_bindings.esh"
       ],
       "outputs" : [
          "../../../../.converter_output/shaders/forward_pipeline.esf.converted"

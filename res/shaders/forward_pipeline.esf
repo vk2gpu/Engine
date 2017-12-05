@@ -1,11 +1,9 @@
 #include "stdlib.esh"
 #include "lights.esh"
+#include "common_bindings.esh"
 
 ///////////////////////////////////////////////////////////////////////
 // Compute light tiles.
-ConstantBuffer<ViewParams> viewParams;
-ConstantBuffer<LightParams> lightParams;
-
 struct CS_INPUT
 {
 	int3 groupID : SV_GroupID;
@@ -15,14 +13,17 @@ struct CS_INPUT
 
 ///////////////////////////////////////////////////////////////////////
 // Compute light tiles.
-StructuredBuffer<Light> inLights;
+BindingSet LightTileComputeBindings
+{
+	globallycoherent RWBuffer<uint> lightIndex;
 
-globallycoherent RWBuffer<uint> lightIndex;
-RWTexture2D<uint> outLightTex;
-RWStructuredBuffer<uint> outLightIndices;
+	RWTexture2D<uint> outLightTex;
+	RWStructuredBuffer<uint> outLightIndices;
 
-RWStructuredBuffer<TileInfo> outTileInfo;
-StructuredBuffer<TileInfo> inTileInfo;
+	RWStructuredBuffer<TileInfo> outTileInfo;
+	StructuredBuffer<TileInfo> inTileInfo;
+	Texture2D<float> depthTex;
+};
 
 [numthreads(1,1,1)]
 void cs_compute_tile_info(CS_INPUT _in)
@@ -68,8 +69,6 @@ Technique TECH_COMPUTE_TILE_INFO =
 {
 	.ComputeShader = cs_compute_tile_info,
 };
-
-Texture2D<float> depthTex;
 
 groupshared uint gDepthMin = 0xffffffff;
 groupshared uint gDepthMax = 0;
@@ -170,8 +169,11 @@ Technique TECH_COMPUTE_LIGHT_LISTS =
 
 ///////////////////////////////////////////////////////////////////////
 // Hi-Z
-Texture2D<float2> inHiZ;
-RWTexture2D<float2> outHiZ;
+BindingSet HiZBindings
+{
+	Texture2D<float2> inHiZ;
+	RWTexture2D<float2> outHiZ;
+};
 
 float2 GetTexcoord(int2 coord, float2 texelSize)
 {
@@ -229,10 +231,6 @@ Technique TECH_COMPUTE_HIZ_MIP =
 
 ///////////////////////////////////////////////////////////////////////
 // Debug tile info.
-Texture2D<uint> inLightTex;
-StructuredBuffer<uint> inLightIndices;
-RWTexture2D<float4> outDebug;
-
 [numthreads(1,1,1)]
 void cs_debug_tile_info(CS_INPUT _in)
 {
@@ -275,8 +273,6 @@ VS_FULLSCREEN_OUTPUT vs_fullscreen(uint id : SV_VertexID)
 	output.texcoord_.y = 1.0 - (float)(id % 2) * 2.0;
 	return output;
 }
-
-Texture2D<float4> debugTex;
 
 float4 ps_fullscreen(VS_FULLSCREEN_OUTPUT _in) : SV_TARGET0
 {

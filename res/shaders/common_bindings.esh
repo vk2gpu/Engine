@@ -1,0 +1,44 @@
+#ifndef COMMON_BINDINGS_ESH
+#define COMMON_BINDINGS_ESH
+
+#include "lights.esh"
+
+///////////////////////////////////////////////////////////////////////
+// Structs
+struct Object
+{
+	float4x4 world_;
+};
+
+///////////////////////////////////////////////////////////////////////
+// Binding sets
+BindingSet ViewBindings
+{
+	ConstantBuffer<ViewParams> viewParams;
+	ConstantBuffer<LightParams> lightParams;
+};
+
+BindingSet LightBindings
+{
+	StructuredBuffer<Light> inLights;
+};
+
+BindingSet LightTileBindings
+{
+	Texture2D<uint> inLightTex;
+	StructuredBuffer<uint> inLightIndices;
+};
+
+BindingSet ObjectBindings
+{
+	StructuredBuffer<Object> inObject;
+};
+
+BindingSet DebugBindings
+{
+	Texture2D<float> debugTex;
+	RWTexture2D<float4> outDebug;
+};
+
+#endif // COMMON_BINDINGS_ESH
+

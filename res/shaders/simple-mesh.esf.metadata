@@ -14,7 +14,8 @@
          "shaders/stdlib/samplers.esh",
          "shaders/stdlib/view.esh",
          "shaders/lights.esh",
-         "shaders/brdf.esh"
+         "shaders/brdf.esh",
+         "shaders/common_bindings.esh"
       ],
       "outputs" : [ "../../../../.converter_output/shaders/simple-mesh.esf.converted" ]
    }

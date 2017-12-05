@@ -2,16 +2,8 @@
 #define BASE_GEOMETRY_ESH
 
 #include "stdlib.esh"
-#include "lights.esh"
 #include "brdf.esh"
-
-ConstantBuffer<ViewParams> viewParams;
-ConstantBuffer<LightParams> lightParams;
-
-struct Object
-{
-	float4x4 world_;
-};
+#include "common_bindings.esh"
 
 struct VS_IN
 {
@@ -80,27 +72,7 @@ struct PixelData
 	float specular;
 };
 
-#define PASS_DEPTH_PREPASS 0
-#define PASS_FORWARD 1
-#define PASS_SHADOW 2
-
-#define VTX_DEFAULT 0x0
-#define VTX_CHANGED_POSITION 0x1
-#define VTX_CHANGED_NORMAL 0x2
-#define VTX_CHANGED_TANGENT 0x4
-
-// @return Mask of what values have been modified.
-uint ShadeVertex(uniform int passID, in Object obj, inout VertexData vtxData);
-
-#define PIX_DEFAULT 0x0
-#define PIX_LIGHTING 0x1
-
-// @return Mask of what any additional logic to perform.
-uint ShadePixel(uniform int passID, inout PixelData pixData);
-
-StructuredBuffer<Object> inObject;
-
-Object GetObjectUniforms(int id)
+Object GetObjectUniforms(StructuredBuffer<Object> inObject, int id)
 {
 	return inObject[id];
 }
@@ -135,6 +107,24 @@ float3 GetNormalCS(ViewParams v, float3 nrm)
 	return mul(v.viewProj_, float4(nrm, 0.0)).xyz;
 }
 
+#define PASS_DEPTH_PREPASS 0
+#define PASS_FORWARD 1
+#define PASS_SHADOW 2
+
+#define VTX_DEFAULT 0x0
+#define VTX_CHANGED_POSITION 0x1
+#define VTX_CHANGED_NORMAL 0x2
+#define VTX_CHANGED_TANGENT 0x4
+
+// @return Mask of what values have been modified.
+uint ShadeVertex(uniform int passID, in Object obj, inout VertexData vtxData);
+
+#define PIX_DEFAULT 0x0
+#define PIX_LIGHTING 0x1
+
+// @return Mask of what any additional logic to perform.
+uint ShadePixel(uniform int passID, inout PixelData pixData);
+
 float3 CalculateNormal(in PixelData pixData)
 {
 	const float3 v_normal = normalize(pixData.input.v_normal.xyz); 
@@ -157,7 +147,7 @@ float3 CalculateNormal(in PixelData pixData)
 
 VS_OUT vs_position(in float3 _in : POSITION, uint _id : SV_INSTANCEID)
 {
-	Object o = GetObjectUniforms(_id);
+	Object o = GetObjectUniforms(inObject, _id);
 
 	VertexData vtxData = (VertexData)0;
 	vtxData.input.position = _in;
@@ -188,7 +178,7 @@ VS_OUT vs_position(in float3 _in : POSITION, uint _id : SV_INSTANCEID)
 
 VS_OUT vs_main(in VS_IN _in, uint _id : SV_INSTANCEID)
 {
-	Object o = GetObjectUniforms(_id);
+	Object o = GetObjectUniforms(inObject, _id);
 
 	VertexData vtxData = (VertexData)0;
 	vtxData.input = _in;
@@ -226,10 +216,6 @@ VS_OUT vs_main(in VS_IN _in, uint _id : SV_INSTANCEID)
 #endif
 	return outVtx;
 }
-
-Texture2D<uint> inLightTex;
-StructuredBuffer<uint> inLightIndices;
-StructuredBuffer<Light> inLights;
 
 [earlydepthstencil]
 void ps_depthprepass(in VS_OUT _in)
