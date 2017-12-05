@@ -12,6 +12,7 @@
 #include "plugin/manager.h"
 #include "resource/manager.h"
 
+#include "graphics/material.h"
 #include "graphics/model.h"
 #include "graphics/shader.h"
 #include "graphics/texture.h"
@@ -41,6 +42,7 @@ namespace
 		ScopedEngine()
 		    : window("unit-test-engine", 100, 100, 1024, 768, true)
 		{
+			Graphics::Material::RegisterFactory();
 			Graphics::Model::RegisterFactory();
 			Graphics::Shader::RegisterFactory();
 			Graphics::Texture::RegisterFactory();
@@ -75,6 +77,7 @@ namespace
 		{
 			GPU::Manager::DestroyResource(fbsHandle);
 			GPU::Manager::DestroyResource(scHandle);
+			Graphics::Material::UnregisterFactory();
 			Graphics::Model::UnregisterFactory();
 			Graphics::Shader::UnregisterFactory();
 			Graphics::Texture::UnregisterFactory();

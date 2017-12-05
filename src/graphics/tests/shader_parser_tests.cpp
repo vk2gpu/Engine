@@ -131,6 +131,8 @@ TEST_CASE("graphics-tests-shader-preprocessor")
 			Graphics::ShaderPreprocessor shaderPreprocessor;
 			shaderPreprocessor.AddInclude(testPath);
 			shaderPreprocessor.AddInclude("../../../../res");
+			shaderPreprocessor.AddInclude("../../../../res/shaders");
+			shaderPreprocessor.AddInclude("../../../../res/shader_tests");
 			CHECK(shaderPreprocessor.Preprocess(testShader, shaderCode.c_str()));
 		}
 	}
@@ -206,6 +208,8 @@ TEST_CASE("graphics-tests-shader-basic")
 		Graphics::ShaderPreprocessor shaderPreprocessor;
 		shaderPreprocessor.AddInclude(testPath);
 		shaderPreprocessor.AddInclude("../../../../res");
+		shaderPreprocessor.AddInclude("../../../../res/shaders");
+		shaderPreprocessor.AddInclude("../../../../res/shader_tests");
 
 		CHECK(shaderPreprocessor.Preprocess(shaderName, shaderCode.c_str()));
 		Core::Log("Parsing %s...\n", shaderName);

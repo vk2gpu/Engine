@@ -1,4 +1,4 @@
-#include "stdlib.esh"
+#include "../shaders/stdlib.esh"
 
 struct View
 { 
@@ -11,15 +11,8 @@ struct Object
 	float4x4 world_;	
 };
 
-cbuffer ObjectCBuffer
-{
-	Object o_;
-};
-
-cbuffer ViewCBuffer
-{
-	View v_;
-};
+ConstantBuffer<View> v_;
+ConstantBuffer<Object> o_;
 
 SamplerState SS_DEFAULT =
 {
@@ -32,7 +25,6 @@ Texture2D tex_diffuse;
 struct VS_IN
 {
 	float4 position : POSITION; // comment test.
-	float2 uv: TEXCOORD0;
 }; /* comment test 2 */
 
 struct VS_OUT
@@ -45,7 +37,7 @@ VS_OUT vs_main(in VS_IN _in)
 {
 	VS_OUT _out = (VS_OUT)0;
 	_out.position = _in.position;
-	_out.uv = _in.uv;
+	_out.uv = _in.position.xy;
 	return _out;
 }
 
