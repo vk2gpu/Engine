@@ -429,6 +429,14 @@ namespace Graphics
 
 		// Determine register.
 		Core::String reg;
+		if(auto attrib = node->FindAttribute("register"))
+		{
+			if(attrib->HasParameter(0))
+				node->register_ = attrib->GetParameter(0);
+			if(attrib->HasParameter(1))
+				node->space_ = attrib->GetParameter(1);
+		}
+
 		if(node->register_.size() > 0)
 			if(node->space_.size() == 0)
 				reg.Printf("register(%s)", node->register_.c_str());
@@ -442,12 +450,7 @@ namespace Graphics
 				reg.Printf("register(u%i)", uavReg_++);
 			else if(node->type_->baseType_->metaData_ == "CBV")
 				reg.Printf("register(b%i)", cbufferReg_++);
-
-		if(isSamplerState)
-			if(auto staticAttr = node->FindAttribute("static"))
-				reg.Printf(
-				    "register(s%s, %s)", staticAttr->GetParameter(0).c_str(), staticAttr->GetParameter(1).c_str());
-			else
+			else if(isSamplerState)
 				reg.Printf("register(s%i)", samplerReg_++);
 
 		if(reg.size() > 0)

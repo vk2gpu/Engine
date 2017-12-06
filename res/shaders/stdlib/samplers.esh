@@ -4,28 +4,36 @@
 // Set of default engine provided sampler states.
 // These are currently initialized engine side, not parsed
 // from the shader.
-[static(0, space8)]
+[static]
+[register(s0, space8)]
 SamplerState SS_NEAREST_CLAMP;
 
-[static(1, space8)]
+[static]
+[register(s1, space8)]
 SamplerState SS_NEAREST_WRAP;
 
-[static(2, space8)]
+[static]
+[register(s2, space8)]
 SamplerState SS_LINEAR_CLAMP;
 
-[static(3, space8)]
+[static]
+[register(s3, space8)]
 SamplerState SS_LINEAR_WRAP;
 
-[static(4, space8)]
+[static]
+[register(s4, space8)]
 SamplerState SS_MIP_CLAMP;
 
-[static(5, space8)]
+[static]
+[register(s5, space8)]
 SamplerState SS_MIP_WRAP;
 
-[static(6, space8)]
+[static]
+[register(s6, space8)]
 SamplerState SS_ANISO_CLAMP;
 
-[static(7, space8)]
+[static]
+[register(s7, space8)]
 SamplerState SS_ANISO_WRAP;
 
 #endif
