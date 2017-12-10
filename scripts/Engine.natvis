@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
+
+  <Type Name="Core::String">
+    <DisplayString Condition="data_.size_ == 0">Empty</DisplayString>
+    <DisplayString Condition="data_.size_ != 0">{data_.data_,s}</DisplayString>
+    <StringView>data_.data_,s</StringView>
+  </Type>
+
+  <Type Name="Core::Array&lt;*,*&gt;">
+    <DisplayString Condition="$T2 == 0">Empty</DisplayString>
+    <DisplayString Condition="$T2 != 0">size = {$T2}</DisplayString>
+    <Expand>
+      <ArrayItems>
+        <Size>($T2)</Size>
+        <ValuePointer>($T1*)Data_</ValuePointer>
+      </ArrayItems>
+    </Expand>
+  </Type>
+
+  <Type Name="Core::Vector&lt;*&gt;">
+    <DisplayString Condition="size_ == 0">Empty</DisplayString>
+    <DisplayString Condition="size_ != 0">size = {size_}</DisplayString>
+    <Expand>
+      <Item Name="[size]" ExcludeView="simple">size_</Item>  
+      <Item Name="[capacity]" ExcludeView="simple">capacity_</Item>  
+      <ArrayItems>
+        <Size>size_</Size>
+        <ValuePointer>($T1*)data_</ValuePointer>
+      </ArrayItems>
+    </Expand>
+  </Type>
+
+
+</AutoVisualizer>
