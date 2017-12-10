@@ -159,6 +159,17 @@ namespace
 			}
 		}
 
+#if 0
+		void Draw(GPU::Handle fbs, GPU::DrawState drawState, Graphics::ShaderContext& shaderContext, Graphics::ShaderTechnique& tech, GPU::CommandList& cmdList,
+		    i32 numInstanes = 1)
+		{
+			if(auto pbs = tech.GetBinding(shaderContext))
+			{
+				cmdList.Draw(
+				    pbs, dbsHandle_, fbs, drawState, GPU::PrimitiveTopology::TRIANGLE_LIST, 0, 0, 3, 0, numInstanes);
+			}
+		}
+#endif
 		Graphics::ShaderTechniqueDesc techDesc_;
 
 		GPU::Handle vbHandle_;
@@ -368,3 +379,61 @@ TEST_CASE("graphics-tests-shader-compute-create-technique")
 
 	REQUIRE(Resource::Manager::ReleaseResource(shader));
 }
+
+#if 0
+TEST_CASE("graphics-tests-shader-graphics-binding-sets")
+{
+	ScopedEngine engine;
+
+	Window window("test");
+	TriangleDrawer drawer;
+
+	Graphics::Shader* shader = nullptr;
+	REQUIRE(Resource::Manager::RequestResource(shader, "shader_tests/00-basic.esf"));
+	Resource::Manager::WaitForResource(shader);
+
+	auto techUpdate = shader->CreateTechnique("TECH_MAIN", drawer.techDesc_);
+	auto techShadow = shader->CreateTechnique("TECH_SHADOW", drawer.techDesc_);
+
+	auto viewBindingSet = shader->CreateBindingSet("view_binding_set");
+	auto objectBindingSet = shader->CreateBindingSet("object_binding_set");
+	auto materialBindingSet = shader->CreateBindingSet("material_binding_set");
+
+	Graphics::ShaderContext shaderContext;
+
+	i32 testRunCounter = GPU::MAX_GPU_FRAMES * 10;
+	while(Client::Manager::Update() && (Core::IsDebuggerAttached() || testRunCounter-- > 0))
+	{
+		auto& cmdList = window.Begin();
+
+		if(auto viewScope = shaderContext.BeginBindingScope(viewBindingSet))
+		{
+			if(auto materialScope = shaderContext.BeginBindingScope(materialBindingSet))
+			{
+				materialBindingSet.Set("tex_diffuse",
+					GPU::Binding::Texture2D(drawer.texture_->GetHandle(), GPU::Format::INVALID, 0,
+					   drawer.texture_->GetDesc().levels_));
+				materialBindingSet.SetSampler("SS_DEFAULT", drawer.smpHandle_);
+
+				if(auto objectScope = shaderContext.BeginBindingScope(objectBindingSet))
+				{
+					drawer.Draw(window.fbsHandle_, window.drawState_, shaderContext, techUpdate, cmdList);	
+				}
+			}
+		}
+
+
+		window.End();
+
+		// Wait for reloading to complete.
+		Resource::Manager::WaitOnReload();
+	}
+
+
+	techUpdate = Graphics::ShaderTechnique();
+	techShadow = Graphics::ShaderTechnique();
+
+	REQUIRE(Resource::Manager::ReleaseResource(shader));
+}
+
+#endif
