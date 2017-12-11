@@ -31,5 +31,16 @@
     </Expand>
   </Type>
 
+  <Type Name="GPU::Handle">
+    <DisplayString>{(GPU::ResourceType)type_} {gpu.dll!GPU::resourceDebugInfo_[type_][index_].name_}</DisplayString>
+    <Expand>
+      <Item Name="Debug Name" ExcludeView="simple">gpu.dll!GPU::resourceDebugInfo_[type_][index_].name_</Item>
+      <Item Name="Creation Callstack" ExcludeView="simple">gpu.dll!GPU::resourceDebugInfo_[type_][index_].creationCallstack_</Item>
+      <Item Name="[index]" ExcludeView="simple">index_</Item>
+      <Item Name="[magic]" ExcludeView="simple">magic_</Item>
+      <Item Name="[type]" ExcludeView="simple">(GPU::ResourceType)type_</Item>
+
+    </Expand>
+  </Type>
 
 </AutoVisualizer>
