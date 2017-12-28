@@ -33,6 +33,10 @@ TEST_CASE("commandlist-tests-commands")
 	GPU::Handle pipelineBindingHandle = handleAllocator.Alloc<GPU::Handle>(GPU::ResourceType::PIPELINE_BINDING_SET);
 	GPU::Handle drawBindingHandle = handleAllocator.Alloc<GPU::Handle>(GPU::ResourceType::DRAW_BINDING_SET);
 	GPU::Handle frameBindingHandle = handleAllocator.Alloc<GPU::Handle>(GPU::ResourceType::FRAME_BINDING_SET);
+	GPU::Handle graphicsPipelineStateHandle =
+	    handleAllocator.Alloc<GPU::Handle>(GPU::ResourceType::GRAPHICS_PIPELINE_STATE);
+	GPU::Handle computePipelineStateHandle =
+	    handleAllocator.Alloc<GPU::Handle>(GPU::ResourceType::COMPUTE_PIPELINE_STATE);
 
 	GPU::CommandList commandList(GPU::CommandList::DEFAULT_BUFFER_SIZE, handleAllocator);
 	float f[4] = {0.0f, 0.0f, 0.0f, 0.0f};
@@ -58,15 +62,16 @@ TEST_CASE("commandlist-tests-commands")
 	dsv.dimension_ = GPU::ViewDimension::TEX2D;
 
 	GPU::DrawState drawState;
+	GPU::PipelineBinding pb;
 
 	// Draws.
-	REQUIRE(commandList.Draw(pipelineBindingHandle, drawBindingHandle, frameBindingHandle, drawState,
+	REQUIRE(commandList.Draw(graphicsPipelineStateHandle, pb, drawBindingHandle, frameBindingHandle, drawState,
 	    GPU::PrimitiveTopology::TRIANGLE_LIST, 0, 0, 3, 0, 1));
-	REQUIRE(commandList.DrawIndirect(pipelineBindingHandle, drawBindingHandle, frameBindingHandle, drawState,
+	REQUIRE(commandList.DrawIndirect(graphicsPipelineStateHandle, pb, drawBindingHandle, frameBindingHandle, drawState,
 	    GPU::PrimitiveTopology::TRIANGLE_LIST, buffer0Handle, 0, nullptr, 0, 1));
 	// Dispatches.
-	REQUIRE(commandList.Dispatch(pipelineBindingHandle, 1, 1, 1));
-	REQUIRE(commandList.DispatchIndirect(pipelineBindingHandle, buffer0Handle, 0, nullptr, 0, 1));
+	REQUIRE(commandList.Dispatch(computePipelineStateHandle, pb, 1, 1, 1));
+	REQUIRE(commandList.DispatchIndirect(computePipelineStateHandle, pb, buffer0Handle, 0, nullptr, 0, 1));
 	// Clears.
 	REQUIRE(commandList.ClearRTV(frameBindingHandle, 0, f));
 	REQUIRE(commandList.ClearDSV(frameBindingHandle, 0.0f, 0));

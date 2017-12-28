@@ -15,20 +15,20 @@ namespace Resource
  * class Model
  * {
  * public:
- *   DECLARE_RESOURCE("Scene.Model", 1);
+ *   DECLARE_RESOURCE(Model, "Scene.Model", 1);
  * };
  *
  * This will provide methods used by the templated interfaces
  * on Resource::Manager.
  * Version will be used by the loader to validate the resource.
  */
-#define DECLARE_RESOURCE(NAME, VERSION)                                                                                \
+#define DECLARE_RESOURCE(CLASS_NAME, NAME, VERSION)                                                                    \
 	static const char* GetTypeName() { return #NAME; }                                                                 \
 	static Core::UUID GetTypeUUID();                                                                                   \
 	static const u32 RESOURCE_VERSION = VERSION;                                                                       \
 	static void RegisterFactory();                                                                                     \
-	static void UnregisterFactory();
-
+	static void UnregisterFactory();                                                                                   \
+	static class CLASS_NAME##Factory* GetFactory();
 
 /**
  * Used to define a resource in the cpp.
@@ -54,6 +54,11 @@ namespace Resource
 		Resource::Manager::UnregisterFactory(factory_);                                                                \
 		delete factory_;                                                                                               \
 		factory_ = nullptr;                                                                                            \
+	}                                                                                                                  \
+	class CLASS_NAME##Factory* CLASS_NAME::GetFactory()                                                                \
+	{                                                                                                                  \
+		DBG_ASSERT(factory_ != nullptr);                                                                               \
+		return factory_;                                                                                               \
 	}                                                                                                                  \
 	Core::UUID CLASS_NAME::GetTypeUUID()                                                                               \
 	{                                                                                                                  \

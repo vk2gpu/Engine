@@ -1,7 +1,8 @@
 #pragma once
 
-#include "core/types.h"
 #include "core/dll.h"
+#include "core/types.h"
+#include "core/debug.h"
 
 namespace Core
 {
@@ -380,19 +381,26 @@ namespace Core
 	class CORE_DLL ScopedReadLock final
 	{
 	public:
+		ScopedReadLock(ScopedReadLock&&) = default;
 		ScopedReadLock(RWLock& lock)
-		    : lock_(lock)
+		    : lock_(&lock)
 		{
-			lock_.BeginRead();
+			DBG_ASSERT(lock_);
+			lock_->BeginRead();
 		}
 
-		~ScopedReadLock() { lock_.EndRead(); }
+		~ScopedReadLock()
+		{
+			if(lock_)
+				lock_->EndRead();
+		}
+
+		explicit operator bool() const { return !!lock_; }
 
 	private:
 		ScopedReadLock(const ScopedReadLock&) = delete;
-		ScopedReadLock(ScopedReadLock&&) = delete;
 
-		RWLock& lock_;
+		RWLock* lock_ = nullptr;
 	};
 
 	/**
@@ -401,19 +409,26 @@ namespace Core
 	class CORE_DLL ScopedWriteLock final
 	{
 	public:
+		ScopedWriteLock(ScopedWriteLock&&) = default;
 		ScopedWriteLock(RWLock& lock)
-		    : lock_(lock)
+		    : lock_(&lock)
 		{
-			lock_.BeginWrite();
+			DBG_ASSERT(lock_);
+			lock_->BeginWrite();
 		}
 
-		~ScopedWriteLock() { lock_.EndWrite(); }
+		~ScopedWriteLock()
+		{
+			if(lock_)
+				lock_->EndWrite();
+		}
+
+		explicit operator bool() const { return !!lock_; }
 
 	private:
 		ScopedWriteLock(const ScopedReadLock&) = delete;
-		ScopedWriteLock(ScopedReadLock&&) = delete;
 
-		RWLock& lock_;
+		RWLock* lock_ = nullptr;
 	};
 
 	/**

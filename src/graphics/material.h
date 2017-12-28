@@ -12,13 +12,16 @@ namespace Graphics
 	class GRAPHICS_DLL Material
 	{
 	public:
-		DECLARE_RESOURCE("Graphics.Material", 0);
+		DECLARE_RESOURCE(Material, "Graphics.Material", 0);
 
 		/// @return Get material name.
 		const char* GetName() const;
 
 		/// @return Get shader associated with this material.
 		Shader* GetShader() const;
+
+		/// Get binding set.
+		const ShaderBindingSet& GetBindingSet() const;
 
 		/// Create shader technique.
 		ShaderTechnique CreateTechnique(const char* name, const ShaderTechniqueDesc& desc);

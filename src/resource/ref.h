@@ -44,6 +44,8 @@ namespace Resource
 	{
 	public:
 		Ref() = default;
+		Ref(nullptr_t) {}
+
 		Ref(const char* name)
 		    : RefBase(name, TYPE::GetTypeUUID())
 		{

@@ -156,6 +156,7 @@ namespace Core
 
 		void resize(index_type size)
 		{
+			DBG_ASSERT(size >= 0);
 			if(size_ != size)
 				internalResize(size);
 			for(index_type idx = size_; idx < size; ++idx)
@@ -165,6 +166,7 @@ namespace Core
 
 		void resize(index_type size, const TYPE& default)
 		{
+			DBG_ASSERT(size >= 0);
 			if(size_ != size)
 				internalResize(size);
 			for(index_type idx = size_; idx < size; ++idx)

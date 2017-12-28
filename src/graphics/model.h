@@ -22,7 +22,7 @@ namespace Graphics
 	class GRAPHICS_DLL Model
 	{
 	public:
-		DECLARE_RESOURCE("Graphics.Model", 1);
+		DECLARE_RESOURCE(Model, "Graphics.Model", 1);
 
 		/// @return Number of meshes.
 		i32 GetNumMeshes() const;

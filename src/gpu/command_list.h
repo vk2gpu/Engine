@@ -59,19 +59,32 @@ namespace GPU
 		 * @return Allocated memory. Only valid until submission.
 		 * @pre @a bytes > 0.
 		 */
-		GPU_DLL void* Push(const void* data, i32 bytes);
+		GPU_DLL const void* Push(const void* data, i32 bytes);
 
 		/**
 		 * Templated push. See above.
 		 */
 		template<typename TYPE>
-		TYPE* Push(const TYPE* data, i32 num = 1)
+		const TYPE* Push(const TYPE* data, i32 num = 1)
 		{
 			TYPE* dest = reinterpret_cast<TYPE*>(Alloc(sizeof(TYPE) * num));
 			if(dest)
 				for(i32 idx = 0; idx < num; ++idx)
 					new(dest + idx) TYPE(data[idx]);
 			return dest;
+		}
+
+		/**
+		 * Templated push. See above.
+		 */
+		template<typename TYPE>
+		Core::ArrayView<TYPE> Push(const Core::ArrayView<TYPE> data)
+		{
+			TYPE* dest = reinterpret_cast<TYPE*>(Alloc(sizeof(TYPE) * data.size()));
+			if(dest)
+				for(i32 idx = 0; idx < data.size(); ++idx)
+					new(dest + idx) TYPE(data[idx]);
+			return Core::ArrayView<TYPE>(dest, data.size());
 		}
 
 		/**
@@ -86,7 +99,7 @@ namespace GPU
 
 		/**
 		 * See @a CommandDraw.
-		 * @pre @a pipelineBinding is valid.
+		 * @pre @a ps is valid.
 		 * @pre @a drawBinding is a DRAW_BINDING_SET, or invalid.
 		 * @pre @a frameBinding is valid.
 		 * @pre @a primitive is valid.
@@ -97,13 +110,13 @@ namespace GPU
 		 * @pre @a noofInstances > 0.
 		 * @return Draw command. nullptr if failure.
 		 */
-		GPU_DLL CommandDraw* Draw(Handle pipelineBinding, Handle drawBinding, Handle frameBinding,
-		    const DrawState& drawState, PrimitiveTopology primitive, i32 indexOffset, i32 vertexOffset,
-		    i32 noofVertices, i32 firstInstance, i32 noofInstances);
+		GPU_DLL CommandDraw* Draw(Handle ps, Core::ArrayView<PipelineBinding> pb, Handle drawBinding,
+		    Handle frameBinding, const DrawState& drawState, PrimitiveTopology primitive, i32 indexOffset,
+		    i32 vertexOffset, i32 noofVertices, i32 firstInstance, i32 noofInstances);
 
 		/**
 		 * See @a CommandDrawIndirect.
-		 * @pre @a pipelineBinding is valid.
+		 * @pre @a ps is valid.
 		 * @pre @a drawBinding is a DRAW_BINDING_SET, or invalid.
 		 * @pre @a frameBinding is valid.
 		 * @pre @a primitive is valid.
@@ -114,23 +127,24 @@ namespace GPU
 		 * @pre @a maxCommands >= 1.
 		 * @return Dispatch command. nullptr if failure.
 		 */
-		GPU_DLL CommandDrawIndirect* DrawIndirect(Handle pipelineBinding, Handle drawBinding, Handle frameBinding,
-		    const DrawState& drawState, PrimitiveTopology primitive, Handle indirectBuffer, i32 argByteOffset,
-		    Handle countBuffer, i32 countByteOffset, i32 maxCommands);
+		GPU_DLL CommandDrawIndirect* DrawIndirect(Handle ps, Core::ArrayView<PipelineBinding> pb, Handle drawBinding,
+		    Handle frameBinding, const DrawState& drawState, PrimitiveTopology primitive, Handle indirectBuffer,
+		    i32 argByteOffset, Handle countBuffer, i32 countByteOffset, i32 maxCommands);
 
 		/**
 		 * See @a CommandDispatch.
-		 * @pre @a pipelineBinding is valid.
+		 * @pre @a ps is valid.
 		 * @pre @a xGroups > 0.
 		 * @pre @a yGroups > 0.
 		 * @pre @a zGroups > 0.
 		 * @return Dispatch command. nullptr if failure.
 		 */
-		GPU_DLL CommandDispatch* Dispatch(Handle pipelineBinding, i32 xGroups, i32 yGroups, i32 zGroups);
+		GPU_DLL CommandDispatch* Dispatch(
+		    Handle ps, Core::ArrayView<PipelineBinding> pb, i32 xGroups, i32 yGroups, i32 zGroups);
 
 		/**
 		 * See @a CommandDispatchIndirect.
-		 * @pre @a pipelineBinding is valid.
+		 * @pre @a ps is valid.
 		 * @pre @a indirectBuffer is valid.
 		 * @pre @a argByteOffset >= 0.
 		 * @pre @a countBuffer nullptr, or valid buffer.
@@ -138,8 +152,8 @@ namespace GPU
 		 * @pre @a maxCommands >= 1.
 		 * @return Dispatch command. nullptr if failure.
 		 */
-		GPU_DLL CommandDispatchIndirect* DispatchIndirect(Handle pipelineBinding, Handle indirectBuffer,
-		    i32 argByteOffset, Handle countBuffer, i32 countByteOffset, i32 maxCommands);
+		GPU_DLL CommandDispatchIndirect* DispatchIndirect(Handle ps, Core::ArrayView<PipelineBinding> pb,
+		    Handle indirectBuffer, i32 argByteOffset, Handle countBuffer, i32 countByteOffset, i32 maxCommands);
 
 		/**
 		 * See @a CommandClearRTV.

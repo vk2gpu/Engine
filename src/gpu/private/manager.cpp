@@ -20,6 +20,7 @@
 
 #include "Remotery.h"
 
+#include <cstdarg>
 #include <utility>
 
 /**
@@ -28,17 +29,19 @@
 namespace GPU
 {
 #if !defined(FINAL)
+	static const i32 MAX_DEBUG_NAME_LENGTH = 256;
+
 	struct ResourceDebugInfo
 	{
 		ResourceDebugInfo() = default;
 		ResourceDebugInfo(const char* name)
-		    : name_(name)
 		{
+			strcpy_s(name_.data(), name_.size(), name);
 			Core::GetCallstack(2, creationCallstack_.data(), creationCallstack_.size());
 		}
 
-		Core::String name_;
-		Core::Array<void*, 16> creationCallstack_;
+		Core::Array<char, MAX_DEBUG_NAME_LENGTH> name_ = {};
+		Core::Array<void*, 16> creationCallstack_ = {};
 	};
 
 	using ResourceDebugInfos = Core::Vector<ResourceDebugInfo>;
@@ -51,7 +54,7 @@ namespace GPU
 	}
 #endif // !defined(FINAL)
 
-	GPU_DLL void SetDebugInfo(GPU::Handle handle, const char* name)
+	GPU_DLL void SetDebugInfo(GPU::Handle handle, const char* debugName)
 	{
 #if !defined(FINAL)
 		Core::ScopedMutex lock(resourceDebugInfoMutex_);
@@ -61,9 +64,22 @@ namespace GPU
 		{
 			resourceDebugInfo.resize(Core::PotRoundUp(handle.GetIndex() + 1, 32));
 		}
-		resourceDebugInfo[handle.GetIndex()] = ResourceDebugInfo(name);
+		resourceDebugInfo[handle.GetIndex()] = ResourceDebugInfo(debugName);
 #endif // !defined(FINAL)
 	}
+
+// Helper macro for formatting and setting debug name.
+#if !defined(FINAL)
+#define SET_DEBUG_INFO()                                                                                               \
+	Core::Array<char, MAX_DEBUG_NAME_LENGTH> debugName = {};                                                           \
+	va_list argList;                                                                                                   \
+	va_start(argList, debugFmt);                                                                                       \
+	vsprintf_s(debugName.data(), debugName.size(), debugFmt, argList);                                                 \
+	va_end(argList);
+
+#else
+#define SET_DEBUG_INFO()
+#endif
 } // namespace GPU
 
 namespace RenderDoc
@@ -313,7 +329,7 @@ namespace GPU
 					{
 						if(impl_->handles_.IsHandleIndexAllocated(i, resIdx))
 						{
-							const char* debugName = resourceDebugInfo_[i][resIdx].name_.c_str();
+							const char* debugName = resourceDebugInfo_[i][resIdx].name_.data();
 							Core::Log(" - - %s\n", debugName);
 						}
 					}
@@ -352,126 +368,116 @@ namespace GPU
 		return impl_->backend_ && impl_->backend_->IsInitialized();
 	}
 
-	Handle Manager::CreateSwapChain(const SwapChainDesc& desc, const char* debugName)
+	Handle Manager::CreateSwapChain(const SwapChainDesc& desc, const char* debugFmt, ...)
 	{
 		DBG_ASSERT(IsInitialized());
 		rmt_ScopedCPUSample(GPU_CreateSwapChain, RMTSF_None);
 		Handle handle = impl_->AllocHandle(ResourceType::SWAP_CHAIN);
-		SetDebugInfo(handle, debugName);
-		impl_->HandleErrorCode(handle, impl_->backend_->CreateSwapChain(handle, desc, debugName));
+		SET_DEBUG_INFO();
+		impl_->HandleErrorCode(handle, impl_->backend_->CreateSwapChain(handle, desc, debugName.data()));
 		return handle;
 	}
 
-	Handle Manager::CreateBuffer(const BufferDesc& desc, const void* initialData, const char* debugName)
+	Handle Manager::CreateBuffer(const BufferDesc& desc, const void* initialData, const char* debugFmt, ...)
 	{
 		DBG_ASSERT(IsInitialized());
 		rmt_ScopedCPUSample(GPU_CreateBuffer, RMTSF_None);
 		Handle handle = impl_->AllocHandle(ResourceType::BUFFER);
-		SetDebugInfo(handle, debugName);
-		impl_->HandleErrorCode(handle, impl_->backend_->CreateBuffer(handle, desc, initialData, debugName));
+		SET_DEBUG_INFO();
+		impl_->HandleErrorCode(handle, impl_->backend_->CreateBuffer(handle, desc, initialData, debugName.data()));
 		return handle;
 	}
 
 	Handle Manager::CreateTexture(
-	    const TextureDesc& desc, const TextureSubResourceData* initialData, const char* debugName)
+	    const TextureDesc& desc, const TextureSubResourceData* initialData, const char* debugFmt, ...)
 	{
 		DBG_ASSERT(IsInitialized());
 		rmt_ScopedCPUSample(GPU_CreateTexture, RMTSF_None);
 		Handle handle = impl_->AllocHandle(ResourceType::TEXTURE);
-		SetDebugInfo(handle, debugName);
-		impl_->HandleErrorCode(handle, impl_->backend_->CreateTexture(handle, desc, initialData, debugName));
+		SET_DEBUG_INFO();
+		impl_->HandleErrorCode(handle, impl_->backend_->CreateTexture(handle, desc, initialData, debugName.data()));
 		return handle;
 	}
 
-	Handle Manager::CreateSamplerState(const SamplerState& state, const char* debugName)
-	{
-		DBG_ASSERT(IsInitialized());
-		rmt_ScopedCPUSample(GPU_CreateSamplerState, RMTSF_None);
-		Handle handle = impl_->AllocHandle(ResourceType::SAMPLER_STATE);
-		SetDebugInfo(handle, debugName);
-		impl_->HandleErrorCode(handle, impl_->backend_->CreateSamplerState(handle, state, debugName));
-		return handle;
-	}
-
-	Handle Manager::CreateShader(const ShaderDesc& desc, const char* debugName)
+	Handle Manager::CreateShader(const ShaderDesc& desc, const char* debugFmt, ...)
 	{
 		DBG_ASSERT(IsInitialized());
 		rmt_ScopedCPUSample(GPU_CreateShader, RMTSF_None);
 		Handle handle = impl_->AllocHandle(ResourceType::SHADER);
-		SetDebugInfo(handle, debugName);
-		impl_->HandleErrorCode(handle, impl_->backend_->CreateShader(handle, desc, debugName));
+		SET_DEBUG_INFO();
+		impl_->HandleErrorCode(handle, impl_->backend_->CreateShader(handle, desc, debugName.data()));
 		return handle;
 	}
 
-	Handle Manager::CreateGraphicsPipelineState(const GraphicsPipelineStateDesc& desc, const char* debugName)
+	Handle Manager::CreateGraphicsPipelineState(const GraphicsPipelineStateDesc& desc, const char* debugFmt, ...)
 	{
 		DBG_ASSERT(IsInitialized());
 		rmt_ScopedCPUSample(GPU_CreateGraphicsPipelineState, RMTSF_None);
 		Handle handle = impl_->AllocHandle(ResourceType::GRAPHICS_PIPELINE_STATE);
-		SetDebugInfo(handle, debugName);
-		impl_->HandleErrorCode(handle, impl_->backend_->CreateGraphicsPipelineState(handle, desc, debugName));
+		SET_DEBUG_INFO();
+		impl_->HandleErrorCode(handle, impl_->backend_->CreateGraphicsPipelineState(handle, desc, debugName.data()));
 		return handle;
 	}
 
-	Handle Manager::CreateComputePipelineState(const ComputePipelineStateDesc& desc, const char* debugName)
+	Handle Manager::CreateComputePipelineState(const ComputePipelineStateDesc& desc, const char* debugFmt, ...)
 	{
 		DBG_ASSERT(IsInitialized());
 		DBG_ASSERT(impl_->backend_);
 		rmt_ScopedCPUSample(GPU_CreateComputePipelineState, RMTSF_None);
 		Handle handle = impl_->AllocHandle(ResourceType::COMPUTE_PIPELINE_STATE);
-		SetDebugInfo(handle, debugName);
-		impl_->HandleErrorCode(handle, impl_->backend_->CreateComputePipelineState(handle, desc, debugName));
+		SET_DEBUG_INFO();
+		impl_->HandleErrorCode(handle, impl_->backend_->CreateComputePipelineState(handle, desc, debugName.data()));
 		return handle;
 	}
 
-	Handle Manager::CreatePipelineBindingSet(const PipelineBindingSetDesc& desc, const char* debugName)
+	Handle Manager::CreatePipelineBindingSet(const PipelineBindingSetDesc& desc, const char* debugFmt, ...)
 	{
 		DBG_ASSERT(IsInitialized());
 		rmt_ScopedCPUSample(GPU_CreatePipelineBindingSet, RMTSF_None);
 		Handle handle = impl_->AllocHandle(ResourceType::PIPELINE_BINDING_SET);
-		SetDebugInfo(handle, debugName);
-		impl_->HandleErrorCode(handle, impl_->backend_->CreatePipelineBindingSet(handle, desc, debugName));
+		SET_DEBUG_INFO();
+		impl_->HandleErrorCode(handle, impl_->backend_->CreatePipelineBindingSet(handle, desc, debugName.data()));
 		return handle;
 	}
 
-	Handle Manager::CreateDrawBindingSet(const DrawBindingSetDesc& desc, const char* debugName)
+	Handle Manager::CreateDrawBindingSet(const DrawBindingSetDesc& desc, const char* debugFmt, ...)
 	{
 		DBG_ASSERT(IsInitialized());
 		DBG_ASSERT(impl_->backend_);
 		rmt_ScopedCPUSample(GPU_CreateDrawBindingSet, RMTSF_None);
 		Handle handle = impl_->AllocHandle(ResourceType::DRAW_BINDING_SET);
-		SetDebugInfo(handle, debugName);
-		impl_->HandleErrorCode(handle, impl_->backend_->CreateDrawBindingSet(handle, desc, debugName));
+		SET_DEBUG_INFO();
+		impl_->HandleErrorCode(handle, impl_->backend_->CreateDrawBindingSet(handle, desc, debugName.data()));
 		return handle;
 	}
 
-	Handle Manager::CreateFrameBindingSet(const FrameBindingSetDesc& desc, const char* debugName)
+	Handle Manager::CreateFrameBindingSet(const FrameBindingSetDesc& desc, const char* debugFmt, ...)
 	{
 		DBG_ASSERT(IsInitialized());
 		rmt_ScopedCPUSample(GPU_CreateFrameBindingSet, RMTSF_None);
 		Handle handle = impl_->AllocHandle(ResourceType::FRAME_BINDING_SET);
-		SetDebugInfo(handle, debugName);
-		impl_->HandleErrorCode(handle, impl_->backend_->CreateFrameBindingSet(handle, desc, debugName));
+		SET_DEBUG_INFO();
+		impl_->HandleErrorCode(handle, impl_->backend_->CreateFrameBindingSet(handle, desc, debugName.data()));
 		return handle;
 	}
 
-	Handle Manager::CreateCommandList(const char* debugName)
+	Handle Manager::CreateCommandList(const char* debugFmt, ...)
 	{
 		DBG_ASSERT(IsInitialized());
 		rmt_ScopedCPUSample(GPU_CreateCommandList, RMTSF_None);
 		Handle handle = impl_->AllocHandle(ResourceType::COMMAND_LIST);
-		SetDebugInfo(handle, debugName);
-		impl_->HandleErrorCode(handle, impl_->backend_->CreateCommandList(handle, debugName));
+		SET_DEBUG_INFO();
+		impl_->HandleErrorCode(handle, impl_->backend_->CreateCommandList(handle, debugName.data()));
 		return handle;
 	}
 
-	Handle Manager::CreateFence(const char* debugName)
+	Handle Manager::CreateFence(const char* debugFmt, ...)
 	{
 		DBG_ASSERT(IsInitialized());
 		rmt_ScopedCPUSample(GPU_CreateFence, RMTSF_None);
 		Handle handle = impl_->AllocHandle(ResourceType::FENCE);
-		SetDebugInfo(handle, debugName);
-		impl_->HandleErrorCode(handle, impl_->backend_->CreateFence(handle, debugName));
+		SET_DEBUG_INFO();
+		impl_->HandleErrorCode(handle, impl_->backend_->CreateFence(handle, debugName.data()));
 		return handle;
 	}
 
@@ -486,6 +492,38 @@ namespace GPU
 			auto& deletions = impl_->deferredDeletions_[impl_->frameIdx_ % impl_->deferredDeletions_.size()];
 			deletions.push_back(handle);
 		}
+	}
+
+	bool Manager::UpdatePipelineBindings(Handle handle, i32 base, Core::ArrayView<BindingCBV> descs)
+	{
+		DBG_ASSERT(IsInitialized());
+		DBG_ASSERT(handle.GetType() == ResourceType::PIPELINE_BINDING_SET);
+		rmt_ScopedCPUSample(GPU_UpdatePipelineBindings, RMTSF_None);
+		return impl_->HandleErrorCode(impl_->backend_->UpdatePipelineBindings(handle, base, descs));
+	}
+
+	bool Manager::UpdatePipelineBindings(Handle handle, i32 base, Core::ArrayView<BindingSRV> descs)
+	{
+		DBG_ASSERT(IsInitialized());
+		DBG_ASSERT(handle.GetType() == ResourceType::PIPELINE_BINDING_SET);
+		rmt_ScopedCPUSample(GPU_UpdatePipelineBindings, RMTSF_None);
+		return impl_->HandleErrorCode(impl_->backend_->UpdatePipelineBindings(handle, base, descs));
+	}
+
+	bool Manager::UpdatePipelineBindings(Handle handle, i32 base, Core::ArrayView<BindingUAV> descs)
+	{
+		DBG_ASSERT(IsInitialized());
+		DBG_ASSERT(handle.GetType() == ResourceType::PIPELINE_BINDING_SET);
+		rmt_ScopedCPUSample(GPU_UpdatePipelineBindings, RMTSF_None);
+		return impl_->HandleErrorCode(impl_->backend_->UpdatePipelineBindings(handle, base, descs));
+	}
+
+	bool Manager::UpdatePipelineBindings(Handle handle, i32 base, Core::ArrayView<SamplerState> descs)
+	{
+		DBG_ASSERT(IsInitialized());
+		DBG_ASSERT(handle.GetType() == ResourceType::PIPELINE_BINDING_SET);
+		rmt_ScopedCPUSample(GPU_UpdatePipelineBindings, RMTSF_None);
+		return impl_->HandleErrorCode(impl_->backend_->UpdatePipelineBindings(handle, base, descs));
 	}
 
 	bool Manager::CompileCommandList(Handle handle, const CommandList& commandList)

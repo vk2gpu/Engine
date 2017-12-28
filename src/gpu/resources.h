@@ -17,7 +17,6 @@ namespace GPU
 		SWAP_CHAIN = 0,
 		BUFFER,
 		TEXTURE,
-		SAMPLER_STATE,
 		SHADER,
 		GRAPHICS_PIPELINE_STATE,
 		COMPUTE_PIPELINE_STATE,
@@ -295,29 +294,16 @@ namespace GPU
 	using BindingCBV = BindingBuffer;
 
 	/**
-	 * Binding for a sampler.
-	 */
-	struct GPU_DLL BindingSampler
-	{
-		Handle resource_;
-	};
-
-	/**
 	 * Pipeline binding set.
 	 * Common parameters shared by both graphics and compute
 	 * pipeline states.
 	 */
 	struct GPU_DLL PipelineBindingSetDesc
 	{
-		Handle pipelineState_;
 		i32 numSRVs_ = 0;
 		i32 numUAVs_ = 0;
 		i32 numCBVs_ = 0;
 		i32 numSamplers_ = 0;
-		BindingSRV srvs_[MAX_SRV_BINDINGS];
-		BindingUAV uavs_[MAX_UAV_BINDINGS];
-		BindingCBV cbvs_[MAX_CBV_BINDINGS];
-		BindingSampler samplers_[MAX_SAMPLER_BINDINGS];
 	};
 
 	/**

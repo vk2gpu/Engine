@@ -32,7 +32,8 @@
   </Type>
 
   <Type Name="GPU::Handle">
-    <DisplayString>{(GPU::ResourceType)type_} {gpu.dll!GPU::resourceDebugInfo_[type_][index_].name_}</DisplayString>
+    <DisplayString Condition="index_ == 0">nullptr</DisplayString>
+    <DisplayString Condition="index_ != 0">{(GPU::ResourceType)type_} {gpu.dll!GPU::resourceDebugInfo_[type_][index_].name_}</DisplayString>
     <Expand>
       <Item Name="Debug Name" ExcludeView="simple">gpu.dll!GPU::resourceDebugInfo_[type_][index_].name_</Item>
       <Item Name="Creation Callstack" ExcludeView="simple">gpu.dll!GPU::resourceDebugInfo_[type_][index_].creationCallstack_</Item>

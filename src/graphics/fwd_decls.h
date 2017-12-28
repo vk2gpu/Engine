@@ -7,6 +7,7 @@ namespace Graphics
 	class Shader;
 	struct ShaderTechniqueDesc;
 	class ShaderTechnique;
+	class ShaderBindingSet;
 
 	class Texture;
 

@@ -919,7 +919,6 @@ ClusteredModel::ClusteredModel(const char* sourceFile)
 		dbs_ = GPU::Manager::CreateDrawBindingSet(dbsDesc, "clustered_model_dbs");
 
 		coreShader_ = "shaders/clustered_model.esf";
-
 		coreShader_.WaitUntilReady();
 
 		techs_.resize(materials_.size());
@@ -949,51 +948,69 @@ ClusteredModel::~ClusteredModel()
 	GPU::Manager::DestroyResource(dbs_);
 }
 
-void ClusteredModel::DrawClusters(GPU::CommandList& cmdList, const char* passName, const GPU::DrawState& drawState,
-    GPU::Handle fbs, GPU::Handle viewCBHandle, GPU::Handle objectSBHandle, Testbed::CustomBindFn customBindFn,
-    Testbed::ObjectConstants object)
+void ClusteredModel::DrawClusters(Testbed::DrawContext& drawCtx, Testbed::ObjectConstants object)
 {
-	if(auto event = cmdList.Eventf(0x0, "ClusteredModel"))
+	if(auto event = drawCtx.cmdList_.Eventf(0x0, "ClusteredModel"))
 	{
 		i32 numObjects = 1;
 		const i32 objectDataSize = sizeof(Testbed::ObjectConstants);
 
+
 		// Allocate command list memory.
-		auto* objects = cmdList.Alloc<Testbed::ObjectConstants>(numObjects);
+		auto* objects = drawCtx.cmdList_.Alloc<Testbed::ObjectConstants>(numObjects);
 
 		// Update all render packet uniforms.
 		for(i32 idx = 0; idx < numObjects; ++idx)
 			objects[idx] = object;
-		cmdList.UpdateBuffer(objectSBHandle, 0, sizeof(Testbed::ObjectConstants) * numObjects, objects);
+		drawCtx.cmdList_.UpdateBuffer(
+		    drawCtx.objectSBHandle_, 0, sizeof(Testbed::ObjectConstants) * numObjects, objects);
 
 		if(enableCulling_)
 		{
 			static Job::SpinLock spinLock;
 			Job::ScopedSpinLock lock(spinLock);
 
-			cullClusterTech_.Set("inCluster",
+			if(!cullClusterBindings_)
+			{
+				cullClusterBindings_ = coreShader_->CreateBindingSet("ClusterBindings");
+			}
+
+			if(!objectBindings_)
+			{
+				objectBindings_ = coreShader_->CreateBindingSet("ObjectBindings");
+			}
+
+			cullClusterBindings_.Set("inCluster",
 			    GPU::Binding::Buffer(clusterBuffer_, GPU::Format::INVALID, 0, clusters_.size(), sizeof(MeshCluster)));
-			cullClusterTech_.Set("inClusterBounds",
+			cullClusterBindings_.Set("inClusterBounds",
 			    GPU::Binding::Buffer(
 			        boundsBuffer_, GPU::Format::INVALID, 0, clusterBounds_.size(), sizeof(Math::AABB)));
-			cullClusterTech_.Set(
-			    "inObject", GPU::Binding::Buffer(objectSBHandle, GPU::Format::INVALID, 0, 1, objectDataSize));
-			cullClusterTech_.Set("outDrawArgs",
+			cullClusterBindings_.Set("outDrawArgs",
 			    GPU::Binding::RWBuffer(
 			        drawArgsBuffer_, GPU::Format::INVALID, 0, clusters_.size(), sizeof(GPU::DrawIndexedArgs)));
-			cullClusterTech_.Set("outDrawCount",
+			cullClusterBindings_.Set("outDrawCount",
 			    GPU::Binding::RWBuffer(drawCountBuffer_, GPU::Format::INVALID, 0, meshes_.size(), sizeof(u32)));
-			cullClusterTech_.Set("viewParams", GPU::Binding::CBuffer(viewCBHandle, 0, sizeof(Testbed::ViewConstants)));
 
-			const i32 groupSize = 64;
+			objectBindings_.Set(
+			    "inObject", GPU::Binding::Buffer(drawCtx.objectSBHandle_, GPU::Format::INVALID, 0, 1, objectDataSize));
 
-			if(auto pbs = cullClusterTech_.GetBinding())
+			if(auto cullClusterBind = drawCtx.shaderCtx_.BeginBindingScope(cullClusterBindings_))
 			{
-				Core::Vector<u32> drawCountData(meshes_.size(), 0);
-				cmdList.UpdateBuffer(drawCountBuffer_, 0, drawCountData.size() * sizeof(u32),
-				    cmdList.Push(drawCountData.data(), drawCountData.size()));
+				if(auto objectBind = drawCtx.shaderCtx_.BeginBindingScope(objectBindings_))
+				{
+					const i32 groupSize = 64;
 
-				cmdList.Dispatch(pbs, (clusters_.size() + (groupSize - 1)) / groupSize, 1, 1);
+					GPU::Handle ps;
+					Core::ArrayView<GPU::PipelineBinding> pb;
+					if(drawCtx.shaderCtx_.CommitBindings(cullClusterTech_, ps, pb))
+					{
+						Core::Vector<u32> drawCountData(meshes_.size(), 0);
+						drawCtx.cmdList_.UpdateBuffer(drawCountBuffer_, 0, drawCountData.size() * sizeof(u32),
+						    drawCtx.cmdList_.Push(drawCountData.data(), drawCountData.size()));
+
+						drawCtx.cmdList_.Dispatch(ps, pb, (clusters_.size() + (groupSize - 1)) / groupSize, 1, 1);
+					}
+				}
 			}
 		}
 
@@ -1004,25 +1021,31 @@ void ClusteredModel::DrawClusters(GPU::CommandList& cmdList, const char* passNam
 			{
 				for(i32 meshIdx = 0; meshIdx < meshes_.size(); ++meshIdx)
 				{
-					auto it = techs_[meshIdx].passIndices_.find(passName);
+					auto it = techs_[meshIdx].passIndices_.find(drawCtx.passName_);
 					if(it != techs_[meshIdx].passIndices_.end())
 					{
 						const auto& mesh = meshes_[meshIdx];
 						if(mesh.numClusters_ > 0)
 						{
 							auto& tech = techs_[meshIdx].passTechniques_[it->second];
-							if(customBindFn)
-								customBindFn(techs_[meshIdx].material_->GetShader(), tech);
+							if(drawCtx.customBindFn_)
+								drawCtx.customBindFn_(techs_[meshIdx].material_->GetShader(), tech);
 
-							tech.Set(
-							    "viewParams", GPU::Binding::CBuffer(viewCBHandle, 0, sizeof(Testbed::ViewConstants)));
-							tech.Set("inObject",
-							    GPU::Binding::Buffer(objectSBHandle, GPU::Format::INVALID, 0, 1, objectDataSize));
-							if(auto pbs = tech.GetBinding())
+							objectBindings_.Set("inObject",
+							    GPU::Binding::Buffer(
+							        drawCtx.objectSBHandle_, GPU::Format::INVALID, 0, 1, objectDataSize));
+
+							if(auto objectBind = drawCtx.shaderCtx_.BeginBindingScope(objectBindings_))
 							{
-								cmdList.DrawIndirect(pbs, dbs_, fbs, drawState, GPU::PrimitiveTopology::TRIANGLE_LIST,
-								    drawArgsBuffer_, mesh.baseCluster_ * sizeof(GPU::DrawIndexedArgs), drawCountBuffer_,
-								    meshIdx * sizeof(i32), mesh.numClusters_);
+								GPU::Handle ps;
+								Core::ArrayView<GPU::PipelineBinding> pb;
+								if(drawCtx.shaderCtx_.CommitBindings(tech, ps, pb))
+								{
+									drawCtx.cmdList_.DrawIndirect(ps, pb, dbs_, drawCtx.fbs_, drawCtx.drawState_,
+									    GPU::PrimitiveTopology::TRIANGLE_LIST, drawArgsBuffer_,
+									    mesh.baseCluster_ * sizeof(GPU::DrawIndexedArgs), drawCountBuffer_,
+									    meshIdx * sizeof(i32), mesh.numClusters_);
+								}
 							}
 						}
 					}
@@ -1035,26 +1058,30 @@ void ClusteredModel::DrawClusters(GPU::CommandList& cmdList, const char* passNam
 			{
 				for(i32 meshIdx = 0; meshIdx < meshes_.size(); ++meshIdx)
 				{
-					auto it = techs_[meshIdx].passIndices_.find(passName);
+					auto it = techs_[meshIdx].passIndices_.find(drawCtx.passName_);
 					if(it != techs_[meshIdx].passIndices_.end())
 					{
 						const auto& mesh = meshes_[meshIdx];
 						if(mesh.numClusters_ > 0)
 						{
 							auto& tech = techs_[meshIdx].passTechniques_[it->second];
-							if(customBindFn)
-								customBindFn(techs_[meshIdx].material_->GetShader(), tech);
+							if(drawCtx.customBindFn_)
+								drawCtx.customBindFn_(techs_[meshIdx].material_->GetShader(), tech);
 
-							tech.Set(
-							    "viewParams", GPU::Binding::CBuffer(viewCBHandle, 0, sizeof(Testbed::ViewConstants)));
-							tech.Set("inObject",
-							    GPU::Binding::Buffer(objectSBHandle, GPU::Format::INVALID, 0, 1, objectDataSize));
-							if(auto pbs = tech.GetBinding())
+							objectBindings_.Set("inObject",
+							    GPU::Binding::Buffer(
+							        drawCtx.objectSBHandle_, GPU::Format::INVALID, 0, 1, objectDataSize));
+							if(auto objectBind = drawCtx.shaderCtx_.BeginBindingScope(objectBindings_))
 							{
-								auto baseCluster = clusters_[meshes_[meshIdx].baseCluster_];
-
-								cmdList.Draw(pbs, dbs_, fbs, drawState, GPU::PrimitiveTopology::TRIANGLE_LIST,
-								    baseCluster.baseIndex_, 0, mesh.numClusters_ * baseCluster.numIndices_, 0, 1);
+								GPU::Handle ps;
+								Core::ArrayView<GPU::PipelineBinding> pb;
+								if(drawCtx.shaderCtx_.CommitBindings(tech, ps, pb))
+								{
+									auto baseCluster = clusters_[meshes_[meshIdx].baseCluster_];
+									drawCtx.cmdList_.Draw(ps, pb, dbs_, drawCtx.fbs_, drawCtx.drawState_,
+									    GPU::PrimitiveTopology::TRIANGLE_LIST, baseCluster.baseIndex_, 0,
+									    mesh.numClusters_ * baseCluster.numIndices_, 0, 1);
+								}
 							}
 						}
 					}

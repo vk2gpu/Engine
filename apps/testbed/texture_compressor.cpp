@@ -2,7 +2,7 @@
 
 TextureCompressor::TextureCompressor()
 {
-	Resource::Manager::RequestResource(shader_, "shaders/texture_compressor.esf");
+	shader_ = "shaders/texture_compressor.esf";
 
 	// Create lookup table to pass to shader.
 	LookupTable lookupTable;
@@ -48,21 +48,22 @@ TextureCompressor::TextureCompressor()
 	desc.bindFlags_ = GPU::BindFlags::CONSTANT_BUFFER;
 	desc.size_ = sizeof(lookupTable);
 	lookupTableCB_ = GPU::Manager::CreateBuffer(desc, &lookupTable, "TextureCompressor Lookup Table");
+
+	// Wait until shader is ready.
+	shader_.WaitUntilReady();
+
+	bindings_ = shader_->CreateBindingSet("TextureCompressorBindings");
 }
 
 TextureCompressor::~TextureCompressor()
 {
 	GPU::Manager::DestroyResource(lookupTableCB_);
-
-	Resource::Manager::WaitForResource(shader_);
-	Resource::Manager::ReleaseResource(shader_);
 }
 
 bool TextureCompressor::Compress(GPU::CommandList& cmdList, Graphics::Texture* inTexture, GPU::Format format,
     GPU::Handle outputTexture, GPU::Point point)
 {
-	// Wait until shader is ready.
-	Resource::Manager::WaitForResource(shader_);
+	Graphics::ShaderContext shaderCtx(cmdList);
 
 	// Setup correct technique name & format.
 	const char* techName = "";
@@ -112,18 +113,25 @@ bool TextureCompressor::Compress(GPU::CommandList& cmdList, Graphics::Texture* i
 	GPU::Handle intermediateTexture = GPU::Manager::CreateTexture(outTextureDesc, nullptr, "outCompressed");
 	DBG_ASSERT(intermediateTexture);
 
-	tech.Set("lookupTable", GPU::Binding::CBuffer(lookupTableCB_, 0, sizeof(LookupTable)));
-	tech.Set("inTexture", GPU::Binding::Texture2D(inTexture->GetHandle(), desc.format_, 0, 1));
-	tech.Set("outTexture", GPU::Binding::RWTexture2D(intermediateTexture, uavFormat));
-	if(auto binding = tech.GetBinding())
+	bindings_.Set("lookupTable", GPU::Binding::CBuffer(lookupTableCB_, 0, sizeof(LookupTable)));
+	bindings_.Set("inTexture", GPU::Binding::Texture2D(inTexture->GetHandle(), desc.format_, 0, 1));
+	bindings_.Set("outTexture", GPU::Binding::RWTexture2D(intermediateTexture, uavFormat));
+
+	if(auto bind = shaderCtx.BeginBindingScope(bindings_))
 	{
 		GPU::Box box;
 		box.x_ = 0;
 		box.y_ = 0;
 		box.w_ = outTextureDesc.width_;
 		box.h_ = outTextureDesc.height_;
-		cmdList.Dispatch(binding, box.w_, box.h_, 1);
-		cmdList.CopyTextureSubResource(outputTexture, 0, point, intermediateTexture, 0, box);
+
+		GPU::Handle ps;
+		Core::ArrayView<GPU::PipelineBinding> pb;
+		if(shaderCtx.CommitBindings(tech, ps, pb))
+		{
+			cmdList.Dispatch(ps, pb, box.w_, box.h_, 1);
+			cmdList.CopyTextureSubResource(outputTexture, 0, point, intermediateTexture, 0, box);
+		}
 	}
 
 	GPU::Manager::DestroyResource(intermediateTexture);

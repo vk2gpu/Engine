@@ -125,6 +125,10 @@ namespace GPU
 			delete allocator.samplerAllocator_;
 			delete allocator.rtvAllocator_;
 			delete allocator.dsvAllocator_;
+
+			delete allocator.cbvSubAllocator_;
+			delete allocator.srvSubAllocator_;
+			delete allocator.uavSubAllocator_;
 		}
 
 		delete viewAllocator_;
@@ -401,6 +405,13 @@ namespace GPU
 			    D3D12_DESCRIPTOR_HEAP_TYPE_RTV, D3D12_DESCRIPTOR_HEAP_FLAG_NONE, 1024, "RTV Descriptors");
 			allocator.dsvAllocator_ = new D3D12LinearDescriptorAllocator(d3dDevice_.Get(),
 			    D3D12_DESCRIPTOR_HEAP_TYPE_DSV, D3D12_DESCRIPTOR_HEAP_FLAG_NONE, 1024, "DSV Descriptors");
+
+			allocator.cbvSubAllocator_ =
+			    new D3D12LinearDescriptorSubAllocator(*allocator.viewAllocator_, GPU::DescriptorHeapSubType::CBV, 256);
+			allocator.srvSubAllocator_ =
+			    new D3D12LinearDescriptorSubAllocator(*allocator.viewAllocator_, GPU::DescriptorHeapSubType::SRV, 256);
+			allocator.uavSubAllocator_ =
+			    new D3D12LinearDescriptorSubAllocator(*allocator.viewAllocator_, GPU::DescriptorHeapSubType::UAV, 256);
 		}
 	}
 
@@ -434,6 +445,10 @@ namespace GPU
 			GetViewDescriptorAllocator().Reset();
 			GetRTVDescriptorAllocator().Reset();
 			GetDSVDescriptorAllocator().Reset();
+			GetCBVSubAllocator().Reset();
+			GetSRVSubAllocator().Reset();
+			GetUAVSubAllocator().Reset();
+
 			d3dDirectQueue_->Signal(d3dFrameFence_.Get(), frameIdx_);
 		}
 	}
@@ -806,6 +821,11 @@ namespace GPU
 		outPipelineBindingSet.srvs_ = viewAllocator_->Alloc(desc.numSRVs_);
 		outPipelineBindingSet.uavs_ = viewAllocator_->Alloc(desc.numUAVs_);
 		outPipelineBindingSet.samplers_ = samplerAllocator_->Alloc(desc.numSamplers_);
+
+		outPipelineBindingSet.cbvTransitions_.resize(desc.numCBVs_);
+		outPipelineBindingSet.srvTransitions_.resize(desc.numSRVs_);
+		outPipelineBindingSet.uavTransitions_.resize(desc.numUAVs_);
+
 		return ErrorCode::OK;
 	}
 
@@ -882,7 +902,7 @@ namespace GPU
 	}
 
 	ErrorCode D3D12Device::UpdateSamplers(
-	    D3D12PipelineBindingSet& pbs, i32 first, i32 num, const D3D12_SAMPLER_DESC* descs)
+	    const D3D12PipelineBindingSet& pbs, i32 first, i32 num, const D3D12_SAMPLER_DESC* descs)
 	{
 		i32 incr = d3dDevice_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 		D3D12_CPU_DESCRIPTOR_HANDLE handle = pbs.samplers_.cpuDescHandle_;

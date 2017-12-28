@@ -1,26 +1,10 @@
 #include "../shaders/stdlib.esh"
+#include "../shaders/common_bindings.esh"
 
-struct View
-{ 
-	float4x4 view_;
-	float4x4 proj_;
-};
-
-struct Object
+BindingSet MaterialBindings
 {
-	float4x4 world_;	
+	Texture2D tex_diffuse;
 };
-
-ConstantBuffer<View> v_;
-ConstantBuffer<Object> o_;
-
-SamplerState SS_DEFAULT =
-{
-	.AddressU = WRAP,
-	.AddressV = CLAMP,
-	.AddressW = MIRROR,	
-};
-Texture2D tex_diffuse;
 
 struct VS_IN
 {
@@ -36,7 +20,8 @@ struct VS_OUT
 VS_OUT vs_main(in VS_IN _in)
 {
 	VS_OUT _out = (VS_OUT)0;
-	_out.position = _in.position;
+	float4 position = mul(inObject[0].world_, _in.position);
+	_out.position = mul(viewParams.view_, position);
 	_out.uv = _in.position.xy;
 	return _out;
 }
@@ -48,7 +33,7 @@ float4 ps_debug(in VS_OUT _in) : SV_TARGET0
 
 float4 ps_main(in VS_OUT _in) : SV_TARGET0
 {
-	return tex_diffuse.Sample(SS_DEFAULT, _in.uv.xy) * float4(1.0, 1.0, 1.0, 1.0);
+	return tex_diffuse.Sample(SS_LINEAR_WRAP, _in.uv.xy) * float4(1.0, 1.0, 1.0, 1.0);
 }
 
 float4 ps_shadow(in VS_OUT _in) : SV_TARGET0

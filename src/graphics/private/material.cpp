@@ -67,6 +67,39 @@ namespace Graphics
 					textureRes.WaitUntilReady();
 			}
 
+			// Setup material bindings, if there are any,
+			if(impl->bindings_ = impl->shaderRes_->CreateBindingSet("MaterialBindings"))
+			{
+				for(i32 idx = 0; idx < impl->textures_.size(); ++idx)
+				{
+					const char* bindingName = impl->textures_[idx].bindingName_.data();
+					Texture* tex = impl->textureRes_[idx];
+					if(tex)
+					{
+						const auto& texDesc = tex->GetDesc();
+						switch(texDesc.type_)
+						{
+						case GPU::TextureType::TEX1D:
+							impl->bindings_.Set(bindingName,
+							    GPU::Binding::Texture1D(tex->GetHandle(), texDesc.format_, 0, texDesc.levels_));
+							break;
+						case GPU::TextureType::TEX2D:
+							impl->bindings_.Set(bindingName,
+							    GPU::Binding::Texture2D(tex->GetHandle(), texDesc.format_, 0, texDesc.levels_));
+							break;
+						case GPU::TextureType::TEX3D:
+							impl->bindings_.Set(bindingName,
+							    GPU::Binding::Texture3D(tex->GetHandle(), texDesc.format_, 0, texDesc.levels_));
+							break;
+						case GPU::TextureType::TEXCUBE:
+							impl->bindings_.Set(bindingName,
+							    GPU::Binding::TextureCube(tex->GetHandle(), texDesc.format_, 0, texDesc.levels_));
+							break;
+						}
+					}
+				}
+			}
+
 			impl->name_ = name;
 			material->impl_ = impl;
 
@@ -80,43 +113,11 @@ namespace Graphics
 
 	Shader* Material::GetShader() const { return impl_->shaderRes_; }
 
+	const ShaderBindingSet& Material::GetBindingSet() const { return impl_->bindings_; }
+
 	ShaderTechnique Material::CreateTechnique(const char* name, const ShaderTechniqueDesc& desc)
 	{
 		auto tech = impl_->shaderRes_->CreateTechnique(name, desc);
-
-		// Set textures.
-		for(i32 idx = 0; idx < impl_->textures_.size(); ++idx)
-		{
-			const auto& bindingName = impl_->textures_[idx].bindingName_;
-			auto bindingIdx = impl_->shaderRes_->GetBindingIndex(bindingName.data());
-			if(bindingIdx != -1)
-			{
-				Texture* tex = impl_->textureRes_[idx];
-				if(tex)
-				{
-					const auto& texDesc = tex->GetDesc();
-					switch(texDesc.type_)
-					{
-					case GPU::TextureType::TEX1D:
-						tech.Set(
-						    bindingIdx, GPU::Binding::Texture1D(tex->GetHandle(), texDesc.format_, 0, texDesc.levels_));
-						break;
-					case GPU::TextureType::TEX2D:
-						tech.Set(
-						    bindingIdx, GPU::Binding::Texture2D(tex->GetHandle(), texDesc.format_, 0, texDesc.levels_));
-						break;
-					case GPU::TextureType::TEX3D:
-						tech.Set(
-						    bindingIdx, GPU::Binding::Texture3D(tex->GetHandle(), texDesc.format_, 0, texDesc.levels_));
-						break;
-					case GPU::TextureType::TEXCUBE:
-						tech.Set(bindingIdx,
-						    GPU::Binding::TextureCube(tex->GetHandle(), texDesc.format_, 0, texDesc.levels_));
-						break;
-					}
-				}
-			}
-		}
 		return tech;
 	}
 

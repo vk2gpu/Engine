@@ -17,19 +17,23 @@ namespace GPU
 		return data;
 	}
 
-	INLINE void* CommandList::Push(const void* data, i32 bytes)
+	INLINE const void* CommandList::Push(const void* data, i32 bytes)
 	{
+		// If data is already in command list memory, don't copy.
+		const u8* byteData = (const u8*)data;
+		if(byteData >= commandData_.data() && (byteData + bytes) < (commandData_.data() + bytes))
+			return data;
+
 		void* dest = Alloc(bytes);
 		memcpy(dest, data, bytes);
 		return dest;
 	}
 
-	INLINE CommandDraw* CommandList::Draw(Handle pipelineBinding, Handle drawBinding, Handle frameBinding,
-	    const DrawState& drawState, PrimitiveTopology primitive, i32 indexOffset, i32 vertexOffset, i32 noofVertices,
-	    i32 firstInstance, i32 noofInstances)
+	INLINE CommandDraw* CommandList::Draw(Handle ps, Core::ArrayView<PipelineBinding> pb, Handle drawBinding,
+	    Handle frameBinding, const DrawState& drawState, PrimitiveTopology primitive, i32 indexOffset, i32 vertexOffset,
+	    i32 noofVertices, i32 firstInstance, i32 noofInstances)
 	{
-		DBG_ASSERT(handleAllocator_.IsValid(pipelineBinding) &&
-		           pipelineBinding.GetType() == ResourceType::PIPELINE_BINDING_SET);
+		DBG_ASSERT(handleAllocator_.IsValid(ps) && ps.GetType() == ResourceType::GRAPHICS_PIPELINE_STATE);
 		DBG_ASSERT(!drawBinding ||
 		           (drawBinding.GetType() == ResourceType::DRAW_BINDING_SET && handleAllocator_.IsValid(drawBinding)));
 		DBG_ASSERT(handleAllocator_.IsValid(frameBinding) && frameBinding.GetType() == ResourceType::FRAME_BINDING_SET);
@@ -42,7 +46,8 @@ namespace GPU
 
 		queueType_ |= CommandDraw::QUEUE_TYPE;
 		auto* command = Alloc<CommandDraw>();
-		command->pipelineBinding_ = pipelineBinding;
+		command->pipelineState_ = ps;
+		command->pipelineBindings_ = Push(pb);
 		command->drawBinding_ = drawBinding;
 		command->frameBinding_ = frameBinding;
 		command->primitive_ = primitive;
@@ -68,12 +73,11 @@ namespace GPU
 		return command;
 	}
 
-	INLINE CommandDrawIndirect* CommandList::DrawIndirect(Handle pipelineBinding, Handle drawBinding,
-	    Handle frameBinding, const DrawState& drawState, PrimitiveTopology primitive, Handle indirectBuffer,
-	    i32 argByteOffset, Handle countBuffer, i32 countByteOffset, i32 maxCommands)
+	INLINE CommandDrawIndirect* CommandList::DrawIndirect(Handle ps, Core::ArrayView<PipelineBinding> pb,
+	    Handle drawBinding, Handle frameBinding, const DrawState& drawState, PrimitiveTopology primitive,
+	    Handle indirectBuffer, i32 argByteOffset, Handle countBuffer, i32 countByteOffset, i32 maxCommands)
 	{
-		DBG_ASSERT(handleAllocator_.IsValid(pipelineBinding) &&
-		           pipelineBinding.GetType() == ResourceType::PIPELINE_BINDING_SET);
+		DBG_ASSERT(handleAllocator_.IsValid(ps) && ps.GetType() == ResourceType::GRAPHICS_PIPELINE_STATE);
 		DBG_ASSERT(!drawBinding ||
 		           (drawBinding.GetType() == ResourceType::DRAW_BINDING_SET && handleAllocator_.IsValid(drawBinding)));
 		DBG_ASSERT(handleAllocator_.IsValid(frameBinding) && frameBinding.GetType() == ResourceType::FRAME_BINDING_SET);
@@ -85,7 +89,8 @@ namespace GPU
 
 		queueType_ |= CommandDraw::QUEUE_TYPE;
 		auto* command = Alloc<CommandDrawIndirect>();
-		command->pipelineBinding_ = pipelineBinding;
+		command->pipelineState_ = ps;
+		command->pipelineBindings_ = Push(pb);
 		command->drawBinding_ = drawBinding;
 		command->frameBinding_ = frameBinding;
 		command->primitive_ = primitive;
@@ -110,17 +115,19 @@ namespace GPU
 		return command;
 	}
 
-	INLINE CommandDispatch* CommandList::Dispatch(Handle pipelineBinding, i32 xGroups, i32 yGroups, i32 zGroups)
+	INLINE CommandDispatch* CommandList::Dispatch(
+	    Handle ps, Core::ArrayView<PipelineBinding> pb, i32 xGroups, i32 yGroups, i32 zGroups)
 	{
-		DBG_ASSERT(handleAllocator_.IsValid(pipelineBinding));
-		DBG_ASSERT(pipelineBinding.GetType() == ResourceType::PIPELINE_BINDING_SET);
+		DBG_ASSERT(handleAllocator_.IsValid(ps));
+		DBG_ASSERT(ps.GetType() == ResourceType::COMPUTE_PIPELINE_STATE);
 		DBG_ASSERT(xGroups >= 1);
 		DBG_ASSERT(yGroups >= 1);
 		DBG_ASSERT(zGroups >= 1);
 
 		queueType_ |= CommandDispatch::QUEUE_TYPE;
 		auto* command = Alloc<CommandDispatch>();
-		command->pipelineBinding_ = pipelineBinding;
+		command->pipelineState_ = ps;
+		command->pipelineBindings_ = Push(pb);
 		command->xGroups_ = xGroups;
 		command->yGroups_ = yGroups;
 		command->zGroups_ = zGroups;
@@ -128,11 +135,11 @@ namespace GPU
 		return command;
 	}
 
-	INLINE CommandDispatchIndirect* CommandList::DispatchIndirect(Handle pipelineBinding, Handle indirectBuffer,
-	    i32 argByteOffset, Handle countBuffer, i32 countByteOffset, i32 maxCommands)
+	INLINE CommandDispatchIndirect* CommandList::DispatchIndirect(Handle ps, Core::ArrayView<PipelineBinding> pb,
+	    Handle indirectBuffer, i32 argByteOffset, Handle countBuffer, i32 countByteOffset, i32 maxCommands)
 	{
-		DBG_ASSERT(handleAllocator_.IsValid(pipelineBinding));
-		DBG_ASSERT(pipelineBinding.GetType() == ResourceType::PIPELINE_BINDING_SET);
+		DBG_ASSERT(handleAllocator_.IsValid(ps));
+		DBG_ASSERT(ps.GetType() == ResourceType::COMPUTE_PIPELINE_STATE);
 		DBG_ASSERT(handleAllocator_.IsValid(indirectBuffer));
 		DBG_ASSERT(indirectBuffer.GetType() == ResourceType::BUFFER);
 		DBG_ASSERT(!handleAllocator_.IsValid(countBuffer) || countBuffer.GetType() == ResourceType::BUFFER);
@@ -142,7 +149,8 @@ namespace GPU
 
 		queueType_ |= CommandDispatchIndirect::QUEUE_TYPE;
 		auto* command = Alloc<CommandDispatchIndirect>();
-		command->pipelineBinding_ = pipelineBinding;
+		command->pipelineState_ = ps;
+		command->pipelineBindings_ = Push(pb);
 		command->indirectBuffer_ = indirectBuffer;
 		command->argByteOffset_ = argByteOffset;
 		command->indirectBuffer_ = countBuffer;

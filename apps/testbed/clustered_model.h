@@ -5,6 +5,7 @@
 #include "math/aabb.h"
 #include "gpu/resources.h"
 #include "graphics/shader.h"
+#include "common.h"
 #include "render_packets.h"
 
 /**
@@ -24,9 +25,7 @@ public:
 	ClusteredModel(const char* fileName);
 	~ClusteredModel();
 
-	void DrawClusters(GPU::CommandList& cmdList, const char* passName, const GPU::DrawState& drawState, GPU::Handle fbs,
-	    GPU::Handle viewCBHandle, GPU::Handle objectSBHandle, Testbed::CustomBindFn customBindFn,
-	    Testbed::ObjectConstants object);
+	void DrawClusters(Testbed::DrawContext& drawCtx, Testbed::ObjectConstants object);
 
 	struct Mesh
 	{
@@ -71,6 +70,8 @@ public:
 	Core::Vector<Graphics::MaterialRef> materials_;
 
 	Graphics::ShaderTechnique cullClusterTech_;
+	Graphics::ShaderBindingSet cullClusterBindings_;
+	Graphics::ShaderBindingSet objectBindings_;
 
 
 	Graphics::ShaderTechniqueDesc techDesc_;

@@ -116,11 +116,6 @@ namespace GPU
 		u32 byteCodeSize_ = 0;
 	};
 
-	struct D3D12SamplerState
-	{
-		D3D12_SAMPLER_DESC desc_ = {};
-	};
-
 	struct D3D12SubresourceRange
 	{
 		D3D12Resource* resource_ = nullptr;
@@ -145,16 +140,14 @@ namespace GPU
 
 	struct D3D12PipelineBindingSet
 	{
-		RootSignatureType rootSignature_ = RootSignatureType::INVALID;
-		ComPtr<ID3D12PipelineState> pipelineState_;
+		D3D12DescriptorAllocation cbvs_;
 		D3D12DescriptorAllocation srvs_;
 		D3D12DescriptorAllocation uavs_;
-		D3D12DescriptorAllocation cbvs_;
 		D3D12DescriptorAllocation samplers_;
 
-		Core::Array<D3D12SubresourceRange, MAX_SRV_BINDINGS> srvTransitions_ = {};
-		Core::Array<D3D12SubresourceRange, MAX_UAV_BINDINGS> uavTransitions_ = {};
-		Core::Array<D3D12SubresourceRange, MAX_CBV_BINDINGS> cbvTransitions_ = {};
+		Core::Vector<D3D12SubresourceRange> srvTransitions_;
+		Core::Vector<D3D12SubresourceRange> uavTransitions_;
+		Core::Vector<D3D12SubresourceRange> cbvTransitions_;
 	};
 
 	struct D3D12DrawBindingSet

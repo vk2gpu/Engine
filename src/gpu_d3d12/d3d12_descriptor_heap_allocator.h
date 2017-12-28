@@ -18,6 +18,8 @@ namespace GPU
 
 		void Free(D3D12DescriptorAllocation alloc);
 
+		i32 GetHandleIncrementSize() const { return handleIncrementSize_; }
+
 	private:
 		D3D12DescriptorHeapAllocator(const D3D12DescriptorHeapAllocator&) = delete;
 

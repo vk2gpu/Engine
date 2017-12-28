@@ -96,14 +96,22 @@ namespace Testbed
 			},
 
 		    [](RenderGraphResources& res, GPU::CommandList& cmdList, const ShadowPassData& data) {
+
+			    ShaderContext shaderCtx(cmdList);
 			    auto fbs = res.GetFrameBindingSet();
 
 			    // Clear depth buffer.
 			    cmdList.ClearDSV(fbs, 1.0f, 0);
 
-			    // Draw all render packets that are valid for this pass.
-			    data.drawFn_(cmdList, "RenderPassShadow", data.drawState_, fbs, res.GetBuffer(data.viewCB_),
+			    DBG_BREAK;
+#if 0
+				// Draw all render packets that are valid for this pass.
+				DrawContext drawCtx(cmdList, shaderCtx, "RenderPassForward", data.drawState_, fbs, res.GetBuffer(data.inViewCB_),
+					res.GetBuffer(data.outObjectSB_), nullptr);
+
+							data.drawFn_(cmdList, "RenderPassShadow", data.drawState_, fbs, res.GetBuffer(data.viewCB_),
 			        res.GetBuffer(data.outObjectSB_), nullptr);
+#endif
 			});
 
 		ShadowData output;

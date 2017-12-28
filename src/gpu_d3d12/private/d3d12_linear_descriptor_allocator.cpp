@@ -31,21 +31,21 @@ namespace GPU
 
 	D3D12LinearDescriptorAllocator::~D3D12LinearDescriptorAllocator() {}
 
-	D3D12DescriptorAllocation D3D12LinearDescriptorAllocator::Alloc(i32 numDescriptors, DescriptorHeapSubType subType)
+	D3D12DescriptorAllocation D3D12LinearDescriptorAllocator::Alloc(i32 num, DescriptorHeapSubType subType)
 	{
-		auto offset = Core::AtomicAdd(&allocOffset_, numDescriptors) - numDescriptors;
+		auto offset = Core::AtomicAdd(&allocOffset_, num) - num;
 
-		if((offset + numDescriptors) <= blockSize_)
+		if((offset + num) <= blockSize_)
 		{
 			D3D12DescriptorAllocation retVal;
 			retVal.d3dDescriptorHeap_ = d3dDescriptorHeap_;
 			retVal.offset_ = offset;
-			retVal.size_ = numDescriptors;
+			retVal.size_ = num;
 			retVal.allocId_ = 0;
 			retVal.cpuDescHandle_ = d3dDescriptorHeap_->GetCPUDescriptorHandleForHeapStart();
 			retVal.gpuDescHandle_ = d3dDescriptorHeap_->GetGPUDescriptorHandleForHeapStart();
 
-			if(numDescriptors > 0)
+			if(num > 0)
 			{
 				retVal.cpuDescHandle_.ptr += (offset * handleIncrementSize_);
 				retVal.gpuDescHandle_.ptr += (offset * handleIncrementSize_);
@@ -75,6 +75,56 @@ namespace GPU
 	{
 		ClearDescriptorRange(d3dDescriptorHeap_.Get(), DescriptorHeapSubType::INVALID, 0, blockSize_);
 		Core::AtomicExchg(&allocOffset_, 0);
+	}
+
+
+	D3D12LinearDescriptorSubAllocator::D3D12LinearDescriptorSubAllocator(
+	    D3D12LinearDescriptorAllocator& allocator, DescriptorHeapSubType subType, i32 blockSize)
+	    : allocator_(allocator)
+	    , subType_(subType)
+	    , blockSize_(blockSize)
+	{
+	}
+
+	D3D12LinearDescriptorSubAllocator::~D3D12LinearDescriptorSubAllocator() {}
+
+	D3D12DescriptorAllocation D3D12LinearDescriptorSubAllocator::Alloc(i32 num, i32 padding)
+	{
+		D3D12DescriptorAllocation retVal = {};
+
+		Core::ScopedMutex lock(mutex_);
+
+		// Allocate a new block if we need to.
+		i32 numRemaining = alloc_.size_ - allocOffset_;
+		if(numRemaining < padding)
+		{
+			i32 blockSize = Core::Max(blockSize_, padding);
+			alloc_ = allocator_.Alloc(blockSize, subType_);
+			allocOffset_ = 0;
+		}
+
+		// Sanity check, previous allocation can fail.
+		numRemaining = alloc_.size_ - allocOffset_;
+		if(numRemaining >= padding)
+		{
+			retVal = alloc_;
+			retVal.offset_ += allocOffset_;
+			retVal.size_ = padding;
+
+			retVal.cpuDescHandle_.ptr += allocOffset_ * allocator_.GetHandleIncrementSize();
+			retVal.gpuDescHandle_.ptr += allocOffset_ * allocator_.GetHandleIncrementSize();
+
+			allocOffset_ += num;
+		}
+
+		return retVal;
+	}
+
+	void D3D12LinearDescriptorSubAllocator::Reset()
+	{
+		Core::ScopedMutex lock(mutex_);
+		alloc_ = D3D12DescriptorAllocation();
+		allocOffset_ = 0;
 	}
 
 } // namespace GPU

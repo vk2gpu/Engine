@@ -44,7 +44,6 @@ namespace GPU
 				retVal.cpuDescHandle_.ptr += (alloc.offset_ * handleIncrementSize_);
 				retVal.gpuDescHandle_ = block.d3dDescriptorHeap_->GetGPUDescriptorHandleForHeapStart();
 				retVal.gpuDescHandle_.ptr += (alloc.offset_ * handleIncrementSize_);
-
 				block.numAllocs_++;
 				return retVal;
 			}

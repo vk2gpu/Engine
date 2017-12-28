@@ -32,6 +32,8 @@ namespace Graphics
 		ShaderRef shaderRes_;
 		Core::Vector<TextureRef> textureRes_;
 
+		ShaderBindingSet bindings_;
+
 		MaterialImpl();
 		~MaterialImpl();
 	};

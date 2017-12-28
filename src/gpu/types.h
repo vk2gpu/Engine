@@ -246,9 +246,9 @@ namespace GPU
 	{
 		INVALID = -1,
 		VS = 0,
-		GS,
 		HS,
 		DS,
+		GS,
 		PS,
 		CS,
 		MAX

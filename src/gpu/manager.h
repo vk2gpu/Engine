@@ -50,82 +50,87 @@ namespace GPU
 		/**
 		 * Create swapchain.
 		 * @param desc Swapchain descriptor.
-		 * @param debugName Debug name.
+		 * @param debugFmt Debug name format.
 		 */
-		static Handle CreateSwapChain(const SwapChainDesc& desc, const char* debugName);
+		static Handle CreateSwapChain(const SwapChainDesc& desc, const char* debugFmt, ...);
 
 		/**
 		 * Create buffer.
 		 * @param desc Buffer descriptor.
 		 * @param initialData Data to create buffer with.
-		 * @param debugName Debug name.
+		 * @param debugFmt Debug name format.
 		 * @pre initialData == nullptr, or allocated size matches one in @a desc
 		 */
-		static Handle CreateBuffer(const BufferDesc& desc, const void* initialData, const char* debugName);
+		static Handle CreateBuffer(const BufferDesc& desc, const void* initialData, const char* debugFmt, ...);
 
 		/**
 		 * Create texture.
 		 * @param desc Texture descriptor.
 		 * @param initialData Data to create texture with.
-		 * @param debugName Debug name.
+		 * @param debugFmt Debug name format.
 		 * @pre initialData == nullptr, or has enough for (levels * elements).
 		 */
 		static Handle CreateTexture(
-		    const TextureDesc& desc, const TextureSubResourceData* initialData, const char* debugName);
-
-		/**
-		 * Create sample state.
-		 * @param samplerState Sampler state to create.
-		 */
-		static Handle CreateSamplerState(const SamplerState& state, const char* debugName);
+		    const TextureDesc& desc, const TextureSubResourceData* initialData, const char* debugFmt, ...);
 
 		/**
 		 * Create shader.
 		 * @param desc Shader desc, contains byte code and type.
-		 * @param debugName Debug name.
+		 * @param debugFmt Debug name format.
 		 */
-		static Handle CreateShader(const ShaderDesc& desc, const char* debugName);
+		static Handle CreateShader(const ShaderDesc& desc, const char* debugFmt, ...);
 
 		/**
 		 * Create graphics pipeline state.
 		 */
-		static Handle CreateGraphicsPipelineState(const GraphicsPipelineStateDesc& desc, const char* debugName);
+		static Handle CreateGraphicsPipelineState(const GraphicsPipelineStateDesc& desc, const char* debugFmt, ...);
 
 		/**
 		 * Create compute pipeline state.
 		 */
-		static Handle CreateComputePipelineState(const ComputePipelineStateDesc& desc, const char* debugName);
+		static Handle CreateComputePipelineState(const ComputePipelineStateDesc& desc, const char* debugFmt, ...);
 
 		/**
 		 * Create pipeline binding set.
 		 */
-		static Handle CreatePipelineBindingSet(const PipelineBindingSetDesc& desc, const char* debugName);
+		static Handle CreatePipelineBindingSet(const PipelineBindingSetDesc& desc, const char* debugFmt, ...);
 
 		/**
 		 * Create draw binding set.
 		 */
-		static Handle CreateDrawBindingSet(const DrawBindingSetDesc& desc, const char* debugName);
+		static Handle CreateDrawBindingSet(const DrawBindingSetDesc& desc, const char* debugFmt, ...);
 
 		/**
 		 * Create frame binding set.
 		 */
-		static Handle CreateFrameBindingSet(const FrameBindingSetDesc& desc, const char* debugName);
+		static Handle CreateFrameBindingSet(const FrameBindingSetDesc& desc, const char* debugFmt, ...);
 
 		/**
 		 * Create command list.
 		 */
-		static Handle CreateCommandList(const char* debugName);
+		static Handle CreateCommandList(const char* debugFmt, ...);
 
 		/**
 		 * Create fence.
 		 * Used for synchronisation in and around queues.
 		 */
-		static Handle CreateFence(const char* debugName);
+		static Handle CreateFence(const char* debugFmt, ...);
 
 		/**
 		 * Destroy resource.
 		 */
 		static void DestroyResource(Handle handle);
+
+		/**
+		 * Update pipeline bindings. 
+		 * @param handle Handle to pipeline binding set.
+		 * @param base Base index of descriptors to update.
+		 * @param descs Descriptors to update.
+		 */
+		static bool UpdatePipelineBindings(Handle handle, i32 base, Core::ArrayView<BindingCBV> descs);
+		static bool UpdatePipelineBindings(Handle handle, i32 base, Core::ArrayView<BindingSRV> descs);
+		static bool UpdatePipelineBindings(Handle handle, i32 base, Core::ArrayView<BindingUAV> descs);
+		static bool UpdatePipelineBindings(Handle handle, i32 base, Core::ArrayView<SamplerState> descs);
 
 		/**
 		 * Compile command list.

@@ -12,7 +12,7 @@ namespace Graphics
 	class GRAPHICS_DLL Texture
 	{
 	public:
-		DECLARE_RESOURCE("Graphics.Texture", 0);
+		DECLARE_RESOURCE(Texture, "Graphics.Texture", 0);
 		Texture();
 		~Texture();
 

@@ -2,6 +2,7 @@
 
 #include "gpu_d3d12/d3d12_types.h"
 #include "gpu_d3d12/d3d12_resources.h"
+#include "gpu/fwd_decls.h"
 #include "gpu/resources.h"
 #include "core/map.h"
 
@@ -48,6 +49,7 @@ namespace GPU
 			Core::Vector<UINT> numHandles_;
 		};
 
+		DescriptorCopyParams samplerDescCopyParams_;
 		DescriptorCopyParams viewDescCopyParams_;
 
 		DrawState drawState_;
@@ -59,7 +61,6 @@ namespace GPU
 		GPU::Handle dbsBound_;
 		PrimitiveTopology primitiveBound_ = PrimitiveTopology::INVALID;
 		GPU::Handle fbsBound_;
-		GPU::Handle pbsBound_;
 		RootSignatureType rootSigBound_ = RootSignatureType::INVALID;
 		ID3D12PipelineState* psBound_ = nullptr;
 
@@ -81,7 +82,7 @@ namespace GPU
 		ErrorCode CompileCommand(const struct CommandCopyTextureSubResource* command);
 
 		ErrorCode SetDrawBinding(Handle dbsHandle, PrimitiveTopology primitive);
-		ErrorCode SetPipelineBinding(Handle pbsHandle);
+		ErrorCode SetPipeline(Handle ps, Core::ArrayView<PipelineBinding> pbs);
 		ErrorCode SetFrameBinding(Handle fbsHandle);
 		ErrorCode SetDrawState(const DrawState* drawState);
 

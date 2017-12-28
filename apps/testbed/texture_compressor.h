@@ -29,5 +29,6 @@ private:
 	};
 
 	GPU::Handle lookupTableCB_;
-	Graphics::Shader* shader_ = nullptr;
+	Graphics::ShaderRef shader_;
+	Graphics::ShaderBindingSet bindings_;
 };

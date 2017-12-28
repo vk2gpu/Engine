@@ -5,6 +5,8 @@
 #include "brdf.esh"
 #include "common_bindings.esh"
 
+#include "stdlib/extensions.esh"
+
 struct VS_IN
 {
 	float3 position : POSITION;

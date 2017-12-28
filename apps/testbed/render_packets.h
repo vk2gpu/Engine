@@ -13,10 +13,34 @@
 namespace Testbed
 {
 	using CustomBindFn = Core::Function<bool(Graphics::Shader*, Graphics::ShaderTechnique&)>;
-	using DrawFn = Core::Function<void(GPU::CommandList& cmdList, const char* passName, const GPU::DrawState& drawState,
-	                                  GPU::Handle fbs, GPU::Handle viewCBHandle, GPU::Handle objectSBHandle,
-	                                  CustomBindFn customBindFn),
-	    64>;
+
+	struct DrawContext
+	{
+		DrawContext(GPU::CommandList& cmdList, Graphics::ShaderContext& shaderCtx, const char* passName,
+		    const GPU::DrawState& drawState, GPU::Handle fbs, GPU::Handle viewCBHandle, GPU::Handle objectSBHandle,
+		    Testbed::CustomBindFn customBindFn)
+		    : cmdList_(cmdList)
+		    , shaderCtx_(shaderCtx)
+		    , passName_(passName)
+		    , drawState_(drawState)
+		    , fbs_(fbs)
+		    , viewCBHandle_(viewCBHandle)
+		    , objectSBHandle_(objectSBHandle)
+		    , customBindFn_(customBindFn)
+		{
+		}
+
+		GPU::CommandList& cmdList_;
+		Graphics::ShaderContext& shaderCtx_;
+		const char* passName_;
+		const GPU::DrawState& drawState_;
+		GPU::Handle fbs_;
+		GPU::Handle viewCBHandle_;
+		GPU::Handle objectSBHandle_;
+		Testbed::CustomBindFn customBindFn_;
+	};
+
+	using DrawFn = Core::Function<void(DrawContext& drawCtx), 64>;
 
 	enum class RenderPacketType : i16
 	{
@@ -63,8 +87,7 @@ namespace Testbed
 		Math::Vec3 position_;
 
 		static void DrawPackets(Core::ArrayView<MeshRenderPacket*> packets, Core::ArrayView<i32> passTechIndices,
-		    GPU::CommandList& cmdList, const GPU::DrawState& drawState, GPU::Handle fbs, GPU::Handle viewCBHandle,
-		    GPU::Handle objectSBHandle, CustomBindFn customBindFn);
+		    const Testbed::DrawContext& drawCtx);
 
 		bool IsInstancableWith(const MeshRenderPacket& other) const
 		{

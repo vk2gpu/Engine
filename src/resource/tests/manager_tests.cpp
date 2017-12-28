@@ -32,7 +32,7 @@ namespace
 	class TestResource
 	{
 	public:
-		DECLARE_RESOURCE(TestResource, 0);
+		DECLARE_RESOURCE(TestResource, "TestResource", 0);
 
 	private:
 		friend class TestResourceFactory;

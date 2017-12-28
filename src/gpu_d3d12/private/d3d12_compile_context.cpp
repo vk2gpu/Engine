@@ -89,7 +89,7 @@ namespace GPU
 
 	ErrorCode D3D12CompileContext::CompileCommand(const CommandDraw* command)
 	{
-		SetPipelineBinding(command->pipelineBinding_);
+		SetPipeline(command->pipelineState_, command->pipelineBindings_);
 		SetFrameBinding(command->frameBinding_);
 		SetDrawState(command->drawState_);
 
@@ -128,7 +128,7 @@ namespace GPU
 		const auto* countBuffer =
 		    (command->countBuffer_) ? &backend_.bufferResources_[command->countBuffer_.GetIndex()] : nullptr;
 
-		SetPipelineBinding(command->pipelineBinding_);
+		SetPipeline(command->pipelineState_, command->pipelineBindings_);
 		SetFrameBinding(command->frameBinding_);
 		SetDrawState(command->drawState_);
 		AddTransition(&indirectBuffer, 0, 1, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
@@ -169,7 +169,7 @@ namespace GPU
 
 	ErrorCode D3D12CompileContext::CompileCommand(const CommandDispatch* command)
 	{
-		SetPipelineBinding(command->pipelineBinding_);
+		SetPipeline(command->pipelineState_, command->pipelineBindings_);
 
 		FlushTransitions();
 		d3dCommandList_->Dispatch(command->xGroups_, command->yGroups_, command->zGroups_);
@@ -182,7 +182,7 @@ namespace GPU
 		const auto* countBuffer =
 		    (command->countBuffer_) ? &backend_.bufferResources_[command->countBuffer_.GetIndex()] : nullptr;
 
-		SetPipelineBinding(command->pipelineBinding_);
+		SetPipeline(command->pipelineState_, command->pipelineBindings_);
 		AddTransition(&indirectBuffer, 0, 1, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
 		if(countBuffer)
 			AddTransition(countBuffer, 0, 1, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
@@ -400,61 +400,91 @@ namespace GPU
 		return ErrorCode::OK;
 	}
 
-	ErrorCode D3D12CompileContext::SetPipelineBinding(Handle pbsHandle)
+	ErrorCode D3D12CompileContext::SetPipeline(Handle ps, Core::ArrayView<PipelineBinding> pb)
 	{
-		if(pbsBound_ == pbsHandle)
-			return ErrorCode::OK;
-
-		pbsBound_ = pbsHandle;
-		const auto& pbs = backend_.pipelineBindingSets_[pbsHandle.GetIndex()];
-
 		auto device = backend_.device_;
 
-		// TEST: Copy descriptors.
+		// Setup descriptors.
 		auto& samplerAllocator = device->GetSamplerDescriptorAllocator();
 		auto& viewAllocator = device->GetViewDescriptorAllocator();
+		auto& cbvSubAllocator = device->GetCBVSubAllocator();
+		auto& srvSubAllocator = device->GetSRVSubAllocator();
+		auto& uavSubAllocator = device->GetUAVSubAllocator();
 
-		auto descSamplers = samplerAllocator.Copy(pbs.samplers_, MAX_CBV_BINDINGS, DescriptorHeapSubType::SAMPLER);
-		auto descCBVs = viewAllocator.Alloc(MAX_CBV_BINDINGS, DescriptorHeapSubType::CBV);
-		auto descSRVs = viewAllocator.Alloc(MAX_SRV_BINDINGS, DescriptorHeapSubType::SRV);
-		auto descUAVs = viewAllocator.Alloc(MAX_UAV_BINDINGS, DescriptorHeapSubType::UAV);
+		i32 samplerIncrSize = samplerAllocator.GetHandleIncrementSize();
+		i32 viewIncrSize = viewAllocator.GetHandleIncrementSize();
 
-		if(pbs.cbvs_.size_ > 0)
+		auto descSamplers = samplerAllocator.Alloc(MAX_SAMPLER_BINDINGS, GPU::DescriptorHeapSubType::SAMPLER);
+		auto descCBVs = cbvSubAllocator.Alloc(MAX_CBV_BINDINGS, MAX_CBV_BINDINGS);
+		auto descSRVs = srvSubAllocator.Alloc(MAX_SRV_BINDINGS, MAX_SRV_BINDINGS);
+		auto descUAVs = uavSubAllocator.Alloc(MAX_UAV_BINDINGS, MAX_UAV_BINDINGS);
+
+		DBG_ASSERT(descSamplers.size_ > 0);
+		DBG_ASSERT(descCBVs.size_ > 0);
+		DBG_ASSERT(descSRVs.size_ > 0);
+		DBG_ASSERT(descUAVs.size_ > 0);
+
+		for(const auto& thisPb : pb)
 		{
-			viewDescCopyParams_.dstHandles_.push_back(descCBVs.cpuDescHandle_);
-			viewDescCopyParams_.srcHandles_.push_back(pbs.cbvs_.cpuDescHandle_);
-			viewDescCopyParams_.numHandles_.push_back(pbs.cbvs_.size_);
+			const auto& pbs = backend_.pipelineBindingSets_[thisPb.pbs_.GetIndex()];
+
+			auto OffsetHandle = [](D3D12_CPU_DESCRIPTOR_HANDLE handle, i32 offset, i32 incr) {
+				handle.ptr += offset * incr;
+				return handle;
+			};
+
+			if(pbs.cbvs_.size_ > 0)
+			{
+				viewDescCopyParams_.dstHandles_.push_back(
+				    OffsetHandle(descCBVs.cpuDescHandle_, thisPb.cbvs_.dstOffset_, viewIncrSize));
+				viewDescCopyParams_.srcHandles_.push_back(
+				    OffsetHandle(pbs.cbvs_.cpuDescHandle_, thisPb.cbvs_.srcOffset_, viewIncrSize));
+				viewDescCopyParams_.numHandles_.push_back(pbs.cbvs_.size_);
+			}
+
+			if(pbs.srvs_.size_ > 0)
+			{
+				viewDescCopyParams_.dstHandles_.push_back(
+				    OffsetHandle(descSRVs.cpuDescHandle_, thisPb.srvs_.dstOffset_, viewIncrSize));
+				viewDescCopyParams_.srcHandles_.push_back(
+				    OffsetHandle(pbs.srvs_.cpuDescHandle_, thisPb.srvs_.srcOffset_, viewIncrSize));
+				viewDescCopyParams_.numHandles_.push_back(pbs.srvs_.size_);
+			}
+
+			if(pbs.uavs_.size_ > 0)
+			{
+				viewDescCopyParams_.dstHandles_.push_back(
+				    OffsetHandle(descUAVs.cpuDescHandle_, thisPb.uavs_.dstOffset_, viewIncrSize));
+				viewDescCopyParams_.srcHandles_.push_back(
+				    OffsetHandle(pbs.uavs_.cpuDescHandle_, thisPb.uavs_.srcOffset_, viewIncrSize));
+				viewDescCopyParams_.numHandles_.push_back(pbs.uavs_.size_);
+			}
+
+			if(pbs.samplers_.size_ > 0)
+			{
+				samplerDescCopyParams_.dstHandles_.push_back(
+				    OffsetHandle(descSamplers.cpuDescHandle_, thisPb.samplers_.dstOffset_, samplerIncrSize));
+				samplerDescCopyParams_.srcHandles_.push_back(
+				    OffsetHandle(pbs.samplers_.cpuDescHandle_, thisPb.samplers_.srcOffset_, samplerIncrSize));
+				samplerDescCopyParams_.numHandles_.push_back(pbs.samplers_.size_);
+			}
+
+			// Lazily setup transitions.
+			// TODO: Some better transition management here.
+			// Not all resources nessisarily need transitions.
+			for(i32 i = 0; i < pbs.cbvTransitions_.size(); ++i)
+				if(pbs.cbvTransitions_[i] && pbs.cbvTransitions_[i].resource_->resource_)
+					AddTransition(pbs.cbvTransitions_[i], D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
+
+			for(i32 i = 0; i < pbs.srvTransitions_.size(); ++i)
+				if(pbs.srvTransitions_[i] && pbs.srvTransitions_[i].resource_->resource_)
+					AddTransition(pbs.srvTransitions_[i],
+					    D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+
+			for(i32 i = 0; i < pbs.uavTransitions_.size(); ++i)
+				if(pbs.uavTransitions_[i] && pbs.uavTransitions_[i].resource_->resource_)
+					AddUAVBarrier(pbs.uavTransitions_[i]);
 		}
-
-		if(pbs.srvs_.size_ > 0)
-		{
-			viewDescCopyParams_.dstHandles_.push_back(descSRVs.cpuDescHandle_);
-			viewDescCopyParams_.srcHandles_.push_back(pbs.srvs_.cpuDescHandle_);
-			viewDescCopyParams_.numHandles_.push_back(pbs.srvs_.size_);
-		}
-
-		if(pbs.uavs_.size_ > 0)
-		{
-			viewDescCopyParams_.dstHandles_.push_back(descUAVs.cpuDescHandle_);
-			viewDescCopyParams_.srcHandles_.push_back(pbs.uavs_.cpuDescHandle_);
-			viewDescCopyParams_.numHandles_.push_back(pbs.uavs_.size_);
-		}
-
-		// Lazily setup transitions.
-		// TODO: Some better transition management here.
-		// Not all resources nessisarily need transitions.
-		for(i32 i = 0; i < pbs.cbvTransitions_.size(); ++i)
-			if(pbs.cbvTransitions_[i] && pbs.cbvTransitions_[i].resource_->resource_)
-				AddTransition(pbs.cbvTransitions_[i], D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
-
-		for(i32 i = 0; i < pbs.srvTransitions_.size(); ++i)
-			if(pbs.srvTransitions_[i] && pbs.srvTransitions_[i].resource_->resource_)
-				AddTransition(pbs.srvTransitions_[i],
-				    D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-
-		for(i32 i = 0; i < pbs.uavTransitions_.size(); ++i)
-			if(pbs.uavTransitions_[i] && pbs.uavTransitions_[i].resource_->resource_)
-				AddUAVBarrier(pbs.uavTransitions_[i]);
 
 		ID3D12DescriptorHeap* heaps[] = {
 		    samplerAllocator.GetDescriptorHeap().Get(), viewAllocator.GetDescriptorHeap().Get(),
@@ -467,21 +497,33 @@ namespace GPU
 			descHeapsBound_[1] = heaps[1];
 		}
 
-		if(psBound_ != pbs.pipelineState_.Get())
+		ID3D12PipelineState* d3d12PipelineState = nullptr;
+		RootSignatureType rootSig = RootSignatureType::INVALID;
+		if(ps.GetType() == ResourceType::COMPUTE_PIPELINE_STATE)
 		{
-			d3dCommandList_->SetPipelineState(pbs.pipelineState_.Get());
-			psBound_ = pbs.pipelineState_.Get();
+			d3d12PipelineState = backend_.computePipelineStates_[ps.GetIndex()].pipelineState_.Get();
+			rootSig = RootSignatureType::COMPUTE;
+		}
+		if(ps.GetType() == ResourceType::GRAPHICS_PIPELINE_STATE)
+		{
+			d3d12PipelineState = backend_.graphicsPipelineStates_[ps.GetIndex()].pipelineState_.Get();
+			rootSig = RootSignatureType::GRAPHICS;
+		}
+
+		if(psBound_ != d3d12PipelineState)
+		{
+			d3dCommandList_->SetPipelineState(d3d12PipelineState);
+			psBound_ = d3d12PipelineState;
 		}
 
 		bool rootSigChanged = false;
-		switch(pbs.rootSignature_)
+		switch(rootSig)
 		{
 		case RootSignatureType::GRAPHICS:
-			if(rootSigBound_ != pbs.rootSignature_)
+			if(rootSigBound_ != rootSig)
 			{
-				d3dCommandList_->SetGraphicsRootSignature(
-				    backend_.device_->d3dRootSignatures_[(i32)pbs.rootSignature_].Get());
-				rootSigBound_ = pbs.rootSignature_;
+				d3dCommandList_->SetGraphicsRootSignature(backend_.device_->d3dRootSignatures_[(i32)rootSig].Get());
+				rootSigBound_ = rootSig;
 				rootSigChanged = true;
 			}
 
@@ -511,11 +553,10 @@ namespace GPU
 
 			break;
 		case RootSignatureType::COMPUTE:
-			if(rootSigBound_ != pbs.rootSignature_)
+			if(rootSigBound_ != rootSig)
 			{
-				d3dCommandList_->SetComputeRootSignature(
-				    backend_.device_->d3dRootSignatures_[(i32)pbs.rootSignature_].Get());
-				rootSigBound_ = pbs.rootSignature_;
+				d3dCommandList_->SetComputeRootSignature(backend_.device_->d3dRootSignatures_[(i32)rootSig].Get());
+				rootSigBound_ = rootSig;
 				rootSigChanged = true;
 			}
 

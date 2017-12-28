@@ -31,7 +31,6 @@ namespace GPU
 		    Handle handle, const BufferDesc& desc, const void* initialData, const char* debugName) = 0;
 		virtual ErrorCode CreateTexture(Handle handle, const TextureDesc& desc,
 		    const TextureSubResourceData* initialData, const char* debugName) = 0;
-		virtual ErrorCode CreateSamplerState(Handle handle, const SamplerState& state, const char* debugName) = 0;
 		virtual ErrorCode CreateShader(Handle handle, const ShaderDesc& desc, const char* debugName) = 0;
 		virtual ErrorCode CreateGraphicsPipelineState(
 		    Handle handle, const GraphicsPipelineStateDesc& desc, const char* debugName) = 0;
@@ -46,6 +45,14 @@ namespace GPU
 		virtual ErrorCode CreateCommandList(Handle handle, const char* debugName) = 0;
 		virtual ErrorCode CreateFence(Handle handle, const char* debugName) = 0;
 		virtual ErrorCode DestroyResource(Handle handle) = 0;
+
+		/**
+		 * Binding management.
+		 */
+		virtual ErrorCode UpdatePipelineBindings(Handle handle, i32 base, Core::ArrayView<BindingCBV> descs) = 0;
+		virtual ErrorCode UpdatePipelineBindings(Handle handle, i32 base, Core::ArrayView<BindingSRV> descs) = 0;
+		virtual ErrorCode UpdatePipelineBindings(Handle handle, i32 base, Core::ArrayView<BindingUAV> descs) = 0;
+		virtual ErrorCode UpdatePipelineBindings(Handle handle, i32 base, Core::ArrayView<SamplerState> descs) = 0;
 
 		/**
 		 * Command list management.

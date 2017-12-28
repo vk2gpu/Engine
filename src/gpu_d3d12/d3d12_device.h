@@ -45,14 +45,14 @@ namespace GPU
 		    D3D12FrameBindingSet& outFrameBindingSet, const FrameBindingSetDesc& desc, const char* debugName);
 		void DestroyFrameBindingSet(D3D12FrameBindingSet& frameBindingSet);
 
-		ErrorCode UpdateSRVs(D3D12PipelineBindingSet& pipelineBindingSet, i32 first, i32 num,
-		    D3D12SubresourceRange* resources, const D3D12_SHADER_RESOURCE_VIEW_DESC* descs);
-		ErrorCode UpdateUAVs(D3D12PipelineBindingSet& pipelineBindingSet, i32 first, i32 num,
-		    D3D12SubresourceRange* resources, const D3D12_UNORDERED_ACCESS_VIEW_DESC* descs);
-		ErrorCode UpdateCBVs(D3D12PipelineBindingSet& pipelineBindingSet, i32 first, i32 num,
-		    D3D12SubresourceRange* resources, const D3D12_CONSTANT_BUFFER_VIEW_DESC* descs);
+		ErrorCode UpdateSRVs(D3D12PipelineBindingSet& pbs, i32 first, i32 num, D3D12SubresourceRange* resources,
+		    const D3D12_SHADER_RESOURCE_VIEW_DESC* descs);
+		ErrorCode UpdateUAVs(D3D12PipelineBindingSet& pbs, i32 first, i32 num, D3D12SubresourceRange* resources,
+		    const D3D12_UNORDERED_ACCESS_VIEW_DESC* descs);
+		ErrorCode UpdateCBVs(D3D12PipelineBindingSet& pbs, i32 first, i32 num, D3D12SubresourceRange* resources,
+		    const D3D12_CONSTANT_BUFFER_VIEW_DESC* descs);
 		ErrorCode UpdateSamplers(
-		    D3D12PipelineBindingSet& pipelineBindingSet, i32 first, i32 num, const D3D12_SAMPLER_DESC* descs);
+		    const D3D12PipelineBindingSet& pbs, i32 first, i32 num, const D3D12_SAMPLER_DESC* descs);
 		ErrorCode UpdateFrameBindingSet(D3D12FrameBindingSet& frameBindingSet,
 		    const D3D12_RENDER_TARGET_VIEW_DESC* rtvDescs, const D3D12_DEPTH_STENCIL_VIEW_DESC* dsvDesc);
 
@@ -97,6 +97,10 @@ namespace GPU
 			class D3D12LinearDescriptorAllocator* samplerAllocator_ = nullptr;
 			class D3D12LinearDescriptorAllocator* rtvAllocator_ = nullptr;
 			class D3D12LinearDescriptorAllocator* dsvAllocator_ = nullptr;
+
+			class D3D12LinearDescriptorSubAllocator* cbvSubAllocator_ = nullptr;
+			class D3D12LinearDescriptorSubAllocator* srvSubAllocator_ = nullptr;
+			class D3D12LinearDescriptorSubAllocator* uavSubAllocator_ = nullptr;
 		};
 
 		Core::Array<DescriptorAllocators, MAX_GPU_FRAMES> descriptorAllocators_ = {};
@@ -109,6 +113,21 @@ namespace GPU
 		{
 			return *descriptorAllocators_[frameIdx_ % MAX_GPU_FRAMES].viewAllocator_;
 		}
+
+		D3D12LinearDescriptorSubAllocator& GetCBVSubAllocator()
+		{
+			return *descriptorAllocators_[frameIdx_ % MAX_GPU_FRAMES].cbvSubAllocator_;
+		}
+		D3D12LinearDescriptorSubAllocator& GetSRVSubAllocator()
+		{
+			return *descriptorAllocators_[frameIdx_ % MAX_GPU_FRAMES].srvSubAllocator_;
+		}
+		D3D12LinearDescriptorSubAllocator& GetUAVSubAllocator()
+		{
+			return *descriptorAllocators_[frameIdx_ % MAX_GPU_FRAMES].uavSubAllocator_;
+		}
+
+
 		D3D12LinearDescriptorAllocator& GetRTVDescriptorAllocator()
 		{
 			return *descriptorAllocators_[frameIdx_ % MAX_GPU_FRAMES].rtvAllocator_;

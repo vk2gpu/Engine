@@ -80,10 +80,6 @@ TEST_CASE("graphics-tests-model-draw")
 	REQUIRE(Resource::Manager::RequestResource(model, "model_tests/teapot.obj"));
 	Resource::Manager::WaitForResource(model);
 
-	GPU::SamplerState smpDesc;
-	auto smpHandle = GPU::Manager::CreateSamplerState(smpDesc, "sampler");
-	DBG_ASSERT(smpHandle);
-
 	Graphics::ShaderTechniqueDesc techDesc;
 
 	struct DrawStuff
@@ -115,11 +111,14 @@ TEST_CASE("graphics-tests-model-draw")
 	{
 		auto& cmdList = window.Begin();
 
+		Graphics::ShaderContext shaderCtx(cmdList);
 		for(auto& drawStuff : drawStuffs)
 		{
-			if(auto pbs = drawStuff.tech.GetBinding())
+			GPU::Handle ps;
+			Core::ArrayView<GPU::PipelineBinding> pb;
+			if(shaderCtx.CommitBindings(drawStuff.tech, ps, pb))
 			{
-				cmdList.Draw(pbs, drawStuff.db, engine.fbsHandle, window.drawState_,
+				cmdList.Draw(ps, pb, drawStuff.db, engine.fbsHandle, window.drawState_,
 				    GPU::PrimitiveTopology::TRIANGLE_LIST, drawStuff.draw.indexOffset_, drawStuff.draw.vertexOffset_,
 				    drawStuff.draw.noofIndices_, 0, 1);
 			}
@@ -132,8 +131,6 @@ TEST_CASE("graphics-tests-model-draw")
 	}
 
 	drawStuffs.clear();
-
-	GPU::Manager::DestroyResource(smpHandle);
 
 	REQUIRE(Resource::Manager::ReleaseResource(shader));
 	REQUIRE(Resource::Manager::ReleaseResource(model));

@@ -59,22 +59,24 @@ namespace Testbed
 	void SortPackets(Core::Vector<RenderPacketBase*>& packets) { std::sort(packets.begin(), packets.end()); }
 
 	void MeshRenderPacket::DrawPackets(Core::ArrayView<MeshRenderPacket*> packets, Core::ArrayView<i32> passTechIndices,
-	    GPU::CommandList& cmdList, const GPU::DrawState& drawState, GPU::Handle fbs, GPU::Handle viewCBHandle,
-	    GPU::Handle objectSBHandle, CustomBindFn customBindFn)
+	    const Testbed::DrawContext& drawCtx)
 	{
 		if(packets.size() == 0)
 			return;
 
 		// Allocate command list memory.
-		auto* objects = cmdList.Alloc<Testbed::ObjectConstants>(packets.size());
+		auto* objects = drawCtx.cmdList_.Alloc<Testbed::ObjectConstants>(packets.size());
 
 		// Update all render packet uniforms.
 		for(i32 idx = 0; idx < packets.size(); ++idx)
 			objects[idx] = packets[idx]->object_;
-		cmdList.UpdateBuffer(objectSBHandle, 0, sizeof(Testbed::ObjectConstants) * packets.size(), objects);
+		drawCtx.cmdList_.UpdateBuffer(
+		    drawCtx.objectSBHandle_, 0, sizeof(Testbed::ObjectConstants) * packets.size(), objects);
 
 		i32 baseInstanceIdx = 0;
 		i32 numInstances = 0;
+
+		Graphics::ShaderBindingSet objectBindings = Graphics::Shader::CreateSharedBindingSet("ObjectBindings");
 
 		// Draw all packets, instanced where possible.
 		const Testbed::MeshRenderPacket* nextMeshPacket = nullptr;
@@ -86,8 +88,8 @@ namespace Testbed
 
 			auto& tech = meshPacket->techs_->passTechniques_[passTechIdx];
 			bool doDraw = true;
-			if(customBindFn)
-				doDraw = customBindFn(meshPacket->material_->GetShader(), tech);
+			if(drawCtx.customBindFn_)
+				doDraw = drawCtx.customBindFn_(meshPacket->material_->GetShader(), tech);
 
 			if(doDraw)
 				++numInstances;
@@ -98,17 +100,26 @@ namespace Testbed
 			{
 				if(numInstances > 0)
 				{
-					tech.Set("viewParams", GPU::Binding::CBuffer(viewCBHandle, 0, sizeof(Testbed::ViewConstants)));
-					tech.Set("inObject",
-					    GPU::Binding::Buffer(
-					        objectSBHandle, GPU::Format::INVALID, baseInstanceIdx, numInstances, objectDataSize));
-					if(auto pbs = tech.GetBinding())
+					objectBindings.Set("inObject",
+					    GPU::Binding::Buffer(drawCtx.objectSBHandle_, GPU::Format::INVALID, baseInstanceIdx,
+					        numInstances, objectDataSize));
+					if(auto objectBind = drawCtx.shaderCtx_.BeginBindingScope(objectBindings))
 					{
-						if(auto event = cmdList.Eventf(0x0, "Material: %s", meshPacket->material_->GetName()))
+						if(auto event = drawCtx.cmdList_.Eventf(0x0, "Material: %s", meshPacket->material_->GetName()))
 						{
-							cmdList.Draw(pbs, meshPacket->db_, fbs, drawState, GPU::PrimitiveTopology::TRIANGLE_LIST,
-							    meshPacket->draw_.indexOffset_, meshPacket->draw_.vertexOffset_,
-							    meshPacket->draw_.noofIndices_, 0, numInstances);
+							if(auto materialBind =
+							        drawCtx.shaderCtx_.BeginBindingScope(meshPacket->material_->GetBindingSet()))
+							{
+								GPU::Handle ps;
+								Core::ArrayView<GPU::PipelineBinding> pb;
+								if(drawCtx.shaderCtx_.CommitBindings(tech, ps, pb))
+								{
+									drawCtx.cmdList_.Draw(ps, pb, meshPacket->db_, drawCtx.fbs_, drawCtx.drawState_,
+									    GPU::PrimitiveTopology::TRIANGLE_LIST, meshPacket->draw_.indexOffset_,
+									    meshPacket->draw_.vertexOffset_, meshPacket->draw_.noofIndices_, 0,
+									    numInstances);
+								}
+							}
 						}
 					}
 				}

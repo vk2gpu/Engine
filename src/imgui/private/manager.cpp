@@ -126,26 +126,20 @@ namespace ImGui
 		gpsHandle_ = GPU::Manager::CreateGraphicsPipelineState(gpsDesc, "ImGui GPS");
 		DBG_ASSERT(gpsHandle_);
 
-		GPU::SamplerState smpDesc;
-		smpHandle_ = GPU::Manager::CreateSamplerState(smpDesc, "ImGui Sampler");
-		DBG_ASSERT(smpHandle_);
-
 		GPU::PipelineBindingSetDesc pbsDesc;
-		pbsDesc.pipelineState_ = gpsHandle_;
 		pbsDesc.numSRVs_ = 1;
 		pbsDesc.numSamplers_ = 1;
-		pbsDesc.srvs_[0].resource_ = fontHandle_;
-		pbsDesc.srvs_[0].dimension_ = GPU::ViewDimension::TEX2D;
-		pbsDesc.srvs_[0].format_ = fontDesc.format_;
-		pbsDesc.srvs_[0].mipLevels_NumElements_ = -1;
-		pbsDesc.samplers_[0].resource_ = smpHandle_;
 		pbsHandle_ = GPU::Manager::CreatePipelineBindingSet(pbsDesc, "ImGui PBS");
+
+		// Update pipeline bindings.
+		GPU::BindingSRV srv = GPU::Binding::Texture2D(fontHandle_, GPU::Format::INVALID, 0, 1);
+		GPU::Manager::UpdatePipelineBindings(pbsHandle_, 0, srv);
+		GPU::Manager::UpdatePipelineBindings(pbsHandle_, 0, GPU::SamplerState());
 
 		// Setup keymap.
 		keyMap_[ImGuiKey_Tab] = (int)Client::KeyCode::TAB;
 		keyMap_[ImGuiKey_LeftArrow] = (i32)Client::KeyCode::LEFT;
 		keyMap_[ImGuiKey_RightArrow] = (i32)Client::KeyCode::RIGHT;
-		;
 		keyMap_[ImGuiKey_UpArrow] = (i32)Client::KeyCode::UP;
 		keyMap_[ImGuiKey_DownArrow] = (i32)Client::KeyCode::DOWN;
 		keyMap_[ImGuiKey_PageUp] = (i32)Client::KeyCode::PAGEUP;
@@ -389,7 +383,12 @@ namespace ImGui
 					drawState.scissorRect_.w_ = (i32)(cmd->ClipRect.z - cmd->ClipRect.x);
 					drawState.scissorRect_.h_ = (i32)(cmd->ClipRect.w - cmd->ClipRect.y);
 
-					cmdList.Draw(pbsHandle_, dbsHandle_, fbs, drawState, GPU::PrimitiveTopology::TRIANGLE_LIST,
+					GPU::PipelineBinding pb;
+					pb.pbs_ = pbsHandle_;
+					pb.srvs_.num_ = 1;
+					pb.samplers_.num_ = 1;
+
+					cmdList.Draw(gpsHandle_, pb, dbsHandle_, fbs, drawState, GPU::PrimitiveTopology::TRIANGLE_LIST,
 					    indexOffset, 0, cmd->ElemCount, 0, 1);
 				}
 				indexOffset += cmd->ElemCount;

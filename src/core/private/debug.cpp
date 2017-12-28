@@ -1,6 +1,8 @@
 #include "core/debug.h"
 #include "core/concurrency.h"
 #include "core/os.h"
+#include "core/string.h"
+#include "core/vector.h"
 
 #include "Remotery.h"
 
@@ -10,63 +12,76 @@ namespace Core
 {
 	namespace
 	{
-		char* GetMessageBuffer(i32& size)
+		struct LogContext
+		{
+			static const int BUFFER_SIZE = 64 * 1024;
+			LogContext()
+			    : buffer_(BUFFER_SIZE)
+			{
+			}
+
+			~LogContext() {}
+
+			Core::Vector<char> buffer_;
+		};
+
+		LogContext* GetLogContext()
 		{
 			static TLS tls;
-			size = 64 * 1024;
 			if(tls.Get() == nullptr)
 			{
-				char* buffer = new char[size];
-				tls.Set(buffer);
+				auto* context = new LogContext;
+				tls.Set(context);
 			}
-			return (char*)tls.Get();
+
+			return (LogContext*)tls.Get();
 		}
 	}
 
-	void LogV(const char* Text, va_list ArgList)
+	void LogV(const char* text, va_list argList)
 	{
-		i32 MessageBufferSize = 0;
-		char* MessageBuffer = GetMessageBuffer(MessageBufferSize);
+		LogContext* context = GetLogContext();
+		i32 bufferSize = context->buffer_.size();
 
 #if COMPILER_MSVC
-		vsprintf_s(MessageBuffer, MessageBufferSize, Text, ArgList);
+		vsprintf_s(context->buffer_.data(), bufferSize, text, argList);
 #else
-		vsprintf(MessageBuffer, Text, ArgList);
+		vsprintf(context, text, argList);
 #endif
 
 #if PLATFORM_WINDOWS
-		::OutputDebugStringA(MessageBuffer);
+		::OutputDebugStringA(context->buffer_.data());
 #endif
 
 #if PLATFORM_ANDROID
-		__android_log_print(ANDROID_LOG_INFO, "Engine", MessageBuffer);
+		__android_log_print(ANDROID_LOG_INFO, "Engine", context);
 #endif
-		printf("%s", MessageBuffer);
-		rmt_LogText(MessageBuffer);
+		printf("%s", context->buffer_.data());
+		rmt_LogText(context->buffer_.data());
 	}
 
-	void Log(const char* Text, ...)
+	void Log(const char* text, ...)
 	{
-		va_list ArgList;
-		va_start(ArgList, Text);
-		LogV(Text, ArgList);
-		va_end(ArgList);
+		va_list argList;
+		va_start(argList, text);
+		LogV(text, argList);
+		va_end(argList);
 	}
 
 	bool AssertInternal(const char* Message, const char* File, int Line, ...)
 	{
 #if defined(DEBUG) || defined(RELEASE)
-		char MessageBuffer[4096];
-		va_list ArgList;
-		va_start(ArgList, Line);
+		char context[4096];
+		va_list argList;
+		va_start(argList, Line);
 #if COMPILER_MSVC
-		vsprintf_s(MessageBuffer, sizeof(MessageBuffer), Message, ArgList);
+		vsprintf_s(context, sizeof(context), Message, argList);
 #else
-		vsprintf(MessageBuffer, Message, ArgList);
+		vsprintf(context, Message, argList);
 #endif
-		va_end(ArgList);
+		va_end(argList);
 
-		Log("\"%s\" in %s on line %u.\n\nDo you wish to break?", MessageBuffer, File, Line);
+		Log("\"%s\" in %s on line %u.\n\nDo you wish to break?", context, File, Line);
 
 		return true;
 #else

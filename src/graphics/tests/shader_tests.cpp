@@ -94,13 +94,14 @@ namespace
 				Math::Vec2 uv;
 			};
 
-			techDesc_ = Graphics::ShaderTechniqueDesc()
-			                .SetVertexElement(0, GPU::VertexElement(0, 0, GPU::Format::R32G32B32A32_FLOAT,
-			                                         GPU::VertexUsage::POSITION, 0))
-			                .SetVertexElement(
-			                    1, GPU::VertexElement(0, 16, GPU::Format::R32G32_FLOAT, GPU::VertexUsage::TEXCOORD, 0))
-			                .SetTopology(GPU::TopologyType::TRIANGLE)
-			                .SetRTVFormat(0, GPU::Format::R8G8B8A8_UNORM);
+			techDesc_ =
+			    Graphics::ShaderTechniqueDesc()
+			        .SetVertexElement(
+			            0, GPU::VertexElement(0, 0, GPU::Format::R32G32B32A32_FLOAT, GPU::VertexUsage::POSITION, 0))
+			        .SetVertexElement(
+			            1, GPU::VertexElement(0, 16, GPU::Format::R32G32_FLOAT, GPU::VertexUsage::TEXCOORD, 0))
+			        .SetTopology(GPU::TopologyType::TRIANGLE)
+			        .SetRTVFormat(0, GPU::Format::R8G8B8A8_UNORM);
 
 			const Vertex vertices[] = {
 			    {{0.0f, 0.0f, 0.0f, 1.0f}, {0.0f, 0.0f}}, {{0.5f, 0.0f, 0.0f, 1.0f}, {1.0f, 0.0f}},
@@ -133,10 +134,6 @@ namespace
 
 			REQUIRE(Resource::Manager::RequestResource(texture_, "test_texture.png"));
 			Resource::Manager::WaitForResource(texture_);
-
-			GPU::SamplerState smpDesc;
-			smpHandle_ = GPU::Manager::CreateSamplerState(smpDesc, "sampler");
-			DBG_ASSERT(smpHandle_);
 		}
 
 		~TriangleDrawer()
@@ -146,37 +143,26 @@ namespace
 			GPU::Manager::DestroyResource(vbHandle_);
 			GPU::Manager::DestroyResource(ibHandle_);
 			GPU::Manager::DestroyResource(dbsHandle_);
-			GPU::Manager::DestroyResource(smpHandle_);
 		}
 
-		void Draw(GPU::Handle fbs, GPU::DrawState drawState, Graphics::ShaderTechnique& tech, GPU::CommandList& cmdList,
-		    i32 numInstanes = 1)
+		void Draw(GPU::Handle fbs, GPU::DrawState drawState, Graphics::ShaderContext& shaderCtx,
+		    Graphics::ShaderTechnique& tech, GPU::CommandList& cmdList, i32 numInstanes = 1)
 		{
-			if(auto pbs = tech.GetBinding())
+			GPU::Handle ps;
+			Core::ArrayView<GPU::PipelineBinding> pb;
+			if(shaderCtx.CommitBindings(tech, ps, pb))
 			{
 				cmdList.Draw(
-				    pbs, dbsHandle_, fbs, drawState, GPU::PrimitiveTopology::TRIANGLE_LIST, 0, 0, 3, 0, numInstanes);
+				    ps, pb, dbsHandle_, fbs, drawState, GPU::PrimitiveTopology::TRIANGLE_LIST, 0, 0, 3, 0, numInstanes);
 			}
 		}
 
-#if 0
-		void Draw(GPU::Handle fbs, GPU::DrawState drawState, Graphics::ShaderContext& shaderContext, Graphics::ShaderTechnique& tech, GPU::CommandList& cmdList,
-		    i32 numInstanes = 1)
-		{
-			if(auto pbs = tech.GetBinding(shaderContext))
-			{
-				cmdList.Draw(
-				    pbs, dbsHandle_, fbs, drawState, GPU::PrimitiveTopology::TRIANGLE_LIST, 0, 0, 3, 0, numInstanes);
-			}
-		}
-#endif
 		Graphics::ShaderTechniqueDesc techDesc_;
 
 		GPU::Handle vbHandle_;
 		GPU::Handle ibHandle_;
 		GPU::Handle dbsHandle_;
 		Graphics::Texture* texture_ = nullptr;
-		GPU::Handle smpHandle_;
 	};
 }
 
@@ -209,6 +195,9 @@ TEST_CASE("graphics-tests-shader-graphics-create-technique")
 	{
 		auto& cmdList = window.Begin();
 
+		Graphics::ShaderContext shaderCtx(cmdList);
+
+#if 0
 		const auto texIdx = shader->GetBindingIndex("tex_diffuse");
 		const auto samplerIdx = shader->GetBindingIndex("SS_DEFAULT");
 		if(texIdx >= 0)
@@ -216,8 +205,9 @@ TEST_CASE("graphics-tests-shader-graphics-create-technique")
 			                           drawer.texture_->GetDesc().levels_));
 		if(samplerIdx >= 0)
 			techUpdate.SetSampler(samplerIdx, drawer.smpHandle_);
+#endif
 
-		drawer.Draw(window.fbsHandle_, window.drawState_, techUpdate, cmdList);
+		drawer.Draw(window.fbsHandle_, window.drawState_, shaderCtx, techUpdate, cmdList);
 
 		window.End();
 
@@ -329,6 +319,9 @@ TEST_CASE("graphics-tests-shader-compute-create-technique")
 	{
 		auto& cmdList = window.Begin();
 
+		Graphics::ShaderContext shaderCtx(cmdList);
+
+#if 0
 		const auto particleParamsIdx = shader->GetBindingIndex("particleParams");
 		const auto cameraIdx = shader->GetBindingIndex("cameraParams");
 		const auto inoutParticlesIdx = shader->GetBindingIndex("inout_particles");
@@ -360,8 +353,9 @@ TEST_CASE("graphics-tests-shader-compute-create-technique")
 
 		cmdList.Dispatch(techUpdate.GetBinding(), Core::Min(numParticles, maxParticleWidth),
 		    Core::Max(1, numParticles / maxParticleWidth), 1);
+#endif
 
-		drawer.Draw(window.fbsHandle_, window.drawState_, techDraw, cmdList, numParticles);
+		drawer.Draw(window.fbsHandle_, window.drawState_, shaderCtx, techDraw, cmdList, numParticles);
 
 		params.time += params.tick;
 		cmdList.UpdateBuffer(particleParams, 0, sizeof(params), &params);
@@ -380,7 +374,6 @@ TEST_CASE("graphics-tests-shader-compute-create-technique")
 	REQUIRE(Resource::Manager::ReleaseResource(shader));
 }
 
-#if 0
 TEST_CASE("graphics-tests-shader-graphics-binding-sets")
 {
 	ScopedEngine engine;
@@ -395,29 +388,28 @@ TEST_CASE("graphics-tests-shader-graphics-binding-sets")
 	auto techUpdate = shader->CreateTechnique("TECH_MAIN", drawer.techDesc_);
 	auto techShadow = shader->CreateTechnique("TECH_SHADOW", drawer.techDesc_);
 
-	auto viewBindingSet = shader->CreateBindingSet("view_binding_set");
-	auto objectBindingSet = shader->CreateBindingSet("object_binding_set");
-	auto materialBindingSet = shader->CreateBindingSet("material_binding_set");
-
-	Graphics::ShaderContext shaderContext;
+	auto viewBindingSet = shader->CreateBindingSet("ViewBindings");
+	auto objectBindingSet = shader->CreateBindingSet("ObjectBindings");
+	auto materialBindingSet = shader->CreateBindingSet("MaterialBindings");
 
 	i32 testRunCounter = GPU::MAX_GPU_FRAMES * 10;
 	while(Client::Manager::Update() && (Core::IsDebuggerAttached() || testRunCounter-- > 0))
 	{
 		auto& cmdList = window.Begin();
+		Graphics::ShaderContext shaderContext(cmdList);
 
-		if(auto viewScope = shaderContext.BeginBindingScope(viewBindingSet))
+		if(auto viewBind = shaderContext.BeginBindingScope(viewBindingSet))
 		{
-			if(auto materialScope = shaderContext.BeginBindingScope(materialBindingSet))
+			if(auto materialBind = shaderContext.BeginBindingScope(materialBindingSet))
 			{
 				materialBindingSet.Set("tex_diffuse",
-					GPU::Binding::Texture2D(drawer.texture_->GetHandle(), GPU::Format::INVALID, 0,
-					   drawer.texture_->GetDesc().levels_));
-				materialBindingSet.SetSampler("SS_DEFAULT", drawer.smpHandle_);
+				    GPU::Binding::Texture2D(
+				        drawer.texture_->GetHandle(), GPU::Format::INVALID, 0, drawer.texture_->GetDesc().levels_));
+				materialBindingSet.Set("SS_DEFAULT", GPU::SamplerState());
 
 				if(auto objectScope = shaderContext.BeginBindingScope(objectBindingSet))
 				{
-					drawer.Draw(window.fbsHandle_, window.drawState_, shaderContext, techUpdate, cmdList);	
+					drawer.Draw(window.fbsHandle_, window.drawState_, shaderContext, techUpdate, cmdList);
 				}
 			}
 		}
@@ -435,5 +427,3 @@ TEST_CASE("graphics-tests-shader-graphics-binding-sets")
 
 	REQUIRE(Resource::Manager::ReleaseResource(shader));
 }
-
-#endif

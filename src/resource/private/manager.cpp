@@ -597,6 +597,11 @@ namespace Resource
 			{
 				ConverterContext converterContext(&impl_->pathResolver_);
 				success_ = converterContext.Convert(converter, name_.c_str(), convertedPath_.c_str());
+
+				if(!success_ && Core::IsDebuggerAttached())
+				{
+					DBG_BREAK;
+				}
 			}
 			converterPlugin.DestroyConverter(converter);
 			if(success_)
@@ -658,6 +663,7 @@ namespace Resource
 
 	bool Manager::RequestResource(void*& outResource, const char* name, const Core::UUID& type)
 	{
+		DBG_ASSERT(name != nullptr);
 		DBG_ASSERT(IsInitialized());
 		DBG_ASSERT(outResource == nullptr);
 

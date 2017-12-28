@@ -16,13 +16,13 @@
 
 namespace GPU
 {
+	bool operator!=(const SamplerState& a, const SamplerState& b) { return memcmp(&a, &b, sizeof(a)) != 0; }
+
+	bool operator!=(const BindingCBV& a, const BindingCBV& b) { return memcmp(&a, &b, sizeof(a)) != 0; }
+
 	bool operator!=(const BindingSRV& a, const BindingSRV& b) { return memcmp(&a, &b, sizeof(a)) != 0; }
 
 	bool operator!=(const BindingUAV& a, const BindingUAV& b) { return memcmp(&a, &b, sizeof(a)) != 0; }
-
-	bool operator!=(const BindingBuffer& a, const BindingBuffer& b) { return memcmp(&a, &b, sizeof(a)) != 0; }
-
-	bool operator!=(const BindingSampler& a, const BindingSampler& b) { return a.resource_ != a.resource_; }
 }
 
 namespace Graphics
@@ -32,28 +32,34 @@ namespace Graphics
 		SERIALIZE_MEMBER(magic_);
 		SERIALIZE_MEMBER(majorVersion_);
 		SERIALIZE_MEMBER(minorVersion_);
-		SERIALIZE_MEMBER(numCBuffers_);
-		SERIALIZE_MEMBER(numSRVs_);
-		SERIALIZE_MEMBER(numUAVs_);
-		SERIALIZE_MEMBER(numSamplers_);
 		SERIALIZE_MEMBER(numShaders_);
 		SERIALIZE_MEMBER(numTechniques_);
 		SERIALIZE_MEMBER(numSamplerStates_);
+		SERIALIZE_MEMBER(numBindingSets_);
+		return true;
+	}
+
+	bool ShaderBindingSetHeader::Serialize(Serialization::Serializer& serializer)
+	{
+		SERIALIZE_STRING_MEMBER(name_);
+		SERIALIZE_MEMBER(isShared_);
+		SERIALIZE_MEMBER(frequency_);
+		SERIALIZE_MEMBER(numCBVs_);
+		SERIALIZE_MEMBER(numSRVs_);
+		SERIALIZE_MEMBER(numUAVs_);
+		SERIALIZE_MEMBER(numSamplers_);
 		return true;
 	}
 
 	bool ShaderBindingHeader::Serialize(Serialization::Serializer& serializer)
 	{
 		SERIALIZE_STRING_MEMBER(name_);
+		serializer.Serialize("handle_", (u32&)handle_);
 		return true;
 	}
 
 	bool ShaderBytecodeHeader::Serialize(Serialization::Serializer& serializer)
 	{
-		SERIALIZE_MEMBER(numCBuffers_);
-		SERIALIZE_MEMBER(numSamplers_);
-		SERIALIZE_MEMBER(numSRVs_);
-		SERIALIZE_MEMBER(numUAVs_);
 		SERIALIZE_MEMBER(type_);
 		SERIALIZE_MEMBER(offset_);
 		SERIALIZE_MEMBER(numBytes_);
@@ -115,13 +121,20 @@ namespace Graphics
 			const bool isReload = shader->IsReady();
 			DBG_ASSERT(shader->impl_ == nullptr || isReload);
 
+			ShaderImpl* impl = nullptr;
 			Graphics::ShaderHeader header;
 			i32 readBytes = 0;
+
+			auto OnFailure = [impl](const char* error) {
+				DBG_LOG("ShaderFactory: Failed to load. Error: %s\n", error);
+				delete impl;
+			};
 
 			// Read in desc.
 			readBytes = sizeof(header);
 			if(inFile.Read(&header, readBytes) != readBytes)
 			{
+				OnFailure("Failed to read shader header");
 				return false;
 			}
 
@@ -131,23 +144,41 @@ namespace Graphics
 
 			// Check version.
 			if(header.majorVersion_ != Graphics::ShaderHeader::MAJOR_VERSION)
+			{
+				OnFailure("Shader major version mismatch.");
 				return false;
+			}
 
 			if(header.minorVersion_ != Graphics::ShaderHeader::MINOR_VERSION)
 				DBG_LOG("Minor version differs from expected. Can still load successfully.");
 
 			// Creating shader impl.
-			auto* impl = new ShaderImpl();
+			impl = new ShaderImpl();
 			impl->name_ = name;
 			impl->header_ = header;
 
-			auto OnFailure = [impl]() { delete impl; };
+			impl->bindingSetHeaders_.resize(header.numBindingSets_);
+			readBytes = impl->bindingSetHeaders_.size() * sizeof(ShaderBindingSetHeader);
+			if(inFile.Read(impl->bindingSetHeaders_.data(), readBytes) != readBytes)
+			{
+				OnFailure("Unable to read binding set headers.");
+				return false;
+			}
 
-			impl->bindingHeaders_.resize(header.numCBuffers_ + header.numSRVs_ + header.numUAVs_ + header.numSamplers_);
+			i32 numBindings = 0;
+			for(const auto& bindingSet : impl->bindingSetHeaders_)
+			{
+				numBindings += bindingSet.numCBVs_;
+				numBindings += bindingSet.numSRVs_;
+				numBindings += bindingSet.numUAVs_;
+				numBindings += bindingSet.numSamplers_;
+			}
+
+			impl->bindingHeaders_.resize(numBindings);
 			readBytes = impl->bindingHeaders_.size() * sizeof(ShaderBindingHeader);
 			if(inFile.Read(impl->bindingHeaders_.data(), readBytes) != readBytes)
 			{
-				OnFailure();
+				OnFailure("Unable to read binding headers.");
 				return false;
 			}
 
@@ -155,32 +186,21 @@ namespace Graphics
 			readBytes = impl->bytecodeHeaders_.size() * sizeof(ShaderBytecodeHeader);
 			if(inFile.Read(impl->bytecodeHeaders_.data(), readBytes) != readBytes)
 			{
-				OnFailure();
+				OnFailure("Unable to read bytecode headers.");
 				return false;
 			}
 
-			i32 numBindingMappings = 0;
 			i32 bytecodeSize = 0;
 			for(const auto& bytecodeHeader : impl->bytecodeHeaders_)
 			{
-				numBindingMappings += bytecodeHeader.numCBuffers_ + bytecodeHeader.numSamplers_ +
-				                      bytecodeHeader.numSRVs_ + bytecodeHeader.numUAVs_;
 				bytecodeSize = Core::Max(bytecodeSize, bytecodeHeader.offset_ + bytecodeHeader.numBytes_);
-			}
-
-			impl->bindingMappings_.resize(numBindingMappings);
-			readBytes = impl->bindingMappings_.size() * sizeof(ShaderBindingMapping);
-			if(inFile.Read(impl->bindingMappings_.data(), readBytes) != readBytes)
-			{
-				OnFailure();
-				return false;
 			}
 
 			impl->techniqueHeaders_.resize(header.numTechniques_);
 			readBytes = impl->techniqueHeaders_.size() * sizeof(ShaderTechniqueHeader);
 			if(inFile.Read(impl->techniqueHeaders_.data(), readBytes) != readBytes)
 			{
-				OnFailure();
+				OnFailure("Unable to read technique headers.");
 				return false;
 			}
 
@@ -188,7 +208,7 @@ namespace Graphics
 			readBytes = impl->samplerStateHeaders_.size() * sizeof(ShaderSamplerStateHeader);
 			if(inFile.Read(impl->samplerStateHeaders_.data(), readBytes) != readBytes)
 			{
-				OnFailure();
+				OnFailure("Unable to read sampler state headers.");
 				return false;
 			}
 
@@ -196,7 +216,7 @@ namespace Graphics
 			readBytes = impl->bytecode_.size();
 			if(inFile.Read(impl->bytecode_.data(), readBytes) != readBytes)
 			{
-				OnFailure();
+				OnFailure("Unable to read bytecode.");
 				return false;
 			}
 
@@ -204,9 +224,7 @@ namespace Graphics
 			GPU::Handle handle;
 			if(GPU::Manager::IsInitialized())
 			{
-				const ShaderBindingMapping* mapping = impl->bindingMappings_.data();
 				impl->shaders_.reserve(impl->shaders_.size());
-				impl->shaderBindingMappings_.reserve(impl->shaders_.size());
 				for(const auto& bytecode : impl->bytecodeHeaders_)
 				{
 					GPU::ShaderDesc desc;
@@ -216,31 +234,65 @@ namespace Graphics
 					handle = GPU::Manager::CreateShader(desc, name);
 					if(!handle)
 					{
-						OnFailure();
+						OnFailure("Unable to create shader.");
 						return false;
 					}
 
 					impl->shaders_.push_back(handle);
-
-					impl->shaderBindingMappings_.push_back(mapping);
-
-					mapping += (bytecode.numCBuffers_ + bytecode.numSamplers_ + bytecode.numSRVs_ + bytecode.numUAVs_);
 				}
 
 				impl->samplerStates_.reserve(impl->samplerStateHeaders_.size());
-				for(const auto& samplerStateHeader : impl->samplerStateHeaders_)
-				{
-					handle = GPU::Manager::CreateSamplerState(samplerStateHeader.state_, samplerStateHeader.name_);
-					if(!handle)
-					{
-						OnFailure();
-						return false;
-					}
-					impl->samplerStates_.push_back(handle);
-				}
 
 				// Bytecode no longer needed once created.
 				impl->bytecode_.clear();
+			}
+
+			// Add binding sets to the factory.
+			if(auto writeLock = Core::ScopedWriteLock(rwLock_))
+			{
+				i32 handleOffset = 0;
+				for(const auto& bindingSetHeader : impl->bindingSetHeaders_)
+				{
+					const i32 numHandles = bindingSetHeader.numCBVs_ + bindingSetHeader.numSRVs_ +
+					                       bindingSetHeader.numUAVs_ + bindingSetHeader.numSamplers_;
+
+					auto it = std::find_if(bindingSetHeaders_.begin(), bindingSetHeaders_.end(),
+					    [&bindingSetHeader](const ShaderBindingSetHeader& other) {
+						    return memcmp(&bindingSetHeader, &other, sizeof(ShaderBindingSetHeader)) == 0;
+						});
+
+					if(it == bindingSetHeaders_.end())
+					{
+						bindingSetHeaders_.push_back(bindingSetHeader);
+
+						const auto* handleBegin = impl->bindingHeaders_.data() + handleOffset;
+						const auto* handleEnd = handleBegin + numHandles;
+
+						BindingSetHandles handles;
+						handles.headers_.insert(handleBegin, handleEnd);
+						bindingSetHandles_.emplace_back(std::move(handles));
+					}
+
+					handleOffset += numHandles;
+				}
+			}
+
+			// Remap binding set indices.
+			if(auto readLock = Core::ScopedReadLock(rwLock_))
+			{
+				for(auto& techHeaders : impl->techniqueHeaders_)
+				{
+					for(i32& idx : techHeaders.bindingSets_)
+					{
+						if(idx == -1)
+							break;
+
+						const auto& bindingSetHeader = impl->bindingSetHeaders_[idx];
+
+						idx = FindBindingSetIdx(bindingSetHeader);
+						DBG_ASSERT(idx >= 0);
+					}
+				}
 			}
 
 			if(isReload)
@@ -274,6 +326,42 @@ namespace Graphics
 
 			return true;
 		}
+
+		i32 FindBindingSetIdx(const char* name)
+		{
+			for(i32 idx = 0; idx < bindingSetHeaders_.size(); ++idx)
+			{
+				const auto& bindingSetHeader = bindingSetHeaders_[idx];
+				if(strcmp(name, bindingSetHeader.name_) == 0)
+				{
+					return idx;
+				}
+			}
+			return -1;
+		}
+
+		i32 FindBindingSetIdx(const ShaderBindingSetHeader& header)
+		{
+			for(i32 idx = 0; idx < bindingSetHeaders_.size(); ++idx)
+			{
+				const auto& bindingSetHeader = bindingSetHeaders_[idx];
+				if(memcmp(&header, &bindingSetHeader, sizeof(ShaderBindingSetHeader)) == 0)
+				{
+					return idx;
+				}
+			}
+			return -1;
+		}
+
+		Core::RWLock rwLock_;
+		Core::Vector<ShaderBindingSetHeader> bindingSetHeaders_;
+
+		struct BindingSetHandles
+		{
+			Core::Vector<ShaderBindingHeader> headers_;
+		};
+
+		Core::Vector<BindingSetHandles> bindingSetHandles_;
 	};
 
 	DEFINE_RESOURCE(Shader);
@@ -288,8 +376,6 @@ namespace Graphics
 		delete impl_;
 	}
 
-	i32 Shader::GetBindingIndex(const char* name) const { return impl_->GetBindingIndex(name); }
-
 	ShaderTechnique Shader::CreateTechnique(const char* name, const ShaderTechniqueDesc& desc)
 	{
 		ShaderTechnique tech;
@@ -297,6 +383,65 @@ namespace Graphics
 		return tech;
 	}
 
+	ShaderBindingSet Shader::CreateBindingSet(const char* name)
+	{
+		ShaderBindingSet bindingSet;
+		bindingSet.impl_ = impl_->CreateBindingSet(name);
+#ifndef FINAL
+		if(bindingSet.impl_)
+			bindingSet.name_ = bindingSet.impl_->header_.name_;
+#endif
+		return bindingSet;
+	}
+
+	ShaderBindingSet Shader::CreateSharedBindingSet(const char* name)
+	{
+		auto CreateBindingSetInternal = [](const char* name) {
+			ShaderBindingSetImpl* bindingSet = nullptr;
+			auto* factory = Shader::GetFactory();
+			if(auto readLock = Core::ScopedReadLock(factory->rwLock_))
+			{
+				i32 idx = factory->FindBindingSetIdx(name);
+				if(idx >= 0)
+				{
+					const auto& bindingSetHeader = factory->bindingSetHeaders_[idx];
+					if(strcmp(name, bindingSetHeader.name_) == 0)
+					{
+						bindingSet = new ShaderBindingSetImpl();
+						bindingSet->header_ = bindingSetHeader;
+						bindingSet->idx_ = idx;
+
+						if(GPU::Manager::IsInitialized())
+						{
+							GPU::PipelineBindingSetDesc desc;
+							desc.numCBVs_ = bindingSetHeader.numCBVs_;
+							desc.numSRVs_ = bindingSetHeader.numSRVs_;
+							desc.numUAVs_ = bindingSetHeader.numUAVs_;
+							desc.numSamplers_ = bindingSetHeader.numSamplers_;
+
+							bindingSet->pbs_ =
+							    GPU::Manager::CreatePipelineBindingSet(desc, "SHARED/%s", bindingSet->header_.name_);
+						}
+
+						bindingSet->cbvs_.resize(bindingSetHeader.numCBVs_);
+						bindingSet->srvs_.resize(bindingSetHeader.numSRVs_);
+						bindingSet->uavs_.resize(bindingSetHeader.numUAVs_);
+						bindingSet->samplers_.resize(bindingSetHeader.numSamplers_);
+					}
+				}
+			}
+			return bindingSet;
+		};
+
+		ShaderBindingSet bindingSet;
+		bindingSet.impl_ = CreateBindingSetInternal(name);
+
+#ifndef FINAL
+		if(bindingSet.impl_)
+			bindingSet.name_ = bindingSet.impl_->header_.name_;
+#endif
+		return bindingSet;
+	}
 
 	ShaderTechnique::ShaderTechnique() {}
 
@@ -305,10 +450,6 @@ namespace Graphics
 		if(impl_)
 		{
 			Job::ScopedWriteLock lock(impl_->shader_->rwLock_);
-
-			if(GPU::Manager::IsInitialized())
-				if(impl_->bsHandle_)
-					GPU::Manager::DestroyResource(impl_->bsHandle_);
 
 			auto it = std::find(impl_->shader_->techniques_.begin(), impl_->shader_->techniques_.end(), impl_);
 			DBG_ASSERT(it != impl_->shader_->techniques_.end());
@@ -329,174 +470,6 @@ namespace Graphics
 	{
 		std::swap(impl_, other.impl_);
 		return *this;
-	}
-
-	void ShaderTechnique::SetSampler(i32 idx, GPU::Handle res)
-	{
-		idx -= impl_->samplerOffset_;
-		DBG_ASSERT(idx >= 0 && idx < impl_->samplers_.size());
-		DBG_ASSERT(GPU::Manager::GetHandleAllocator().IsValid(res));
-		GPU::BindingSampler binding;
-		binding.resource_ = res;
-		if(binding != impl_->samplers_[idx])
-		{
-			impl_->samplers_[idx] = binding;
-			impl_->bsDirty_ = true;
-		}
-	}
-
-	bool ShaderTechnique::Set(i32 idx, const GPU::BindingCBV& binding)
-	{
-		idx -= impl_->cbvOffset_;
-		if(idx >= 0 && idx < impl_->cbvs_.size())
-		{
-			if(binding != impl_->cbvs_[idx])
-			{
-				impl_->cbvs_[idx] = binding;
-				impl_->bsDirty_ = true;
-			}
-			return true;
-		}
-		return false;
-	}
-
-	bool ShaderTechnique::Set(i32 idx, const GPU::BindingSRV& binding)
-	{
-		idx -= impl_->srvOffset_;
-		if(idx >= 0 && idx < impl_->srvs_.size())
-		{
-			if(binding != impl_->srvs_[idx])
-			{
-				impl_->srvs_[idx] = binding;
-				impl_->bsDirty_ = true;
-			}
-			return true;
-		}
-		return false;
-	}
-
-	bool ShaderTechnique::Set(i32 idx, const GPU::BindingUAV& binding)
-	{
-		idx -= impl_->uavOffset_;
-		if(idx >= 0 && idx < impl_->uavs_.size())
-		{
-			if(binding != impl_->uavs_[idx])
-			{
-				impl_->uavs_[idx] = binding;
-				impl_->bsDirty_ = true;
-			}
-			return true;
-		}
-		return false;
-	}
-
-	bool ShaderTechnique::Set(const char* name, const GPU::BindingCBV& binding)
-	{
-		return Set(impl_->shader_->GetBindingIndex(name), binding);
-	}
-
-	bool ShaderTechnique::Set(const char* name, const GPU::BindingSRV& binding)
-	{
-		return Set(impl_->shader_->GetBindingIndex(name), binding);
-	}
-
-	bool ShaderTechnique::Set(const char* name, const GPU::BindingUAV& binding)
-	{
-		return Set(impl_->shader_->GetBindingIndex(name), binding);
-	}
-
-	GPU::Handle ShaderTechnique::GetBinding()
-	{
-		if(impl_ && impl_->bsDirty_)
-		{
-			if(impl_->bsHandle_)
-			{
-				GPU::Manager::DestroyResource(impl_->bsHandle_);
-				impl_->bsHandle_ = GPU::Handle();
-			}
-
-			if(impl_->IsValid())
-			{
-				impl_->bs_.numCBVs_ = 0;
-				impl_->bs_.numSamplers_ = 0;
-				impl_->bs_.numSRVs_ = 0;
-				impl_->bs_.numUAVs_ = 0;
-
-				// Setup binding set with offsets that come from shaders.
-				const auto SetupCBV = [this](const ShaderBindingMapping* mapping, i32 numMappings) {
-					for(i32 idx = 0; idx < numMappings; ++idx)
-					{
-						const i32 dst = mapping[idx].dstSlot_;
-						const i32 binding = mapping[idx].binding_;
-						impl_->bs_.cbvs_[dst] = impl_->cbvs_[binding - impl_->cbvOffset_];
-						impl_->bs_.numCBVs_ = Core::Max(impl_->bs_.numCBVs_, dst + 1);
-					}
-					return mapping + numMappings;
-				};
-
-				const auto SetupSampler = [this](const ShaderBindingMapping* mapping, i32 numMappings) {
-					for(i32 idx = 0; idx < numMappings; ++idx)
-					{
-						const i32 dst = mapping[idx].dstSlot_;
-						const i32 binding = mapping[idx].binding_;
-						impl_->bs_.samplers_[dst] = impl_->samplers_[binding - impl_->samplerOffset_];
-						impl_->bs_.numSamplers_ = Core::Max(impl_->bs_.numSamplers_, dst + 1);
-					}
-					return mapping + numMappings;
-				};
-
-				const auto SetupSRV = [this](const ShaderBindingMapping* mapping, i32 numMappings) {
-					for(i32 idx = 0; idx < numMappings; ++idx)
-					{
-						const i32 dst = mapping[idx].dstSlot_;
-						const i32 binding = mapping[idx].binding_;
-						impl_->bs_.srvs_[dst] = impl_->srvs_[binding - impl_->srvOffset_];
-						impl_->bs_.numSRVs_ = Core::Max(impl_->bs_.numSRVs_, dst + 1);
-					}
-					return mapping + numMappings;
-				};
-
-				const auto SetupUAV = [this](const ShaderBindingMapping* mapping, i32 numMappings) {
-					for(i32 idx = 0; idx < numMappings; ++idx)
-					{
-						const i32 dst = mapping[idx].dstSlot_;
-						const i32 binding = mapping[idx].binding_;
-						impl_->bs_.uavs_[dst] = impl_->uavs_[binding - impl_->uavOffset_];
-						impl_->bs_.numUAVs_ = Core::Max(impl_->bs_.numUAVs_, dst + 1);
-					}
-					return mapping + numMappings;
-				};
-
-				const auto SetupBindings = [&](i32 shaderIdx) {
-					if(shaderIdx < 0)
-						return;
-
-					const auto& bytecode = impl_->shader_->bytecodeHeaders_[shaderIdx];
-					const auto* mappings = impl_->shader_->shaderBindingMappings_[shaderIdx];
-
-					mappings = SetupCBV(mappings, bytecode.numCBuffers_);
-					mappings = SetupSRV(mappings, bytecode.numSRVs_);
-					mappings = SetupUAV(mappings, bytecode.numUAVs_);
-					mappings = SetupSampler(mappings, bytecode.numSamplers_);
-				};
-
-				SetupBindings(impl_->header_.vs_);
-				SetupBindings(impl_->header_.gs_);
-				SetupBindings(impl_->header_.hs_);
-				SetupBindings(impl_->header_.ds_);
-				SetupBindings(impl_->header_.ps_);
-				SetupBindings(impl_->header_.cs_);
-
-				Core::Array<char, 128> debugName = {};
-				sprintf_s(debugName.data(), debugName.size(), "%s/%s_binding", impl_->shader_->name_.c_str(),
-				    impl_->header_.name_);
-				impl_->bsHandle_ = GPU::Manager::CreatePipelineBindingSet(impl_->bs_, debugName.data());
-				DBG_ASSERT(impl_->bsHandle_);
-				DBG_ASSERT(GPU::Manager::GetHandleAllocator().IsValid(impl_->bsHandle_));
-				impl_->bsDirty_ = false;
-			}
-		}
-		return impl_ ? impl_->bsHandle_ : GPU::Handle();
 	}
 
 	ShaderTechnique::operator bool() const { return !!impl_ && impl_->IsValid(); }
@@ -579,6 +552,220 @@ namespace Graphics
 		return true;
 	}
 
+	ShaderBindingSet::ShaderBindingSet() {}
+
+	ShaderBindingSet::~ShaderBindingSet()
+	{
+		if(impl_)
+		{
+			if(GPU::Manager::IsInitialized())
+				GPU::Manager::DestroyResource(impl_->pbs_);
+		}
+		delete impl_;
+	}
+
+	ShaderBindingSet::ShaderBindingSet(ShaderBindingSet&& other)
+	{
+		std::swap(other.impl_, impl_);
+#ifndef FINAL
+		std::swap(other.name_, name_);
+#endif
+	}
+
+	ShaderBindingSet& ShaderBindingSet::operator=(ShaderBindingSet&& other)
+	{
+		std::swap(other.impl_, impl_);
+#ifndef FINAL
+		std::swap(other.name_, name_);
+#endif
+		return *this;
+	}
+
+	ShaderBindingHandle ShaderBindingSet::GetBindingHandle(const char* name) const
+	{
+		auto* factory = Shader::GetFactory();
+		if(auto readLock = Core::ScopedReadLock(factory->rwLock_))
+		{
+			const auto& handles = factory->bindingSetHandles_[impl_->idx_];
+
+			auto it = std::find_if(handles.headers_.begin(), handles.headers_.end(),
+			    [name](const ShaderBindingHeader& a) { return strcmp(name, a.name_) == 0; });
+
+			if(it != handles.headers_.end())
+			{
+				return it->handle_;
+			}
+		}
+		return (ShaderBindingHandle)ShaderBindingFlags::INVALID;
+	}
+
+	ShaderBindingSet& ShaderBindingSet::Set(ShaderBindingHandle handle, const GPU::SamplerState& sampler)
+	{
+		DBG_ASSERT(Core::ContainsAllFlags((ShaderBindingFlags)handle, ShaderBindingFlags::SAMPLER));
+		const i32 idx = handle & (i32)ShaderBindingFlags::INDEX_MASK;
+
+		if(impl_->samplers_[idx] != sampler && GPU::Manager::IsInitialized())
+			GPU::Manager::UpdatePipelineBindings(impl_->pbs_, idx, sampler);
+		impl_->samplers_[idx] = sampler;
+
+		return *this;
+	}
+
+	ShaderBindingSet& ShaderBindingSet::Set(ShaderBindingHandle handle, const GPU::BindingCBV& binding)
+	{
+		DBG_ASSERT(Core::ContainsAllFlags((ShaderBindingFlags)handle, ShaderBindingFlags::CBV));
+		const i32 idx = handle & (i32)ShaderBindingFlags::INDEX_MASK;
+		if(impl_->cbvs_[idx] != binding && GPU::Manager::IsInitialized())
+			GPU::Manager::UpdatePipelineBindings(impl_->pbs_, idx, binding);
+		impl_->cbvs_[idx] = binding;
+		return *this;
+	}
+
+	ShaderBindingSet& ShaderBindingSet::Set(ShaderBindingHandle handle, const GPU::BindingSRV& binding)
+	{
+		DBG_ASSERT(Core::ContainsAllFlags((ShaderBindingFlags)handle, ShaderBindingFlags::SRV));
+		const i32 idx = handle & (i32)ShaderBindingFlags::INDEX_MASK;
+		if(impl_->srvs_[idx] != binding && GPU::Manager::IsInitialized())
+			GPU::Manager::UpdatePipelineBindings(impl_->pbs_, idx, binding);
+		impl_->srvs_[idx] = binding;
+		return *this;
+	}
+
+	ShaderBindingSet& ShaderBindingSet::Set(ShaderBindingHandle handle, const GPU::BindingUAV& binding)
+	{
+		DBG_ASSERT(Core::ContainsAllFlags((ShaderBindingFlags)handle, ShaderBindingFlags::UAV));
+		const i32 idx = handle & (i32)ShaderBindingFlags::INDEX_MASK;
+		if(impl_->uavs_[idx] != binding && GPU::Manager::IsInitialized())
+			GPU::Manager::UpdatePipelineBindings(impl_->pbs_, idx, binding);
+		impl_->uavs_[idx] = binding;
+		return *this;
+	}
+
+	ShaderBindingSet& ShaderBindingSet::Set(const char* name, const GPU::SamplerState& sampler)
+	{
+		if(auto handle = GetBindingHandle(name))
+			Set(handle, sampler);
+		else
+			DBG_LOG("Unable to find binding \"%s\" in ShaderBindingSet \"%s\"\n", name, impl_->header_.name_);
+		return *this;
+	}
+
+	ShaderBindingSet& ShaderBindingSet::Set(const char* name, const GPU::BindingCBV& binding)
+	{
+		if(auto handle = GetBindingHandle(name))
+			Set(handle, binding);
+		else
+			DBG_LOG("Unable to find binding \"%s\" in ShaderBindingSet \"%s\"\n", name, impl_->header_.name_);
+		return *this;
+	}
+
+	ShaderBindingSet& ShaderBindingSet::Set(const char* name, const GPU::BindingSRV& binding)
+	{
+		if(auto handle = GetBindingHandle(name))
+			Set(handle, binding);
+		else
+			DBG_LOG("Unable to find binding \"%s\" in ShaderBindingSet \"%s\"\n", name, impl_->header_.name_);
+		return *this;
+	}
+
+	ShaderBindingSet& ShaderBindingSet::Set(const char* name, const GPU::BindingUAV& binding)
+	{
+		if(auto handle = GetBindingHandle(name))
+			Set(handle, binding);
+		else
+			DBG_LOG("Unable to find binding \"%s\" in ShaderBindingSet \"%s\"\n", name, impl_->header_.name_);
+		return *this;
+	}
+
+	ShaderContext::ShaderContext(GPU::CommandList& cmdList)
+	{
+		auto* factory = Shader::GetFactory();
+		if(auto readLock = Core::ScopedReadLock(factory->rwLock_))
+		{
+			impl_ = new ShaderContextImpl(cmdList);
+			impl_->bindingSets_.resize(factory->bindingSetHeaders_.size());
+#if !defined(FINAL)
+			impl_->bindingCallstacks_.resize(impl_->bindingSets_.size());
+#endif // !defined(FINAL)
+		}
+	}
+
+	ShaderContext::~ShaderContext() { delete impl_; }
+
+	ShaderContext::ScopedBinding ShaderContext::BeginBindingScope(const ShaderBindingSet& bindingSet)
+	{
+		i32 idx = bindingSet.impl_->idx_;
+		DBG_ASSERT(impl_->bindingSets_[idx] == nullptr);
+		impl_->bindingSets_[idx] = bindingSet.impl_;
+
+#if !defined(FINAL)
+		auto& callstack = impl_->bindingCallstacks_[idx];
+		Core::GetCallstack(1, callstack.fns_.data(), callstack.fns_.size(), &callstack.hash_);
+#endif // !defined(FINAL)
+
+		return ShaderContext::ScopedBinding(*this, idx);
+	}
+
+	bool ShaderContext::CommitBindings(
+	    const ShaderTechnique& tech, GPU::Handle& outPs, Core::ArrayView<GPU::PipelineBinding>& outPb)
+	{
+		i32 numPb = tech.impl_->header_.bindingSets_.size();
+		GPU::PipelineBinding* basePb = impl_->cmdList_.Alloc<GPU::PipelineBinding>(numPb);
+		GPU::PipelineBinding* pb = basePb;
+
+		i32 cbvOffset = 0;
+		i32 srvOffset = 0;
+		i32 uavOffset = 0;
+		i32 samplerOffset = 0;
+
+		for(i32 idx : tech.impl_->header_.bindingSets_)
+		{
+			if(idx == -1)
+				break;
+
+			const auto* bindingSet = impl_->bindingSets_[idx];
+#if !defined(FINAL)
+			if(bindingSet == nullptr)
+			{
+				const auto* factory = Shader::GetFactory();
+				const auto& bindingSetHeader = factory->bindingSetHeaders_[idx];
+				DBG_LOG("Binding set expected, but not bound: %s\n", bindingSetHeader.name_);
+			}
+#endif // !defined(FINAL)
+			DBG_ASSERT(bindingSet != nullptr);
+
+			pb->cbvs_.num_ = bindingSet->cbvs_.size();
+			pb->cbvs_.dstOffset_ = cbvOffset;
+			pb->srvs_.num_ = bindingSet->srvs_.size();
+			pb->srvs_.dstOffset_ = cbvOffset;
+			pb->uavs_.num_ = bindingSet->uavs_.size();
+			pb->uavs_.dstOffset_ = cbvOffset;
+			pb->samplers_.num_ = bindingSet->samplers_.size();
+			pb->samplers_.dstOffset_ = cbvOffset;
+
+			cbvOffset += pb->cbvs_.num_;
+			srvOffset += pb->srvs_.num_;
+			uavOffset += pb->uavs_.num_;
+			samplerOffset += pb->samplers_.num_;
+
+			++pb;
+		}
+
+		outPb = impl_->cmdList_.Push(Core::ArrayView<GPU::PipelineBinding>(basePb, numPb));
+		outPs = tech.impl_->shader_->pipelineStates_[tech.impl_->descIdx_];
+		return true;
+	}
+
+	void ShaderContext::EndBindingScope(i32 idx)
+	{
+		DBG_ASSERT(impl_->bindingSets_[idx] != nullptr);
+		impl_->bindingSets_[idx] = nullptr;
+
+#if !defined(FINAL)
+		impl_->bindingCallstacks_[idx].fns_.fill(nullptr);
+#endif // !defined(FINAL)
+	}
+
 	ShaderImpl::ShaderImpl() {}
 
 	ShaderImpl::~ShaderImpl()
@@ -648,6 +835,43 @@ namespace Graphics
 		return impl;
 	}
 
+	ShaderBindingSetImpl* ShaderImpl::CreateBindingSet(const char* name)
+	{
+		ShaderBindingSetImpl* bindingSet = nullptr;
+		auto* factory = Shader::GetFactory();
+		if(auto readLock = Core::ScopedReadLock(factory->rwLock_))
+		{
+			i32 idx = factory->FindBindingSetIdx(name);
+			if(idx >= 0)
+			{
+				const auto& bindingSetHeader = factory->bindingSetHeaders_[idx];
+				if(strcmp(name, bindingSetHeader.name_) == 0)
+				{
+					bindingSet = new ShaderBindingSetImpl();
+					bindingSet->header_ = bindingSetHeader;
+					bindingSet->idx_ = idx;
+
+					if(GPU::Manager::IsInitialized())
+					{
+						GPU::PipelineBindingSetDesc desc;
+						desc.numCBVs_ = bindingSetHeader.numCBVs_;
+						desc.numSRVs_ = bindingSetHeader.numSRVs_;
+						desc.numUAVs_ = bindingSetHeader.numUAVs_;
+						desc.numSamplers_ = bindingSetHeader.numSamplers_;
+						bindingSet->pbs_ = GPU::Manager::CreatePipelineBindingSet(
+						    desc, "%s/%s", name_.c_str(), bindingSet->header_.name_);
+					}
+
+					bindingSet->cbvs_.resize(bindingSetHeader.numCBVs_);
+					bindingSet->srvs_.resize(bindingSetHeader.numSRVs_);
+					bindingSet->uavs_.resize(bindingSetHeader.numUAVs_);
+					bindingSet->samplers_.resize(bindingSetHeader.numSamplers_);
+				}
+			}
+		}
+		return bindingSet;
+	}
+
 	bool ShaderImpl::SetupTechnique(ShaderTechniqueImpl* impl)
 	{
 		DBG_ASSERT(impl);
@@ -692,12 +916,12 @@ namespace Graphics
 				GPU::GraphicsPipelineStateDesc psDesc;
 				psDesc.shaders_[(i32)GPU::ShaderType::VS] =
 				    techHeader->vs_ != -1 ? shaders_[techHeader->vs_] : GPU::Handle();
-				psDesc.shaders_[(i32)GPU::ShaderType::GS] =
-				    techHeader->gs_ != -1 ? shaders_[techHeader->gs_] : GPU::Handle();
 				psDesc.shaders_[(i32)GPU::ShaderType::HS] =
 				    techHeader->hs_ != -1 ? shaders_[techHeader->hs_] : GPU::Handle();
 				psDesc.shaders_[(i32)GPU::ShaderType::DS] =
 				    techHeader->ds_ != -1 ? shaders_[techHeader->ds_] : GPU::Handle();
+				psDesc.shaders_[(i32)GPU::ShaderType::GS] =
+				    techHeader->gs_ != -1 ? shaders_[techHeader->gs_] : GPU::Handle();
 				psDesc.shaders_[(i32)GPU::ShaderType::PS] =
 				    techHeader->ps_ != -1 ? shaders_[techHeader->ps_] : GPU::Handle();
 				psDesc.renderState_ = techHeader->rs_;
@@ -722,27 +946,8 @@ namespace Graphics
 
 		impl->shader_ = this;
 		impl->header_ = *techHeader;
-		impl->cbvs_.resize(header_.numCBuffers_);
-		impl->srvs_.resize(header_.numSRVs_);
-		impl->uavs_.resize(header_.numUAVs_);
-		impl->samplers_.resize(header_.numSamplers_);
-		impl->bs_.pipelineState_ = psHandle;
-		impl->bsDirty_ = true;
 
-		// Calculate offset into vectors for setting.
-		i32 offset = 0;
-		impl->cbvOffset_ = offset;
-		offset += impl->cbvs_.size();
-
-		impl->srvOffset_ = offset;
-		offset += impl->srvs_.size();
-
-		impl->uavOffset_ = offset;
-		offset += impl->uavs_.size();
-
-		impl->samplerOffset_ = offset;
-		offset += impl->samplers_.size();
-
+#if 0
 		// Set samplers.
 		for(i32 idx = 0; idx < impl->samplers_.size(); ++idx)
 		{
@@ -760,7 +965,7 @@ namespace Graphics
 				}
 			}
 		}
-
+#endif
 		return true;
 	}
 

@@ -1,6 +1,21 @@
 {
    "$internal" : {
-      "dependencies" : [ "shader_tests/00-basic.esf", "../../../../res/stdlib.esh" ],
-      "outputs" : [ "converter_output/shader_tests/00-basic.esf.converted" ]
+      "dependencies" : [
+         "shader_tests/00-basic.esf",
+         "shader_tests/../shaders/stdlib.esh",
+         "shader_tests/../shaders/stdlib/color.esh",
+         "shader_tests/../shaders/stdlib/constants.esh",
+         "shader_tests/../shaders/stdlib/extensions.esh",
+         "shader_tests/../shaders/stdlib/gamma.esh",
+         "shader_tests/../shaders/stdlib/indirect.esh",
+         "shader_tests/../shaders/stdlib/metadata.esh",
+         "shader_tests/../shaders/stdlib/normals.esh",
+         "shader_tests/../shaders/stdlib/plane.esh",
+         "shader_tests/../shaders/stdlib/samplers.esh",
+         "shader_tests/../shaders/stdlib/view.esh",
+         "shader_tests/../shaders/common_bindings.esh",
+         "shader_tests/../shaders/lights.esh"
+      ],
+      "outputs" : [ "../../../../.converter_output/shader_tests/00-basic.esf.converted" ]
    }
 }

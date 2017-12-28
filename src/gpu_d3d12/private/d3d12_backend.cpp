@@ -222,17 +222,6 @@ namespace GPU
 		return ErrorCode::OK;
 	}
 
-	ErrorCode D3D12Backend::CreateSamplerState(Handle handle, const SamplerState& state, const char* debugName)
-	{
-		D3D12SamplerState samplerState;
-
-		samplerState.desc_ = GetSampler(state);
-
-		Core::ScopedWriteLock lock(resLock_);
-		samplerStates_[handle.GetIndex()] = samplerState;
-		return ErrorCode::OK;
-	}
-
 	ErrorCode D3D12Backend::CreateShader(Handle handle, const ShaderDesc& desc, const char* debugName)
 	{
 		D3D12Shader shader;
@@ -492,9 +481,9 @@ namespace GPU
 		{
 			Core::ScopedReadLock lock(resLock_);
 			gpsDesc.VS = GetShaderBytecode(ShaderType::VS);
-			gpsDesc.GS = GetShaderBytecode(ShaderType::GS);
 			gpsDesc.HS = GetShaderBytecode(ShaderType::HS);
 			gpsDesc.DS = GetShaderBytecode(ShaderType::DS);
+			gpsDesc.GS = GetShaderBytecode(ShaderType::GS);
 			gpsDesc.PS = GetShaderBytecode(ShaderType::PS);
 		}
 
@@ -572,299 +561,8 @@ namespace GPU
 	{
 		D3D12PipelineBindingSet pbs;
 
-		// Grab all resources to create pipeline binding set with.
-		Core::Array<D3D12SubresourceRange, MAX_SRV_BINDINGS> srvResources = {};
-		Core::Array<D3D12_SHADER_RESOURCE_VIEW_DESC, MAX_SRV_BINDINGS> srvs = {};
-		Core::Array<D3D12SubresourceRange, MAX_UAV_BINDINGS> uavResources = {};
-		Core::Array<D3D12_UNORDERED_ACCESS_VIEW_DESC, MAX_UAV_BINDINGS> uavs = {};
-		Core::Array<D3D12SubresourceRange, MAX_CBV_BINDINGS> cbvResources = {};
-		Core::Array<D3D12_CONSTANT_BUFFER_VIEW_DESC, MAX_CBV_BINDINGS> cbvs = {};
-		Core::Array<D3D12_SAMPLER_DESC, MAX_SAMPLER_BINDINGS> samplers = {};
-
-		memset(srvResources.data(), 0, sizeof(srvResources));
-		memset(srvs.data(), 0, sizeof(srvs));
-		memset(uavResources.data(), 0, sizeof(uavResources));
-		memset(uavs.data(), 0, sizeof(uavs));
-		memset(cbvResources.data(), 0, sizeof(cbvResources));
-		memset(cbvs.data(), 0, sizeof(cbvs));
-		memset(samplers.data(), 0, sizeof(samplers));
-
-		const D3D12_SAMPLER_DESC defaultSampler = {
-		    D3D12_FILTER_MIN_MAG_MIP_POINT, D3D12_TEXTURE_ADDRESS_MODE_WRAP, D3D12_TEXTURE_ADDRESS_MODE_WRAP,
-		    D3D12_TEXTURE_ADDRESS_MODE_WRAP, 0.0f, 1, D3D12_COMPARISON_FUNC_NEVER, {0.0f, 0.0f, 0.0f, 0.0f}, 0.0f,
-		    Core::F32_MAX,
-		};
-
-		D3D12_SHADER_RESOURCE_VIEW_DESC defaultSRV = {};
-		defaultSRV.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-		defaultSRV.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-		defaultSRV.Shader4ComponentMapping = D3D12_ENCODE_SHADER_4_COMPONENT_MAPPING(
-		    D3D12_SHADER_COMPONENT_MAPPING_FORCE_VALUE_0, D3D12_SHADER_COMPONENT_MAPPING_FORCE_VALUE_0,
-		    D3D12_SHADER_COMPONENT_MAPPING_FORCE_VALUE_0, D3D12_SHADER_COMPONENT_MAPPING_FORCE_VALUE_0);
-		srvs.fill(defaultSRV);
-
-		D3D12_UNORDERED_ACCESS_VIEW_DESC defaultUAV;
-		memset(&defaultUAV, 0, sizeof(defaultUAV));
-		defaultUAV.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-		defaultUAV.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
-		uavs.fill(defaultUAV);
-
-		samplers.fill(defaultSampler);
-
-		{
-			Core::ScopedReadLock lock(resLock_);
-			for(i32 i = 0; i < desc.numSRVs_; ++i)
-			{
-				auto srvHandle = desc.srvs_[i].resource_;
-				if(!srvHandle)
-					continue;
-				DBG_ASSERT(srvHandle.GetType() == ResourceType::BUFFER || srvHandle.GetType() == ResourceType::TEXTURE);
-
-				const D3D12Buffer* bufferRes = nullptr;
-				const D3D12Texture* textureRes = nullptr;
-				if(srvHandle.GetType() == ResourceType::BUFFER)
-					bufferRes = &bufferResources_[srvHandle.GetIndex()];
-				else
-					textureRes = &textureResources_[srvHandle.GetIndex()];
-
-				i32 firstSubRsc = 0;
-				i32 numSubRsc = 0;
-
-				const auto& srv = desc.srvs_[i];
-
-				i32 mipLevels = srv.mipLevels_NumElements_;
-				if(mipLevels == -1)
-					mipLevels = textureRes->desc_.levels_;
-				DBG_ASSERT(mipLevels > 0);
-
-				srvs[i].Format = GetFormat(srv.format_);
-				srvs[i].ViewDimension = GetSRVDimension(srv.dimension_);
-				srvs[i].Shader4ComponentMapping =
-				    D3D12_ENCODE_SHADER_4_COMPONENT_MAPPING(D3D12_SHADER_COMPONENT_MAPPING_FROM_MEMORY_COMPONENT_0,
-				        D3D12_SHADER_COMPONENT_MAPPING_FROM_MEMORY_COMPONENT_1,
-				        D3D12_SHADER_COMPONENT_MAPPING_FROM_MEMORY_COMPONENT_2,
-				        D3D12_SHADER_COMPONENT_MAPPING_FROM_MEMORY_COMPONENT_3);
-				switch(srv.dimension_)
-				{
-				case ViewDimension::BUFFER:
-					srvs[i].Buffer.FirstElement = srv.mostDetailedMip_FirstElement_;
-					srvs[i].Buffer.NumElements = mipLevels;
-					srvs[i].Buffer.StructureByteStride = srv.structureByteStride_;
-					if(srv.structureByteStride_ == 0)
-						srvs[i].Buffer.Flags = D3D12_BUFFER_SRV_FLAG_RAW;
-					else
-						srvs[i].Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
-					firstSubRsc = 0;
-					numSubRsc = 1;
-					break;
-				case ViewDimension::TEX1D:
-					srvs[i].Texture1D.MostDetailedMip = srv.mostDetailedMip_FirstElement_;
-					srvs[i].Texture1D.MipLevels = mipLevels;
-					srvs[i].Texture1D.ResourceMinLODClamp = srv.resourceMinLODClamp_;
-					firstSubRsc = srv.mostDetailedMip_FirstElement_;
-					numSubRsc = mipLevels;
-					break;
-				case ViewDimension::TEX1D_ARRAY:
-					srvs[i].Texture1DArray.MostDetailedMip = srv.mostDetailedMip_FirstElement_;
-					srvs[i].Texture1DArray.MipLevels = mipLevels;
-					srvs[i].Texture1DArray.ArraySize = srv.arraySize_;
-					srvs[i].Texture1DArray.FirstArraySlice = srv.firstArraySlice_;
-					srvs[i].Texture1DArray.ResourceMinLODClamp = srv.resourceMinLODClamp_;
-					firstSubRsc =
-					    srv.mostDetailedMip_FirstElement_ + (srv.firstArraySlice_ * textureRes->desc_.levels_);
-					numSubRsc = mipLevels;
-					break;
-				case ViewDimension::TEX2D:
-					srvs[i].Texture2D.MostDetailedMip = srv.mostDetailedMip_FirstElement_;
-					srvs[i].Texture2D.MipLevels = mipLevels;
-					srvs[i].Texture2D.PlaneSlice = srv.planeSlice_;
-					srvs[i].Texture2D.ResourceMinLODClamp = srv.resourceMinLODClamp_;
-					firstSubRsc = srv.mostDetailedMip_FirstElement_;
-					numSubRsc = mipLevels;
-					break;
-				case ViewDimension::TEX2D_ARRAY:
-					srvs[i].Texture2DArray.MostDetailedMip = srv.mostDetailedMip_FirstElement_;
-					srvs[i].Texture2DArray.MipLevels = mipLevels;
-					srvs[i].Texture2DArray.ArraySize = srv.arraySize_;
-					srvs[i].Texture2DArray.FirstArraySlice = srv.firstArraySlice_;
-					srvs[i].Texture2DArray.PlaneSlice = srv.planeSlice_;
-					srvs[i].Texture2DArray.ResourceMinLODClamp = srv.resourceMinLODClamp_;
-					firstSubRsc =
-					    srv.mostDetailedMip_FirstElement_ + (srv.firstArraySlice_ * textureRes->desc_.levels_);
-					numSubRsc = mipLevels;
-					break;
-				case ViewDimension::TEX3D:
-					srvs[i].Texture3D.MostDetailedMip = srv.mostDetailedMip_FirstElement_;
-					srvs[i].Texture3D.MipLevels = mipLevels;
-					srvs[i].Texture3D.ResourceMinLODClamp = srv.resourceMinLODClamp_;
-					firstSubRsc = srv.mostDetailedMip_FirstElement_;
-					numSubRsc = mipLevels;
-					break;
-				case ViewDimension::TEXCUBE:
-					srvs[i].TextureCube.MostDetailedMip = srv.mostDetailedMip_FirstElement_;
-					srvs[i].TextureCube.MipLevels = mipLevels;
-					srvs[i].TextureCube.ResourceMinLODClamp = srv.resourceMinLODClamp_;
-					firstSubRsc = 0;
-					numSubRsc = textureRes->desc_.levels_ * 6;
-					break;
-				case ViewDimension::TEXCUBE_ARRAY:
-					srvs[i].TextureCubeArray.MostDetailedMip = srv.mostDetailedMip_FirstElement_;
-					srvs[i].TextureCubeArray.MipLevels = mipLevels;
-					srvs[i].TextureCubeArray.NumCubes = srv.arraySize_;
-					srvs[i].TextureCubeArray.First2DArrayFace = srv.firstArraySlice_;
-					srvs[i].TextureCubeArray.ResourceMinLODClamp = srv.resourceMinLODClamp_;
-					firstSubRsc = srv.firstArraySlice_ * 6;
-					numSubRsc = (textureRes->desc_.levels_ * 6) * srv.arraySize_;
-					break;
-				default:
-					DBG_BREAK;
-					return ErrorCode::FAIL;
-					break;
-				}
-
-				D3D12Resource* resource = GetD3D12Resource(srvHandle);
-				DBG_ASSERT(resource);
-				srvResources[i].resource_ = resource;
-				srvResources[i].firstSubRsc_ = firstSubRsc;
-				srvResources[i].numSubRsc_ = numSubRsc;
-			}
-
-			for(i32 i = 0; i < desc.numUAVs_; ++i)
-			{
-				auto uavHandle = desc.uavs_[i].resource_;
-				if(!uavHandle)
-					continue;
-				DBG_ASSERT(uavHandle.GetType() == ResourceType::BUFFER || uavHandle.GetType() == ResourceType::TEXTURE);
-
-				const D3D12Buffer* bufferRes = nullptr;
-				const D3D12Texture* textureRes = nullptr;
-				if(uavHandle.GetType() == ResourceType::BUFFER)
-					bufferRes = &bufferResources_[uavHandle.GetIndex()];
-				else
-					textureRes = &textureResources_[uavHandle.GetIndex()];
-
-				i32 firstSubRsc = 0;
-				i32 numSubRsc = 0;
-
-				const auto& uav = desc.uavs_[i];
-				uavs[i].Format = GetFormat(uav.format_);
-				uavs[i].ViewDimension = GetUAVDimension(uav.dimension_);
-				switch(uav.dimension_)
-				{
-				case ViewDimension::BUFFER:
-					uavs[i].Buffer.FirstElement = uav.mipSlice_FirstElement_;
-					uavs[i].Buffer.NumElements = uav.firstArraySlice_FirstWSlice_NumElements_;
-					uavs[i].Buffer.StructureByteStride = uav.structureByteStride_;
-					if(uavs[i].Format == DXGI_FORMAT_R32_TYPELESS && uav.structureByteStride_ == 0)
-						uavs[i].Buffer.Flags = D3D12_BUFFER_UAV_FLAG_RAW;
-					else
-						uavs[i].Buffer.Flags = D3D12_BUFFER_UAV_FLAG_NONE;
-					firstSubRsc = 0;
-					numSubRsc = 1;
-					break;
-				case ViewDimension::TEX1D:
-					uavs[i].Texture1D.MipSlice = uav.mipSlice_FirstElement_;
-					firstSubRsc = uav.mipSlice_FirstElement_;
-					numSubRsc = 1;
-					break;
-				case ViewDimension::TEX1D_ARRAY:
-					uavs[i].Texture1DArray.MipSlice = uav.mipSlice_FirstElement_;
-					uavs[i].Texture1DArray.ArraySize = uav.arraySize_WSize_;
-					uavs[i].Texture1DArray.FirstArraySlice = uav.firstArraySlice_FirstWSlice_NumElements_;
-					firstSubRsc = uav.mipSlice_FirstElement_ +
-					              (uav.firstArraySlice_FirstWSlice_NumElements_ * textureRes->desc_.levels_);
-					numSubRsc = uav.arraySize_WSize_;
-					break;
-				case ViewDimension::TEX2D:
-					uavs[i].Texture2D.MipSlice = uav.mipSlice_FirstElement_;
-					uavs[i].Texture2D.PlaneSlice = uav.planeSlice_;
-					firstSubRsc = uav.mipSlice_FirstElement_;
-					numSubRsc = 1;
-					break;
-				case ViewDimension::TEX2D_ARRAY:
-					uavs[i].Texture2DArray.MipSlice = uav.mipSlice_FirstElement_;
-					uavs[i].Texture2DArray.ArraySize = uav.arraySize_WSize_;
-					uavs[i].Texture2DArray.FirstArraySlice = uav.firstArraySlice_FirstWSlice_NumElements_;
-					uavs[i].Texture2DArray.PlaneSlice = uav.planeSlice_;
-					firstSubRsc = uav.mipSlice_FirstElement_ +
-					              (uav.firstArraySlice_FirstWSlice_NumElements_ * textureRes->desc_.levels_);
-					numSubRsc = textureRes->desc_.levels_ * uav.arraySize_WSize_;
-					break;
-				case ViewDimension::TEX3D:
-					uavs[i].Texture3D.MipSlice = uav.mipSlice_FirstElement_;
-					uavs[i].Texture3D.FirstWSlice = uav.firstArraySlice_FirstWSlice_NumElements_;
-					uavs[i].Texture3D.WSize = uav.arraySize_WSize_;
-					firstSubRsc = uav.mipSlice_FirstElement_;
-					numSubRsc = 1;
-					break;
-				default:
-					DBG_BREAK;
-					return ErrorCode::FAIL;
-					break;
-				}
-
-				D3D12Resource* resource = GetD3D12Resource(uavHandle);
-				DBG_ASSERT(resource);
-				uavResources[i].resource_ = resource;
-				uavResources[i].firstSubRsc_ = firstSubRsc;
-				uavResources[i].numSubRsc_ = numSubRsc;
-			}
-
-			for(i32 i = 0; i < desc.numCBVs_; ++i)
-			{
-				auto cbvHandle = desc.cbvs_[i].resource_;
-				if(!cbvHandle)
-					continue;
-				D3D12Resource* resource = GetD3D12Resource(cbvHandle);
-				DBG_ASSERT(resource);
-				cbvResources[i].resource_ = resource;
-				cbvResources[i].firstSubRsc_ = 0;
-				cbvResources[i].numSubRsc_ = 1;
-
-				DBG_ASSERT(cbvHandle.GetType() == ResourceType::BUFFER);
-				DBG_ASSERT(cbvHandle);
-
-				const auto& cbv = desc.cbvs_[i];
-
-				cbvs[i].BufferLocation =
-				    bufferResources_[cbvHandle.GetIndex()].resource_->GetGPUVirtualAddress() + cbv.offset_;
-				cbvs[i].SizeInBytes = Core::PotRoundUp(cbv.size_, D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT);
-			}
-
-			for(i32 i = 0; i < desc.numSamplers_; ++i)
-			{
-				auto samplerHandle = desc.samplers_[i].resource_;
-				if(!samplerHandle)
-					continue;
-				DBG_ASSERT(samplerHandle);
-				samplers[i] = samplerStates_[samplerHandle.GetIndex()].desc_;
-			}
-
-			// Get pipeline state.
-			if(desc.pipelineState_.GetType() == ResourceType::GRAPHICS_PIPELINE_STATE)
-			{
-				auto& gps = graphicsPipelineStates_[desc.pipelineState_.GetIndex()];
-				pbs.rootSignature_ = gps.rootSignature_;
-				pbs.pipelineState_ = gps.pipelineState_;
-			}
-			else if(desc.pipelineState_.GetType() == ResourceType::COMPUTE_PIPELINE_STATE)
-			{
-				auto& cps = computePipelineStates_[desc.pipelineState_.GetIndex()];
-				pbs.rootSignature_ = cps.rootSignature_;
-				pbs.pipelineState_ = cps.pipelineState_;
-			}
-			else
-			{
-				DBG_BREAK;
-			}
-
-			ErrorCode retVal;
-			RETURN_ON_ERROR(retVal = device_->CreatePipelineBindingSet(pbs, desc, debugName));
-			RETURN_ON_ERROR(retVal = device_->UpdateCBVs(pbs, 0, desc.numCBVs_, cbvResources.data(), cbvs.data()));
-			RETURN_ON_ERROR(retVal = device_->UpdateSRVs(pbs, 0, desc.numSRVs_, srvResources.data(), srvs.data()));
-			RETURN_ON_ERROR(retVal = device_->UpdateUAVs(pbs, 0, desc.numUAVs_, uavResources.data(), uavs.data()));
-			RETURN_ON_ERROR(retVal = device_->UpdateSamplers(pbs, 0, desc.numSamplers_, samplers.data()));
-		}
+		ErrorCode retVal = ErrorCode::FAIL;
+		RETURN_ON_ERROR(retVal = device_->CreatePipelineBindingSet(pbs, desc, debugName));
 
 		Core::ScopedWriteLock lock(resLock_);
 		pipelineBindingSets_[handle.GetIndex()] = pbs;
@@ -1111,9 +809,6 @@ namespace GPU
 			delete[] shaders_[handle.GetIndex()].byteCode_;
 			shaders_[handle.GetIndex()] = D3D12Shader();
 			break;
-		case ResourceType::SAMPLER_STATE:
-			samplerStates_[handle.GetIndex()] = D3D12SamplerState();
-			break;
 		case ResourceType::GRAPHICS_PIPELINE_STATE:
 			graphicsPipelineStates_[handle.GetIndex()] = D3D12GraphicsPipelineState();
 			break;
@@ -1135,9 +830,283 @@ namespace GPU
 			delete commandLists_[handle.GetIndex()];
 			commandLists_[handle.GetIndex()] = nullptr;
 			break;
+		default:
+			return ErrorCode::UNIMPLEMENTED;
 		}
 		//
-		return ErrorCode::UNIMPLEMENTED;
+		return ErrorCode::OK;
+	}
+
+	ErrorCode D3D12Backend::UpdatePipelineBindings(Handle handle, i32 base, Core::ArrayView<BindingCBV> descs)
+	{
+		Core::ScopedWriteLock lock(resLock_);
+		auto& pbs = pipelineBindingSets_[handle.GetIndex()];
+
+		Core::Array<D3D12_CONSTANT_BUFFER_VIEW_DESC, MAX_CBV_BINDINGS> cbvDescs = {};
+
+		i32 bindingIdx = base;
+		for(i32 i = 0; i < descs.size(); ++i, ++bindingIdx)
+		{
+			auto cbvHandle = descs[i].resource_;
+			if(!cbvHandle)
+				continue;
+			DBG_ASSERT(cbvHandle.GetType() == ResourceType::BUFFER);
+			DBG_ASSERT(cbvHandle);
+
+			D3D12Resource* resource = GetD3D12Resource(cbvHandle);
+			DBG_ASSERT(resource);
+
+			// Setup transition info.
+			pbs.cbvTransitions_[bindingIdx].resource_ = resource;
+			pbs.cbvTransitions_[bindingIdx].firstSubRsc_ = 0;
+			pbs.cbvTransitions_[bindingIdx].numSubRsc_ = 1;
+
+			// Setup the D3D12 descriptor.
+			const auto& cbv = descs[i];
+			auto& cbvDesc = cbvDescs[bindingIdx];
+			cbvDesc.BufferLocation =
+			    bufferResources_[cbvHandle.GetIndex()].resource_->GetGPUVirtualAddress() + cbv.offset_;
+			cbvDesc.SizeInBytes = Core::PotRoundUp(cbv.size_, D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT);
+		}
+
+		return device_->UpdateCBVs(pbs, base, descs.size(), pbs.cbvTransitions_.data() + base, cbvDescs.data() + base);
+	}
+
+	ErrorCode D3D12Backend::UpdatePipelineBindings(Handle handle, i32 base, Core::ArrayView<BindingSRV> descs)
+	{
+		Core::ScopedWriteLock lock(resLock_);
+		auto& pbs = pipelineBindingSets_[handle.GetIndex()];
+
+		Core::Array<D3D12_SHADER_RESOURCE_VIEW_DESC, MAX_SRV_BINDINGS> srvDescs = {};
+
+		i32 bindingIdx = base;
+		for(i32 i = 0; i < descs.size(); ++i, ++bindingIdx)
+		{
+			auto srvHandle = descs[i].resource_;
+			if(!srvHandle)
+				continue;
+			DBG_ASSERT(srvHandle.GetType() == ResourceType::BUFFER || srvHandle.GetType() == ResourceType::TEXTURE);
+
+			const D3D12Buffer* bufferRes = nullptr;
+			const D3D12Texture* textureRes = nullptr;
+			if(srvHandle.GetType() == ResourceType::BUFFER)
+				bufferRes = &bufferResources_[srvHandle.GetIndex()];
+			else
+				textureRes = &textureResources_[srvHandle.GetIndex()];
+
+			i32 firstSubRsc = 0;
+			i32 numSubRsc = 0;
+
+			const auto& srv = descs[i];
+
+			i32 mipLevels = srv.mipLevels_NumElements_;
+			if(mipLevels == -1)
+				mipLevels = textureRes->desc_.levels_;
+			DBG_ASSERT(mipLevels > 0);
+
+			auto& srvDesc = srvDescs[bindingIdx];
+
+			srvDesc.Format = GetFormat(srv.format_);
+			srvDesc.ViewDimension = GetSRVDimension(srv.dimension_);
+			srvDesc.Shader4ComponentMapping =
+			    D3D12_ENCODE_SHADER_4_COMPONENT_MAPPING(D3D12_SHADER_COMPONENT_MAPPING_FROM_MEMORY_COMPONENT_0,
+			        D3D12_SHADER_COMPONENT_MAPPING_FROM_MEMORY_COMPONENT_1,
+			        D3D12_SHADER_COMPONENT_MAPPING_FROM_MEMORY_COMPONENT_2,
+			        D3D12_SHADER_COMPONENT_MAPPING_FROM_MEMORY_COMPONENT_3);
+			switch(srv.dimension_)
+			{
+			case ViewDimension::BUFFER:
+				srvDesc.Buffer.FirstElement = srv.mostDetailedMip_FirstElement_;
+				srvDesc.Buffer.NumElements = mipLevels;
+				srvDesc.Buffer.StructureByteStride = srv.structureByteStride_;
+				if(srv.structureByteStride_ == 0)
+					srvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_RAW;
+				else
+					srvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
+				firstSubRsc = 0;
+				numSubRsc = 1;
+				break;
+			case ViewDimension::TEX1D:
+				srvDesc.Texture1D.MostDetailedMip = srv.mostDetailedMip_FirstElement_;
+				srvDesc.Texture1D.MipLevels = mipLevels;
+				srvDesc.Texture1D.ResourceMinLODClamp = srv.resourceMinLODClamp_;
+				firstSubRsc = srv.mostDetailedMip_FirstElement_;
+				numSubRsc = mipLevels;
+				break;
+			case ViewDimension::TEX1D_ARRAY:
+				srvDesc.Texture1DArray.MostDetailedMip = srv.mostDetailedMip_FirstElement_;
+				srvDesc.Texture1DArray.MipLevels = mipLevels;
+				srvDesc.Texture1DArray.ArraySize = srv.arraySize_;
+				srvDesc.Texture1DArray.FirstArraySlice = srv.firstArraySlice_;
+				srvDesc.Texture1DArray.ResourceMinLODClamp = srv.resourceMinLODClamp_;
+				firstSubRsc = srv.mostDetailedMip_FirstElement_ + (srv.firstArraySlice_ * textureRes->desc_.levels_);
+				numSubRsc = mipLevels;
+				break;
+			case ViewDimension::TEX2D:
+				srvDesc.Texture2D.MostDetailedMip = srv.mostDetailedMip_FirstElement_;
+				srvDesc.Texture2D.MipLevels = mipLevels;
+				srvDesc.Texture2D.PlaneSlice = srv.planeSlice_;
+				srvDesc.Texture2D.ResourceMinLODClamp = srv.resourceMinLODClamp_;
+				firstSubRsc = srv.mostDetailedMip_FirstElement_;
+				numSubRsc = mipLevels;
+				break;
+			case ViewDimension::TEX2D_ARRAY:
+				srvDesc.Texture2DArray.MostDetailedMip = srv.mostDetailedMip_FirstElement_;
+				srvDesc.Texture2DArray.MipLevels = mipLevels;
+				srvDesc.Texture2DArray.ArraySize = srv.arraySize_;
+				srvDesc.Texture2DArray.FirstArraySlice = srv.firstArraySlice_;
+				srvDesc.Texture2DArray.PlaneSlice = srv.planeSlice_;
+				srvDesc.Texture2DArray.ResourceMinLODClamp = srv.resourceMinLODClamp_;
+				firstSubRsc = srv.mostDetailedMip_FirstElement_ + (srv.firstArraySlice_ * textureRes->desc_.levels_);
+				numSubRsc = mipLevels;
+				break;
+			case ViewDimension::TEX3D:
+				srvDesc.Texture3D.MostDetailedMip = srv.mostDetailedMip_FirstElement_;
+				srvDesc.Texture3D.MipLevels = mipLevels;
+				srvDesc.Texture3D.ResourceMinLODClamp = srv.resourceMinLODClamp_;
+				firstSubRsc = srv.mostDetailedMip_FirstElement_;
+				numSubRsc = mipLevels;
+				break;
+			case ViewDimension::TEXCUBE:
+				srvDesc.TextureCube.MostDetailedMip = srv.mostDetailedMip_FirstElement_;
+				srvDesc.TextureCube.MipLevels = mipLevels;
+				srvDesc.TextureCube.ResourceMinLODClamp = srv.resourceMinLODClamp_;
+				firstSubRsc = 0;
+				numSubRsc = textureRes->desc_.levels_ * 6;
+				break;
+			case ViewDimension::TEXCUBE_ARRAY:
+				srvDesc.TextureCubeArray.MostDetailedMip = srv.mostDetailedMip_FirstElement_;
+				srvDesc.TextureCubeArray.MipLevels = mipLevels;
+				srvDesc.TextureCubeArray.NumCubes = srv.arraySize_;
+				srvDesc.TextureCubeArray.First2DArrayFace = srv.firstArraySlice_;
+				srvDesc.TextureCubeArray.ResourceMinLODClamp = srv.resourceMinLODClamp_;
+				firstSubRsc = srv.firstArraySlice_ * 6;
+				numSubRsc = (textureRes->desc_.levels_ * 6) * srv.arraySize_;
+				break;
+			default:
+				DBG_BREAK;
+				return ErrorCode::FAIL;
+				break;
+			}
+
+			D3D12Resource* resource = GetD3D12Resource(srvHandle);
+			DBG_ASSERT(resource);
+			pbs.srvTransitions_[i].resource_ = resource;
+			pbs.srvTransitions_[i].firstSubRsc_ = firstSubRsc;
+			pbs.srvTransitions_[i].numSubRsc_ = numSubRsc;
+		}
+
+		return device_->UpdateSRVs(pbs, base, descs.size(), pbs.srvTransitions_.data() + base, srvDescs.data() + base);
+	}
+
+	ErrorCode D3D12Backend::UpdatePipelineBindings(Handle handle, i32 base, Core::ArrayView<BindingUAV> descs)
+	{
+		Core::ScopedWriteLock lock(resLock_);
+		auto& pbs = pipelineBindingSets_[handle.GetIndex()];
+
+		Core::Array<D3D12_UNORDERED_ACCESS_VIEW_DESC, MAX_UAV_BINDINGS> uavDescs = {};
+
+		i32 bindingIdx = base;
+		for(i32 i = 0; i < descs.size(); ++i, ++bindingIdx)
+		{
+			auto uavHandle = descs[i].resource_;
+			if(!uavHandle)
+				continue;
+			DBG_ASSERT(uavHandle.GetType() == ResourceType::BUFFER || uavHandle.GetType() == ResourceType::TEXTURE);
+
+			const D3D12Buffer* bufferRes = nullptr;
+			const D3D12Texture* textureRes = nullptr;
+			if(uavHandle.GetType() == ResourceType::BUFFER)
+				bufferRes = &bufferResources_[uavHandle.GetIndex()];
+			else
+				textureRes = &textureResources_[uavHandle.GetIndex()];
+
+			const auto& uav = descs[i];
+
+			i32 firstSubRsc = 0;
+			i32 numSubRsc = 0;
+
+			auto& uavDesc = uavDescs[bindingIdx];
+			uavDesc.Format = GetFormat(uav.format_);
+			uavDesc.ViewDimension = GetUAVDimension(uav.dimension_);
+			switch(uav.dimension_)
+			{
+			case ViewDimension::BUFFER:
+				uavDesc.Buffer.FirstElement = uav.mipSlice_FirstElement_;
+				uavDesc.Buffer.NumElements = uav.firstArraySlice_FirstWSlice_NumElements_;
+				uavDesc.Buffer.StructureByteStride = uav.structureByteStride_;
+				if(uavDesc.Format == DXGI_FORMAT_R32_TYPELESS && uav.structureByteStride_ == 0)
+					uavDesc.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_RAW;
+				else
+					uavDesc.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_NONE;
+				firstSubRsc = 0;
+				numSubRsc = 1;
+				break;
+			case ViewDimension::TEX1D:
+				uavDesc.Texture1D.MipSlice = uav.mipSlice_FirstElement_;
+				firstSubRsc = uav.mipSlice_FirstElement_;
+				numSubRsc = 1;
+				break;
+			case ViewDimension::TEX1D_ARRAY:
+				uavDesc.Texture1DArray.MipSlice = uav.mipSlice_FirstElement_;
+				uavDesc.Texture1DArray.ArraySize = uav.arraySize_WSize_;
+				uavDesc.Texture1DArray.FirstArraySlice = uav.firstArraySlice_FirstWSlice_NumElements_;
+				firstSubRsc = uav.mipSlice_FirstElement_ +
+				              (uav.firstArraySlice_FirstWSlice_NumElements_ * textureRes->desc_.levels_);
+				numSubRsc = uav.arraySize_WSize_;
+				break;
+			case ViewDimension::TEX2D:
+				uavDesc.Texture2D.MipSlice = uav.mipSlice_FirstElement_;
+				uavDesc.Texture2D.PlaneSlice = uav.planeSlice_;
+				firstSubRsc = uav.mipSlice_FirstElement_;
+				numSubRsc = 1;
+				break;
+			case ViewDimension::TEX2D_ARRAY:
+				uavDesc.Texture2DArray.MipSlice = uav.mipSlice_FirstElement_;
+				uavDesc.Texture2DArray.ArraySize = uav.arraySize_WSize_;
+				uavDesc.Texture2DArray.FirstArraySlice = uav.firstArraySlice_FirstWSlice_NumElements_;
+				uavDesc.Texture2DArray.PlaneSlice = uav.planeSlice_;
+				firstSubRsc = uav.mipSlice_FirstElement_ +
+				              (uav.firstArraySlice_FirstWSlice_NumElements_ * textureRes->desc_.levels_);
+				numSubRsc = textureRes->desc_.levels_ * uav.arraySize_WSize_;
+				break;
+			case ViewDimension::TEX3D:
+				uavDesc.Texture3D.MipSlice = uav.mipSlice_FirstElement_;
+				uavDesc.Texture3D.FirstWSlice = uav.firstArraySlice_FirstWSlice_NumElements_;
+				uavDesc.Texture3D.WSize = uav.arraySize_WSize_;
+				firstSubRsc = uav.mipSlice_FirstElement_;
+				numSubRsc = 1;
+				break;
+			default:
+				DBG_BREAK;
+				return ErrorCode::FAIL;
+				break;
+			}
+
+			D3D12Resource* resource = GetD3D12Resource(uavHandle);
+			DBG_ASSERT(resource);
+			pbs.uavTransitions_[i].resource_ = resource;
+			pbs.uavTransitions_[i].firstSubRsc_ = firstSubRsc;
+			pbs.uavTransitions_[i].numSubRsc_ = numSubRsc;
+		}
+
+		return device_->UpdateUAVs(pbs, base, descs.size(), pbs.uavTransitions_.data() + base, uavDescs.data() + base);
+	}
+
+	ErrorCode D3D12Backend::UpdatePipelineBindings(Handle handle, i32 base, Core::ArrayView<SamplerState> descs)
+	{
+		Core::ScopedReadLock lock(resLock_);
+		auto& pbs = pipelineBindingSets_[handle.GetIndex()];
+
+		Core::Array<D3D12_SAMPLER_DESC, MAX_SAMPLER_BINDINGS> samplerDescs;
+
+		i32 bindingIdx = base;
+		for(i32 i = 0; i < descs.size(); ++i, ++bindingIdx)
+		{
+			samplerDescs[bindingIdx] = GetSampler(descs[i]);
+		}
+
+		return device_->UpdateSamplers(pbs, base, descs.size(), samplerDescs.data() + base);
 	}
 
 	ErrorCode D3D12Backend::CompileCommandList(Handle handle, const CommandList& commandList)

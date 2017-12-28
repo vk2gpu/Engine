@@ -6,6 +6,9 @@
 
 namespace GPU
 {
+	/**
+	 * General purpose descriptor allocator.
+	 */
 	class D3D12LinearDescriptorAllocator
 	{
 	public:
@@ -14,9 +17,9 @@ namespace GPU
 		~D3D12LinearDescriptorAllocator();
 
 		/**
-		 * Allocate a new set of descriptors.
+		 * Allocate @a num descriptors of subtype @a subType.
 		 */
-		D3D12DescriptorAllocation Alloc(i32 numDescriptors, DescriptorHeapSubType subType);
+		D3D12DescriptorAllocation Alloc(i32 num, DescriptorHeapSubType subType);
 
 		/**
 		 * Create a copy of a set of descriptors.
@@ -34,6 +37,11 @@ namespace GPU
 		 * Get descriptor heap this allocates from.
 		 */
 		ComPtr<ID3D12DescriptorHeap> GetDescriptorHeap() const { return d3dDescriptorHeap_; }
+
+		/**
+		 * Get handle increment size;
+		 */
+		i32 GetHandleIncrementSize() const { return handleIncrementSize_; }
 
 		/**
 		 * Get GPU handle for base of allocator.
@@ -59,9 +67,40 @@ namespace GPU
 		/// Debug name.
 		const char* debugName_ = nullptr;
 		/// Current allocation offset.
-		i32 allocOffset_ = 0;
+		volatile i32 allocOffset_ = 0;
 		/// Heap to allocate from.
 		ComPtr<ID3D12DescriptorHeap> d3dDescriptorHeap_;
+	};
+
+	/**
+	 * Descriptor suballocator to allocate large chunks of sequential descriptors
+	 * with the appropriate padding for Tier 1 hardware.
+	 */
+	class D3D12LinearDescriptorSubAllocator
+	{
+	public:
+		D3D12LinearDescriptorSubAllocator(
+		    D3D12LinearDescriptorAllocator& allocator, DescriptorHeapSubType subType, i32 blockSize);
+		~D3D12LinearDescriptorSubAllocator();
+
+		/**
+		 * Allocate @a num descriptors with (@a padding - @a num) valid descriptors immediately after.
+		 */
+		D3D12DescriptorAllocation Alloc(i32 num, i32 padding);
+
+		/**
+		 * Reset allocator.
+		 */
+		void Reset();
+
+	private:
+		D3D12LinearDescriptorAllocator& allocator_;
+		DescriptorHeapSubType subType_;
+		i32 blockSize_ = 0;
+
+		Core::Mutex mutex_; // TEMP: This should only be used from a single thread later.
+		D3D12DescriptorAllocation alloc_;
+		i32 allocOffset_ = 0;
 	};
 
 

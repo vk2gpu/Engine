@@ -434,7 +434,6 @@ TEST_CASE("gpu-tests-create-pipeline-binding-set")
 	// Create resources to test bindings.
 	GPU::Handle texHandle;
 	GPU::Handle cbHandle;
-	GPU::Handle samplerHandle;
 	{
 		GPU::TextureDesc desc;
 		desc.bindFlags_ = GPU::BindFlags::SHADER_RESOURCE | GPU::BindFlags::UNORDERED_ACCESS;
@@ -454,24 +453,9 @@ TEST_CASE("gpu-tests-create-pipeline-binding-set")
 		REQUIRE(cbHandle);
 	}
 
-	{
-		GPU::SamplerState desc;
-		samplerHandle = GPU::Manager::CreateSamplerState(desc, testName.c_str());
-		REQUIRE(samplerHandle);
-	}
-
-	GPU::Handle shaderHandle = GPU::Manager::CreateShader(shaderDesc, testName.c_str());
-	REQUIRE(shaderHandle);
-
-	GPU::ComputePipelineStateDesc pipelineDesc;
-	pipelineDesc.shader_ = shaderHandle;
-	GPU::Handle pipelineHandle = GPU::Manager::CreateComputePipelineState(pipelineDesc, testName.c_str());
-	REQUIRE(pipelineHandle);
-
 	SECTION("no-views")
 	{
 		GPU::PipelineBindingSetDesc pipelineBindingSetDesc;
-		pipelineBindingSetDesc.pipelineState_ = pipelineHandle;
 		GPU::Handle pipelineBindingSetHandle =
 		    GPU::Manager::CreatePipelineBindingSet(pipelineBindingSetDesc, testName.c_str());
 
@@ -481,14 +465,17 @@ TEST_CASE("gpu-tests-create-pipeline-binding-set")
 	SECTION("srvs")
 	{
 		GPU::PipelineBindingSetDesc pipelineBindingSetDesc;
-		pipelineBindingSetDesc.pipelineState_ = pipelineHandle;
 		pipelineBindingSetDesc.numSRVs_ = 1;
-		pipelineBindingSetDesc.srvs_[0].resource_ = texHandle;
-		pipelineBindingSetDesc.srvs_[0].format_ = GPU::Format::R8G8B8A8_UNORM;
-		pipelineBindingSetDesc.srvs_[0].dimension_ = GPU::ViewDimension::TEX2D;
-		pipelineBindingSetDesc.srvs_[0].mipLevels_NumElements_ = -1;
 		GPU::Handle pipelineBindingSetHandle =
 		    GPU::Manager::CreatePipelineBindingSet(pipelineBindingSetDesc, testName.c_str());
+		REQUIRE(pipelineBindingSetHandle);
+
+		GPU::BindingSRV srv;
+		srv.resource_ = texHandle;
+		srv.format_ = GPU::Format::R8G8B8A8_UNORM;
+		srv.dimension_ = GPU::ViewDimension::TEX2D;
+		srv.mipLevels_NumElements_ = -1;
+		REQUIRE(GPU::Manager::UpdatePipelineBindings(pipelineBindingSetHandle, 0, srv));
 
 		GPU::Manager::DestroyResource(pipelineBindingSetHandle);
 	}
@@ -496,13 +483,16 @@ TEST_CASE("gpu-tests-create-pipeline-binding-set")
 	SECTION("cbvs")
 	{
 		GPU::PipelineBindingSetDesc pipelineBindingSetDesc;
-		pipelineBindingSetDesc.pipelineState_ = pipelineHandle;
 		pipelineBindingSetDesc.numCBVs_ = 1;
-		pipelineBindingSetDesc.cbvs_[0].resource_ = cbHandle;
-		pipelineBindingSetDesc.cbvs_[0].offset_ = 0;
-		pipelineBindingSetDesc.cbvs_[0].size_ = 4096;
 		GPU::Handle pipelineBindingSetHandle =
 		    GPU::Manager::CreatePipelineBindingSet(pipelineBindingSetDesc, testName.c_str());
+		REQUIRE(pipelineBindingSetHandle);
+
+		GPU::BindingCBV cbv;
+		cbv.resource_ = cbHandle;
+		cbv.offset_ = 0;
+		cbv.size_ = 4096;
+		REQUIRE(GPU::Manager::UpdatePipelineBindings(pipelineBindingSetHandle, 0, cbv));
 
 		GPU::Manager::DestroyResource(pipelineBindingSetHandle);
 	}
@@ -510,23 +500,23 @@ TEST_CASE("gpu-tests-create-pipeline-binding-set")
 	SECTION("uavs")
 	{
 		GPU::PipelineBindingSetDesc pipelineBindingSetDesc;
-		pipelineBindingSetDesc.pipelineState_ = pipelineHandle;
 		pipelineBindingSetDesc.numUAVs_ = 1;
-		pipelineBindingSetDesc.uavs_[0].resource_ = texHandle;
-		pipelineBindingSetDesc.uavs_[0].format_ = GPU::Format::R8G8B8A8_UNORM;
-		pipelineBindingSetDesc.uavs_[0].dimension_ = GPU::ViewDimension::TEX2D;
+
 		GPU::Handle pipelineBindingSetHandle =
 		    GPU::Manager::CreatePipelineBindingSet(pipelineBindingSetDesc, testName.c_str());
 		REQUIRE(pipelineBindingSetHandle);
 
+		GPU::BindingUAV uav;
+		uav.resource_ = texHandle;
+		uav.format_ = GPU::Format::R8G8B8A8_UNORM;
+		uav.dimension_ = GPU::ViewDimension::TEX2D;
+		REQUIRE(GPU::Manager::UpdatePipelineBindings(pipelineBindingSetHandle, 0, uav));
+
 		GPU::Manager::DestroyResource(pipelineBindingSetHandle);
 	}
 
-	GPU::Manager::DestroyResource(samplerHandle);
 	GPU::Manager::DestroyResource(cbHandle);
 	GPU::Manager::DestroyResource(texHandle);
-	GPU::Manager::DestroyResource(pipelineHandle);
-	GPU::Manager::DestroyResource(shaderHandle);
 }
 
 TEST_CASE("gpu-tests-create-graphics-pipeline-state")
@@ -808,10 +798,6 @@ TEST_CASE("gpu-tests-compile-draw")
 	pipelineDesc.renderState_.cullMode_ = GPU::CullMode::NONE;
 	GPU::Handle pipelineHandle = GPU::Manager::CreateGraphicsPipelineState(pipelineDesc, testName.c_str());
 
-	GPU::PipelineBindingSetDesc pipelineBindingSetDesc;
-	pipelineBindingSetDesc.pipelineState_ = pipelineHandle;
-	GPU::Handle pbsHandle = GPU::Manager::CreatePipelineBindingSet(pipelineBindingSetDesc, testName.c_str());
-
 	GPU::Handle cmdHandle = GPU::Manager::CreateCommandList(testName.c_str());
 	GPU::CommandList cmdList;
 
@@ -824,13 +810,12 @@ TEST_CASE("gpu-tests-compile-draw")
 	f32 color[4] = {0.2f, 0.2f, 0.2f, 1.0f};
 	REQUIRE(cmdList.ClearRTV(fbsHandle, 0, color));
 	REQUIRE(cmdList.ClearDSV(fbsHandle, 0.0f, 0));
-	REQUIRE(
-	    cmdList.Draw(pbsHandle, dbsHandle, fbsHandle, drawState, GPU::PrimitiveTopology::TRIANGLE_LIST, 0, 1, 3, 0, 1));
+	REQUIRE(cmdList.Draw(
+	    pipelineHandle, {}, dbsHandle, fbsHandle, drawState, GPU::PrimitiveTopology::TRIANGLE_LIST, 0, 1, 3, 0, 1));
 	REQUIRE(GPU::Manager::CompileCommandList(cmdHandle, cmdList));
 	REQUIRE(GPU::Manager::SubmitCommandList(cmdHandle));
 
 	GPU::Manager::DestroyResource(cmdHandle);
-	GPU::Manager::DestroyResource(pbsHandle);
 	GPU::Manager::DestroyResource(pipelineHandle);
 	GPU::Manager::DestroyResource(psHandle);
 	GPU::Manager::DestroyResource(vsHandle);
@@ -887,21 +872,27 @@ TEST_CASE("gpu-tests-compile-dispatch")
 		REQUIRE(pipelineHandle);
 
 		GPU::PipelineBindingSetDesc pipelineBindingSetDesc;
-		pipelineBindingSetDesc.pipelineState_ = pipelineHandle;
 		pipelineBindingSetDesc.numUAVs_ = 1;
-		pipelineBindingSetDesc.uavs_[0].resource_ = bufHandle;
-		pipelineBindingSetDesc.uavs_[0].format_ = GPU::Format::R32_TYPELESS;
-		pipelineBindingSetDesc.uavs_[0].dimension_ = GPU::ViewDimension::BUFFER;
-		pipelineBindingSetDesc.uavs_[0].mipSlice_FirstElement_ = 0;
-		pipelineBindingSetDesc.uavs_[0].firstArraySlice_FirstWSlice_NumElements_ = (i32)(bufDesc.size_ / sizeof(i32));
+
 		GPU::Handle pbsHandle = GPU::Manager::CreatePipelineBindingSet(pipelineBindingSetDesc, testName.c_str());
 		REQUIRE(pbsHandle);
+
+		GPU::BindingUAV uav;
+		uav.resource_ = bufHandle;
+		uav.format_ = GPU::Format::R32_TYPELESS;
+		uav.dimension_ = GPU::ViewDimension::BUFFER;
+		uav.mipSlice_FirstElement_ = 0;
+		uav.firstArraySlice_FirstWSlice_NumElements_ = (i32)(bufDesc.size_ / sizeof(i32));
+		REQUIRE(GPU::Manager::UpdatePipelineBindings(pbsHandle, 0, uav));
 
 		GPU::Handle cmdHandle = GPU::Manager::CreateCommandList(testName.c_str());
 		GPU::CommandList cmdList;
 
+		GPU::PipelineBinding pb = {pbsHandle};
+		pb.uavs_.num_ = 1;
+
 		i32 xGroups = (i32)(bufDesc.size_ / sizeof(i32)) / 8;
-		REQUIRE(cmdList.Dispatch(pbsHandle, xGroups, 1, 1));
+		REQUIRE(cmdList.Dispatch(pipelineHandle, pb, xGroups, 1, 1));
 		REQUIRE(GPU::Manager::CompileCommandList(cmdHandle, cmdList));
 		REQUIRE(GPU::Manager::SubmitCommandList(cmdHandle));
 
@@ -926,21 +917,24 @@ TEST_CASE("gpu-tests-compile-dispatch")
 		REQUIRE(pipelineHandle);
 
 		GPU::PipelineBindingSetDesc pipelineBindingSetDesc;
-		pipelineBindingSetDesc.pipelineState_ = pipelineHandle;
 		pipelineBindingSetDesc.numUAVs_ = 1;
-		pipelineBindingSetDesc.uavs_[0].resource_ = texHandle;
-		pipelineBindingSetDesc.uavs_[0].format_ = GPU::Format::R8G8B8A8_UNORM;
-		pipelineBindingSetDesc.uavs_[0].dimension_ = GPU::ViewDimension::TEX2D;
-		pipelineBindingSetDesc.uavs_[0].mipSlice_FirstElement_ = 0;
+
 		GPU::Handle pbsHandle = GPU::Manager::CreatePipelineBindingSet(pipelineBindingSetDesc, testName.c_str());
 		REQUIRE(pbsHandle);
+
+		GPU::BindingUAV uav;
+		uav.resource_ = texHandle;
+		uav.format_ = GPU::Format::R8G8B8A8_UNORM;
+		uav.dimension_ = GPU::ViewDimension::TEX2D;
+		uav.mipSlice_FirstElement_ = 0;
+		REQUIRE(GPU::Manager::UpdatePipelineBindings(pbsHandle, 0, uav));
 
 		GPU::Handle cmdHandle = GPU::Manager::CreateCommandList(testName.c_str());
 		GPU::CommandList cmdList;
 
 		i32 xGroups = texDesc.width_ / 8;
 		i32 yGroups = texDesc.height_ / 8;
-		REQUIRE(cmdList.Dispatch(pbsHandle, xGroups, yGroups, 1));
+		REQUIRE(cmdList.Dispatch(pipelineHandle, {{pbsHandle, 0, 0, 0, 0}}, xGroups, yGroups, 1));
 		REQUIRE(GPU::Manager::CompileCommandList(cmdHandle, cmdList));
 		REQUIRE(GPU::Manager::SubmitCommandList(cmdHandle));
 

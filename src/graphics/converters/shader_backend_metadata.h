@@ -10,6 +10,7 @@ namespace Graphics
 	{
 		Core::String name_;
 		Core::String frequency_;
+		Core::Vector<Core::String> members_;
 		bool shared_ = false;
 		i32 numCBVs_ = 0;
 		i32 numSRVs_ = 0;
@@ -64,6 +65,7 @@ namespace Graphics
 		bool VisitEnter(AST::NodeStruct* node) override;
 		bool VisitEnter(AST::NodeDeclaration* node) override;
 
+		const auto& GetBindingSets() const { return bindingSets_; }
 		const auto& GetSamplerStates() const { return samplerStates_; }
 		const auto& GetTechniques() const { return techniques_; }
 

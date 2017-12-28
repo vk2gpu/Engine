@@ -8,6 +8,23 @@ namespace GPU
 	// command_list.h
 	class CommandList;
 
+	// commands.h
+	struct GPU_DLL PipelineBinding;
+	struct GPU_DLL Command;
+	struct GPU_DLL CommandDraw;
+	struct GPU_DLL CommandDrawIndirect;
+	struct GPU_DLL CommandDispatch;
+	struct GPU_DLL CommandDispatchIndirect;
+	struct GPU_DLL CommandClearRTV;
+	struct GPU_DLL CommandClearDSV;
+	struct GPU_DLL CommandClearUAV;
+	struct GPU_DLL CommandUpdateBuffer;
+	struct GPU_DLL CommandUpdateTextureSubResource;
+	struct GPU_DLL CommandCopyBuffer;
+	struct GPU_DLL CommandCopyTextureSubResource;
+	struct GPU_DLL CommandBeginEvent;
+	struct GPU_DLL CommandEndEvent;
+
 	// resources.h
 	enum class ResourceType : i32;
 	class GPU_DLL Handle;

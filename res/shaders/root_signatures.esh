@@ -1,0 +1,130 @@
+#ifndef ROOT_SIGNATURES_ESH
+#define ROOT_SIGNATURES_ESH
+
+#include "stdlib.esh"
+
+DescriptorTable DefaultSamplerTable
+{
+	[type(sampler)]
+	[register(s0, space0)]
+	[visibility(all)]
+	Descriptor Samplers[8];
+};
+
+DescriptorTable DefaultCBVTable
+{
+	[type(cbv)]
+	[register(b0, space0)]
+	Descriptor CBVs[14];
+};
+
+DescriptorTable DefaultSRVTable
+{
+	[type(srv)]
+	[register(t0, space0)]
+	Descriptor SRVs[16];
+};
+
+DescriptorTable DefaultUAVTable
+{
+	[type(uav)]
+	[register(u0, space0)]
+	Descriptor UAVs[8];
+};
+
+[stages(ia, vs, hs, ds, gs, ps)]
+RootSignature RSIG_GRAPHICS
+{
+	[visibility(all)]
+	DefaultCBVTable CBVTable;
+
+	[visibility(all)]
+	DefaultSRVTable SRVTable;
+
+	[visibility(all)]
+	DefaultUAVTable UAVTable;
+
+	[visibility(all)]
+	DefaultSamplerTable SamplerTable;
+
+	[register(0,8)]
+	[visibility(all)]
+	SamplerState StaticSamplers[8]; /* = {
+		SS_NEAREST_CLAMP,
+		SS_NEAREST_WRAP,
+		SS_LINEAR_CLAMP,
+		SS_LINEAR_WRAP,
+		SS_MIP_CLAMP,
+		SS_MIP_WRAP,
+		SS_ANISO_CLAMP,
+		SS_ANISO_WRAP
+	};*/
+};
+
+[stages(cs)]
+RootSignature RSIG_COMPUTE
+{
+	[visibility(all)]
+	DefaultCBVTable CBVTable;
+
+	[visibility(all)]
+	DefaultSRVTable SRVTable;
+
+	[visibility(all)]
+	DefaultUAVTable UAVTable;
+
+	[visibility(all)]
+	DefaultSamplerTable SamplerTable;
+	[register(0,8)]
+
+	[visibility(all)]
+	SamplerState StaticSamplers[8]; /* = {
+		SS_NEAREST_CLAMP,
+		SS_NEAREST_WRAP,
+		SS_LINEAR_CLAMP,
+		SS_LINEAR_WRAP,
+		SS_MIP_CLAMP,
+		SS_MIP_WRAP,
+		SS_ANISO_CLAMP,
+		SS_ANISO_WRAP
+	};*/
+};
+
+DescriptorTable PackedTable
+{
+	[type(cbv)]
+	[register(b0, space0)]
+	Descriptor CBVs[8];
+
+	[type(srv)]
+	[register(t0, space0)]
+	Descriptor SRVs[16];
+};
+
+[stages(ia, vs, ps)]
+RootSignature RSIG_GRAPHICS_VS_PS
+{
+	[visibility(vs)]
+	PackedTable VSTable;
+
+	[visibility(ps)]
+	PackedTable PSTable;
+
+	[visibility(all)]
+	DefaultSamplerTable SamplerTable;
+
+	[register(0,8)]
+	[visibility(all)]
+	SamplerState StaticSamplers[8]; /* = {
+		SS_NEAREST_CLAMP,
+		SS_NEAREST_WRAP,
+		SS_LINEAR_CLAMP,
+		SS_LINEAR_WRAP,
+		SS_MIP_CLAMP,
+		SS_MIP_WRAP,
+		SS_ANISO_CLAMP,
+		SS_ANISO_WRAP
+	};*/
+};
+
+#endif // ROOT_SIGNATURES_ESH

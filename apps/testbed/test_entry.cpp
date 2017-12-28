@@ -435,8 +435,7 @@ namespace
 	bool updateFrustum_ = true;
 	bool clusterCulling_ = true;
 
-	void DrawRenderPackets(GPU::CommandList& cmdList, const char* passName, const GPU::DrawState& drawState,
-	    GPU::Handle fbs, GPU::Handle viewCBHandle, GPU::Handle objectSBHandle, Testbed::CustomBindFn customBindFn)
+	void DrawRenderPackets(const Testbed::DrawContext& drawCtx)
 	{
 		namespace Binding = GPU::Binding;
 
@@ -446,7 +445,7 @@ namespace
 		}
 
 		rmt_ScopedCPUSample(DrawRenderPackets, RMTSF_None);
-		if(auto event = cmdList.Eventf(0, "DrawRenderPackets(\"%s\")", passName))
+		if(auto event = drawCtx.cmdList_.Eventf(0, "DrawRenderPackets(\"%s\")", drawCtx.passName_))
 		{
 			// Gather mesh packets for this pass.
 			Core::Vector<Testbed::MeshRenderPacket*> meshPackets;
@@ -458,7 +457,7 @@ namespace
 				if(packet->type_ == Testbed::MeshRenderPacket::TYPE)
 				{
 					auto* meshPacket = static_cast<Testbed::MeshRenderPacket*>(packet);
-					auto passIdxIt = meshPacket->techs_->passIndices_.find(passName);
+					auto passIdxIt = meshPacket->techs_->passIndices_.find(drawCtx.passName_);
 					if(passIdxIt != meshPacket->techs_->passIndices_.end() &&
 					    passIdxIt->second < meshPacket->techs_->passTechniques_.size())
 					{
@@ -468,8 +467,7 @@ namespace
 				}
 			}
 
-			Testbed::MeshRenderPacket::DrawPackets(
-			    meshPackets, meshPassTechIndices, cmdList, drawState, fbs, viewCBHandle, objectSBHandle, customBindFn);
+			Testbed::MeshRenderPacket::DrawPackets(meshPackets, meshPassTechIndices, drawCtx);
 		}
 	}
 
@@ -844,38 +842,36 @@ void Loop(const Core::CommandLine& cmdLine)
 			shadowPipeline.SetDirectionalLight(camera_.cameraTarget_, forwardPipeline.lights_[0]);
 
 			// Set draw callback.
-			forwardPipeline.SetDrawCallback(
-			    [&](GPU::CommandList& cmdList, const char* passName, const GPU::DrawState& drawState, GPU::Handle fbs,
-			        GPU::Handle viewCBHandle, GPU::Handle objectSBHandle, Testbed::CustomBindFn customBindFn) {
-				    DrawRenderPackets(cmdList, passName, drawState, fbs, viewCBHandle, objectSBHandle, customBindFn);
+			forwardPipeline.SetDrawCallback([&](Testbed::DrawContext& drawCtx) {
 
-				    if(testClusteredModel)
-				    {
-					    testClusteredModel->enableCulling_ = clusterCulling_;
+				DrawRenderPackets(drawCtx);
+
+				if(testClusteredModel)
+				{
+					testClusteredModel->enableCulling_ = clusterCulling_;
 
 #if LOAD_SPONZA
-					    for(auto position : positions)
+					for(auto position : positions)
 #else
-					    Math::Vec3 position(0.0f, 0.0f, 0.0f);
-					    Math::Mat44 scale;
-					    scale.Scale(Math::Vec3(0.1f, 0.1f, 0.1f));
+					Math::Vec3 position(0.0f, 0.0f, 0.0f);
+					Math::Mat44 scale;
+					scale.Scale(Math::Vec3(0.1f, 0.1f, 0.1f));
 #endif
-					    {
-						    Testbed::ObjectConstants object;
-						    object.world_.Rotation(Math::Vec3(0.0f, 0.0f, 0.0f));
-						    object.world_.Translation(position);
+					{
+						Testbed::ObjectConstants object;
+						object.world_.Rotation(Math::Vec3(0.0f, 0.0f, 0.0f));
+						object.world_.Translation(position);
 
 #if !LOAD_SPONZA
-						    object.world_ = object.world_ * scale;
+						object.world_ = object.world_ * scale;
 #endif
-						    testClusteredModel->DrawClusters(
-						        cmdList, passName, drawState, fbs, viewCBHandle, objectSBHandle, customBindFn, object);
-					    }
-				    }
+						testClusteredModel->DrawClusters(drawCtx, object);
+					}
+				}
 
-				    // Testing code.
-				    //texCompressor.Compress(cmdList, texture, finalTextureDesc.format_, finalTexture);
-				});
+				// Testing code.
+				//texCompressor.Compress(cmdList, texture, finalTextureDesc.format_, finalTexture);
+			});
 
 			// Clear graph prior to beginning work.
 			graph.Clear();

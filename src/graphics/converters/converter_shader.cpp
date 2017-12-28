@@ -122,12 +122,12 @@ namespace
 				{
 					if(technique.vs_.size() > 0)
 						shaders[(i32)GPU::ShaderType::VS].insert(technique.vs_);
-					if(technique.gs_.size() > 0)
-						shaders[(i32)GPU::ShaderType::GS].insert(technique.gs_);
 					if(technique.hs_.size() > 0)
 						shaders[(i32)GPU::ShaderType::HS].insert(technique.hs_);
 					if(technique.ds_.size() > 0)
 						shaders[(i32)GPU::ShaderType::DS].insert(technique.ds_);
+					if(technique.gs_.size() > 0)
+						shaders[(i32)GPU::ShaderType::GS].insert(technique.gs_);
 					if(technique.ps_.size() > 0)
 						shaders[(i32)GPU::ShaderType::PS].insert(technique.ps_);
 					if(technique.cs_.size() > 0)
@@ -266,14 +266,24 @@ namespace
 				}
 
 				// Build set of all bindings used.
-				Graphics::BindingMap cbuffers;
-				Graphics::BindingMap samplers;
+				Graphics::BindingMap allBindings;
+				Graphics::BindingMap cbvs;
 				Graphics::BindingMap srvs;
 				Graphics::BindingMap uavs;
+				Graphics::BindingMap samplers;
 				bindingIdx = 0;
 
 				for(const auto& compile : compileOutput)
-					bindingIdx = AddBindings(compile.cbuffers_, cbuffers, bindingIdx);
+					AddBindings(compile.cbuffers_, allBindings, 0);
+				for(const auto& compile : compileOutput)
+					AddBindings(compile.srvs_, allBindings, 0);
+				for(const auto& compile : compileOutput)
+					AddBindings(compile.uavs_, allBindings, 0);
+				for(const auto& compile : compileOutput)
+					AddBindings(compile.samplers_, allBindings, 0);
+
+				for(const auto& compile : compileOutput)
+					bindingIdx = AddBindings(compile.cbuffers_, cbvs, bindingIdx);
 				for(const auto& compile : compileOutput)
 					bindingIdx = AddBindings(compile.srvs_, srvs, bindingIdx);
 				for(const auto& compile : compileOutput)
@@ -281,27 +291,87 @@ namespace
 				for(const auto& compile : compileOutput)
 					bindingIdx = AddBindings(compile.samplers_, samplers, bindingIdx);
 
+
+				Core::Vector<Graphics::ShaderBindingHeader> outBindingHeaders;
+				outBindingHeaders.reserve(cbvs.size() + srvs.size() + uavs.size() + samplers.size());
+
+				const auto PopulateOutBindingHeaders = [&outBindingHeaders](
+				    const Graphics::ShaderBindingSetInfo& bindingSet, const Graphics::BindingMap& bindings,
+				    Graphics::ShaderBindingFlags flags, i32 baseIdx, i32 num) {
+
+					for(i32 idx = 0; idx < num; ++idx)
+					{
+						const auto& member = bindingSet.members_[idx + baseIdx];
+						//DBG_ASSERT(bindings.find(member) != bindings.end());
+
+						Graphics::ShaderBindingHeader bindingHeader;
+						memset(&bindingHeader, 0, sizeof(bindingHeader));
+						strcpy_s(bindingHeader.name_, sizeof(bindingHeader.name_), member.c_str());
+						bindingHeader.handle_ = (Graphics::ShaderBindingHandle)(
+						    flags | (Graphics::ShaderBindingFlags(idx) & Graphics::ShaderBindingFlags::INDEX_MASK));
+						outBindingHeaders.push_back(bindingHeader);
+					}
+
+					return baseIdx + num;
+				};
+
+				const auto& inBindingSets = backendMetadata.GetBindingSets();
+				Core::Vector<Graphics::ShaderBindingSetHeader> outBindingSets;
+				outBindingSets.reserve(inBindingSets.size());
+				for(const auto& bindingSet : inBindingSets)
+				{
+					Graphics::ShaderBindingSetHeader outBindingSet;
+					strcpy_s(outBindingSet.name_, sizeof(outBindingSet), bindingSet.name_.c_str());
+
+					outBindingSet.isShared_ = bindingSet.shared_;
+					if(bindingSet.frequency_ == "LOW")
+						outBindingSet.frequency_ = 0;
+					else if(bindingSet.frequency_ == "MEDIUM")
+						outBindingSet.frequency_ = 128;
+					else if(bindingSet.frequency_ == "HIGH")
+						outBindingSet.frequency_ = 255;
+					else if(bindingSet.frequency_.c_str())
+						outBindingSet.frequency_ = Core::Clamp(atoi(bindingSet.frequency_.c_str()), 0, 255);
+
+					outBindingSet.numCBVs_ = bindingSet.numCBVs_;
+					outBindingSet.numSRVs_ = bindingSet.numSRVs_;
+					outBindingSet.numUAVs_ = bindingSet.numUAVs_;
+					outBindingSet.numSamplers_ = bindingSet.numSamplers_;
+
+					outBindingSets.push_back(outBindingSet);
+
+					i32 baseIdx = 0;
+
+					baseIdx = PopulateOutBindingHeaders(
+					    bindingSet, allBindings, Graphics::ShaderBindingFlags::CBV, baseIdx, bindingSet.numCBVs_);
+					baseIdx = PopulateOutBindingHeaders(
+					    bindingSet, allBindings, Graphics::ShaderBindingFlags::SRV, baseIdx, bindingSet.numSRVs_);
+					baseIdx = PopulateOutBindingHeaders(
+					    bindingSet, allBindings, Graphics::ShaderBindingFlags::UAV, baseIdx, bindingSet.numUAVs_);
+					baseIdx = PopulateOutBindingHeaders(bindingSet, allBindings, Graphics::ShaderBindingFlags::SAMPLER,
+					    baseIdx, bindingSet.numSamplers_);
+				}
+
+				// Determine binding sets per technique.
+				auto FindShaderIdx = [&](const char* name) -> i32 {
+					if(!name)
+						return -1;
+					i32 idx = 0;
+					for(const auto& compile : compileInfo)
+					{
+						if(compile.entryPoint_ == name)
+							return idx;
+						++idx;
+					}
+					return -1;
+				};
+
 				// Setup data ready to serialize.
 				Graphics::ShaderHeader outHeader;
-				outHeader.numCBuffers_ = cbuffers.size();
-				outHeader.numSRVs_ = srvs.size();
-				outHeader.numUAVs_ = uavs.size();
-				outHeader.numSamplers_ = samplers.size();
 				outHeader.numShaders_ = compileOutput.size();
 				outHeader.numTechniques_ = techniques.size();
 				outHeader.numSamplerStates_ = samplerStates.size();
-				Core::Vector<Graphics::ShaderBindingHeader> outBindingHeaders;
-				outBindingHeaders.reserve(cbuffers.size() + samplers.size() + srvs.size() + uavs.size());
-
-				const auto PopulateOutBindingHeaders = [&outBindingHeaders](const Graphics::BindingMap& bindings) {
-					for(const auto& binding : bindings)
-					{
-						Graphics::ShaderBindingHeader bindingHeader;
-						memset(&bindingHeader, 0, sizeof(bindingHeader));
-						strcpy_s(bindingHeader.name_, sizeof(bindingHeader.name_), binding.first.c_str());
-						outBindingHeaders.push_back(bindingHeader);
-					}
-				};
+				outHeader.numBindingSets_ = inBindingSets.size();
 
 				Core::Vector<Graphics::ShaderSamplerStateHeader> outSamplerStateHeaders;
 				outSamplerStateHeaders.reserve(samplerStates.size());
@@ -313,65 +383,29 @@ namespace
 					outSamplerStateHeaders.emplace_back(outSamplerState);
 				}
 
-				PopulateOutBindingHeaders(cbuffers);
-				PopulateOutBindingHeaders(srvs);
-				PopulateOutBindingHeaders(uavs);
-				PopulateOutBindingHeaders(samplers);
 				Core::Vector<Graphics::ShaderBytecodeHeader> outBytecodeHeaders;
-				Core::Vector<Graphics::ShaderBindingMapping> outBindingMappings;
 				i32 bytecodeOffset = 0;
 				for(const auto& compile : compileOutput)
 				{
 					Graphics::ShaderBytecodeHeader bytecodeHeader;
-					bytecodeHeader.numCBuffers_ = compile.cbuffers_.size();
-					bytecodeHeader.numSRVs_ = compile.srvs_.size();
-					bytecodeHeader.numUAVs_ = compile.uavs_.size();
-					bytecodeHeader.numSamplers_ = compile.samplers_.size();
 					bytecodeHeader.type_ = compile.type_;
 					bytecodeHeader.offset_ = bytecodeOffset;
 					bytecodeHeader.numBytes_ = (i32)(compile.byteCodeEnd_ - compile.byteCodeBegin_);
 
 					bytecodeOffset += bytecodeHeader.numBytes_;
 					outBytecodeHeaders.push_back(bytecodeHeader);
-
-					const auto AddBindingMapping = [&](
-					    const Graphics::BindingMap& bindingMap, const Core::Vector<Graphics::ShaderBinding>& bindings) {
-						for(const auto& binding : bindings)
-						{
-							auto it = bindingMap.find(binding.name_);
-							DBG_ASSERT(it != bindingMap.end());
-							Graphics::ShaderBindingMapping mapping;
-							mapping.binding_ = it->second;
-							mapping.dstSlot_ = binding.slot_;
-							outBindingMappings.push_back(mapping);
-						}
-					};
-
-					AddBindingMapping(cbuffers, compile.cbuffers_);
-					AddBindingMapping(srvs, compile.srvs_);
-					AddBindingMapping(uavs, compile.uavs_);
-					AddBindingMapping(samplers, compile.samplers_);
 				};
 
 				Core::Vector<Graphics::ShaderTechniqueHeader> outTechniqueHeaders;
-				for(const auto& technique : backendMetadata.GetTechniques())
+
+				for(i32 techIdx = 0; techIdx < techniques.size(); ++techIdx)
 				{
+					const auto& technique = techniques[techIdx];
+
 					Graphics::ShaderTechniqueHeader techniqueHeader;
 					memset(&techniqueHeader, 0, sizeof(techniqueHeader));
 					strcpy_s(techniqueHeader.name_, sizeof(techniqueHeader.name_), technique.name_.c_str());
 
-					auto FindShaderIdx = [&](const char* name) -> i32 {
-						if(!name)
-							return -1;
-						i32 idx = 0;
-						for(const auto& compile : compileInfo)
-						{
-							if(compile.entryPoint_ == name)
-								return idx;
-							++idx;
-						}
-						return -1;
-					};
 					techniqueHeader.vs_ = FindShaderIdx(technique.vs_.c_str());
 					techniqueHeader.gs_ = FindShaderIdx(technique.gs_.c_str());
 					techniqueHeader.hs_ = FindShaderIdx(technique.hs_.c_str());
@@ -379,6 +413,43 @@ namespace
 					techniqueHeader.ps_ = FindShaderIdx(technique.ps_.c_str());
 					techniqueHeader.cs_ = FindShaderIdx(technique.cs_.c_str());
 					techniqueHeader.rs_ = technique.rs_.state_;
+
+					// Calculate used binding sets.
+					Graphics::BindingMap techBindings;
+
+					auto AddShaderBindings = [&](i32 shaderIdx) {
+						if(shaderIdx != -1)
+						{
+							const Graphics::ShaderCompileOutput& compile = compileOutput[shaderIdx];
+							AddBindings(compile.cbuffers_, techBindings, 0);
+							AddBindings(compile.srvs_, techBindings, 0);
+							AddBindings(compile.uavs_, techBindings, 0);
+							AddBindings(compile.samplers_, techBindings, 0);
+						}
+					};
+
+					AddShaderBindings(techniqueHeader.vs_);
+					AddShaderBindings(techniqueHeader.hs_);
+					AddShaderBindings(techniqueHeader.ds_);
+					AddShaderBindings(techniqueHeader.gs_);
+					AddShaderBindings(techniqueHeader.ps_);
+					AddShaderBindings(techniqueHeader.cs_);
+
+					i32 numBindingSets = 0;
+					techniqueHeader.bindingSets_.fill(-1);
+					for(i32 bsIdx = 0; bsIdx < inBindingSets.size(); ++bsIdx)
+					{
+						const auto& bindingSet = inBindingSets[bsIdx];
+						for(auto member : bindingSet.members_)
+						{
+							if(techBindings.find(member) != techBindings.end())
+							{
+								techniqueHeader.bindingSets_[numBindingSets++] = bsIdx;
+								break;
+							}
+						}
+					}
+					techniqueHeader.numBindingSets_ = numBindingSets;
 
 					DBG_ASSERT(techniqueHeader.vs_ != -1 || techniqueHeader.cs_ != -1);
 
@@ -390,15 +461,15 @@ namespace
 					if(auto outFile = Core::File(outFilename, Core::FileFlags::CREATE | Core::FileFlags::WRITE))
 					{
 						outFile.Write(&outHeader, sizeof(outHeader));
+						if(outBindingSets.size() > 0)
+							outFile.Write(outBindingSets.data(),
+							    outBindingSets.size() * sizeof(Graphics::ShaderBindingSetHeader));
 						if(outBindingHeaders.size() > 0)
 							outFile.Write(outBindingHeaders.data(),
 							    outBindingHeaders.size() * sizeof(Graphics::ShaderBindingHeader));
 						if(outBytecodeHeaders.size() > 0)
 							outFile.Write(outBytecodeHeaders.data(),
 							    outBytecodeHeaders.size() * sizeof(Graphics::ShaderBytecodeHeader));
-						if(outBindingMappings.size() > 0)
-							outFile.Write(outBindingMappings.data(),
-							    outBindingMappings.size() * sizeof(Graphics::ShaderBindingMapping));
 						if(outTechniqueHeaders.size() > 0)
 							outFile.Write(outTechniqueHeaders.data(),
 							    outTechniqueHeaders.size() * sizeof(Graphics::ShaderTechniqueHeader));

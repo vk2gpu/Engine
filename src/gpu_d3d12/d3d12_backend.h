@@ -33,7 +33,6 @@ namespace GPU
 		    Handle handle, const BufferDesc& desc, const void* initialData, const char* debugName) override;
 		ErrorCode CreateTexture(Handle handle, const TextureDesc& desc, const TextureSubResourceData* initialData,
 		    const char* debugName) override;
-		ErrorCode CreateSamplerState(Handle handle, const SamplerState& state, const char* debugName) override;
 		ErrorCode CreateShader(Handle handle, const ShaderDesc& desc, const char* debugName) override;
 		ErrorCode CreateGraphicsPipelineState(
 		    Handle handle, const GraphicsPipelineStateDesc& desc, const char* debugName) override;
@@ -46,6 +45,11 @@ namespace GPU
 		ErrorCode CreateCommandList(Handle handle, const char* debugName) override;
 		ErrorCode CreateFence(Handle handle, const char* debugName) override;
 		ErrorCode DestroyResource(Handle handle) override;
+
+		ErrorCode UpdatePipelineBindings(Handle pbs, i32 base, Core::ArrayView<BindingCBV> descs) override;
+		ErrorCode UpdatePipelineBindings(Handle pbs, i32 base, Core::ArrayView<BindingSRV> descs) override;
+		ErrorCode UpdatePipelineBindings(Handle pbs, i32 base, Core::ArrayView<BindingUAV> descs) override;
+		ErrorCode UpdatePipelineBindings(Handle pbs, i32 base, Core::ArrayView<SamplerState> descs) override;
 
 		ErrorCode CompileCommandList(Handle handle, const CommandList& commandList) override;
 		ErrorCode SubmitCommandLists(Core::ArrayView<Handle> handles) override;
@@ -98,7 +102,6 @@ namespace GPU
 		ResourcePool<D3D12Buffer> bufferResources_;
 		ResourcePool<D3D12Texture> textureResources_;
 		ResourcePool<D3D12Shader> shaders_;
-		ResourcePool<D3D12SamplerState> samplerStates_;
 		ResourcePool<D3D12GraphicsPipelineState> graphicsPipelineStates_;
 		ResourcePool<D3D12ComputePipelineState> computePipelineStates_;
 		ResourcePool<D3D12PipelineBindingSet> pipelineBindingSets_;

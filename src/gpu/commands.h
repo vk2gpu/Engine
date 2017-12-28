@@ -52,6 +52,27 @@ namespace GPU
 	DEFINE_ENUM_CLASS_FLAG_OPERATOR(CommandQueueType, |);
 
 	/**
+	 * Pipeline binding.
+	 */
+	struct GPU_DLL PipelineBinding
+	{
+		/// Source pipeline binding set.
+		GPU::Handle pbs_;
+
+		struct Range
+		{
+			i32 srcOffset_ = 0;
+			i32 dstOffset_ = 0;
+			i32 num_ = 0;
+		};
+
+		Range cbvs_;
+		Range srvs_;
+		Range uavs_;
+		Range samplers_;
+	};
+
+	/**
 	 * Base command.
 	 */
 	struct GPU_DLL Command
@@ -77,8 +98,10 @@ namespace GPU
 	{
 		static const CommandQueueType QUEUE_TYPE = CommandQueueType::GRAPHICS;
 
-		/// Pipeline state binding to use.
-		Handle pipelineBinding_;
+		/// Pipeline state to use.
+		Handle pipelineState_;
+		/// Pipeline bindings.
+		Core::ArrayView<PipelineBinding> pipelineBindings_;
 		/// Draw binding to use. Determines if indexed or non-indexed draw.
 		Handle drawBinding_;
 		/// Frame binding for rendering.
@@ -107,8 +130,10 @@ namespace GPU
 	{
 		static const CommandQueueType QUEUE_TYPE = CommandQueueType::GRAPHICS;
 
-		/// Pipeline state binding to use.
-		Handle pipelineBinding_;
+		/// Pipeline state to use.
+		Handle pipelineState_;
+		/// Pipeline bindings.
+		Core::ArrayView<PipelineBinding> pipelineBindings_;
 		/// Draw binding to use. Determines if indexed or non-indexed draw.
 		Handle drawBinding_;
 		/// Frame binding for rendering.
@@ -136,8 +161,10 @@ namespace GPU
 	{
 		static const CommandQueueType QUEUE_TYPE = CommandQueueType::COMPUTE;
 
-		/// Pipeline state binding to use.
-		Handle pipelineBinding_;
+		/// Pipeline state to use.
+		Handle pipelineState_;
+		/// Pipeline bindings.
+		Core::ArrayView<PipelineBinding> pipelineBindings_;
 		/// X groups to dispatch.
 		i32 xGroups_ = 0;
 		/// Y groups to dispatch.
@@ -153,8 +180,10 @@ namespace GPU
 	{
 		static const CommandQueueType QUEUE_TYPE = CommandQueueType::COMPUTE;
 
-		/// Pipeline state binding to use.
-		Handle pipelineBinding_;
+		/// Pipeline state to use.
+		Handle pipelineState_;
+		/// Pipeline bindings.
+		Core::ArrayView<PipelineBinding> pipelineBindings_;
 		/// Indirect buffer with dispatch parameters.
 		Handle indirectBuffer_;
 		/// Byte offset in indirect buffer to start reading arguments from.

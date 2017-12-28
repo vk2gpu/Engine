@@ -239,13 +239,37 @@ namespace Graphics
 			for(auto* member : node->type_->members_)
 			{
 				if(member->type_->baseType_->metaData_ == "CBV")
+				{
+					bindingSetInfo.members_.push_back(member->name_);
 					bindingSetInfo.numCBVs_++;
+				}
+			}
+
+			for(auto* member : node->type_->members_)
+			{
 				if(member->type_->baseType_->metaData_ == "SRV")
+				{
+					bindingSetInfo.members_.push_back(member->name_);
 					bindingSetInfo.numSRVs_++;
+				}
+			}
+
+			for(auto* member : node->type_->members_)
+			{
 				if(member->type_->baseType_->metaData_ == "UAV")
+				{
+					bindingSetInfo.members_.push_back(member->name_);
 					bindingSetInfo.numUAVs_++;
+				}
+			}
+
+			for(auto* member : node->type_->members_)
+			{
 				if(IsDeclSamplerState(member))
+				{
+					bindingSetInfo.members_.push_back(member->name_);
 					bindingSetInfo.numSamplers_++;
+				}
 			}
 
 			bindingSets_.push_back(bindingSetInfo);
