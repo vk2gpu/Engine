@@ -148,6 +148,8 @@ namespace GPU
 		Core::Vector<D3D12SubresourceRange> srvTransitions_;
 		Core::Vector<D3D12SubresourceRange> uavTransitions_;
 		Core::Vector<D3D12SubresourceRange> cbvTransitions_;
+
+		bool shaderVisible_ = false;
 	};
 
 	struct D3D12DrawBindingSet

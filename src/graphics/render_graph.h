@@ -248,8 +248,9 @@ namespace Graphics
 		 * It will then create the appropriate resource,, then execute the render passes 
 		 * in the best order determined.
 		 * @param finalRes Final output resource for the graph. Will take newest version.
+		 * @return true if successful.
 		 */
-		void Execute(RenderGraphResource finalRes);
+		bool Execute(RenderGraphResource finalRes);
 
 		/**
 		 * Get number of executed render passes.

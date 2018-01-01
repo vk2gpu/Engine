@@ -28,8 +28,12 @@ namespace
 		GPU::SetupParams setupParams;
 		if(cmdLine.HasArg(0, "renderdoc"))
 			setupParams.debugFlags_ |= GPU::DebugFlags::RENDERDOC;
+		if(cmdLine.HasArg(0, "gpudebugruntime"))
+			setupParams.debugFlags_ |= GPU::DebugFlags::DEBUG_RUNTIME;
 		if(cmdLine.HasArg(0, "gpubasedvalidation"))
 			setupParams.debugFlags_ |= GPU::DebugFlags::GPU_BASED_VALIDATION;
+		if(cmdLine.HasArg(0, "disableassertions"))
+			Core::SetBreakOnAssertion(false);
 		return setupParams;
 	}
 

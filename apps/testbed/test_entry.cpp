@@ -709,10 +709,14 @@ void Loop(const Core::CommandLine& cmdLine)
 
 	Job::Counter* frameSubmitCounter = nullptr;
 
+	bool frameSubmitFailure = false;
 	Job::FunctionJob frameSubmitJob("Frame Submit", [&](i32) {
 		// Execute, and resolve the out color target.
 		times_.graphExecute_ = Core::Timer::GetAbsoluteTime();
-		graph.Execute(imguiPipeline.GetResource("out_color"));
+		if(!graph.Execute(imguiPipeline.GetResource("out_color")))
+		{
+			frameSubmitFailure = true;
+		}
 		times_.graphExecute_ = Core::Timer::GetAbsoluteTime() - times_.graphExecute_;
 
 		// Present, next frame, wait.
@@ -731,7 +735,7 @@ void Loop(const Core::CommandLine& cmdLine)
 
 	bool profilingEnabled = false;
 
-	while(Client::Manager::Update())
+	while(Client::Manager::Update() && !frameSubmitFailure)
 	{
 		const f64 targetFrameTime = 1.0 / 1200.0;
 		f64 beginFrameTime = Core::Timer::GetAbsoluteTime();
@@ -843,7 +847,7 @@ void Loop(const Core::CommandLine& cmdLine)
 
 			// Set draw callback.
 			forwardPipeline.SetDrawCallback([&](Testbed::DrawContext& drawCtx) {
-
+#if 0
 				DrawRenderPackets(drawCtx);
 
 				if(testClusteredModel)
@@ -868,7 +872,7 @@ void Loop(const Core::CommandLine& cmdLine)
 						testClusteredModel->DrawClusters(drawCtx, object);
 					}
 				}
-
+#endif
 				// Testing code.
 				//texCompressor.Compress(cmdList, texture, finalTextureDesc.format_, finalTexture);
 			});
@@ -901,13 +905,15 @@ void Loop(const Core::CommandLine& cmdLine)
 					forwardPipeline.SetResource("in_color", bbRes);
 					forwardPipeline.SetResource("in_shadow_map", shadowPipeline.GetResource("out_shadow_map"));
 					forwardPipeline.Setup(graph);
+
+					bbRes = forwardPipeline.GetResource("out_color");
 				}
 
 				// Setup ImGui pipeline.
 				{
 					rmt_ScopedCPUSample(Setup_ImGuiPipeline, RMTSF_None);
 
-					imguiPipeline.SetResource("in_color", forwardPipeline.GetResource("out_color"));
+					imguiPipeline.SetResource("in_color", bbRes);
 					imguiPipeline.Setup(graph);
 				}
 			}

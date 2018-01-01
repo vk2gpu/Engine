@@ -382,7 +382,7 @@ namespace GPU
 		case PrimitiveTopology::TRIANGLE_STRIP_ADJ:
 			return D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP_ADJ;
 		default:
-			DBG_BREAK;
+			DBG_ASSERT(false);
 			return D3D_PRIMITIVE_TOPOLOGY_UNDEFINED;
 		}
 	}
@@ -437,7 +437,7 @@ namespace GPU
 		case AddressingMode::BORDER:
 			return D3D12_TEXTURE_ADDRESS_MODE_BORDER;
 		default:
-			DBG_BREAK;
+			DBG_ASSERT(false);
 			return D3D12_TEXTURE_ADDRESS_MODE_WRAP;
 		}
 	};
@@ -618,7 +618,7 @@ namespace GPU
 					// Don't need to clear these ranges.
 					break;
 				default:
-					DBG_BREAK;
+					DBG_ASSERT(false);
 					break;
 				};
 			}
@@ -666,7 +666,7 @@ namespace GPU
 					break;
 				}
 				default:
-					DBG_BREAK;
+					DBG_ASSERT(false);
 					break;
 				};
 			}

@@ -36,6 +36,8 @@ namespace Core
 
 			return (LogContext*)tls.Get();
 		}
+
+		bool enableBreakOnAssertion_ = true;
 	}
 
 	void LogV(const char* text, va_list argList)
@@ -83,7 +85,7 @@ namespace Core
 
 		Log("\"%s\" in %s on line %u.\n\nDo you wish to break?", context, File, Line);
 
-		return true;
+		return enableBreakOnAssertion_;
 #else
 		return false;
 #endif
@@ -176,6 +178,11 @@ namespace Core
 #else
 		return 0;
 #endif
+	}
+
+	void SetBreakOnAssertion(bool enableBreak)
+	{
+		enableBreakOnAssertion_ = enableBreak;
 	}
 
 

@@ -15,24 +15,34 @@ namespace GPU
 	/**
 	 * Constants.
 	 */
-	/// Number of frames to buffer ahead.
+	/// Number of frames to buffer ahead. TODO: Make configurable.
 	static const i32 MAX_GPU_FRAMES = 4;
-	/// Maximum number of RTVs that can be bound simultaneously.
+	/// Maximum number of RTVs that can be bound simultaneously. TODO: Make queryable.
 	static const i32 MAX_BOUND_RTVS = 8;
-	/// Maximum number of vertex elements in a pipeline state.
+	/// Maximum number of vertex elements in a pipeline state. TODO: Make queryable.
 	static const i32 MAX_VERTEX_ELEMENTS = 16;
-	/// Maximum number of vertex streams in the draw binding set.
+	/// Maximum number of vertex streams in the draw binding set. TODO: Make queryable.
 	static const i32 MAX_VERTEX_STREAMS = 16;
-	/// Maximum number of SRV bindings.
+	/// Maximum number of SRV bindings. TODO: Make queryable.
 	static const i32 MAX_SRV_BINDINGS = 16;
-	/// Maximum number of UAV bindings.
+	/// Maximum number of UAV bindings. TODO: Make queryable.
 	static const i32 MAX_UAV_BINDINGS = 8;
-	/// Maximum number of CBV bindings.
+	/// Maximum number of CBV bindings.  TODO: Make queryable.
 	static const i32 MAX_CBV_BINDINGS = 14;
-	/// Maximum number of sampler bindings.
+	/// Maximum number of sampler bindings. TODO: Make queryable.
 	static const i32 MAX_SAMPLER_BINDINGS = 8;
-	/// Resource data alignment.
+	/// Resource data alignment. TODO: Make queryable.
 	static const i32 RESOURCE_DATA_ALIGNMENT = 256;
+	/// Maximum number of combined SRVs, UAVs, and CBVs in a pipeline binding set. TODO: Make queryable.
+	static const i32 MAX_PIPELINE_BINDING_SET_VIEWS = 1000000;
+	/// Maximum number of SRVs in pipeline binding set. TODO: Make queryable.
+	static const i32 MAX_PIPELINE_BINDING_SET_SRVS = MAX_PIPELINE_BINDING_SET_VIEWS / 3;
+	/// Maximum number of UABs in pipeline binding set. TODO: Make queryable.
+	static const i32 MAX_PIPELINE_BINDING_SET_UAVS = MAX_PIPELINE_BINDING_SET_VIEWS / 3;
+	/// Maximum number of UAVs in pipeline binding set. TODO: Make queryable.
+	static const i32 MAX_PIPELINE_BINDING_SET_CBVS = MAX_PIPELINE_BINDING_SET_VIEWS / 3;
+	/// Maximum number of samplers in pipeline binding set. TODO: Make queryable.
+	static const i32 MAX_PIPELINE_BINDING_SET_SAMPLERS = 2048;
 
 	/**
 	 * Error codes.
@@ -43,6 +53,7 @@ namespace GPU
 		FAIL = -1,
 		UNIMPLEMENTED = -2,
 		UNSUPPORTED = -3,
+		DEVICE_REMOVED = -4,
 	};
 
 /**
@@ -66,11 +77,14 @@ namespace GPU
 		/// Enable all warnings that may be disabled by default.
 		ENABLE_ALL_WARNINGS = 0x1,
 
+		/// Enable debug runtime.
+		DEBUG_RUNTIME = 0x2,
+
 		/// Enable GPU based validation.
-		GPU_BASED_VALIDATION = 0x2,
+		GPU_BASED_VALIDATION = 0x4,
 
 		/// Enable RenderDoc integration.
-		RENDERDOC = 0x4,
+		RENDERDOC = 0x8,
 	};
 
 	DEFINE_ENUM_CLASS_FLAG_OPERATOR(DebugFlags, &);

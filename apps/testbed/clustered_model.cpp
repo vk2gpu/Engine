@@ -470,7 +470,7 @@ namespace MeshTools
 		void ImportMeshCluster(Mesh* mesh, i32 firstTri, i32 numTris)
 		{
 			if(firstTri >= mesh->triangles_.size())
-				DBG_BREAK;
+				DBG_ASSERT(false);
 
 			for(i32 i = firstTri; i < (firstTri + numTris); ++i)
 			{
@@ -826,7 +826,7 @@ ClusteredModel::ClusteredModel(const char* sourceFile)
 									inStreamDesc.data_ = &meshCluster->vertices_.data()->color_;
 									break;
 								default:
-									DBG_BREAK;
+									DBG_ASSERT(false);
 								}
 
 								DBG_ASSERT(inStreamDesc.data_);

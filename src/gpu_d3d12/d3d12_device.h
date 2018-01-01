@@ -88,6 +88,9 @@ namespace GPU
 		/// Descriptor allocators.
 		class D3D12DescriptorHeapAllocator* viewAllocator_ = nullptr;
 		class D3D12DescriptorHeapAllocator* samplerAllocator_ = nullptr;
+		class D3D12DescriptorHeapAllocator* viewShaderAllocator_ = nullptr;
+		class D3D12DescriptorHeapAllocator* samplerShaderAllocator_ = nullptr;
+
 		class D3D12DescriptorHeapAllocator* rtvAllocator_ = nullptr;
 		class D3D12DescriptorHeapAllocator* dsvAllocator_ = nullptr;
 

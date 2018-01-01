@@ -11,6 +11,16 @@
 
 namespace GPU
 {
+	bool Handle::IsValid() const
+	{
+		return GPU::Manager::IsValidHandle(*this);
+	}
+
+	bool Handle::IsValid(ResourceType type) const
+	{
+		return GPU::Manager::IsValidHandle(*this) && type == GetType();
+	}
+
 	Core::ArrayView<SamplerState> GetDefaultSamplerStates()
 	{
 		auto CreateSampler = [](AddressingMode addr, FilteringMode min, FilteringMode mag, u32 maxAnisotropy) {

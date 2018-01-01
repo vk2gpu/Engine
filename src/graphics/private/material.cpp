@@ -1,6 +1,7 @@
 #include "graphics/material.h"
 #include "graphics/texture.h"
 #include "graphics/private/material_impl.h"
+#include "gpu/manager.h"
 #include "core/file.h"
 #include "resource/factory.h"
 #include "resource/manager.h"
@@ -33,6 +34,18 @@ namespace Graphics
 			i64 readBytes = 0;
 
 			DBG_ASSERT(material);
+
+			if(!defaultTex_ && GPU::Manager::IsInitialized())
+			{
+				GPU::TextureDesc desc;
+				desc.type_ = GPU::TextureType::TEX2D;
+				desc.bindFlags_ = GPU::BindFlags::SHADER_RESOURCE;
+				desc.format_ = GPU::Format::R8G8B8A8_UNORM;
+				desc.width_ = 4;
+				desc.height_ = 4;
+				defaultTex_ = GPU::Manager::CreateTexture(desc, nullptr, "MaterialFactor/defaultTex");
+				DBG_ASSERT(defaultTex_);
+			}
 
 			auto* impl = new MaterialImpl();
 
@@ -70,6 +83,9 @@ namespace Graphics
 			// Setup material bindings, if there are any,
 			if(impl->bindings_ = impl->shaderRes_->CreateBindingSet("MaterialBindings"))
 			{
+				// Set default texture for everything. Temporary workaround.
+				impl->bindings_.SetAll(GPU::Binding::Texture2D(defaultTex_, GPU::Format::R8G8B8A8_UNORM, 0, 1));
+
 				for(i32 idx = 0; idx < impl->textures_.size(); ++idx)
 				{
 					const char* bindingName = impl->textures_[idx].bindingName_.data();
@@ -98,6 +114,8 @@ namespace Graphics
 						}
 					}
 				}
+
+				DBG_ASSERT(impl->bindings_.Validate());
 			}
 
 			impl->name_ = name;
@@ -105,6 +123,8 @@ namespace Graphics
 
 			return true;
 		}
+
+		GPU::Handle defaultTex_;
 	};
 
 	DEFINE_RESOURCE(Material);

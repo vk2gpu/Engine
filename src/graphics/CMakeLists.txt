@@ -7,7 +7,6 @@ SET(SOURCES_PUBLIC
 	"render_pass.h"
 	"render_resources.h"
 	"shader.h"
-	"shader_manager.h"
 	"texture.h"
 )
 
@@ -27,7 +26,6 @@ SET(SOURCES_PRIVATE
 	"private/render_resources.cpp"
 	"private/shader.cpp"
 	"private/shader_impl.h"
-	"private/shader_manager.cpp"
 	"private/texture.cpp"
 	"private/texture_impl.h"
 )

@@ -75,6 +75,9 @@ namespace Graphics
 		Core::Vector<GPU::CommandList> cmdLists_;
 		Core::Vector<GPU::Handle> cmdHandles_;
 
+		// Error handling.
+		volatile i32 compilationFailures_ = 0;
+
 		RenderGraphImpl(i32 frameAllocatorSize)
 		    : frameAllocator_(frameAllocatorSize)
 		{
@@ -268,8 +271,9 @@ namespace Graphics
 	RenderGraphResource RenderGraphBuilder::Create(const char* name, const RenderGraphTextureDesc& desc)
 	{
 		ResourceDesc resDesc;
+		const char* renderPassName = "TODO_RENDER_PASS_NAME";
 		resDesc.id_ = impl_->resourceDescs_.size();
-		resDesc.name_ = name;
+		resDesc.name_.Printf("%s/%s", renderPassName, name);
 		resDesc.resType_ = GPU::ResourceType::TEXTURE;
 		resDesc.textureDesc_ = desc;
 		impl_->resourceDescs_.push_back(resDesc);
@@ -295,7 +299,7 @@ namespace Graphics
 			break;
 
 		default:
-			DBG_BREAK;
+			DBG_ASSERT(false);
 			break;
 		}
 
@@ -323,7 +327,7 @@ namespace Graphics
 			break;
 
 		default:
-			DBG_BREAK;
+			DBG_ASSERT(false);
 			break;
 		}
 
@@ -349,7 +353,7 @@ namespace Graphics
 			break;
 
 		default:
-			DBG_BREAK;
+			DBG_ASSERT(false);
 			break;
 		}
 
@@ -386,7 +390,7 @@ namespace Graphics
 			break;
 
 		default:
-			DBG_BREAK;
+			DBG_ASSERT(false);
 			break;
 		}
 
@@ -612,7 +616,7 @@ namespace Graphics
 		impl_->frameAllocator_.Reset();
 	}
 
-	void RenderGraph::Execute(RenderGraphResource finalRes)
+	bool RenderGraph::Execute(RenderGraphResource finalRes)
 	{
 		// Find newest version of finalRes.
 		finalRes.version_ = -1;
@@ -740,7 +744,13 @@ namespace Graphics
 					entry->renderPass_->Execute(resources, cmdList);
 
 				if(cmdList.GetType() != GPU::CommandQueueType::NONE)
-					GPU::Manager::CompileCommandList(cmdHandle, cmdList);
+				{
+					if(!GPU::Manager::CompileCommandList(cmdHandle, cmdList))
+					{
+						Core::AtomicInc(&impl->compilationFailures_);
+						DBG_ASSERT_MSG(false, "Failed to compile command list for render pass \"%s\"", entry->name_.c_str());
+					}
+				}
 			};
 
 			jobDesc.param_ = idx;
@@ -754,19 +764,45 @@ namespace Graphics
 		Job::Manager::WaitForCounter(counter, 0);
 #endif
 
+		if(impl_->compilationFailures_ > 0)
+			return false;
+
+		static bool individualSubmission = false;
+
 		//Core::Log("Execute done\n");
 		// Submit all command lists with commands in sequential order.
 		rmt_ScopedCPUSample(RenderGraph_SubmitCommandLists, RMTSF_None);
-		Core::Vector<GPU::Handle> cmdLists;
-		jobDescs.resize(numPasses);
-		for(i32 idx = 0; idx < numPasses; ++idx)
+		if(individualSubmission)
 		{
-			const auto& cmdList = impl_->cmdLists_[idx];
-			auto cmdHandle = impl_->cmdHandles_[idx];
-			if(cmdList.NumCommands() > 0)
-				cmdLists.push_back(cmdHandle);
+			for(i32 idx = 0; idx < numPasses; ++idx)
+			{
+				auto& entry = impl_->executeRenderPasses_[idx];
+				auto cmdHandle = impl_->cmdHandles_[idx];
+				if(!GPU::Manager::SubmitCommandLists(cmdHandle))
+				{
+					DBG_ASSERT_MSG(false, "Failed to submit command list for render pass \"%s\".", entry->name_.c_str());
+					return false;
+				}
+			}
 		}
-		GPU::Manager::SubmitCommandLists(cmdLists);
+		else
+		{
+			Core::Vector<GPU::Handle> cmdLists;
+			jobDescs.resize(numPasses);
+			for(i32 idx = 0; idx < numPasses; ++idx)
+			{
+				const auto& cmdList = impl_->cmdLists_[idx];
+				auto cmdHandle = impl_->cmdHandles_[idx];
+				if(cmdList.NumCommands() > 0)
+					cmdLists.push_back(cmdHandle);
+			}
+			if(!GPU::Manager::SubmitCommandLists(cmdLists))
+			{
+				DBG_ASSERT_MSG(false, "Failed to submit command lists.");
+				return false;
+			}
+		}
+		return true;
 	}
 
 	i32 RenderGraph::GetNumExecutedRenderPasses() const { return impl_->executeRenderPasses_.size(); }

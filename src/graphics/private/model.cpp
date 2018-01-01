@@ -145,6 +145,7 @@ namespace Graphics
 			if(GPU::Manager::IsInitialized())
 			{
 				Core::Vector<u8> data;
+				i32 vbIdx = 0;
 				for(const auto& mesh : impl->modelMeshes_)
 				{
 					readBytes = mesh.noofVertices_ * mesh.vertexSize_;
@@ -161,11 +162,12 @@ namespace Graphics
 						GPU::BufferDesc desc;
 						desc.size_ = readBytes;
 						desc.bindFlags_ = GPU::BindFlags::VERTEX_BUFFER;
-						GPU::Handle vb = GPU::Manager::CreateBuffer(desc, data.data(), name);
+						GPU::Handle vb = GPU::Manager::CreateBuffer(desc, data.data(), "%s/vb_%d", name, vbIdx++);
 						impl->vbs_.push_back(vb);
 					}
 				}
 
+				i32 ibIdx = 0;
 				for(const auto& mesh : impl->modelMeshes_)
 				{
 					readBytes = mesh.noofIndices_ * mesh.indexStride_;
@@ -182,13 +184,14 @@ namespace Graphics
 						GPU::BufferDesc desc;
 						desc.size_ = readBytes;
 						desc.bindFlags_ = GPU::BindFlags::INDEX_BUFFER;
-						GPU::Handle ib = GPU::Manager::CreateBuffer(desc, data.data(), name);
+						GPU::Handle ib = GPU::Manager::CreateBuffer(desc, data.data(), "%s/ib_%d", name, ibIdx++);
 						impl->ibs_.push_back(ib);
 					}
 				}
 
 				// Create draw binding sets.
 				i32 idx = 0;
+				i32 dbsIdx = 0;
 				for(const auto& mesh : impl->modelMeshes_)
 				{
 					GPU::DrawBindingSetDesc desc;
@@ -218,7 +221,7 @@ namespace Graphics
 						}
 					}
 
-					GPU::Handle db = GPU::Manager::CreateDrawBindingSet(desc, name);
+					GPU::Handle db = GPU::Manager::CreateDrawBindingSet(desc, "%s/dbs_%d", name, dbsIdx++);
 					impl->dbs_.push_back(db);
 				}
 			}

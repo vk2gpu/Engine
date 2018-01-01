@@ -138,7 +138,7 @@ namespace Client
 		}
 		break;
 		default:
-			DBG_BREAK;
+			DBG_ASSERT(false);
 		}
 	}
 

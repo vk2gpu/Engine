@@ -84,13 +84,15 @@ namespace GPU
 		DBG_ASSERT(!isOpen_);
 		ID3D12CommandList* d3dCommandLists[1] = {d3dCommandList_.Get()};
 		d3dCommandQueue->ExecuteCommandLists(1, d3dCommandLists);
-		SignalNext(d3dCommandQueue);
-		return ErrorCode::OK;
+		return SignalNext(d3dCommandQueue);
 	}
 
 	ErrorCode D3D12CommandList::SignalNext(ID3D12CommandQueue* d3dCommandQueue)
 	{
-		CHECK_D3D(d3dCommandQueue->Signal(d3dFence_.Get(), listIdx_));
+		HRESULT hr;
+		CHECK_D3D_RESULT(hr, d3dCommandQueue->Signal(d3dFence_.Get(), listIdx_));
+		if(FAILED(hr))
+			return ErrorCode::FAIL;
 		++listIdx_;
 		return ErrorCode::OK;
 	}

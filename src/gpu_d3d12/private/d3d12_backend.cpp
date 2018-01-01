@@ -1,6 +1,7 @@
 #include "gpu_d3d12/d3d12_backend.h"
 #include "gpu_d3d12/d3d12_device.h"
 #include "gpu_d3d12/d3d12_linear_heap_allocator.h"
+#include "gpu_d3d12/d3d12_linear_descriptor_allocator.h"
 #include "core/debug.h"
 #include "core/string.h"
 
@@ -58,38 +59,41 @@ namespace GPU
 #if !defined(FINAL)
 		HRESULT hr = S_OK;
 		// Setup debug interfaces.
-		if(DXGIGetDebugInterface1Fn)
+		if(Core::ContainsAnyFlags(setupParams.debugFlags_, DebugFlags::DEBUG_RUNTIME | GPU::DebugFlags::GPU_BASED_VALIDATION))
 		{
-			hr = DXGIGetDebugInterface1Fn(0, IID_IDXGIDebug, (void**)dxgiDebug_.GetAddressOf());
-			ComPtr<IDXGIInfoQueue> infoQueue;
-			hr = dxgiDebug_.As(&infoQueue);
-			if(SUCCEEDED(hr))
+			if(DXGIGetDebugInterface1Fn)
 			{
-				infoQueue->SetMuteDebugOutput(DXGI_DEBUG_ALL, FALSE);
-				CHECK_D3D(
-				    infoQueue->SetBreakOnSeverity(DXGI_DEBUG_ALL, DXGI_INFO_QUEUE_MESSAGE_SEVERITY_CORRUPTION, TRUE));
-				CHECK_D3D(infoQueue->SetBreakOnSeverity(DXGI_DEBUG_ALL, DXGI_INFO_QUEUE_MESSAGE_SEVERITY_ERROR, TRUE));
-				CHECK_D3D(
-				    infoQueue->SetBreakOnSeverity(DXGI_DEBUG_ALL, DXGI_INFO_QUEUE_MESSAGE_SEVERITY_WARNING, FALSE));
-
-				infoQueue->AddApplicationMessage(
-				    DXGI_INFO_QUEUE_MESSAGE_SEVERITY_WARNING, "DXGI error reporting ENABLED.");
-			}
-		}
-
-		if(D3D12GetDebugInterfaceFn)
-		{
-			hr = D3D12GetDebugInterfaceFn(IID_ID3D12Debug, (void**)d3dDebug_.GetAddressOf());
-			if(SUCCEEDED(hr))
-			{
-				d3dDebug_->EnableDebugLayer();
-
-				hr = d3dDebug_.Get()->QueryInterface(IID_ID3D12Debug1, (void**)d3dDebug1_.GetAddressOf());
+				hr = DXGIGetDebugInterface1Fn(0, IID_IDXGIDebug, (void**)dxgiDebug_.GetAddressOf());
+				ComPtr<IDXGIInfoQueue> infoQueue;
+				hr = dxgiDebug_.As(&infoQueue);
 				if(SUCCEEDED(hr))
 				{
-					if(Core::ContainsAnyFlags(setupParams.debugFlags_, DebugFlags::GPU_BASED_VALIDATION))
+					infoQueue->SetMuteDebugOutput(DXGI_DEBUG_ALL, FALSE);
+					CHECK_D3D(
+						infoQueue->SetBreakOnSeverity(DXGI_DEBUG_ALL, DXGI_INFO_QUEUE_MESSAGE_SEVERITY_CORRUPTION, TRUE));
+					CHECK_D3D(infoQueue->SetBreakOnSeverity(DXGI_DEBUG_ALL, DXGI_INFO_QUEUE_MESSAGE_SEVERITY_ERROR, TRUE));
+					CHECK_D3D(
+						infoQueue->SetBreakOnSeverity(DXGI_DEBUG_ALL, DXGI_INFO_QUEUE_MESSAGE_SEVERITY_WARNING, FALSE));
+
+					infoQueue->AddApplicationMessage(
+						DXGI_INFO_QUEUE_MESSAGE_SEVERITY_WARNING, "DXGI error reporting ENABLED.");
+				}
+			}
+
+			if(D3D12GetDebugInterfaceFn)
+			{
+				hr = D3D12GetDebugInterfaceFn(IID_ID3D12Debug, (void**)d3dDebug_.GetAddressOf());
+				if(SUCCEEDED(hr))
+				{
+					d3dDebug_->EnableDebugLayer();
+
+					hr = d3dDebug_.Get()->QueryInterface(IID_ID3D12Debug1, (void**)d3dDebug1_.GetAddressOf());
+					if(SUCCEEDED(hr))
 					{
-						d3dDebug1_->SetEnableGPUBasedValidation(TRUE);
+						if(Core::ContainsAnyFlags(setupParams.debugFlags_, DebugFlags::GPU_BASED_VALIDATION))
+						{
+							d3dDebug1_->SetEnableGPUBasedValidation(TRUE);
+						}
 					}
 				}
 			}
@@ -277,7 +281,7 @@ namespace GPU
 				case BlendType::INV_DEST_ALPHA:
 					return D3D12_BLEND_INV_DEST_ALPHA;
 				default:
-					DBG_BREAK;
+					DBG_ASSERT(false);
 					return D3D12_BLEND_ZERO;
 				}
 			};
@@ -296,7 +300,7 @@ namespace GPU
 				case BlendFunc::MAXIMUM:
 					return D3D12_BLEND_OP_MAX;
 				default:
-					DBG_BREAK;
+					DBG_ASSERT(false);
 					return D3D12_BLEND_OP_ADD;
 				}
 			};
@@ -324,7 +328,7 @@ namespace GPU
 				case FillMode::WIREFRAME:
 					return D3D12_FILL_MODE_WIREFRAME;
 				default:
-					DBG_BREAK;
+					DBG_ASSERT(false);
 					return D3D12_FILL_MODE_SOLID;
 				}
 			};
@@ -339,7 +343,7 @@ namespace GPU
 				case CullMode::CW:
 					return D3D12_CULL_MODE_BACK;
 				default:
-					DBG_BREAK;
+					DBG_ASSERT(false);
 					return D3D12_CULL_MODE_NONE;
 				}
 			};
@@ -381,7 +385,7 @@ namespace GPU
 				case CompareMode::ALWAYS:
 					return D3D12_COMPARISON_FUNC_ALWAYS;
 				default:
-					DBG_BREAK;
+					DBG_ASSERT(false);
 					return D3D12_COMPARISON_FUNC_NEVER;
 				}
 			};
@@ -407,7 +411,7 @@ namespace GPU
 					case StencilFunc::INVERT:
 						return D3D12_STENCIL_OP_INVERT;
 					default:
-						DBG_BREAK;
+						DBG_ASSERT(false);
 						return D3D12_STENCIL_OP_KEEP;
 					}
 				};
@@ -448,7 +452,7 @@ namespace GPU
 			case TopologyType::PATCH:
 				return D3D12_PRIMITIVE_TOPOLOGY_TYPE_PATCH;
 			default:
-				DBG_BREAK;
+				DBG_ASSERT(false);
 				return D3D12_PRIMITIVE_TOPOLOGY_TYPE_POINT;
 			}
 		};
@@ -473,7 +477,7 @@ namespace GPU
 			case VertexUsage::COLOR:
 				return "COLOR";
 			default:
-				DBG_BREAK;
+				DBG_ASSERT(false);
 				return "";
 			}
 		};
@@ -713,7 +717,7 @@ namespace GPU
 							rtvDesc.Texture3D.WSize = rtv.wSize_;
 							break;
 						default:
-							DBG_BREAK;
+							DBG_ASSERT(false);
 							return ErrorCode::FAIL;
 							break;
 						}
@@ -759,7 +763,7 @@ namespace GPU
 						dsvDesc.Texture2DArray.ArraySize = dsv.arraySize_;
 						break;
 					default:
-						DBG_BREAK;
+						DBG_ASSERT(false);
 						return ErrorCode::FAIL;
 						break;
 					}
@@ -834,6 +838,35 @@ namespace GPU
 			return ErrorCode::UNIMPLEMENTED;
 		}
 		//
+		return ErrorCode::OK;
+	}
+
+	ErrorCode D3D12Backend::AllocTemporaryPipelineBindingSet(Handle handle, const PipelineBindingSetDesc& desc)
+	{
+		D3D12PipelineBindingSet pbs;
+
+		// Setup descriptors.
+		auto& samplerAllocator = device_->GetSamplerDescriptorAllocator();
+		auto& cbvSubAllocator = device_->GetCBVSubAllocator();
+		auto& srvSubAllocator = device_->GetSRVSubAllocator();
+		auto& uavSubAllocator = device_->GetUAVSubAllocator();
+
+		pbs.samplers_ = samplerAllocator.Alloc(desc.numSamplers_, GPU::DescriptorHeapSubType::SAMPLER);
+		pbs.cbvs_ = cbvSubAllocator.Alloc(desc.numCBVs_, MAX_CBV_BINDINGS);
+		pbs.srvs_ = srvSubAllocator.Alloc(desc.numSRVs_, MAX_SRV_BINDINGS);
+		pbs.uavs_ = uavSubAllocator.Alloc(desc.numUAVs_, MAX_UAV_BINDINGS);
+
+		DBG_ASSERT(pbs.samplers_.size_ >= desc.numSamplers_);
+		DBG_ASSERT(pbs.cbvs_.size_ >= desc.numCBVs_);
+		DBG_ASSERT(pbs.srvs_.size_ >= desc.numSRVs_);
+		DBG_ASSERT(pbs.uavs_.size_ >= desc.numUAVs_);
+
+		pbs.cbvTransitions_.resize(desc.numCBVs_);
+		pbs.srvTransitions_.resize(desc.numSRVs_);
+		pbs.uavTransitions_.resize(desc.numUAVs_);
+
+		Core::ScopedWriteLock lock(resLock_);
+		pipelineBindingSets_[handle.GetIndex()] = pbs;
 		return ErrorCode::OK;
 	}
 
@@ -984,16 +1017,16 @@ namespace GPU
 				numSubRsc = (textureRes->desc_.levels_ * 6) * srv.arraySize_;
 				break;
 			default:
-				DBG_BREAK;
+				DBG_ASSERT(false);
 				return ErrorCode::FAIL;
 				break;
 			}
 
 			D3D12Resource* resource = GetD3D12Resource(srvHandle);
 			DBG_ASSERT(resource);
-			pbs.srvTransitions_[i].resource_ = resource;
-			pbs.srvTransitions_[i].firstSubRsc_ = firstSubRsc;
-			pbs.srvTransitions_[i].numSubRsc_ = numSubRsc;
+			pbs.srvTransitions_[bindingIdx].resource_ = resource;
+			pbs.srvTransitions_[bindingIdx].firstSubRsc_ = firstSubRsc;
+			pbs.srvTransitions_[bindingIdx].numSubRsc_ = numSubRsc;
 		}
 
 		return device_->UpdateSRVs(pbs, base, descs.size(), pbs.srvTransitions_.data() + base, srvDescs.data() + base);
@@ -1078,16 +1111,16 @@ namespace GPU
 				numSubRsc = 1;
 				break;
 			default:
-				DBG_BREAK;
+				DBG_ASSERT(false);
 				return ErrorCode::FAIL;
 				break;
 			}
 
 			D3D12Resource* resource = GetD3D12Resource(uavHandle);
 			DBG_ASSERT(resource);
-			pbs.uavTransitions_[i].resource_ = resource;
-			pbs.uavTransitions_[i].firstSubRsc_ = firstSubRsc;
-			pbs.uavTransitions_[i].numSubRsc_ = numSubRsc;
+			pbs.uavTransitions_[bindingIdx].resource_ = resource;
+			pbs.uavTransitions_[bindingIdx].firstSubRsc_ = firstSubRsc;
+			pbs.uavTransitions_[bindingIdx].numSubRsc_ = numSubRsc;
 		}
 
 		return device_->UpdateUAVs(pbs, base, descs.size(), pbs.uavTransitions_.data() + base, uavDescs.data() + base);
@@ -1107,6 +1140,53 @@ namespace GPU
 		}
 
 		return device_->UpdateSamplers(pbs, base, descs.size(), samplerDescs.data() + base);
+	}
+
+	ErrorCode D3D12Backend::CopyPipelineBindings(Core::ArrayView<PipelineBinding> dst, Core::ArrayView<PipelineBinding> src)
+	{
+		Core::ScopedReadLock lock(resLock_);
+
+		auto* d3dDevice = device_->d3dDevice_.Get();
+		i32 viewIncr = d3dDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+		i32 samplerIncr = d3dDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER);
+
+		for(i32 i = 0; i < dst.size(); ++i)
+		{
+			auto& dstPBS = pipelineBindingSets_[dst[i].pbs_.GetIndex()];
+			auto& srcPBS = pipelineBindingSets_[src[i].pbs_.GetIndex()];
+
+			auto CopyRange = [d3dDevice](D3D12DescriptorAllocation& dstAlloc, Core::Vector<D3D12SubresourceRange>& dstTransitions, i32 dstOffset, 
+				D3D12DescriptorAllocation& srcAlloc, Core::Vector<D3D12SubresourceRange>& srcTransitions, i32 srcOffset, 
+				i32 num, D3D12_DESCRIPTOR_HEAP_TYPE type, i32 incr)
+			{
+				D3D12_CPU_DESCRIPTOR_HANDLE dstHandle = dstAlloc.cpuDescHandle_;
+				D3D12_CPU_DESCRIPTOR_HANDLE srcHandle = srcAlloc.cpuDescHandle_;
+				DBG_ASSERT(dstHandle.ptr);
+				DBG_ASSERT(srcHandle.ptr);
+
+				dstHandle.ptr += dstOffset * incr;
+				srcHandle.ptr += srcOffset * incr;
+
+				d3dDevice->CopyDescriptorsSimple(num, dstHandle, srcHandle, type);
+
+				if(srcTransitions.size() > 0)
+					for(i32 i = 0; i < num; ++i)
+						dstTransitions[i + dstOffset] = srcTransitions[i + srcOffset];
+			};
+
+			if(dst[i].cbvs_.num_ > 0)
+				CopyRange(dstPBS.cbvs_, dstPBS.cbvTransitions_, dst[i].cbvs_.dstOffset_, srcPBS.cbvs_, srcPBS.cbvTransitions_, src[i].cbvs_.srcOffset_, dst[i].cbvs_.num_, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, viewIncr);
+			if(dst[i].srvs_.num_ > 0)
+				CopyRange(dstPBS.srvs_, dstPBS.srvTransitions_, dst[i].srvs_.dstOffset_, srcPBS.srvs_, srcPBS.srvTransitions_, src[i].srvs_.srcOffset_, dst[i].srvs_.num_, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, viewIncr);
+			if(dst[i].uavs_.num_ > 0)
+				CopyRange(dstPBS.uavs_, dstPBS.uavTransitions_, dst[i].uavs_.dstOffset_, srcPBS.uavs_, srcPBS.uavTransitions_, src[i].uavs_.srcOffset_, dst[i].uavs_.num_, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, viewIncr);
+
+			static Core::Vector<D3D12SubresourceRange> emptyTransitions;
+			if(dst[i].samplers_.num_ > 0)
+				CopyRange(dstPBS.samplers_, emptyTransitions, dst[i].samplers_.dstOffset_, srcPBS.samplers_, emptyTransitions, src[i].samplers_.dstOffset_, dst[i].samplers_.num_, D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, samplerIncr);
+		}
+
+		return ErrorCode::OK;
 	}
 
 	ErrorCode D3D12Backend::CompileCommandList(Handle handle, const CommandList& commandList)
@@ -1135,7 +1215,9 @@ namespace GPU
 				DBG_ASSERT(commandLists[i]);
 			}
 
-			device_->SubmitCommandLists(Core::ArrayView<D3D12CommandList*>(commandLists.data(), numHandles));
+			auto retVal = device_->SubmitCommandLists(Core::ArrayView<D3D12CommandList*>(commandLists.data(), numHandles));
+			if(retVal != ErrorCode::OK)
+				return retVal;
 		}
 		return ErrorCode::OK;
 	}

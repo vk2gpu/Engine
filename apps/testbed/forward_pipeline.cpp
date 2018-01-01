@@ -390,6 +390,7 @@ namespace Testbed
 			GPU::DrawState drawState_;
 
 			RenderGraphResource inViewCB_;
+			RenderGraphResource inLightCB_;
 
 			RenderGraphResource outDepth_;
 			RenderGraphResource outObjectSB_;
@@ -424,8 +425,9 @@ namespace Testbed
 				    depth = builder.Create("Depth", depthDesc);
 
 			    data.inViewCB_ = builder.Read(cbs.viewCB_, GPU::BindFlags::CONSTANT_BUFFER);
+	            data.inLightCB_ = builder.Write(builder.Create("LC LightCB", RenderGraphBufferDesc(sizeof(LightConstants))), GPU::BindFlags::CONSTANT_BUFFER);
 
-			    // Object buffer.
+				// Object buffer.
 			    DBG_ASSERT(objectSB);
 			    data.outObjectSB_ = builder.Write(objectSB, GPU::BindFlags::SHADER_RESOURCE);
 
@@ -440,7 +442,11 @@ namespace Testbed
 			    auto fbs = res.GetFrameBindingSet();
 			    ShaderContext shaderCtx(cmdList);
 
+				LightConstants light;
+				cmdList.UpdateBuffer(res.GetBuffer(data.inLightCB_), 0, sizeof(light), &light);
+
 			    data.viewBindings_.Set("viewParams", res.CBuffer(data.inViewCB_, 0, sizeof(ViewConstants)));
+				data.viewBindings_.Set("lightParams", res.CBuffer(data.inLightCB_, 0, sizeof(LightConstants)));
 
 			    // Clear depth buffer.
 			    cmdList.ClearDSV(fbs, 1.0f, 0);
@@ -476,7 +482,7 @@ namespace Testbed
 				    data.hizDesc_.levels_++;
 			    }
 
-			    auto hiz = builder.Create("Hi-Z", data.hizDesc_);
+			    auto hiz = builder.Create("Hi-Z Texture", data.hizDesc_);
 
 			    data.outDepth_ = builder.Write(hiz, GPU::BindFlags::UNORDERED_ACCESS);
 			    data.tech_ = shader->CreateTechnique("TECH_COMPUTE_HIZ", ShaderTechniqueDesc());
@@ -614,6 +620,7 @@ namespace Testbed
 			    RenderGraphTextureDesc lightTexDesc;
 			    res.GetTexture(data.inLightTex_, &lightTexDesc);
 
+			    data.viewBindings_.Set("viewParams", res.CBuffer(data.inViewCB_, 0, sizeof(ViewConstants)));
 			    data.viewBindings_.Set("lightParams", res.CBuffer(data.inLightCB_, 0, sizeof(LightConstants)));
 
 			    data.lightBindings_.Set(

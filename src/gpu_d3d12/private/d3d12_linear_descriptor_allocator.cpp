@@ -57,7 +57,7 @@ namespace GPU
 			return retVal;
 		}
 		// Failure.
-		DBG_BREAK;
+		DBG_ASSERT(false);
 		return D3D12DescriptorAllocation();
 	}
 
@@ -113,6 +113,9 @@ namespace GPU
 
 			retVal.cpuDescHandle_.ptr += allocOffset_ * allocator_.GetHandleIncrementSize();
 			retVal.gpuDescHandle_.ptr += allocOffset_ * allocator_.GetHandleIncrementSize();
+
+			// TODO: Don't clear!
+			ClearDescriptorRange(retVal.d3dDescriptorHeap_.Get(), subType_, retVal.offset_, retVal.size_);
 
 			allocOffset_ += num;
 		}

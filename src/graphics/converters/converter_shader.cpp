@@ -194,7 +194,7 @@ namespace
 						case GPU::ShaderType::CS:
 							return Core::String().Printf("cs_%i_%i", major, minor);
 						}
-						DBG_BREAK;
+						DBG_ASSERT(false);
 						return Core::String();
 					};
 

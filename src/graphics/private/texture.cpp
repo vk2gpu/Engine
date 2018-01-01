@@ -89,7 +89,7 @@ namespace Graphics
 			GPU::Handle handle;
 			if(GPU::Manager::IsInitialized())
 			{
-				handle = GPU::Manager::CreateTexture(desc, subRscs.data(), name);
+				handle = GPU::Manager::CreateTexture(desc, subRscs.data(), "%s/%s", name, "texture");
 			}
 
 			// Create impl.

@@ -18,6 +18,18 @@
     </Expand>
   </Type>
 
+  <Type Name="Core::ArrayView&lt;*&gt;">
+    <DisplayString Condition="(end_ - begin_) == 0">Empty</DisplayString>
+    <DisplayString Condition="(end_ - begin_) != 0">size = {end_ - begin_}</DisplayString>
+    <Expand>
+      <Item Name="[size]" ExcludeView="simple">(end_ - begin_)</Item>
+      <ArrayItems>
+        <Size>(end_ - begin_)</Size>
+        <ValuePointer>($T1*)begin_</ValuePointer>
+      </ArrayItems>
+    </Expand>
+  </Type>
+
   <Type Name="Core::Vector&lt;*&gt;">
     <DisplayString Condition="size_ == 0">Empty</DisplayString>
     <DisplayString Condition="size_ != 0">size = {size_}</DisplayString>
@@ -32,10 +44,10 @@
   </Type>
 
   <Type Name="GPU::Handle">
-    <DisplayString Condition="index_ == 0">nullptr</DisplayString>
-    <DisplayString Condition="index_ != 0">{(GPU::ResourceType)type_} {gpu.dll!GPU::resourceDebugInfo_[type_][index_].name_}</DisplayString>
+    <DisplayString Condition="magic_ == 0">nullptr</DisplayString>
+    <DisplayString Condition="magic_ != 0">{(GPU::ResourceType)type_} {&amp;gpu.dll!GPU::resourceDebugInfo_[type_][index_].name_.Data_[0]}</DisplayString>
     <Expand>
-      <Item Name="Debug Name" ExcludeView="simple">gpu.dll!GPU::resourceDebugInfo_[type_][index_].name_</Item>
+      <Item Name="Debug Name" ExcludeView="simple">&amp;gpu.dll!GPU::resourceDebugInfo_[type_][index_].name_.Data_[0]</Item>
       <Item Name="Creation Callstack" ExcludeView="simple">gpu.dll!GPU::resourceDebugInfo_[type_][index_].creationCallstack_</Item>
       <Item Name="[index]" ExcludeView="simple">index_</Item>
       <Item Name="[magic]" ExcludeView="simple">magic_</Item>

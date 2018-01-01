@@ -46,7 +46,7 @@ namespace Math
 			Plane.FromPoints(Corner(RTB), Corner(RTF), Corner(RBF));
 			break;
 		default:
-			DBG_BREAK;
+			DBG_ASSERT(false);
 		}
 
 		return Plane;
@@ -70,7 +70,7 @@ namespace Math
 			FaceCentre += FacePlane(i).Normal() * (Width() * 0.5f);
 			break;
 		default:
-			DBG_BREAK;
+			DBG_ASSERT(false);
 		}
 
 		return FaceCentre;

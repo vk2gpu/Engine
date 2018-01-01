@@ -600,7 +600,7 @@ namespace Resource
 
 				if(!success_ && Core::IsDebuggerAttached())
 				{
-					DBG_BREAK;
+					DBG_ASSERT(false);
 				}
 			}
 			converterPlugin.DestroyConverter(converter);
@@ -805,7 +805,7 @@ namespace Resource
 				auto retVal = Core::MessageBox("Resource load timeout.",
 				    "Timed out waiting for resource load. Continue waiting?", Core::MessageBoxType::OK_CANCEL);
 				if(retVal == Core::MessageBoxReturn::CANCEL)
-					DBG_BREAK;
+					DBG_ASSERT(false);
 				startTime = Core::Timer::GetAbsoluteTime();
 				maxWaitTime *= 2.0;
 			}

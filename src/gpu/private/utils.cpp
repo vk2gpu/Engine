@@ -231,7 +231,7 @@ namespace GPU
 			break;
 
 		default:
-			DBG_BREAK; // Format not defined.
+			DBG_ASSERT(false); // Format not defined.
 			break;
 		}
 

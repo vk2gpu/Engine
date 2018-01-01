@@ -27,7 +27,7 @@ namespace Graphics
 		    ShaderSamplerStateInfo& data, AST::NodeValue* node) { data.state_.mipLODBias_ = node->dataFloat_; };
 		parseFns_["MaxAnisotropy"] = [](
 		    ShaderSamplerStateInfo& data, AST::NodeValue* node) { data.state_.maxAnisotropy_ = (u32)node->dataInt_; };
-		parseFns_["BorderColor"] = [](ShaderSamplerStateInfo& data, AST::NodeValue* node) { DBG_BREAK; };
+		parseFns_["BorderColor"] = [](ShaderSamplerStateInfo& data, AST::NodeValue* node) { DBG_ASSERT(false); };
 		parseFns_["MinLOD"] = [](
 		    ShaderSamplerStateInfo& data, AST::NodeValue* node) { data.state_.minLOD_ = node->dataFloat_; };
 		parseFns_["MaxLOD"] = [](

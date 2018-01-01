@@ -60,6 +60,11 @@ namespace Core
 	 */
 	CORE_DLL i32 GetCallstack(i32 skipFrames, void** addresses, i32 maxAddresses, i32* stackHash = nullptr);
 
+	/**
+	 * Set break on assertion.
+	 */
+	CORE_DLL void SetBreakOnAssertion(bool enableBreak);
+
 } // namespace Core
 
 //////////////////////////////////////////////////////////////////////////

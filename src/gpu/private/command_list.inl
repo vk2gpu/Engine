@@ -2,6 +2,7 @@
 
 #include "core/debug.h"
 #include "core/misc.h"
+#include "gpu/manager.h"
 
 #include <utility>
 
@@ -43,6 +44,13 @@ namespace GPU
 		DBG_ASSERT(noofVertices > 0);
 		DBG_ASSERT(firstInstance >= 0);
 		DBG_ASSERT(noofInstances > 0);
+#if !defined(FINAL)
+		for(const auto& b : pb)
+		{
+			DBG_ASSERT(b.pbs_.GetType() == ResourceType::PIPELINE_BINDING_SET);
+			DBG_ASSERT(handleAllocator_.IsValid(b.pbs_));
+		}
+#endif
 
 		queueType_ |= CommandDraw::QUEUE_TYPE;
 		auto* command = Alloc<CommandDraw>();
@@ -86,6 +94,13 @@ namespace GPU
 		DBG_ASSERT(argByteOffset >= 0);
 		DBG_ASSERT(countByteOffset >= 0);
 		DBG_ASSERT(maxCommands >= 1);
+#if !defined(FINAL)
+		for(const auto& b : pb)
+		{
+			DBG_ASSERT(b.pbs_.GetType() == ResourceType::PIPELINE_BINDING_SET);
+			DBG_ASSERT(handleAllocator_.IsValid(b.pbs_));
+		}
+#endif
 
 		queueType_ |= CommandDraw::QUEUE_TYPE;
 		auto* command = Alloc<CommandDrawIndirect>();
@@ -123,6 +138,13 @@ namespace GPU
 		DBG_ASSERT(xGroups >= 1);
 		DBG_ASSERT(yGroups >= 1);
 		DBG_ASSERT(zGroups >= 1);
+#if !defined(FINAL)
+		for(const auto& b : pb)
+		{
+			DBG_ASSERT(b.pbs_.GetType() == ResourceType::PIPELINE_BINDING_SET);
+			DBG_ASSERT(handleAllocator_.IsValid(b.pbs_));
+		}
+#endif
 
 		queueType_ |= CommandDispatch::QUEUE_TYPE;
 		auto* command = Alloc<CommandDispatch>();
@@ -146,6 +168,13 @@ namespace GPU
 		DBG_ASSERT(argByteOffset >= 0);
 		DBG_ASSERT(countByteOffset >= 0);
 		DBG_ASSERT(maxCommands >= 1);
+#if !defined(FINAL)
+		for(const auto& b : pb)
+		{
+			DBG_ASSERT(b.pbs_.GetType() == ResourceType::PIPELINE_BINDING_SET);
+			DBG_ASSERT(handleAllocator_.IsValid(b.pbs_));
+		}
+#endif
 
 		queueType_ |= CommandDispatchIndirect::QUEUE_TYPE;
 		auto* command = Alloc<CommandDispatchIndirect>();

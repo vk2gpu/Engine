@@ -404,7 +404,7 @@ namespace Core
 	{
 #if !defined(FINAL)
 		if(!::TryAcquireSRWLockExclusive(&impl_->srwLock_))
-			DBG_BREAK;
+			DBG_ASSERT(false);
 #endif
 	}
 

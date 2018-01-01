@@ -74,12 +74,12 @@ namespace ImGui
 		GPU::BufferDesc vbDesc;
 		vbDesc.size_ = MAX_VERTICES * sizeof(ImDrawVert);
 		vbDesc.bindFlags_ = GPU::BindFlags::VERTEX_BUFFER;
-		vbHandle_ = GPU::Manager::CreateBuffer(vbDesc, nullptr, "ImGui VB");
+		vbHandle_ = GPU::Manager::CreateBuffer(vbDesc, nullptr, "ImGui/VB");
 
 		GPU::BufferDesc ibDesc;
 		ibDesc.size_ = MAX_INDICES * sizeof(ImDrawIdx);
 		ibDesc.bindFlags_ = GPU::BindFlags::INDEX_BUFFER;
-		ibHandle_ = GPU::Manager::CreateBuffer(ibDesc, nullptr, "ImGui IB");
+		ibHandle_ = GPU::Manager::CreateBuffer(ibDesc, nullptr, "ImGui/IB");
 
 		GPU::DrawBindingSetDesc dbsDesc;
 		dbsDesc.vbs_[0].offset_ = 0;
@@ -90,7 +90,7 @@ namespace ImGui
 		dbsDesc.ib_.size_ = (i32)ibDesc.size_;
 		dbsDesc.ib_.stride_ = sizeof(ImDrawIdx);
 		dbsDesc.ib_.resource_ = ibHandle_;
-		dbsHandle_ = GPU::Manager::CreateDrawBindingSet(dbsDesc, "ImGui DBS");
+		dbsHandle_ = GPU::Manager::CreateDrawBindingSet(dbsDesc, "ImGui/DBS");
 
 		GPU::TextureDesc fontDesc;
 		unsigned char* pixels = nullptr;
@@ -105,31 +105,32 @@ namespace ImGui
 		texSubRscData.data_ = pixels;
 		texSubRscData.rowPitch_ = width * sizeof(u32);
 		texSubRscData.slicePitch_ = 0;
-		fontHandle_ = GPU::Manager::CreateTexture(fontDesc, &texSubRscData, "ImGui Font Texture");
+		fontHandle_ = GPU::Manager::CreateTexture(fontDesc, &texSubRscData, "ImGui/Font Texture");
 		DBG_ASSERT(fontHandle_);
 
 		GPU::ShaderDesc vsDesc;
 		vsDesc.type_ = GPU::ShaderType::VS;
 		vsDesc.data_ = g_VShader;
 		vsDesc.dataSize_ = sizeof(g_VShader);
-		vsHandle_ = GPU::Manager::CreateShader(vsDesc, "ImGui VS");
+		vsHandle_ = GPU::Manager::CreateShader(vsDesc, "ImGui/VS");
 		DBG_ASSERT(vsHandle_);
 
 		GPU::ShaderDesc psDesc;
 		psDesc.type_ = GPU::ShaderType::PS;
 		psDesc.data_ = g_PShader;
 		psDesc.dataSize_ = sizeof(g_PShader);
-		psHandle_ = GPU::Manager::CreateShader(psDesc, "ImGui PS");
+		psHandle_ = GPU::Manager::CreateShader(psDesc, "ImGui/PS");
 		DBG_ASSERT(psHandle_);
 
 		auto gpsDesc = GetGPSDesc(GPU::Format::R8G8B8A8_UNORM);
-		gpsHandle_ = GPU::Manager::CreateGraphicsPipelineState(gpsDesc, "ImGui GPS");
+		gpsHandle_ = GPU::Manager::CreateGraphicsPipelineState(gpsDesc, "ImGui/GPS");
 		DBG_ASSERT(gpsHandle_);
 
 		GPU::PipelineBindingSetDesc pbsDesc;
+		pbsDesc.shaderVisible_ = false;
 		pbsDesc.numSRVs_ = 1;
 		pbsDesc.numSamplers_ = 1;
-		pbsHandle_ = GPU::Manager::CreatePipelineBindingSet(pbsDesc, "ImGui PBS");
+		pbsHandle_ = GPU::Manager::CreatePipelineBindingSet(pbsDesc, "ImGui/PBS");
 
 		// Update pipeline bindings.
 		GPU::BindingSRV srv = GPU::Binding::Texture2D(fontHandle_, GPU::Format::INVALID, 0, 1);
@@ -363,6 +364,22 @@ namespace ImGui
 
 		cmdList.UpdateBuffer(ibHandle_, 0, noofIndices * sizeof(ImDrawVert), baseIndices);
 
+		// Create a temporary pipeline state binding. (Don't need to, but useful for testing)
+		GPU::PipelineBindingSetDesc pbsDesc;
+		pbsDesc.numSRVs_ = 1;
+		pbsDesc.numSamplers_ = 1;
+		
+		GPU::PipelineBinding dstPbs = {};
+		GPU::PipelineBinding srcPbs = {};
+		dstPbs.pbs_ = GPU::Manager::AllocTemporaryPipelineBindingSet(pbsDesc);
+		dstPbs.srvs_.num_ = 1;
+		dstPbs.samplers_.num_ = 1;
+
+		srcPbs = dstPbs;
+		srcPbs.pbs_ = pbsHandle_;		
+
+		GPU::Manager::CopyPipelineBindings(dstPbs, srcPbs);
+
 		u32 indexOffset = 0;
 		for(int cmdListIdx = 0; cmdListIdx < drawData->CmdListsCount; ++cmdListIdx)
 		{
@@ -383,12 +400,7 @@ namespace ImGui
 					drawState.scissorRect_.w_ = (i32)(cmd->ClipRect.z - cmd->ClipRect.x);
 					drawState.scissorRect_.h_ = (i32)(cmd->ClipRect.w - cmd->ClipRect.y);
 
-					GPU::PipelineBinding pb;
-					pb.pbs_ = pbsHandle_;
-					pb.srvs_.num_ = 1;
-					pb.samplers_.num_ = 1;
-
-					cmdList.Draw(gpsHandle_, pb, dbsHandle_, fbs, drawState, GPU::PrimitiveTopology::TRIANGLE_LIST,
+					cmdList.Draw(gpsHandle_, dstPbs, dbsHandle_, fbs, drawState, GPU::PrimitiveTopology::TRIANGLE_LIST,
 					    indexOffset, 0, cmd->ElemCount, 0, 1);
 				}
 				indexOffset += cmd->ElemCount;

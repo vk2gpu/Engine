@@ -538,7 +538,7 @@ namespace
 					primTopology = GPU::PrimitiveTopology::TRIANGLE_LIST;
 					break;
 				default:
-					DBG_BREAK;
+					DBG_ASSERT(false);
 				}
 
 				// Get packed mesh.
@@ -714,7 +714,7 @@ namespace
 									inStreamDesc.data_ = mesh->mColors[element.usageIdx_];
 									break;
 								default:
-									DBG_BREAK;
+									DBG_ASSERT(false);
 								}
 
 								DBG_ASSERT(inStreamDesc.data_);

@@ -55,7 +55,7 @@ namespace GPU
 		}
 
 		// Failure.
-		DBG_BREAK;
+		DBG_ASSERT(false);
 		return D3D12DescriptorAllocation();
 	}
 

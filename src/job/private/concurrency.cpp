@@ -34,7 +34,7 @@ namespace Job
 		DBG_ASSERT(readCount_ == 0);
 #ifdef DEBUG
 		if(gMutex_.TryLock() == false)
-			DBG_BREAK;
+			DBG_ASSERT(false);
 		gMutex_.Unlock();
 #endif
 	}

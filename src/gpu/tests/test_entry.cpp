@@ -20,7 +20,7 @@ int main(int argc, char* const argv[])
 	auto RetVal = Catch::Session().run(argc, argv);
 	if(Core::IsDebuggerAttached() && RetVal != 0)
 	{
-		DBG_BREAK;
+		DBG_ASSERT(false);
 	}
 
 	return RetVal;

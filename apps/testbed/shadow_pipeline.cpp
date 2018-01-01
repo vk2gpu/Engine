@@ -103,7 +103,7 @@ namespace Testbed
 			    // Clear depth buffer.
 			    cmdList.ClearDSV(fbs, 1.0f, 0);
 
-			    DBG_BREAK;
+			    DBG_ASSERT(false);
 #if 0
 				// Draw all render packets that are valid for this pass.
 				DrawContext drawCtx(cmdList, shaderCtx, "RenderPassForward", data.drawState_, fbs, res.GetBuffer(data.inViewCB_),

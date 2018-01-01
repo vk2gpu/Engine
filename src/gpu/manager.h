@@ -122,6 +122,12 @@ namespace GPU
 		static void DestroyResource(Handle handle);
 
 		/**
+		 * Allocate temporary pipeline binding set.
+		 * This will allocate some pipeline bindings that are only valid for the next (MAX_GPU_FRAMES-1) frames.
+		 */
+		static Handle AllocTemporaryPipelineBindingSet(const PipelineBindingSetDesc& desc);
+
+		/**
 		 * Update pipeline bindings. 
 		 * @param handle Handle to pipeline binding set.
 		 * @param base Base index of descriptors to update.
@@ -131,6 +137,15 @@ namespace GPU
 		static bool UpdatePipelineBindings(Handle handle, i32 base, Core::ArrayView<BindingSRV> descs);
 		static bool UpdatePipelineBindings(Handle handle, i32 base, Core::ArrayView<BindingUAV> descs);
 		static bool UpdatePipelineBindings(Handle handle, i32 base, Core::ArrayView<SamplerState> descs);
+
+		/**
+		 * Copy pipeline bindings.
+		 * @param dst Destination pipeline bindings.
+		 * @param src Source pipeline bindings.
+		 * @pre dst.size() == src.size().
+		 * @pre dst & src num_ per type are equal.
+		 */
+		static bool CopyPipelineBindings(Core::ArrayView<PipelineBinding> dst, Core::ArrayView<PipelineBinding> src);
 
 		/**
 		 * Compile command list.

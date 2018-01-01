@@ -260,7 +260,7 @@ namespace
 					squishFormat = squish::kBc5;
 					break;
 				default:
-					DBG_BREAK;
+					DBG_ASSERT(false);
 				}
 
 				auto outImage = Graphics::Image(image.type_, format, Core::PotRoundUp(image.width_, formatInfo.blockW_),

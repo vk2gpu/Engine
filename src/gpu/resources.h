@@ -49,6 +49,8 @@ namespace GPU
 		}
 		operator Core::Handle() const { return *this; }
 		ResourceType GetType() const { return (ResourceType)Core::Handle::GetType(); }
+		bool IsValid() const;
+		bool IsValid(ResourceType type) const;
 	};
 
 	/**
@@ -300,6 +302,7 @@ namespace GPU
 	 */
 	struct GPU_DLL PipelineBindingSetDesc
 	{
+		bool shaderVisible_ = true;
 		i32 numSRVs_ = 0;
 		i32 numUAVs_ = 0;
 		i32 numCBVs_ = 0;

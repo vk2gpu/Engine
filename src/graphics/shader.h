@@ -147,11 +147,20 @@ namespace Graphics
 		ShaderBindingSet& Set(ShaderBindingHandle idx, const GPU::BindingSRV& binding);
 		ShaderBindingSet& Set(ShaderBindingHandle idx, const GPU::BindingUAV& binding);
 
+		// Set all SRVs (temporary).
+		ShaderBindingSet& SetAll(const GPU::BindingSRV& binding);
+
 		// Convenience setters for development.
 		ShaderBindingSet& Set(const char* name, const GPU::SamplerState& sampler);
 		ShaderBindingSet& Set(const char* name, const GPU::BindingCBV& binding);
 		ShaderBindingSet& Set(const char* name, const GPU::BindingSRV& binding);
 		ShaderBindingSet& Set(const char* name, const GPU::BindingUAV& binding);
+	
+		/**
+		 * Validate bindings.
+		 * @return true if valid.
+		 */
+		bool Validate() const;
 
 		explicit operator bool() const { return !!impl_; }
 
