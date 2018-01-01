@@ -54,7 +54,8 @@ namespace GPU
 		virtual ErrorCode UpdatePipelineBindings(Handle handle, i32 base, Core::ArrayView<BindingSRV> descs) = 0;
 		virtual ErrorCode UpdatePipelineBindings(Handle handle, i32 base, Core::ArrayView<BindingUAV> descs) = 0;
 		virtual ErrorCode UpdatePipelineBindings(Handle handle, i32 base, Core::ArrayView<SamplerState> descs) = 0;
-		virtual ErrorCode CopyPipelineBindings(Core::ArrayView<PipelineBinding> dst, Core::ArrayView<PipelineBinding> src) = 0;
+		virtual ErrorCode CopyPipelineBindings(
+		    Core::ArrayView<PipelineBinding> dst, Core::ArrayView<PipelineBinding> src) = 0;
 
 		/**
 		 * Command list management.

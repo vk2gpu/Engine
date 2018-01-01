@@ -11,15 +11,9 @@
 
 namespace GPU
 {
-	bool Handle::IsValid() const
-	{
-		return GPU::Manager::IsValidHandle(*this);
-	}
+	bool Handle::IsValid() const { return GPU::Manager::IsValidHandle(*this); }
 
-	bool Handle::IsValid(ResourceType type) const
-	{
-		return GPU::Manager::IsValidHandle(*this) && type == GetType();
-	}
+	bool Handle::IsValid(ResourceType type) const { return GPU::Manager::IsValidHandle(*this) && type == GetType(); }
 
 	Core::ArrayView<SamplerState> GetDefaultSamplerStates()
 	{

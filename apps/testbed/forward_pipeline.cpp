@@ -425,9 +425,11 @@ namespace Testbed
 				    depth = builder.Create("Depth", depthDesc);
 
 			    data.inViewCB_ = builder.Read(cbs.viewCB_, GPU::BindFlags::CONSTANT_BUFFER);
-	            data.inLightCB_ = builder.Write(builder.Create("LC LightCB", RenderGraphBufferDesc(sizeof(LightConstants))), GPU::BindFlags::CONSTANT_BUFFER);
+			    data.inLightCB_ =
+			        builder.Write(builder.Create("LC LightCB", RenderGraphBufferDesc(sizeof(LightConstants))),
+			            GPU::BindFlags::CONSTANT_BUFFER);
 
-				// Object buffer.
+			    // Object buffer.
 			    DBG_ASSERT(objectSB);
 			    data.outObjectSB_ = builder.Write(objectSB, GPU::BindFlags::SHADER_RESOURCE);
 
@@ -442,11 +444,11 @@ namespace Testbed
 			    auto fbs = res.GetFrameBindingSet();
 			    ShaderContext shaderCtx(cmdList);
 
-				LightConstants light;
-				cmdList.UpdateBuffer(res.GetBuffer(data.inLightCB_), 0, sizeof(light), &light);
+			    LightConstants light;
+			    cmdList.UpdateBuffer(res.GetBuffer(data.inLightCB_), 0, sizeof(light), &light);
 
 			    data.viewBindings_.Set("viewParams", res.CBuffer(data.inViewCB_, 0, sizeof(ViewConstants)));
-				data.viewBindings_.Set("lightParams", res.CBuffer(data.inLightCB_, 0, sizeof(LightConstants)));
+			    data.viewBindings_.Set("lightParams", res.CBuffer(data.inLightCB_, 0, sizeof(LightConstants)));
 
 			    // Clear depth buffer.
 			    cmdList.ClearDSV(fbs, 1.0f, 0);

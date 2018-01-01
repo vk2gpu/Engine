@@ -368,7 +368,7 @@ namespace ImGui
 		GPU::PipelineBindingSetDesc pbsDesc;
 		pbsDesc.numSRVs_ = 1;
 		pbsDesc.numSamplers_ = 1;
-		
+
 		GPU::PipelineBinding dstPbs = {};
 		GPU::PipelineBinding srcPbs = {};
 		dstPbs.pbs_ = GPU::Manager::AllocTemporaryPipelineBindingSet(pbsDesc);
@@ -376,7 +376,7 @@ namespace ImGui
 		dstPbs.samplers_.num_ = 1;
 
 		srcPbs = dstPbs;
-		srcPbs.pbs_ = pbsHandle_;		
+		srcPbs.pbs_ = pbsHandle_;
 
 		GPU::Manager::CopyPipelineBindings(dstPbs, srcPbs);
 

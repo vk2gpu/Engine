@@ -409,8 +409,10 @@ namespace GPU
 		const auto& pbs = backend_.pipelineBindingSets_[pb[0].pbs_.GetIndex()];
 
 		auto device = backend_.device_;
-		const i32 samplerIncrSize = device->d3dDevice_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER);
-		const i32 viewIncrSize = device->d3dDevice_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+		const i32 samplerIncrSize =
+		    device->d3dDevice_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER);
+		const i32 viewIncrSize =
+		    device->d3dDevice_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
 		ID3D12DescriptorHeap* samplerHeap = nullptr;
 		ID3D12DescriptorHeap* viewHeap = nullptr;
@@ -439,7 +441,7 @@ namespace GPU
 		{
 			DBG_ASSERT(pbs.srvTransitions_[i]);
 			AddTransition(pbs.srvTransitions_[i],
-					D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+			    D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 		}
 
 		for(i32 i = 0; i < pbs.uavTransitions_.size(); ++i)
@@ -575,28 +577,33 @@ namespace GPU
 
 			if(rootSigChanged || gfxDescHandlesBound_[0].ptr != pbs.samplers_.gpuDescHandle_.ptr)
 			{
-				DBG_ASSERT(pbs.samplers_.gpuDescHandle_.ptr == (samplerHeap->GetGPUDescriptorHandleForHeapStart().ptr + pbs.samplers_.offset_ * samplerIncrSize));
+				DBG_ASSERT(
+				    pbs.samplers_.gpuDescHandle_.ptr ==
+				    (samplerHeap->GetGPUDescriptorHandleForHeapStart().ptr + pbs.samplers_.offset_ * samplerIncrSize));
 				d3dCommandList_->SetGraphicsRootDescriptorTable(0, pbs.samplers_.gpuDescHandle_);
 				gfxDescHandlesBound_[0] = pbs.samplers_.gpuDescHandle_;
 			}
 
 			if(rootSigChanged || gfxDescHandlesBound_[1].ptr != pbs.cbvs_.gpuDescHandle_.ptr)
 			{
-				DBG_ASSERT(pbs.cbvs_.gpuDescHandle_.ptr == (viewHeap->GetGPUDescriptorHandleForHeapStart().ptr + pbs.cbvs_.offset_ * viewIncrSize));
+				DBG_ASSERT(pbs.cbvs_.gpuDescHandle_.ptr ==
+				           (viewHeap->GetGPUDescriptorHandleForHeapStart().ptr + pbs.cbvs_.offset_ * viewIncrSize));
 				d3dCommandList_->SetGraphicsRootDescriptorTable(1, pbs.cbvs_.gpuDescHandle_);
 				gfxDescHandlesBound_[1] = pbs.cbvs_.gpuDescHandle_;
 			}
 
 			if(rootSigChanged || gfxDescHandlesBound_[2].ptr != pbs.srvs_.gpuDescHandle_.ptr)
 			{
-				DBG_ASSERT(pbs.srvs_.gpuDescHandle_.ptr == (viewHeap->GetGPUDescriptorHandleForHeapStart().ptr + pbs.srvs_.offset_ * viewIncrSize));
+				DBG_ASSERT(pbs.srvs_.gpuDescHandle_.ptr ==
+				           (viewHeap->GetGPUDescriptorHandleForHeapStart().ptr + pbs.srvs_.offset_ * viewIncrSize));
 				d3dCommandList_->SetGraphicsRootDescriptorTable(2, pbs.srvs_.gpuDescHandle_);
 				gfxDescHandlesBound_[2] = pbs.srvs_.gpuDescHandle_;
 			}
 
 			if(rootSigChanged || gfxDescHandlesBound_[3].ptr != pbs.uavs_.gpuDescHandle_.ptr)
 			{
-				DBG_ASSERT(pbs.uavs_.gpuDescHandle_.ptr == (viewHeap->GetGPUDescriptorHandleForHeapStart().ptr + pbs.uavs_.offset_ * viewIncrSize));
+				DBG_ASSERT(pbs.uavs_.gpuDescHandle_.ptr ==
+				           (viewHeap->GetGPUDescriptorHandleForHeapStart().ptr + pbs.uavs_.offset_ * viewIncrSize));
 				d3dCommandList_->SetGraphicsRootDescriptorTable(3, pbs.uavs_.gpuDescHandle_);
 				gfxDescHandlesBound_[3] = pbs.uavs_.gpuDescHandle_;
 			}
@@ -612,28 +619,33 @@ namespace GPU
 
 			if(rootSigChanged || compDescHandlesBound_[0].ptr != pbs.samplers_.gpuDescHandle_.ptr)
 			{
-				DBG_ASSERT(pbs.samplers_.gpuDescHandle_.ptr == (samplerHeap->GetGPUDescriptorHandleForHeapStart().ptr + pbs.samplers_.offset_ * samplerIncrSize));
+				DBG_ASSERT(
+				    pbs.samplers_.gpuDescHandle_.ptr ==
+				    (samplerHeap->GetGPUDescriptorHandleForHeapStart().ptr + pbs.samplers_.offset_ * samplerIncrSize));
 				d3dCommandList_->SetComputeRootDescriptorTable(0, pbs.samplers_.gpuDescHandle_);
 				compDescHandlesBound_[0] = pbs.samplers_.gpuDescHandle_;
 			}
 
 			if(rootSigChanged || compDescHandlesBound_[1].ptr != pbs.cbvs_.gpuDescHandle_.ptr)
 			{
-				DBG_ASSERT(pbs.cbvs_.gpuDescHandle_.ptr == (viewHeap->GetGPUDescriptorHandleForHeapStart().ptr + pbs.cbvs_.offset_ * viewIncrSize));
+				DBG_ASSERT(pbs.cbvs_.gpuDescHandle_.ptr ==
+				           (viewHeap->GetGPUDescriptorHandleForHeapStart().ptr + pbs.cbvs_.offset_ * viewIncrSize));
 				d3dCommandList_->SetComputeRootDescriptorTable(1, pbs.cbvs_.gpuDescHandle_);
 				compDescHandlesBound_[1] = pbs.cbvs_.gpuDescHandle_;
 			}
 
 			if(rootSigChanged || compDescHandlesBound_[2].ptr != pbs.srvs_.gpuDescHandle_.ptr)
 			{
-				DBG_ASSERT(pbs.srvs_.gpuDescHandle_.ptr == (viewHeap->GetGPUDescriptorHandleForHeapStart().ptr + pbs.srvs_.offset_ * viewIncrSize));
+				DBG_ASSERT(pbs.srvs_.gpuDescHandle_.ptr ==
+				           (viewHeap->GetGPUDescriptorHandleForHeapStart().ptr + pbs.srvs_.offset_ * viewIncrSize));
 				d3dCommandList_->SetComputeRootDescriptorTable(2, pbs.srvs_.gpuDescHandle_);
 				compDescHandlesBound_[2] = pbs.srvs_.gpuDescHandle_;
 			}
 
 			if(rootSigChanged || compDescHandlesBound_[3].ptr != pbs.uavs_.gpuDescHandle_.ptr)
 			{
-				DBG_ASSERT(pbs.uavs_.gpuDescHandle_.ptr == (viewHeap->GetGPUDescriptorHandleForHeapStart().ptr + pbs.uavs_.offset_ * viewIncrSize));
+				DBG_ASSERT(pbs.uavs_.gpuDescHandle_.ptr ==
+				           (viewHeap->GetGPUDescriptorHandleForHeapStart().ptr + pbs.uavs_.offset_ * viewIncrSize));
 				d3dCommandList_->SetComputeRootDescriptorTable(3, pbs.uavs_.gpuDescHandle_);
 				compDescHandlesBound_[3] = pbs.uavs_.gpuDescHandle_;
 			}

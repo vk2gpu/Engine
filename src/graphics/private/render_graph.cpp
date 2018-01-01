@@ -748,7 +748,8 @@ namespace Graphics
 					if(!GPU::Manager::CompileCommandList(cmdHandle, cmdList))
 					{
 						Core::AtomicInc(&impl->compilationFailures_);
-						DBG_ASSERT_MSG(false, "Failed to compile command list for render pass \"%s\"", entry->name_.c_str());
+						DBG_ASSERT_MSG(
+						    false, "Failed to compile command list for render pass \"%s\"", entry->name_.c_str());
 					}
 				}
 			};
@@ -780,7 +781,8 @@ namespace Graphics
 				auto cmdHandle = impl_->cmdHandles_[idx];
 				if(!GPU::Manager::SubmitCommandLists(cmdHandle))
 				{
-					DBG_ASSERT_MSG(false, "Failed to submit command list for render pass \"%s\".", entry->name_.c_str());
+					DBG_ASSERT_MSG(
+					    false, "Failed to submit command list for render pass \"%s\".", entry->name_.c_str());
 					return false;
 				}
 			}

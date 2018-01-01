@@ -180,10 +180,7 @@ namespace Core
 #endif
 	}
 
-	void SetBreakOnAssertion(bool enableBreak)
-	{
-		enableBreakOnAssertion_ = enableBreak;
-	}
+	void SetBreakOnAssertion(bool enableBreak) { enableBreakOnAssertion_ = enableBreak; }
 
 
 } // namespace Core

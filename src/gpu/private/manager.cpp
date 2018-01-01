@@ -80,8 +80,7 @@ namespace GPU
 	va_end(argList);
 
 #else
-#define SET_DEBUG_INFO() \
-	static const char* fullDebugName = "";
+#define SET_DEBUG_INFO() static const char* fullDebugName = "";
 #endif
 } // namespace GPU
 
@@ -509,7 +508,8 @@ namespace GPU
 		rmt_ScopedCPUSample(GPU_AllocTemporaryPipelineBindingSet, RMTSF_None);
 		Handle handle = impl_->AllocHandle(ResourceType::PIPELINE_BINDING_SET);
 		Core::Array<char, MAX_DEBUG_NAME_LENGTH> debugName;
-		sprintf_s(debugName.data(), debugName.size(), "Temp/PipelineBindingSet(%i, %i, %i, %i)", desc.numCBVs_, desc.numSRVs_, desc.numUAVs_, desc.numSamplers_);
+		sprintf_s(debugName.data(), debugName.size(), "Temp/PipelineBindingSet(%i, %i, %i, %i)", desc.numCBVs_,
+		    desc.numSRVs_, desc.numUAVs_, desc.numSamplers_);
 		SetDebugInfo(handle, debugName.data());
 		impl_->HandleErrorCode(handle, impl_->backend_->AllocTemporaryPipelineBindingSet(handle, desc));
 		DestroyResource(handle);

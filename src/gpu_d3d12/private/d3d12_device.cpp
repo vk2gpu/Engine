@@ -110,7 +110,7 @@ namespace GPU
 
 	D3D12Device::~D3D12Device()
 	{ //
-		// Check for device removed if shutting down, and log the error.
+	  // Check for device removed if shutting down, and log the error.
 		HRESULT drReason = d3dDevice_->GetDeviceRemovedReason();
 		if(drReason != S_OK)
 		{
@@ -409,11 +409,13 @@ namespace GPU
 		samplerAllocator_ = new D3D12DescriptorHeapAllocator(d3dDevice_.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER,
 		    D3D12_DESCRIPTOR_HEAP_FLAG_NONE, D3D12_MAX_SHADER_VISIBLE_SAMPLER_HEAP_SIZE, "Sampler Descriptor Heap");
 
-		viewShaderAllocator_ = new D3D12DescriptorHeapAllocator(d3dDevice_.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
-		    D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE, Core::Min(32768, D3D12_MAX_SHADER_VISIBLE_DESCRIPTOR_HEAP_SIZE_TIER_1),
+		viewShaderAllocator_ = new D3D12DescriptorHeapAllocator(d3dDevice_.Get(),
+		    D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE,
+		    Core::Min(32768, D3D12_MAX_SHADER_VISIBLE_DESCRIPTOR_HEAP_SIZE_TIER_1),
 		    "Shader Visible View Descriptor Heap");
 		samplerShaderAllocator_ = new D3D12DescriptorHeapAllocator(d3dDevice_.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER,
-		    D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE, D3D12_MAX_SHADER_VISIBLE_SAMPLER_HEAP_SIZE, "Shader Visible Sampler Descriptor Heap");
+		    D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE, D3D12_MAX_SHADER_VISIBLE_SAMPLER_HEAP_SIZE,
+		    "Shader Visible Sampler Descriptor Heap");
 
 		rtvAllocator_ = new D3D12DescriptorHeapAllocator(d3dDevice_.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_RTV,
 		    D3D12_DESCRIPTOR_HEAP_FLAG_NONE, 1024, "RTV Descriptor Heap");
@@ -851,7 +853,8 @@ namespace GPU
 			outPipelineBindingSet.cbvs_ = viewShaderAllocator_->Alloc(Core::Max(MAX_CBV_BINDINGS, desc.numCBVs_));
 			outPipelineBindingSet.srvs_ = viewShaderAllocator_->Alloc(Core::Max(MAX_SRV_BINDINGS, desc.numSRVs_));
 			outPipelineBindingSet.uavs_ = viewShaderAllocator_->Alloc(Core::Max(MAX_UAV_BINDINGS, desc.numUAVs_));
-			outPipelineBindingSet.samplers_ = samplerShaderAllocator_->Alloc(Core::Max(MAX_SAMPLER_BINDINGS, desc.numSamplers_));
+			outPipelineBindingSet.samplers_ =
+			    samplerShaderAllocator_->Alloc(Core::Max(MAX_SAMPLER_BINDINGS, desc.numSamplers_));
 		}
 		else
 		{

@@ -763,7 +763,7 @@ namespace Graphics
 	bool ShaderContext::CommitBindings(
 	    const ShaderTechnique& tech, GPU::Handle& outPs, Core::ArrayView<GPU::PipelineBinding>& outPb)
 	{
-		// Count number of required bindings. 
+		// Count number of required bindings.
 		// TODO: This should be packed into the technique itself.
 		GPU::PipelineBindingSetDesc tempDesc = {};
 		for(i32 idx : tech.impl_->header_.bindingSets_)
@@ -1006,7 +1006,8 @@ namespace Graphics
 			{
 				GPU::ComputePipelineStateDesc psDesc;
 				psDesc.shader_ = shaders_[techHeader->cs_];
-				psHandle = GPU::Manager::CreateComputePipelineState(psDesc, "%s/%s", name_.c_str(), impl->header_.name_);
+				psHandle =
+				    GPU::Manager::CreateComputePipelineState(psDesc, "%s/%s", name_.c_str(), impl->header_.name_);
 			}
 			else
 			{
@@ -1028,7 +1029,8 @@ namespace Graphics
 				psDesc.numRTs_ = desc.numRTs_;
 				memcpy(&psDesc.rtvFormats_[0], desc.rtvFormats_.data(), sizeof(psDesc.rtvFormats_));
 				psDesc.dsvFormat_ = desc.dsvFormat_;
-				psHandle = GPU::Manager::CreateGraphicsPipelineState(psDesc, "%s/%s", name_.c_str(), impl->header_.name_);
+				psHandle =
+				    GPU::Manager::CreateGraphicsPipelineState(psDesc, "%s/%s", name_.c_str(), impl->header_.name_);
 			}
 			pipelineStates_[impl->descIdx_] = psHandle;
 		}

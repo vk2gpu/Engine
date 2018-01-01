@@ -155,7 +155,7 @@ namespace Graphics
 		ShaderBindingSet& Set(const char* name, const GPU::BindingCBV& binding);
 		ShaderBindingSet& Set(const char* name, const GPU::BindingSRV& binding);
 		ShaderBindingSet& Set(const char* name, const GPU::BindingUAV& binding);
-	
+
 		/**
 		 * Validate bindings.
 		 * @return true if valid.
