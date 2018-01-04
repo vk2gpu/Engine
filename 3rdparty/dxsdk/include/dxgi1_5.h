@@ -3,7 +3,7 @@
 /* this ALWAYS GENERATED file contains the definitions for the interfaces */
 
 
- /* File created by MIDL compiler version 8.01.0618 */
+ /* File created by MIDL compiler version 8.01.0622 */
 /* @@MIDL_FILE_HEADING(  ) */
 
 
@@ -81,6 +81,12 @@ extern "C"{
 #include <winapifamily.h>
 #pragma region App Family
 #if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_APP)
+typedef 
+enum DXGI_OUTDUPL_FLAG
+    {
+        DXGI_OUTDUPL_COMPOSITED_UI_CAPTURE_ONLY	= 1
+    } 	DXGI_OUTDUPL_FLAG;
+
 
 
 extern RPC_IF_HANDLE __MIDL_itf_dxgi1_5_0000_0000_v0_0_c_ifspec;
@@ -146,7 +152,7 @@ EXTERN_C const IID IID_IDXGIOutput5;
             /* [annotation][in] */ 
             _In_  REFGUID Name,
             /* [annotation][in] */ 
-            _In_  const IUnknown *pUnknown);
+            _In_opt_  const IUnknown *pUnknown);
         
         HRESULT ( STDMETHODCALLTYPE *GetPrivateData )( 
             IDXGIOutput5 * This,
@@ -490,7 +496,7 @@ EXTERN_C const IID IID_IDXGISwapChain4;
             /* [annotation][in] */ 
             _In_  REFGUID Name,
             /* [annotation][in] */ 
-            _In_  const IUnknown *pUnknown);
+            _In_opt_  const IUnknown *pUnknown);
         
         HRESULT ( STDMETHODCALLTYPE *GetPrivateData )( 
             IDXGISwapChain4 * This,
@@ -948,7 +954,7 @@ EXTERN_C const IID IID_IDXGIDevice4;
             /* [annotation][in] */ 
             _In_  REFGUID Name,
             /* [annotation][in] */ 
-            _In_  const IUnknown *pUnknown);
+            _In_opt_  const IUnknown *pUnknown);
         
         HRESULT ( STDMETHODCALLTYPE *GetPrivateData )( 
             IDXGIDevice4 * This,
@@ -1213,7 +1219,7 @@ EXTERN_C const IID IID_IDXGIFactory5;
             /* [annotation][in] */ 
             _In_  REFGUID Name,
             /* [annotation][in] */ 
-            _In_  const IUnknown *pUnknown);
+            _In_opt_  const IUnknown *pUnknown);
         
         HRESULT ( STDMETHODCALLTYPE *GetPrivateData )( 
             IDXGIFactory5 * This,
