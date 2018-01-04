@@ -34,8 +34,12 @@ namespace GPU
 		if(FAILED(hr))
 			return;
 
-		// Vendor specific extensions.
+		// Get newer interfaces if possible.
+		d3dDevice_->QueryInterface(IID_ID3D12Device1, (void**)d3dDevice1_.ReleaseAndGetAddressOf());
+		d3dDevice_->QueryInterface(IID_ID3D12Device2, (void**)d3dDevice2_.ReleaseAndGetAddressOf());
+		d3dDevice_->QueryInterface(IID_ID3D12Device3, (void**)d3dDevice3_.ReleaseAndGetAddressOf());
 
+		// Vendor specific extensions.
 		agsContext_ = backend.agsContext_;
 		if(AGS_SUCCESS == agsDriverExtensionsDX12_Init(agsContext_, d3dDevice_.Get(), &agsFeatureBits_))
 		{
@@ -430,6 +434,7 @@ namespace GPU
 			allocator.samplerAllocator_ = new D3D12LinearDescriptorAllocator(d3dDevice_.Get(),
 			    D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE,
 			    D3D12_MAX_SHADER_VISIBLE_SAMPLER_HEAP_SIZE, "Temp Sampler Descriptors");
+
 			allocator.rtvAllocator_ = new D3D12LinearDescriptorAllocator(d3dDevice_.Get(),
 			    D3D12_DESCRIPTOR_HEAP_TYPE_RTV, D3D12_DESCRIPTOR_HEAP_FLAG_NONE, 1024, "Temp RTV Descriptors");
 			allocator.dsvAllocator_ = new D3D12LinearDescriptorAllocator(d3dDevice_.Get(),
@@ -915,6 +920,18 @@ namespace GPU
 		{
 			auto* resource = resources[i] ? resources[i].resource_->resource_.Get() : nullptr;
 			d3dDevice_->CreateShaderResourceView(resource, &descs[i], handle);
+
+			if(pbs.srvs_.debugData_)
+			{
+				auto& debugData = pbs.srvs_.debugData_[pbs.srvs_.offset_ + first + i];
+
+				debugData.subType_ = DescriptorHeapSubType::SRV;
+				debugData.resource_ = resources[i].resource_;
+
+				i32 size = debugData.name_.size();
+				GetObjectName(resource, debugData.name_.data(), size);
+			}
+
 			D3D12SubresourceRange& subRsc = pbs.srvTransitions_[first + i];
 			subRsc = resources[i];
 			handle.ptr += incr;
@@ -932,6 +949,18 @@ namespace GPU
 		{
 			auto* resource = resources[i] ? resources[i].resource_->resource_.Get() : nullptr;
 			d3dDevice_->CreateUnorderedAccessView(resource, nullptr, &descs[i], handle);
+
+			if(pbs.uavs_.debugData_)
+			{
+				auto& debugData = pbs.uavs_.debugData_[pbs.uavs_.offset_ + first + i];
+
+				debugData.subType_ = DescriptorHeapSubType::UAV;
+				debugData.resource_ = resources[i].resource_;
+
+				i32 size = debugData.name_.size();
+				GetObjectName(resource, debugData.name_.data(), size);
+			}
+
 			D3D12SubresourceRange& subRsc = pbs.uavTransitions_[first + i];
 			subRsc = resources[i];
 			handle.ptr += incr;
@@ -948,6 +977,17 @@ namespace GPU
 		for(i32 i = 0; i < num; ++i)
 		{
 			d3dDevice_->CreateConstantBufferView(&descs[i], handle);
+
+			if(pbs.cbvs_.debugData_)
+			{
+				auto& debugData = pbs.cbvs_.debugData_[pbs.cbvs_.offset_ + first + i];
+
+				debugData.subType_ = DescriptorHeapSubType::CBV;
+				debugData.resource_ = resources[i].resource_;
+
+				sprintf_s(debugData.name_.data(), debugData.name_.size(), "0x%llx", descs[i].BufferLocation);
+			}
+
 			D3D12SubresourceRange& subRsc = pbs.cbvTransitions_[first + i];
 			subRsc = resources[i];
 			handle.ptr += incr;
@@ -956,7 +996,7 @@ namespace GPU
 	}
 
 	ErrorCode D3D12Device::UpdateSamplers(
-	    const D3D12PipelineBindingSet& pbs, i32 first, i32 num, const D3D12_SAMPLER_DESC* descs)
+	    D3D12PipelineBindingSet& pbs, i32 first, i32 num, const D3D12_SAMPLER_DESC* descs)
 	{
 		i32 incr = d3dDevice_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER);
 		D3D12_CPU_DESCRIPTOR_HANDLE handle = pbs.samplers_.cpuDescHandle_;
@@ -964,6 +1004,15 @@ namespace GPU
 		for(i32 i = 0; i < num; ++i)
 		{
 			d3dDevice_->CreateSampler(&descs[i], handle);
+
+			if(pbs.samplers_.debugData_)
+			{
+				auto& debugData = pbs.samplers_.debugData_[pbs.samplers_.offset_ + first + i];
+				debugData.subType_ = DescriptorHeapSubType::SAMPLER;
+				debugData.resource_ = nullptr;
+				sprintf_s(debugData.name_.data(), debugData.name_.size(), "Sampler");
+			}
+
 			handle.ptr += incr;
 		}
 		return ErrorCode::OK;

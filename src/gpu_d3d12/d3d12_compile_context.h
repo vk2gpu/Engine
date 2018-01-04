@@ -68,6 +68,8 @@ namespace GPU
 		Core::Array<D3D12_GPU_DESCRIPTOR_HANDLE, 8> gfxDescHandlesBound_ = {};
 		Core::Array<D3D12_GPU_DESCRIPTOR_HANDLE, 8> compDescHandlesBound_ = {};
 
+		Core::Vector<const char*> eventStack_;
+
 		ErrorCode CompileCommandList(class D3D12CommandList& outCommandList, const class CommandList& commandList);
 		ErrorCode CompileCommand(const struct CommandDraw* command);
 		ErrorCode CompileCommand(const struct CommandDrawIndirect* command);

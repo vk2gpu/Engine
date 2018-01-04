@@ -28,7 +28,7 @@
 #define DEBUG_DUMP_SHADERS 1
 
 #define DUMP_ESF_PATH "D:\\tmp.esf"
-#define DUMP_HLSL_PATH "D:\\tmp.hlsl"
+#define DUMP_HLSL_PATH "C:\\Dev\\shader_dump\\%s-%s.hlsl"
 
 namespace
 {
@@ -168,9 +168,13 @@ namespace
 					node->Visit(&backendHLSL);
 
 #if DEBUG_DUMP_SHADERS
-					if(Core::FileExists(DUMP_HLSL_PATH))
-						Core::FileRemove(DUMP_HLSL_PATH);
-					if(auto outTmpFile = Core::File(DUMP_HLSL_PATH, Core::FileFlags::WRITE | Core::FileFlags::CREATE))
+					Core::String hlslFileName;
+
+					hlslFileName.Printf(DUMP_HLSL_PATH, file, "all");
+					if(Core::FileExists(hlslFileName.c_str()))
+						Core::FileRemove(hlslFileName.c_str());
+					if(auto outTmpFile =
+					        Core::File(hlslFileName.c_str(), Core::FileFlags::WRITE | Core::FileFlags::CREATE))
 					{
 						outTmpFile.Write(backendHLSL.GetOutputCode().c_str(), backendHLSL.GetOutputCode().size());
 					}
@@ -236,27 +240,25 @@ namespace
 
 				// Get list of all used bindings.
 				Graphics::BindingMap usedBindings;
-				const auto AddBindings = [](const Core::Vector<Graphics::ShaderBinding>& inBindings,
-				    Graphics::BindingMap& outBindings, i32 bindingIdx) {
+				const auto AddBindings = [](
+				    const Core::Vector<Graphics::ShaderBinding>& inBindings, Graphics::BindingMap& outBindings) {
 					for(const auto& binding : inBindings)
 					{
 						if(outBindings.find(binding.name_) == outBindings.end())
 						{
-							outBindings.insert(binding.name_, bindingIdx++);
+							outBindings.insert(binding.name_, binding.slot_);
 						}
 					}
-					return bindingIdx;
 				};
 
-				i32 bindingIdx = 0;
 				for(const auto& compile : compileOutput)
-					bindingIdx = AddBindings(compile.cbuffers_, usedBindings, bindingIdx);
+					AddBindings(compile.cbuffers_, usedBindings);
 				for(const auto& compile : compileOutput)
-					bindingIdx = AddBindings(compile.srvs_, usedBindings, bindingIdx);
+					AddBindings(compile.srvs_, usedBindings);
 				for(const auto& compile : compileOutput)
-					bindingIdx = AddBindings(compile.uavs_, usedBindings, bindingIdx);
+					AddBindings(compile.uavs_, usedBindings);
 				for(const auto& compile : compileOutput)
-					bindingIdx = AddBindings(compile.samplers_, usedBindings, bindingIdx);
+					AddBindings(compile.samplers_, usedBindings);
 
 				// Regenerate HLSL with only the used bindings.
 				if(!GenerateAndCompile(usedBindings, compileInfo, compileOutput))
@@ -271,26 +273,24 @@ namespace
 				Graphics::BindingMap srvs;
 				Graphics::BindingMap uavs;
 				Graphics::BindingMap samplers;
-				bindingIdx = 0;
 
 				for(const auto& compile : compileOutput)
-					AddBindings(compile.cbuffers_, allBindings, 0);
+					AddBindings(compile.cbuffers_, allBindings);
 				for(const auto& compile : compileOutput)
-					AddBindings(compile.srvs_, allBindings, 0);
+					AddBindings(compile.srvs_, allBindings);
 				for(const auto& compile : compileOutput)
-					AddBindings(compile.uavs_, allBindings, 0);
+					AddBindings(compile.uavs_, allBindings);
 				for(const auto& compile : compileOutput)
-					AddBindings(compile.samplers_, allBindings, 0);
+					AddBindings(compile.samplers_, allBindings);
 
 				for(const auto& compile : compileOutput)
-					bindingIdx = AddBindings(compile.cbuffers_, cbvs, bindingIdx);
+					AddBindings(compile.cbuffers_, cbvs);
 				for(const auto& compile : compileOutput)
-					bindingIdx = AddBindings(compile.srvs_, srvs, bindingIdx);
+					AddBindings(compile.srvs_, srvs);
 				for(const auto& compile : compileOutput)
-					bindingIdx = AddBindings(compile.uavs_, uavs, bindingIdx);
+					AddBindings(compile.uavs_, uavs);
 				for(const auto& compile : compileOutput)
-					bindingIdx = AddBindings(compile.samplers_, samplers, bindingIdx);
-
+					AddBindings(compile.samplers_, samplers);
 
 				Core::Vector<Graphics::ShaderBindingHeader> outBindingHeaders;
 				outBindingHeaders.reserve(cbvs.size() + srvs.size() + uavs.size() + samplers.size());
@@ -299,10 +299,15 @@ namespace
 				    const Graphics::ShaderBindingSetInfo& bindingSet, const Graphics::BindingMap& bindings,
 				    Graphics::ShaderBindingFlags flags, i32 baseIdx, i32 num) {
 
+					bool bindingSetUsed = false;
 					for(i32 idx = 0; idx < num; ++idx)
 					{
 						const auto& member = bindingSet.members_[idx + baseIdx];
-						//DBG_ASSERT(bindings.find(member) != bindings.end());
+
+						if(bindings.find(member) != bindings.end())
+						{
+							bindingSetUsed = true;
+						}
 
 						Graphics::ShaderBindingHeader bindingHeader;
 						memset(&bindingHeader, 0, sizeof(bindingHeader));
@@ -311,15 +316,16 @@ namespace
 						    flags | (Graphics::ShaderBindingFlags(idx) & Graphics::ShaderBindingFlags::INDEX_MASK));
 						outBindingHeaders.push_back(bindingHeader);
 					}
-
-					return baseIdx + num;
+					return bindingSetUsed;
 				};
 
 				const auto& inBindingSets = backendMetadata.GetBindingSets();
 				Core::Vector<Graphics::ShaderBindingSetHeader> outBindingSets;
+				Core::Vector<i32> outBindingSetMapping;
 				outBindingSets.reserve(inBindingSets.size());
-				for(const auto& bindingSet : inBindingSets)
+				for(i32 idx = 0; idx < inBindingSets.size(); ++idx)
 				{
+					const auto& bindingSet = inBindingSets[idx];
 					Graphics::ShaderBindingSetHeader outBindingSet;
 					strcpy_s(outBindingSet.name_, sizeof(outBindingSet), bindingSet.name_.c_str());
 
@@ -338,18 +344,38 @@ namespace
 					outBindingSet.numUAVs_ = bindingSet.numUAVs_;
 					outBindingSet.numSamplers_ = bindingSet.numSamplers_;
 
-					outBindingSets.push_back(outBindingSet);
-
 					i32 baseIdx = 0;
+					bool bindingSetUsed = false;
 
-					baseIdx = PopulateOutBindingHeaders(
+					bindingSetUsed |= PopulateOutBindingHeaders(
 					    bindingSet, allBindings, Graphics::ShaderBindingFlags::CBV, baseIdx, bindingSet.numCBVs_);
-					baseIdx = PopulateOutBindingHeaders(
+					baseIdx += bindingSet.numCBVs_;
+
+					bindingSetUsed |= PopulateOutBindingHeaders(
 					    bindingSet, allBindings, Graphics::ShaderBindingFlags::SRV, baseIdx, bindingSet.numSRVs_);
-					baseIdx = PopulateOutBindingHeaders(
+					baseIdx += bindingSet.numSRVs_;
+
+					bindingSetUsed |= PopulateOutBindingHeaders(
 					    bindingSet, allBindings, Graphics::ShaderBindingFlags::UAV, baseIdx, bindingSet.numUAVs_);
-					baseIdx = PopulateOutBindingHeaders(bindingSet, allBindings, Graphics::ShaderBindingFlags::SAMPLER,
-					    baseIdx, bindingSet.numSamplers_);
+					baseIdx += bindingSet.numUAVs_;
+
+					bindingSetUsed |= PopulateOutBindingHeaders(bindingSet, allBindings,
+					    Graphics::ShaderBindingFlags::SAMPLER, baseIdx, bindingSet.numSamplers_);
+					baseIdx += bindingSet.numSamplers_;
+
+					// Only add used binding sets.
+					if(bindingSetUsed)
+					{
+						outBindingSets.push_back(outBindingSet);
+						outBindingSetMapping.push_back(idx);
+					}
+					else
+					{
+						// Remove binding headers.
+						// TODO: Don't actually push them into the vector...
+						for(i32 i = 0; i < baseIdx; ++i)
+							outBindingHeaders.pop_back();
+					}
 				}
 
 				// Determine binding sets per technique.
@@ -367,11 +393,6 @@ namespace
 				};
 
 				// Setup data ready to serialize.
-				Graphics::ShaderHeader outHeader;
-				outHeader.numShaders_ = compileOutput.size();
-				outHeader.numTechniques_ = techniques.size();
-				outHeader.numSamplerStates_ = samplerStates.size();
-				outHeader.numBindingSets_ = inBindingSets.size();
 
 				Core::Vector<Graphics::ShaderSamplerStateHeader> outSamplerStateHeaders;
 				outSamplerStateHeaders.reserve(samplerStates.size());
@@ -421,10 +442,10 @@ namespace
 						if(shaderIdx != -1)
 						{
 							const Graphics::ShaderCompileOutput& compile = compileOutput[shaderIdx];
-							AddBindings(compile.cbuffers_, techBindings, 0);
-							AddBindings(compile.srvs_, techBindings, 0);
-							AddBindings(compile.uavs_, techBindings, 0);
-							AddBindings(compile.samplers_, techBindings, 0);
+							AddBindings(compile.cbuffers_, techBindings);
+							AddBindings(compile.srvs_, techBindings);
+							AddBindings(compile.uavs_, techBindings);
+							AddBindings(compile.samplers_, techBindings);
 						}
 					};
 
@@ -435,19 +456,36 @@ namespace
 					AddShaderBindings(techniqueHeader.ps_);
 					AddShaderBindings(techniqueHeader.cs_);
 
+					techniqueHeader.bindingSlots_.fill(Graphics::ShaderTechniqueBindingSlot());
+
 					i32 numBindingSets = 0;
-					techniqueHeader.bindingSets_.fill(-1);
-					for(i32 bsIdx = 0; bsIdx < inBindingSets.size(); ++bsIdx)
+					i32 cbvReg = 0;
+					i32 srvReg = 0;
+					i32 uavReg = 0;
+					i32 samplerReg = 0;
+					for(i32 bsIdx = 0; bsIdx < outBindingSets.size(); ++bsIdx)
 					{
-						const auto& bindingSet = inBindingSets[bsIdx];
-						for(auto member : bindingSet.members_)
+						const auto inBindingSet = inBindingSets[outBindingSetMapping[bsIdx]];
+						const auto& bindingSet = outBindingSets[bsIdx];
+						auto& bindingSlot = techniqueHeader.bindingSlots_[numBindingSets];
+						for(auto member : inBindingSet.members_)
 						{
 							if(techBindings.find(member) != techBindings.end())
 							{
-								techniqueHeader.bindingSets_[numBindingSets++] = bsIdx;
+								bindingSlot.idx_ = bsIdx;
+								bindingSlot.cbvReg_ = cbvReg;
+								bindingSlot.srvReg_ = srvReg;
+								bindingSlot.uavReg_ = uavReg;
+								bindingSlot.samplerReg_ = samplerReg;
+								numBindingSets++;
 								break;
 							}
 						}
+
+						cbvReg += bindingSet.numCBVs_;
+						srvReg += bindingSet.numSRVs_;
+						uavReg += bindingSet.numUAVs_;
+						samplerReg += bindingSet.numSamplers_;
 					}
 					techniqueHeader.numBindingSets_ = numBindingSets;
 
@@ -455,6 +493,12 @@ namespace
 
 					outTechniqueHeaders.push_back(techniqueHeader);
 				}
+
+				Graphics::ShaderHeader outHeader;
+				outHeader.numShaders_ = compileOutput.size();
+				outHeader.numTechniques_ = techniques.size();
+				outHeader.numSamplerStates_ = samplerStates.size();
+				outHeader.numBindingSets_ = outBindingSets.size();
 
 				auto WriteShader = [&](const char* outFilename) {
 					// Write out shader data.

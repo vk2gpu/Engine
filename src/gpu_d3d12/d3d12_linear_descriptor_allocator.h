@@ -3,6 +3,7 @@
 #include "gpu_d3d12/d3d12_types.h"
 #include "core/array.h"
 #include "core/concurrency.h"
+#include "core/vector.h"
 
 namespace GPU
 {
@@ -70,6 +71,8 @@ namespace GPU
 		volatile i32 allocOffset_ = 0;
 		/// Heap to allocate from.
 		ComPtr<ID3D12DescriptorHeap> d3dDescriptorHeap_;
+		/// Debug data.
+		Core::Vector<D3D12DescriptorDebugData> debugData_;
 	};
 
 	/**

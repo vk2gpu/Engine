@@ -51,8 +51,7 @@ namespace GPU
 		    const D3D12_UNORDERED_ACCESS_VIEW_DESC* descs);
 		ErrorCode UpdateCBVs(D3D12PipelineBindingSet& pbs, i32 first, i32 num, D3D12SubresourceRange* resources,
 		    const D3D12_CONSTANT_BUFFER_VIEW_DESC* descs);
-		ErrorCode UpdateSamplers(
-		    const D3D12PipelineBindingSet& pbs, i32 first, i32 num, const D3D12_SAMPLER_DESC* descs);
+		ErrorCode UpdateSamplers(D3D12PipelineBindingSet& pbs, i32 first, i32 num, const D3D12_SAMPLER_DESC* descs);
 		ErrorCode UpdateFrameBindingSet(D3D12FrameBindingSet& frameBindingSet,
 		    const D3D12_RENDER_TARGET_VIEW_DESC* rtvDescs, const D3D12_DEPTH_STENCIL_VIEW_DESC* dsvDesc);
 
@@ -66,6 +65,10 @@ namespace GPU
 
 		ComPtr<IDXGIFactory4> dxgiFactory_;
 		ComPtr<ID3D12Device> d3dDevice_;
+
+		ComPtr<ID3D12Device1> d3dDevice1_;
+		ComPtr<ID3D12Device2> d3dDevice2_;
+		ComPtr<ID3D12Device3> d3dDevice3_;
 
 		ComPtr<ID3D12CommandQueue> d3dDirectQueue_;       // direct
 		ComPtr<ID3D12CommandQueue> d3dAsyncComputeQueue_; // compute

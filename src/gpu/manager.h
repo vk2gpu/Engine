@@ -133,10 +133,10 @@ namespace GPU
 		 * @param base Base index of descriptors to update.
 		 * @param descs Descriptors to update.
 		 */
-		static bool UpdatePipelineBindings(Handle handle, i32 base, Core::ArrayView<BindingCBV> descs);
-		static bool UpdatePipelineBindings(Handle handle, i32 base, Core::ArrayView<BindingSRV> descs);
-		static bool UpdatePipelineBindings(Handle handle, i32 base, Core::ArrayView<BindingUAV> descs);
-		static bool UpdatePipelineBindings(Handle handle, i32 base, Core::ArrayView<SamplerState> descs);
+		static bool UpdatePipelineBindings(Handle handle, i32 base, Core::ArrayView<const BindingCBV> descs);
+		static bool UpdatePipelineBindings(Handle handle, i32 base, Core::ArrayView<const BindingSRV> descs);
+		static bool UpdatePipelineBindings(Handle handle, i32 base, Core::ArrayView<const BindingUAV> descs);
+		static bool UpdatePipelineBindings(Handle handle, i32 base, Core::ArrayView<const SamplerState> descs);
 
 		/**
 		 * Copy pipeline bindings.
@@ -145,7 +145,8 @@ namespace GPU
 		 * @pre dst.size() == src.size().
 		 * @pre dst & src num_ per type are equal.
 		 */
-		static bool CopyPipelineBindings(Core::ArrayView<PipelineBinding> dst, Core::ArrayView<PipelineBinding> src);
+		static bool CopyPipelineBindings(
+		    Core::ArrayView<const PipelineBinding> dst, Core::ArrayView<const PipelineBinding> src);
 
 		/**
 		 * Compile command list.

@@ -26,7 +26,9 @@ namespace GPU
 		    &desc, IID_ID3D12DescriptorHeap, (void**)d3dDescriptorHeap_.GetAddressOf()));
 		SetObjectName(d3dDescriptorHeap_.Get(), debugName_);
 
-		ClearDescriptorRange(d3dDescriptorHeap_.Get(), DescriptorHeapSubType::INVALID, 0, blockSize_);
+		debugData_.resize(blockSize);
+
+		ClearDescriptorRange(d3dDescriptorHeap_.Get(), debugData_, DescriptorHeapSubType::INVALID, 0, blockSize_);
 	}
 
 	D3D12LinearDescriptorAllocator::~D3D12LinearDescriptorAllocator() {}
@@ -39,6 +41,7 @@ namespace GPU
 		{
 			D3D12DescriptorAllocation retVal;
 			retVal.d3dDescriptorHeap_ = d3dDescriptorHeap_;
+			retVal.debugData_ = debugData_;
 			retVal.offset_ = offset;
 			retVal.size_ = num;
 			retVal.allocId_ = 0;
@@ -52,7 +55,8 @@ namespace GPU
 			}
 
 			if(subType != DescriptorHeapSubType::INVALID)
-				ClearDescriptorRange(d3dDescriptorHeap_.Get(), subType, retVal.offset_, retVal.size_);
+				ClearDescriptorRange(
+				    d3dDescriptorHeap_.Get(), retVal.debugData_, subType, retVal.offset_, retVal.size_);
 
 			return retVal;
 		}
@@ -67,13 +71,19 @@ namespace GPU
 		i32 copySize = Core::Min(size, src.size_);
 		auto retVal = Alloc(size, subType);
 		if(copySize > 0)
+		{
 			d3dDevice_->CopyDescriptorsSimple(copySize, retVal.cpuDescHandle_, src.cpuDescHandle_, heapType_);
+			for(i32 i = 0; i < size; ++i)
+			{
+				retVal.debugData_[retVal.offset_ + i] = src.debugData_[src.offset_ + i];
+			}
+		}
 		return retVal;
 	}
 
 	void D3D12LinearDescriptorAllocator::Reset()
 	{
-		ClearDescriptorRange(d3dDescriptorHeap_.Get(), DescriptorHeapSubType::INVALID, 0, blockSize_);
+		ClearDescriptorRange(d3dDescriptorHeap_.Get(), debugData_, DescriptorHeapSubType::INVALID, 0, blockSize_);
 		Core::AtomicExchg(&allocOffset_, 0);
 	}
 
@@ -108,6 +118,7 @@ namespace GPU
 		if(numRemaining >= padding)
 		{
 			retVal = alloc_;
+			retVal.debugData_ = alloc_.debugData_;
 			retVal.offset_ += allocOffset_;
 			retVal.size_ = padding;
 
@@ -115,7 +126,8 @@ namespace GPU
 			retVal.gpuDescHandle_.ptr += allocOffset_ * allocator_.GetHandleIncrementSize();
 
 			// TODO: Don't clear!
-			ClearDescriptorRange(retVal.d3dDescriptorHeap_.Get(), subType_, retVal.offset_, retVal.size_);
+			ClearDescriptorRange(
+			    retVal.d3dDescriptorHeap_.Get(), alloc_.debugData_, subType_, retVal.offset_, retVal.size_);
 
 			allocOffset_ += num;
 		}

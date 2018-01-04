@@ -743,6 +743,7 @@ void Loop(const Core::CommandLine& cmdLine)
 		{
 			rmt_ScopedCPUSample(Update, RMTSF_None);
 
+			if(frameSubmitCounter)
 			{
 				rmt_ScopedCPUSample(WaitForFrameSubmit, RMTSF_None);
 
@@ -847,9 +848,9 @@ void Loop(const Core::CommandLine& cmdLine)
 
 			// Set draw callback.
 			forwardPipeline.SetDrawCallback([&](Testbed::DrawContext& drawCtx) {
-#if 0
 				DrawRenderPackets(drawCtx);
 
+#if 0
 				if(testClusteredModel)
 				{
 					testClusteredModel->enableCulling_ = clusterCulling_;
@@ -947,6 +948,7 @@ void Loop(const Core::CommandLine& cmdLine)
 			{
 				rmt_ScopedCPUSample(FrameSubmit, RMTSF_None);
 				frameSubmitJob.RunSingle(0, &frameSubmitCounter);
+				Job::Manager::WaitForCounter(frameSubmitCounter, 0);
 			}
 		}
 

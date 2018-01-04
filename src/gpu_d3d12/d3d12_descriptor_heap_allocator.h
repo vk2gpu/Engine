@@ -29,12 +29,17 @@ namespace GPU
 		{
 			DescriptorBlock(i32 size, i32 maxAllocs)
 			    : allocator_(size, maxAllocs)
+			    , debugData_(size)
 			{
 			}
+
+			DescriptorBlock(const DescriptorBlock&) = delete;
+			DescriptorBlock(DescriptorBlock&&) = default;
 
 			ComPtr<ID3D12DescriptorHeap> d3dDescriptorHeap_;
 			Core::ExternalAllocator allocator_;
 			i32 numAllocs_ = 0;
+			Core::Vector<D3D12DescriptorDebugData> debugData_;
 		};
 
 		/// device to use.

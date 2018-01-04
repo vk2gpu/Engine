@@ -47,12 +47,12 @@ namespace GPU
 		ErrorCode DestroyResource(Handle handle) override;
 
 		ErrorCode AllocTemporaryPipelineBindingSet(Handle handle, const PipelineBindingSetDesc& desc) override;
-		ErrorCode UpdatePipelineBindings(Handle pbs, i32 base, Core::ArrayView<BindingCBV> descs) override;
-		ErrorCode UpdatePipelineBindings(Handle pbs, i32 base, Core::ArrayView<BindingSRV> descs) override;
-		ErrorCode UpdatePipelineBindings(Handle pbs, i32 base, Core::ArrayView<BindingUAV> descs) override;
-		ErrorCode UpdatePipelineBindings(Handle pbs, i32 base, Core::ArrayView<SamplerState> descs) override;
+		ErrorCode UpdatePipelineBindings(Handle pbs, i32 base, Core::ArrayView<const BindingCBV> descs) override;
+		ErrorCode UpdatePipelineBindings(Handle pbs, i32 base, Core::ArrayView<const BindingSRV> descs) override;
+		ErrorCode UpdatePipelineBindings(Handle pbs, i32 base, Core::ArrayView<const BindingUAV> descs) override;
+		ErrorCode UpdatePipelineBindings(Handle pbs, i32 base, Core::ArrayView<const SamplerState> descs) override;
 		ErrorCode CopyPipelineBindings(
-		    Core::ArrayView<PipelineBinding> dst, Core::ArrayView<PipelineBinding> src) override;
+		    Core::ArrayView<const PipelineBinding> dst, Core::ArrayView<const PipelineBinding> src) override;
 
 		ErrorCode CompileCommandList(Handle handle, const CommandList& commandList) override;
 		ErrorCode SubmitCommandLists(Core::ArrayView<Handle> handles) override;

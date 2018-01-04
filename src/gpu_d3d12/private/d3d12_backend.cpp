@@ -854,9 +854,16 @@ namespace GPU
 		auto& uavSubAllocator = device_->GetUAVSubAllocator();
 
 		pbs.samplers_ = samplerAllocator.Alloc(desc.numSamplers_, GPU::DescriptorHeapSubType::SAMPLER);
-		pbs.cbvs_ = cbvSubAllocator.Alloc(desc.numCBVs_, MAX_CBV_BINDINGS);
-		pbs.srvs_ = srvSubAllocator.Alloc(desc.numSRVs_, MAX_SRV_BINDINGS);
-		pbs.uavs_ = uavSubAllocator.Alloc(desc.numUAVs_, MAX_UAV_BINDINGS);
+		pbs.cbvs_ = cbvSubAllocator.Alloc(MAX_CBV_BINDINGS, MAX_CBV_BINDINGS);
+		pbs.srvs_ = srvSubAllocator.Alloc(MAX_SRV_BINDINGS, MAX_SRV_BINDINGS);
+		pbs.uavs_ = uavSubAllocator.Alloc(MAX_UAV_BINDINGS, MAX_UAV_BINDINGS);
+
+		pbs.shaderVisible_ = desc.shaderVisible_;
+
+		DBG_ASSERT(pbs.samplers_.debugData_);
+		DBG_ASSERT(pbs.cbvs_.debugData_);
+		DBG_ASSERT(pbs.srvs_.debugData_);
+		DBG_ASSERT(pbs.uavs_.debugData_);
 
 		DBG_ASSERT(pbs.samplers_.size_ >= desc.numSamplers_);
 		DBG_ASSERT(pbs.cbvs_.size_ >= desc.numCBVs_);
@@ -872,7 +879,7 @@ namespace GPU
 		return ErrorCode::OK;
 	}
 
-	ErrorCode D3D12Backend::UpdatePipelineBindings(Handle handle, i32 base, Core::ArrayView<BindingCBV> descs)
+	ErrorCode D3D12Backend::UpdatePipelineBindings(Handle handle, i32 base, Core::ArrayView<const BindingCBV> descs)
 	{
 		Core::ScopedWriteLock lock(resLock_);
 		auto& pbs = pipelineBindingSets_[handle.GetIndex()];
@@ -883,10 +890,8 @@ namespace GPU
 		for(i32 i = 0; i < descs.size(); ++i, ++bindingIdx)
 		{
 			auto cbvHandle = descs[i].resource_;
-			if(!cbvHandle)
-				continue;
+			DBG_ASSERT(cbvHandle.IsValid());
 			DBG_ASSERT(cbvHandle.GetType() == ResourceType::BUFFER);
-			DBG_ASSERT(cbvHandle);
 
 			D3D12Resource* resource = GetD3D12Resource(cbvHandle);
 			DBG_ASSERT(resource);
@@ -907,7 +912,7 @@ namespace GPU
 		return device_->UpdateCBVs(pbs, base, descs.size(), pbs.cbvTransitions_.data() + base, cbvDescs.data() + base);
 	}
 
-	ErrorCode D3D12Backend::UpdatePipelineBindings(Handle handle, i32 base, Core::ArrayView<BindingSRV> descs)
+	ErrorCode D3D12Backend::UpdatePipelineBindings(Handle handle, i32 base, Core::ArrayView<const BindingSRV> descs)
 	{
 		Core::ScopedWriteLock lock(resLock_);
 		auto& pbs = pipelineBindingSets_[handle.GetIndex()];
@@ -918,8 +923,7 @@ namespace GPU
 		for(i32 i = 0; i < descs.size(); ++i, ++bindingIdx)
 		{
 			auto srvHandle = descs[i].resource_;
-			if(!srvHandle)
-				continue;
+			DBG_ASSERT(srvHandle.IsValid());
 			DBG_ASSERT(srvHandle.GetType() == ResourceType::BUFFER || srvHandle.GetType() == ResourceType::TEXTURE);
 
 			const D3D12Buffer* bufferRes = nullptr;
@@ -1034,7 +1038,7 @@ namespace GPU
 		return device_->UpdateSRVs(pbs, base, descs.size(), pbs.srvTransitions_.data() + base, srvDescs.data() + base);
 	}
 
-	ErrorCode D3D12Backend::UpdatePipelineBindings(Handle handle, i32 base, Core::ArrayView<BindingUAV> descs)
+	ErrorCode D3D12Backend::UpdatePipelineBindings(Handle handle, i32 base, Core::ArrayView<const BindingUAV> descs)
 	{
 		Core::ScopedWriteLock lock(resLock_);
 		auto& pbs = pipelineBindingSets_[handle.GetIndex()];
@@ -1045,8 +1049,7 @@ namespace GPU
 		for(i32 i = 0; i < descs.size(); ++i, ++bindingIdx)
 		{
 			auto uavHandle = descs[i].resource_;
-			if(!uavHandle)
-				continue;
+			DBG_ASSERT(uavHandle.IsValid());
 			DBG_ASSERT(uavHandle.GetType() == ResourceType::BUFFER || uavHandle.GetType() == ResourceType::TEXTURE);
 
 			const D3D12Buffer* bufferRes = nullptr;
@@ -1128,7 +1131,7 @@ namespace GPU
 		return device_->UpdateUAVs(pbs, base, descs.size(), pbs.uavTransitions_.data() + base, uavDescs.data() + base);
 	}
 
-	ErrorCode D3D12Backend::UpdatePipelineBindings(Handle handle, i32 base, Core::ArrayView<SamplerState> descs)
+	ErrorCode D3D12Backend::UpdatePipelineBindings(Handle handle, i32 base, Core::ArrayView<const SamplerState> descs)
 	{
 		Core::ScopedReadLock lock(resLock_);
 		auto& pbs = pipelineBindingSets_[handle.GetIndex()];
@@ -1145,7 +1148,7 @@ namespace GPU
 	}
 
 	ErrorCode D3D12Backend::CopyPipelineBindings(
-	    Core::ArrayView<PipelineBinding> dst, Core::ArrayView<PipelineBinding> src)
+	    Core::ArrayView<const PipelineBinding> dst, Core::ArrayView<const PipelineBinding> src)
 	{
 		Core::ScopedReadLock lock(resLock_);
 
@@ -1155,21 +1158,49 @@ namespace GPU
 
 		for(i32 i = 0; i < dst.size(); ++i)
 		{
+			//DBG_LOG("CopyPipelineBindings: %d\n", i);
 			auto& dstPBS = pipelineBindingSets_[dst[i].pbs_.GetIndex()];
 			auto& srcPBS = pipelineBindingSets_[src[i].pbs_.GetIndex()];
 
 			auto CopyRange = [d3dDevice](D3D12DescriptorAllocation& dstAlloc,
 			    Core::Vector<D3D12SubresourceRange>& dstTransitions, i32 dstOffset, D3D12DescriptorAllocation& srcAlloc,
 			    Core::Vector<D3D12SubresourceRange>& srcTransitions, i32 srcOffset, i32 num,
-			    D3D12_DESCRIPTOR_HEAP_TYPE type, i32 incr) {
+			    D3D12_DESCRIPTOR_HEAP_TYPE type, i32 incr, DescriptorHeapSubType subType) {
 				D3D12_CPU_DESCRIPTOR_HANDLE dstHandle = dstAlloc.cpuDescHandle_;
 				D3D12_CPU_DESCRIPTOR_HANDLE srcHandle = srcAlloc.cpuDescHandle_;
 				DBG_ASSERT(dstHandle.ptr);
 				DBG_ASSERT(srcHandle.ptr);
+				DBG_ASSERT(dstOffset < dstAlloc.size_);
+				DBG_ASSERT(srcOffset < srcAlloc.size_);
+				DBG_ASSERT((dstOffset + num) <= dstAlloc.size_);
+				DBG_ASSERT((srcOffset + num) <= srcAlloc.size_);
 
 				dstHandle.ptr += dstOffset * incr;
 				srcHandle.ptr += srcOffset * incr;
 
+				for(i32 i = 0; i < num; ++i)
+				{
+					auto& dstDebug = dstAlloc.debugData_[dstAlloc.offset_ + dstOffset + i];
+					const auto& srcDebug = srcAlloc.debugData_[srcAlloc.offset_ + srcOffset + i];
+					DBG_ASSERT(srcDebug.subType_ == subType);
+					if(srcDebug.subType_ != DescriptorHeapSubType::SAMPLER)
+					{
+						DBG_ASSERT(srcDebug.resource_);
+					}
+					else
+					{
+						DBG_ASSERT(!srcDebug.resource_);
+					}
+					dstDebug = srcDebug;
+				}
+
+#if 0
+				i64 dstBase = dstAlloc.d3dDescriptorHeap_->GetCPUDescriptorHandleForHeapStart().ptr;
+				i64 srcBase = srcAlloc.d3dDescriptorHeap_->GetCPUDescriptorHandleForHeapStart().ptr;
+				i64 dstIdx = (dstHandle.ptr - dstBase) / incr;
+				i64 srcIdx = (srcHandle.ptr - srcBase) / incr;
+				DBG_LOG("- CopyDescriptorsSimple: %d, %llx, %llx\n", num, dstIdx, srcIdx);
+#endif
 				d3dDevice->CopyDescriptorsSimple(num, dstHandle, srcHandle, type);
 
 				if(srcTransitions.size() > 0)
@@ -1180,21 +1211,21 @@ namespace GPU
 			if(dst[i].cbvs_.num_ > 0)
 				CopyRange(dstPBS.cbvs_, dstPBS.cbvTransitions_, dst[i].cbvs_.dstOffset_, srcPBS.cbvs_,
 				    srcPBS.cbvTransitions_, src[i].cbvs_.srcOffset_, dst[i].cbvs_.num_,
-				    D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, viewIncr);
+				    D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, viewIncr, DescriptorHeapSubType::CBV);
 			if(dst[i].srvs_.num_ > 0)
 				CopyRange(dstPBS.srvs_, dstPBS.srvTransitions_, dst[i].srvs_.dstOffset_, srcPBS.srvs_,
 				    srcPBS.srvTransitions_, src[i].srvs_.srcOffset_, dst[i].srvs_.num_,
-				    D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, viewIncr);
+				    D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, viewIncr, DescriptorHeapSubType::SRV);
 			if(dst[i].uavs_.num_ > 0)
 				CopyRange(dstPBS.uavs_, dstPBS.uavTransitions_, dst[i].uavs_.dstOffset_, srcPBS.uavs_,
 				    srcPBS.uavTransitions_, src[i].uavs_.srcOffset_, dst[i].uavs_.num_,
-				    D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, viewIncr);
+				    D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, viewIncr, DescriptorHeapSubType::UAV);
 
 			static Core::Vector<D3D12SubresourceRange> emptyTransitions;
 			if(dst[i].samplers_.num_ > 0)
 				CopyRange(dstPBS.samplers_, emptyTransitions, dst[i].samplers_.dstOffset_, srcPBS.samplers_,
 				    emptyTransitions, src[i].samplers_.dstOffset_, dst[i].samplers_.num_,
-				    D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, samplerIncr);
+				    D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, samplerIncr, DescriptorHeapSubType::SAMPLER);
 		}
 
 		return ErrorCode::OK;

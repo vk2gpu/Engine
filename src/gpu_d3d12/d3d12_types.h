@@ -1,5 +1,6 @@
 #pragma once
 
+#include "core/array.h"
 #include "core/types.h"
 #include "core/library.h"
 #include "core/os.h"
@@ -96,11 +97,19 @@ namespace GPU
 	 * Utility.
 	 */
 	void SetObjectName(ID3D12Object* object, const char* name);
+	void GetObjectName(ID3D12Object* object, char* outName, i32& outSize);
 	void WaitOnFence(ID3D12Fence* fence, HANDLE event, u64 value);
 
 	static const i32 COMMAND_LIST_BATCH_SIZE = 32;
 	static const i64 UPLOAD_AUTO_FLUSH_COMMANDS = 30;
 	static const i64 UPLOAD_AUTO_FLUSH_BYTES = 8 * 1024 * 1024;
+
+	struct D3D12DescriptorDebugData
+	{
+		DescriptorHeapSubType subType_ = DescriptorHeapSubType::INVALID;
+		struct D3D12Resource* resource_ = nullptr;
+		Core::Array<char, 32> name_ = {};
+	};
 
 	/**
 	 * Descriptor heap allocation.
@@ -109,6 +118,8 @@ namespace GPU
 	{
 		/// Descriptor heap we're pointing to.
 		ComPtr<ID3D12DescriptorHeap> d3dDescriptorHeap_;
+		/// Debug descriptor data.
+		Core::ArrayView<D3D12DescriptorDebugData> debugData_;
 		/// Offset in descriptor heap.
 		i32 offset_ = 0;
 		/// Size of allocation.
@@ -124,8 +135,9 @@ namespace GPU
 	/**
 	 * Clear descriptor range.
 	 */
-	void ClearDescriptorRange(
-	    ID3D12DescriptorHeap* d3dDescriptorHeap, DescriptorHeapSubType subType, i32 offset, i32 numDescriptors);
+	void ClearDescriptorRange(ID3D12DescriptorHeap* d3dDescriptorHeap,
+	    Core::ArrayView<D3D12DescriptorDebugData> debugDataBase, DescriptorHeapSubType subType, i32 offset,
+	    i32 numDescriptors);
 
 } // namespace GPU
 

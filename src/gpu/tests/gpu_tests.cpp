@@ -934,7 +934,9 @@ TEST_CASE("gpu-tests-compile-dispatch")
 
 		i32 xGroups = texDesc.width_ / 8;
 		i32 yGroups = texDesc.height_ / 8;
-		REQUIRE(cmdList.Dispatch(pipelineHandle, {{pbsHandle, 0, 0, 0, 0}}, xGroups, yGroups, 1));
+		GPU::PipelineBinding pipelineBinding[] = {{pbsHandle, 0, 0, 0, 0}};
+
+		REQUIRE(cmdList.Dispatch(pipelineHandle, pipelineBinding, xGroups, yGroups, 1));
 		REQUIRE(GPU::Manager::CompileCommandList(cmdHandle, cmdList));
 		REQUIRE(GPU::Manager::SubmitCommandList(cmdHandle));
 

@@ -516,7 +516,7 @@ namespace GPU
 		return handle;
 	}
 
-	bool Manager::UpdatePipelineBindings(Handle handle, i32 base, Core::ArrayView<BindingCBV> descs)
+	bool Manager::UpdatePipelineBindings(Handle handle, i32 base, Core::ArrayView<const BindingCBV> descs)
 	{
 		DBG_ASSERT(IsInitialized());
 		DBG_ASSERT(handle.GetType() == ResourceType::PIPELINE_BINDING_SET);
@@ -524,7 +524,7 @@ namespace GPU
 		return impl_->HandleErrorCode(impl_->backend_->UpdatePipelineBindings(handle, base, descs));
 	}
 
-	bool Manager::UpdatePipelineBindings(Handle handle, i32 base, Core::ArrayView<BindingSRV> descs)
+	bool Manager::UpdatePipelineBindings(Handle handle, i32 base, Core::ArrayView<const BindingSRV> descs)
 	{
 		DBG_ASSERT(IsInitialized());
 		DBG_ASSERT(handle.GetType() == ResourceType::PIPELINE_BINDING_SET);
@@ -532,7 +532,7 @@ namespace GPU
 		return impl_->HandleErrorCode(impl_->backend_->UpdatePipelineBindings(handle, base, descs));
 	}
 
-	bool Manager::UpdatePipelineBindings(Handle handle, i32 base, Core::ArrayView<BindingUAV> descs)
+	bool Manager::UpdatePipelineBindings(Handle handle, i32 base, Core::ArrayView<const BindingUAV> descs)
 	{
 		DBG_ASSERT(IsInitialized());
 		DBG_ASSERT(handle.GetType() == ResourceType::PIPELINE_BINDING_SET);
@@ -540,7 +540,7 @@ namespace GPU
 		return impl_->HandleErrorCode(impl_->backend_->UpdatePipelineBindings(handle, base, descs));
 	}
 
-	bool Manager::UpdatePipelineBindings(Handle handle, i32 base, Core::ArrayView<SamplerState> descs)
+	bool Manager::UpdatePipelineBindings(Handle handle, i32 base, Core::ArrayView<const SamplerState> descs)
 	{
 		DBG_ASSERT(IsInitialized());
 		DBG_ASSERT(handle.GetType() == ResourceType::PIPELINE_BINDING_SET);
@@ -548,13 +548,16 @@ namespace GPU
 		return impl_->HandleErrorCode(impl_->backend_->UpdatePipelineBindings(handle, base, descs));
 	}
 
-	bool Manager::CopyPipelineBindings(Core::ArrayView<PipelineBinding> dst, Core::ArrayView<PipelineBinding> src)
+	bool Manager::CopyPipelineBindings(
+	    Core::ArrayView<const PipelineBinding> dst, Core::ArrayView<const PipelineBinding> src)
 	{
 		DBG_ASSERT(IsInitialized());
 		DBG_ASSERT(dst.size() == src.size());
 #if !defined(FINAL)
 		for(i32 i = 0; i < dst.size(); ++i)
 		{
+			DBG_ASSERT(dst[i].pbs_.IsValid());
+			DBG_ASSERT(src[i].pbs_.IsValid());
 			DBG_ASSERT(dst[i].pbs_.GetType() == ResourceType::PIPELINE_BINDING_SET);
 			DBG_ASSERT(src[i].pbs_.GetType() == ResourceType::PIPELINE_BINDING_SET);
 			DBG_ASSERT(dst[i].cbvs_.num_ == src[i].cbvs_.num_);

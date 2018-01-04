@@ -86,12 +86,13 @@ namespace Graphics
 		bool Serialize(Serialization::Serializer& serializer);
 	};
 
-	struct GRAPHICS_DLL ShaderBindingMapping
+	struct GRAPHICS_DLL ShaderTechniqueBindingSlot
 	{
-		i32 binding_ = 0;
-		i32 dstSlot_ = 0;
-
-		bool Serialize(Serialization::Serializer& serializer);
+		i32 idx_ = -1;
+		i32 cbvReg_ = 0;
+		i32 srvReg_ = 0;
+		i32 uavReg_ = 0;
+		i32 samplerReg_ = 0;
 	};
 
 	struct GRAPHICS_DLL ShaderTechniqueHeader
@@ -106,7 +107,7 @@ namespace Graphics
 		GPU::RenderState rs_; // TODO: Store separately.
 
 		i32 numBindingSets_ = 0;
-		Core::Array<i32, MAX_BOUND_BINDING_SETS> bindingSets_;
+		Core::Array<ShaderTechniqueBindingSlot, MAX_BOUND_BINDING_SETS> bindingSlots_;
 
 		bool Serialize(Serialization::Serializer& serializer);
 	};
@@ -126,14 +127,12 @@ namespace Graphics
 		Core::Vector<ShaderBindingSetHeader> bindingSetHeaders_;
 		Core::Vector<ShaderBindingHeader> bindingHeaders_;
 		Core::Vector<ShaderBytecodeHeader> bytecodeHeaders_;
-		//Core::Vector<ShaderBindingMapping> bindingMappings_;
 		Core::Vector<ShaderTechniqueHeader> techniqueHeaders_;
 		Core::Vector<ShaderSamplerStateHeader> samplerStateHeaders_;
 		Core::Vector<u8> bytecode_;
 
 		Core::Vector<GPU::Handle> samplerStates_;
 		Core::Vector<GPU::Handle> shaders_;
-		Core::Vector<const ShaderBindingMapping*> shaderBindingMappings_;
 
 		// All technique impls currently active.
 		Core::Vector<ShaderTechniqueImpl*> techniques_;

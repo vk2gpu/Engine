@@ -143,7 +143,11 @@ namespace Core
 				const index_type indicesIdx = keyHash & mask_;
 				const index_type idx = indices_[indicesIdx];
 				if(idx != INVALID_INDEX)
-					return values_.data() + idx;
+				{
+					const_iterator retVal = values_.data() + idx;
+					if(hasher_(0, retVal->first) == keyHash)
+						return retVal;
+				}
 			}
 			return end();
 		}

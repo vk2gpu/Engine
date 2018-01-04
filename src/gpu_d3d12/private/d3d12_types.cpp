@@ -13,13 +13,22 @@ const GUID IID_ID3D12Debug1 = {0xaffaa4ca, 0x63fe, 0x4d8e, { 0xb8, 0xad, 0x15, 0
 const GUID IID_ID3D12DescriptorHeap = {0x8efb471d, 0x616c, 0x4f49, {0x90, 0xf7, 0x12, 0x7b, 0xb7, 0x63, 0xfa, 0x51}};
 const GUID IID_ID3D12Device = {0x189819f1, 0x1db6, 0x4b57, {0xbe, 0x54, 0x18, 0x21, 0x33, 0x9b, 0x85, 0xf7}};
 const GUID IID_ID3D12Fence = {0x0a753dcf, 0xc4d8, 0x4b91, {0xad, 0xf6, 0xbe, 0x5a, 0x60, 0xd9, 0x5a, 0x76}};
+const GUID IID_ID3D12Fence1 = {0x433685fe,0xe22b,0x4ca0,{0xa8,0xdb,0xb5,0xb4,0xf4,0xdd,0x0e,0x4a}};
 const GUID IID_ID3D12CommandList = {0x7116d91c, 0xe7e4, 0x47ce, {0xb8, 0xc6, 0xec, 0x81, 0x68, 0xf4, 0x37, 0xe5}};
 const GUID IID_ID3D12GraphicsCommandList = {0x5b160d0f, 0xac1b, 0x4185, {0x8b, 0xa8, 0xb3, 0xae, 0x42, 0xa5, 0xa4, 0x55}};
+const GUID IID_ID3D12GraphicsCommandList1 = {0x553103fb,0x1fe7,0x4557,{0xbb,0x38,0x94,0x6d,0x7d,0x0e,0x7c,0xa7}};
+const GUID IID_ID3D12GraphicsCommandList2 = {0x38C3E585,0xFF17,0x412C,{0x91,0x50,0x4F,0xC6,0xF9,0xD7,0x2A,0x28}};
 const GUID IID_ID3D12InfoQueue = {0x0742a90b, 0xc387, 0x483f, {0xb9, 0x46, 0x30, 0xa7, 0xe4, 0xe6, 0x14, 0x58}};
 const GUID IID_ID3D12PipelineState = {0x765a30f3, 0xf624, 0x4c6f, {0xa8, 0x28, 0xac, 0xe9, 0x48, 0x62, 0x24, 0x45}};
 const GUID IID_ID3D12Resource = {0x696442be, 0xa72e, 0x4059, {0xbc, 0x79, 0x5b, 0x5c, 0x98, 0x04, 0x0f, 0xad}};
 const GUID IID_ID3D12RootSignature = {0xc54a6b66, 0x72df, 0x4ee8, {0x8b, 0xe5, 0xa9, 0x46, 0xa1, 0x42, 0x92, 0x14}};
 const GUID IID_ID3D12QueryHeap = {0x0d9658ae, 0xed45, 0x469e, {0xa6, 0x1d, 0x97, 0x0e, 0xc5, 0x83, 0xca, 0xb4}};
+const GUID IID_ID3D12PipelineLibrary = {0xc64226a8,0x9201,0x46af,{0xb4,0xcc,0x53,0xfb,0x9f,0xf7,0x41,0x4f}};
+const GUID IID_ID3D12PipelineLibrary1 = {0x80eabf42,0x2568,0x4e5e,{0xbd,0x82,0xc3,0x7f,0x86,0x96,0x1d,0xc3}};
+const GUID IID_ID3D12Device1 = {0x77acce80,0x638e,0x4e65,{0x88,0x95,0xc1,0xf2,0x33,0x86,0x86,0x3e}};
+const GUID IID_ID3D12Device2 = {0x30baa41e,0xb15b,0x475c,{0xa0,0xbb,0x1a,0xf5,0xc5,0xb6,0x43,0x28}};
+const GUID IID_ID3D12Device3 = {0x81dadc15,0x2bad,0x4392,{0x93,0xc5,0x10,0x13,0x45,0xc4,0xaa,0x98}};
+const GUID IID_ID3D12Tools = {0x7071e1f0,0xe84b,0x4b33,{0x97,0x4f,0x12,0xfa,0x49,0xde,0x65,0xc5}};
 const GUID IID_IDXGIInfoQueue = {0xD67441C7, 0x672A, 0x476f, {0x9E, 0x82, 0xCD, 0x55, 0xB4, 0x49, 0x49, 0xCE}};
 const GUID IID_IDXGIDebug = {0x119E7452, 0xDE9E, 0x40fe, {0x88, 0x06, 0x88, 0xF9, 0x0C, 0x12, 0xB4, 0x41}};
 const GUID IID_IDXGIFactory1 = {0x790a45f7, 0x0d42, 0x4876, {0x98, 0x3a, 0x0a, 0x55, 0xcf, 0xe6, 0xf4, 0xaa}};
@@ -556,6 +565,8 @@ namespace GPU
 		return barrier;
 	}
 
+	// {BF15EAFD-72B9-4965-B4E1-48549D035999}
+	static const GUID GUID_DebugName = {0xbf15eafd, 0x72b9, 0x4965, {0xb4, 0xe1, 0x48, 0x54, 0x9d, 0x3, 0x59, 0x99}};
 
 	void SetObjectName(ID3D12Object* object, const char* name)
 	{
@@ -565,7 +576,18 @@ namespace GPU
 			wchar wName[512] = {0};
 			Core::StringConvertUTF8toUTF16(name, (i32)strlen(name), wName, 512);
 			object->SetName(wName);
+			object->SetPrivateData(GUID_DebugName, Core::Min(31, (UINT)strlen(name)), name);
 		}
+#endif
+	}
+
+	void GetObjectName(ID3D12Object* object, char* outName, i32& outSize)
+	{
+#if !defined(FINAL)
+		UINT len = (UINT)outSize;
+		memset(outName, 0, outSize);
+		object->GetPrivateData(GUID_DebugName, &len, outName);
+		outSize = (i32)len;
 #endif
 	}
 
@@ -578,8 +600,9 @@ namespace GPU
 		}
 	}
 
-	void ClearDescriptorRange(
-	    ID3D12DescriptorHeap* d3dDescriptorHeap, DescriptorHeapSubType subType, i32 offset, i32 numDescriptors)
+	void ClearDescriptorRange(ID3D12DescriptorHeap* d3dDescriptorHeap,
+	    Core::ArrayView<D3D12DescriptorDebugData> debugDataBase, DescriptorHeapSubType subType, i32 offset,
+	    i32 numDescriptors)
 	{
 		auto d3dDesc = d3dDescriptorHeap->GetDesc();
 		ComPtr<ID3D12Device> d3dDevice;
@@ -591,6 +614,13 @@ namespace GPU
 		{
 			if(subType == DescriptorHeapSubType::INVALID)
 			{
+				if(debugDataBase)
+				{
+					debugDataBase[i].subType_ = DescriptorHeapSubType::INVALID;
+					debugDataBase[i].resource_ = nullptr;
+					sprintf_s(debugDataBase[i].name_.data(), debugDataBase[i].name_.size(), "<INVALID>");
+				}
+
 				switch(d3dDesc.Type)
 				{
 				case D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV:
@@ -630,6 +660,12 @@ namespace GPU
 				{
 					D3D12_CONSTANT_BUFFER_VIEW_DESC desc = {};
 					d3dDevice->CreateConstantBufferView(&desc, handle);
+					if(debugDataBase)
+					{
+						debugDataBase[i].subType_ = DescriptorHeapSubType::CBV;
+						debugDataBase[i].resource_ = nullptr;
+						sprintf_s(debugDataBase[i].name_.data(), debugDataBase[i].name_.size(), "<NULL CBV>");
+					}
 					break;
 				}
 				case DescriptorHeapSubType::SRV:
@@ -641,6 +677,12 @@ namespace GPU
 					    D3D12_SHADER_COMPONENT_MAPPING_FORCE_VALUE_0, D3D12_SHADER_COMPONENT_MAPPING_FORCE_VALUE_0,
 					    D3D12_SHADER_COMPONENT_MAPPING_FORCE_VALUE_0, D3D12_SHADER_COMPONENT_MAPPING_FORCE_VALUE_0);
 					d3dDevice->CreateShaderResourceView(nullptr, &desc, handle);
+					if(debugDataBase)
+					{
+						debugDataBase[i].subType_ = DescriptorHeapSubType::SRV;
+						debugDataBase[i].resource_ = nullptr;
+						sprintf_s(debugDataBase[i].name_.data(), debugDataBase[i].name_.size(), "<NULL SRV>");
+					}
 					break;
 				}
 				case DescriptorHeapSubType::UAV:
@@ -649,6 +691,12 @@ namespace GPU
 					desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 					desc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
 					d3dDevice->CreateUnorderedAccessView(nullptr, nullptr, &desc, handle);
+					if(debugDataBase)
+					{
+						debugDataBase[i].subType_ = DescriptorHeapSubType::UAV;
+						debugDataBase[i].resource_ = nullptr;
+						sprintf_s(debugDataBase[i].name_.data(), debugDataBase[i].name_.size(), "<NULL UAV>");
+					}
 					break;
 				}
 				case DescriptorHeapSubType::SAMPLER:
@@ -663,6 +711,12 @@ namespace GPU
 					desc.BorderColor[2] = 3.0f;
 					desc.BorderColor[3] = 4.0f;
 					d3dDevice->CreateSampler(&desc, handle);
+					if(debugDataBase)
+					{
+						debugDataBase[i].subType_ = DescriptorHeapSubType::SAMPLER;
+						debugDataBase[i].resource_ = nullptr;
+						sprintf_s(debugDataBase[i].name_.data(), debugDataBase[i].name_.size(), "<NULL SAMPLER>");
+					}
 					break;
 				}
 				default:

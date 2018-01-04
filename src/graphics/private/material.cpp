@@ -11,6 +11,14 @@ namespace Graphics
 	class MaterialFactory : public Resource::IFactory
 	{
 	public:
+		~MaterialFactory()
+		{
+			if(defaultTex_)
+			{
+				GPU::Manager::DestroyResource(defaultTex_);
+			}
+		}
+
 		bool CreateResource(Resource::IFactoryContext& context, void** outResource, const Core::UUID& type) override
 		{
 			DBG_ASSERT(type == Material::GetTypeUUID());
@@ -43,7 +51,7 @@ namespace Graphics
 				desc.format_ = GPU::Format::R8G8B8A8_UNORM;
 				desc.width_ = 4;
 				desc.height_ = 4;
-				defaultTex_ = GPU::Manager::CreateTexture(desc, nullptr, "MaterialFactor/defaultTex");
+				defaultTex_ = GPU::Manager::CreateTexture(desc, nullptr, "MaterialFactory/defaultTex");
 				DBG_ASSERT(defaultTex_);
 			}
 

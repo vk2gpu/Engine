@@ -66,13 +66,6 @@ namespace Graphics
 		return true;
 	}
 
-	bool ShaderBindingMapping::Serialize(Serialization::Serializer& serializer)
-	{
-		SERIALIZE_MEMBER(binding_);
-		SERIALIZE_MEMBER(dstSlot_);
-		return true;
-	}
-
 	bool ShaderTechniqueHeader::Serialize(Serialization::Serializer& serializer)
 	{
 		SERIALIZE_STRING_MEMBER(name_);
@@ -283,15 +276,15 @@ namespace Graphics
 			{
 				for(auto& techHeaders : impl->techniqueHeaders_)
 				{
-					for(i32& idx : techHeaders.bindingSets_)
+					for(auto& bindingSlot : techHeaders.bindingSlots_)
 					{
-						if(idx == -1)
+						if(bindingSlot.idx_ == -1)
 							break;
 
-						const auto& bindingSetHeader = impl->bindingSetHeaders_[idx];
+						const auto& bindingSetHeader = impl->bindingSetHeaders_[bindingSlot.idx_];
 
-						idx = FindBindingSetIdx(bindingSetHeader);
-						DBG_ASSERT(idx >= 0);
+						bindingSlot.idx_ = FindBindingSetIdx(bindingSetHeader);
+						DBG_ASSERT(bindingSlot.idx_ >= 0);
 					}
 				}
 			}
@@ -766,51 +759,43 @@ namespace Graphics
 		// Count number of required bindings.
 		// TODO: This should be packed into the technique itself.
 		GPU::PipelineBindingSetDesc tempDesc = {};
-		for(i32 idx : tech.impl_->header_.bindingSets_)
+		for(const auto& bindingSlot : tech.impl_->header_.bindingSlots_)
 		{
-			if(idx == -1)
+			if(bindingSlot.idx_ == -1)
 				break;
 
-			const auto* bindingSet = impl_->bindingSets_[idx];
+			const auto* bindingSet = impl_->bindingSets_[bindingSlot.idx_];
 #if !defined(FINAL)
 			if(bindingSet == nullptr)
 			{
 				const auto* factory = Shader::GetFactory();
-				const auto& bindingSetHeader = factory->bindingSetHeaders_[idx];
+				const auto& bindingSetHeader = factory->bindingSetHeaders_[bindingSlot.idx_];
 				DBG_LOG("Binding set expected, but not bound: %s\n", bindingSetHeader.name_);
 			}
 #endif // !defined(FINAL)
 			DBG_ASSERT(bindingSet != nullptr);
 
-			tempDesc.numCBVs_ += bindingSet->cbvs_.size();
-			tempDesc.numSRVs_ += bindingSet->srvs_.size();
-			tempDesc.numUAVs_ += bindingSet->uavs_.size();
-			tempDesc.numSamplers_ += bindingSet->samplers_.size();
+			tempDesc.numCBVs_ = Core::Max(tempDesc.numCBVs_, bindingSlot.cbvReg_ + bindingSet->cbvs_.size());
+			tempDesc.numSRVs_ = Core::Max(tempDesc.numSRVs_, bindingSlot.srvReg_ + bindingSet->srvs_.size());
+			tempDesc.numUAVs_ = Core::Max(tempDesc.numUAVs_, bindingSlot.uavReg_ + bindingSet->uavs_.size());
+			tempDesc.numSamplers_ =
+			    Core::Max(tempDesc.numSamplers_, bindingSlot.samplerReg_ + bindingSet->samplers_.size());
 		}
 
 		// Allocate pipeline binding.
 		GPU::PipelineBinding pb = {};
 		pb.pbs_ = GPU::Manager::AllocTemporaryPipelineBindingSet(tempDesc);
+		pb.cbvs_.num_ = tempDesc.numCBVs_;
+		pb.srvs_.num_ = tempDesc.numSRVs_;
+		pb.uavs_.num_ = tempDesc.numUAVs_;
+		pb.samplers_.num_ = tempDesc.numSamplers_;
 
-		i32 cbvOffset = 0;
-		i32 srvOffset = 0;
-		i32 uavOffset = 0;
-		i32 samplerOffset = 0;
-
-		for(i32 idx : tech.impl_->header_.bindingSets_)
+		for(const auto& bindingSlot : tech.impl_->header_.bindingSlots_)
 		{
-			if(idx == -1)
+			if(bindingSlot.idx_ == -1)
 				break;
 
-			const auto* bindingSet = impl_->bindingSets_[idx];
-#if !defined(FINAL)
-			if(bindingSet == nullptr)
-			{
-				const auto* factory = Shader::GetFactory();
-				const auto& bindingSetHeader = factory->bindingSetHeaders_[idx];
-				DBG_LOG("Binding set expected, but not bound: %s\n", bindingSetHeader.name_);
-			}
-#endif // !defined(FINAL)
+			const auto* bindingSet = impl_->bindingSets_[bindingSlot.idx_];
 			DBG_ASSERT(bindingSet != nullptr);
 
 			for(const auto& binding : bindingSet->cbvs_)
@@ -822,13 +807,13 @@ namespace Graphics
 
 			GPU::PipelineBinding dstPbs = pb;
 			dstPbs.cbvs_.num_ = bindingSet->cbvs_.size();
-			dstPbs.cbvs_.dstOffset_ = cbvOffset;
+			dstPbs.cbvs_.dstOffset_ = bindingSlot.cbvReg_;
 			dstPbs.srvs_.num_ = bindingSet->srvs_.size();
-			dstPbs.srvs_.dstOffset_ = srvOffset;
+			dstPbs.srvs_.dstOffset_ = bindingSlot.srvReg_;
 			dstPbs.uavs_.num_ = bindingSet->uavs_.size();
-			dstPbs.uavs_.dstOffset_ = uavOffset;
+			dstPbs.uavs_.dstOffset_ = bindingSlot.uavReg_;
 			dstPbs.samplers_.num_ = bindingSet->samplers_.size();
-			dstPbs.samplers_.dstOffset_ = samplerOffset;
+			dstPbs.samplers_.dstOffset_ = bindingSlot.samplerReg_;
 
 			GPU::PipelineBinding srcPbs = dstPbs;
 			srcPbs.pbs_ = bindingSet->pbs_;
@@ -841,12 +826,13 @@ namespace Graphics
 			srcPbs.samplers_.dstOffset_ = 0;
 			srcPbs.samplers_.srcOffset_ = 0;
 
-			GPU::Manager::CopyPipelineBindings(dstPbs, srcPbs);
+			if(tech.impl_->header_.cs_ == -1)
+			{
+				int a = 0;
+				++a;
+			}
 
-			cbvOffset += bindingSet->cbvs_.size();
-			srvOffset += bindingSet->srvs_.size();
-			uavOffset += bindingSet->uavs_.size();
-			samplerOffset += bindingSet->samplers_.size();
+			GPU::Manager::CopyPipelineBindings(dstPbs, srcPbs);
 		}
 
 		outPb = impl_->cmdList_.Push(Core::ArrayView<GPU::PipelineBinding>(pb));
