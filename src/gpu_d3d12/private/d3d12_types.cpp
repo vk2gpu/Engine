@@ -600,17 +600,14 @@ namespace GPU
 		}
 	}
 
-	void ClearDescriptorRange(ID3D12DescriptorHeap* d3dDescriptorHeap,
-	    Core::ArrayView<D3D12DescriptorDebugData> debugDataBase, DescriptorHeapSubType subType, i32 offset,
-	    i32 numDescriptors)
+	void ClearDescriptorRange(ID3D12DescriptorHeap* d3dDescriptorHeap, DescriptorHeapSubType subType,
+	    D3D12_CPU_DESCRIPTOR_HANDLE handle, i32 numDescriptors, Core::ArrayView<D3D12DescriptorDebugData> debugDataBase)
 	{
 		auto d3dDesc = d3dDescriptorHeap->GetDesc();
 		ComPtr<ID3D12Device> d3dDevice;
 		d3dDescriptorHeap->GetDevice(IID_ID3D12Device, (void**)d3dDevice.GetAddressOf());
 		auto descriptorSize = d3dDevice->GetDescriptorHandleIncrementSize(d3dDesc.Type);
-		D3D12_CPU_DESCRIPTOR_HANDLE handle = d3dDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
-		handle.ptr += offset * descriptorSize;
-		for(i32 i = offset; i < (offset + numDescriptors); ++i)
+		for(i32 i = 0; i < numDescriptors; ++i)
 		{
 			if(subType == DescriptorHeapSubType::INVALID)
 			{

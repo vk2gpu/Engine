@@ -104,6 +104,15 @@ namespace GPU
 	static const i64 UPLOAD_AUTO_FLUSH_COMMANDS = 30;
 	static const i64 UPLOAD_AUTO_FLUSH_BYTES = 8 * 1024 * 1024;
 
+/**
+	 * Enable descriptor debug data.
+	 */
+#define ENABLE_DESCRIPTOR_DEBUG_DATA (0)
+
+
+	/**
+	 * Descriptor debug data.
+	 */
 	struct D3D12DescriptorDebugData
 	{
 		DescriptorHeapSubType subType_ = DescriptorHeapSubType::INVALID;
@@ -112,32 +121,11 @@ namespace GPU
 	};
 
 	/**
-	 * Descriptor heap allocation.
-	 */
-	struct D3D12DescriptorAllocation
-	{
-		/// Descriptor heap we're pointing to.
-		ComPtr<ID3D12DescriptorHeap> d3dDescriptorHeap_;
-		/// Debug descriptor data.
-		Core::ArrayView<D3D12DescriptorDebugData> debugData_;
-		/// Offset in descriptor heap.
-		i32 offset_ = 0;
-		/// Size of allocation.
-		i32 size_ = 0;
-		/// CPU descriptor handle.
-		D3D12_CPU_DESCRIPTOR_HANDLE cpuDescHandle_ = D3D12_CPU_DESCRIPTOR_HANDLE();
-		/// GPU descriptor handle.
-		D3D12_GPU_DESCRIPTOR_HANDLE gpuDescHandle_ = D3D12_GPU_DESCRIPTOR_HANDLE();
-		/// Allocation id.
-		u32 allocId_ = 0;
-	};
-
-	/**
 	 * Clear descriptor range.
 	 */
-	void ClearDescriptorRange(ID3D12DescriptorHeap* d3dDescriptorHeap,
-	    Core::ArrayView<D3D12DescriptorDebugData> debugDataBase, DescriptorHeapSubType subType, i32 offset,
-	    i32 numDescriptors);
+	void ClearDescriptorRange(ID3D12DescriptorHeap* d3dDescriptorHeap, DescriptorHeapSubType subType,
+	    D3D12_CPU_DESCRIPTOR_HANDLE handle, i32 numDescriptors,
+	    Core::ArrayView<D3D12DescriptorDebugData> debugDataBase = Core::ArrayView<D3D12DescriptorDebugData>());
 
 } // namespace GPU
 

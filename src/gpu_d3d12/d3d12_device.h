@@ -89,10 +89,10 @@ namespace GPU
 		volatile i64 uploadFenceIdx_ = 0;
 
 		/// Descriptor allocators.
-		class D3D12DescriptorHeapAllocator* viewAllocator_ = nullptr;
-		class D3D12DescriptorHeapAllocator* samplerAllocator_ = nullptr;
-		class D3D12DescriptorHeapAllocator* viewShaderAllocator_ = nullptr;
-		class D3D12DescriptorHeapAllocator* samplerShaderAllocator_ = nullptr;
+		class D3D12DescriptorHeapAllocator* cpuViewAllocator_ = nullptr;
+		class D3D12DescriptorHeapAllocator* cpuSamplerAllocator_ = nullptr;
+		class D3D12DescriptorHeapAllocator* gpuViewAllocator_ = nullptr;
+		class D3D12DescriptorHeapAllocator* gpuSamplerAllocator_ = nullptr;
 
 		class D3D12DescriptorHeapAllocator* rtvAllocator_ = nullptr;
 		class D3D12DescriptorHeapAllocator* dsvAllocator_ = nullptr;

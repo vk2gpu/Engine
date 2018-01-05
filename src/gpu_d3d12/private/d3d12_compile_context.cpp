@@ -23,28 +23,28 @@ namespace
 		Core::Log("- CBVs: %d\n", pbs.cbvs_.size_);
 		for(i32 i = 0; i < pbs.cbvs_.size_; ++i)
 		{
-			const auto& debugData = pbs.cbvs_.debugData_[i + pbs.cbvs_.offset_];
+			const auto& debugData = pbs.cbvs_.GetDebugData(i);
 			Core::Log("- - %d: %d, %s\n", i, debugData.subType_, debugData.name_);
 		}
 
 		Core::Log("- SRVs: %d\n", pbs.srvs_.size_);
 		for(i32 i = 0; i < pbs.srvs_.size_; ++i)
 		{
-			const auto& debugData = pbs.srvs_.debugData_[i + pbs.srvs_.offset_];
+			const auto& debugData = pbs.srvs_.GetDebugData(i);
 			Core::Log("- - %d: %d, %s\n", i, debugData.subType_, debugData.name_);
 		}
 
 		Core::Log("- UAVs: %d\n", pbs.uavs_.size_);
 		for(i32 i = 0; i < pbs.uavs_.size_; ++i)
 		{
-			const auto& debugData = pbs.cbvs_.debugData_[i + pbs.uavs_.offset_];
+			const auto& debugData = pbs.cbvs_.GetDebugData(i);
 			Core::Log("- - %d: %d, %s\n", i, debugData.subType_, debugData.name_);
 		}
 
 		Core::Log("- Samplers: %d\n", pbs.samplers_.size_);
 		for(i32 i = 0; i < pbs.samplers_.size_; ++i)
 		{
-			const auto& debugData = pbs.samplers_.debugData_[i + pbs.samplers_.offset_];
+			const auto& debugData = pbs.samplers_.GetDebugData(i);
 			Core::Log("- - %d: %d, %s\n", i, debugData.subType_, debugData.name_);
 		}
 	}
@@ -249,13 +249,10 @@ namespace GPU
 		const auto& fbs = backend_.frameBindingSets_[command->frameBinding_.GetIndex()];
 		DBG_ASSERT(command->rtvIdx_ < fbs.numRTs_);
 
-
-		D3D12_CPU_DESCRIPTOR_HANDLE handle = fbs.rtvs_.cpuDescHandle_;
 		i32 rtvIdx =
 		    fbs.swapChain_ == nullptr ? command->rtvIdx_ : command->rtvIdx_ + fbs.swapChain_->bbIdx_ * MAX_BOUND_RTVS;
 
-		handle.ptr +=
-		    rtvIdx * backend_.device_->d3dDevice_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+		D3D12_CPU_DESCRIPTOR_HANDLE handle = fbs.rtvs_.GetCPUHandle(rtvIdx);
 
 		auto& subRsc = fbs.rtvResources_[rtvIdx];
 		AddTransition(subRsc, D3D12_RESOURCE_STATE_RENDER_TARGET);
@@ -271,7 +268,7 @@ namespace GPU
 		const auto& fbs = backend_.frameBindingSets_[command->frameBinding_.GetIndex()];
 		DBG_ASSERT(fbs.desc_.dsv_.resource_);
 
-		D3D12_CPU_DESCRIPTOR_HANDLE handle = fbs.dsv_.cpuDescHandle_;
+		D3D12_CPU_DESCRIPTOR_HANDLE handle = fbs.dsv_.GetCPUHandle(0);
 
 		auto& subRsc = fbs.dsvResource_;
 		AddTransition(subRsc, D3D12_RESOURCE_STATE_DEPTH_WRITE);
@@ -287,12 +284,8 @@ namespace GPU
 	{
 		const auto& pbs = backend_.pipelineBindingSets_[command->pipelineBinding_.GetIndex()];
 
-		auto incSize =
-		    backend_.device_->d3dDevice_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-		D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle = pbs.uavs_.gpuDescHandle_;
-		D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle = pbs.uavs_.cpuDescHandle_;
-		gpuHandle.ptr += incSize * command->uavIdx_;
-		cpuHandle.ptr += incSize * command->uavIdx_;
+		D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle = pbs.uavs_.GetGPUHandle(command->uavIdx_);
+		D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle = pbs.uavs_.GetCPUHandle(command->uavIdx_);
 
 		auto& subRsc = pbs.uavTransitions_[command->uavIdx_];
 		AddTransition(subRsc, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
@@ -471,14 +464,14 @@ namespace GPU
 		ID3D12DescriptorHeap* viewHeap = nullptr;
 
 		// Validate heaps.
-		samplerHeap = pbs.samplers_.d3dDescriptorHeap_.Get();
+		samplerHeap = pbs.samplers_.GetDescriptorHeap();
 		DBG_ASSERT(samplerHeap);
 		DBG_ASSERT(Core::ContainsAllFlags(samplerHeap->GetDesc().Flags, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE));
 
-		viewHeap = pbs.cbvs_.d3dDescriptorHeap_.Get();
+		viewHeap = pbs.cbvs_.GetDescriptorHeap();
 		DBG_ASSERT(viewHeap);
-		DBG_ASSERT(viewHeap == pbs.srvs_.d3dDescriptorHeap_.Get());
-		DBG_ASSERT(viewHeap == pbs.uavs_.d3dDescriptorHeap_.Get());
+		DBG_ASSERT(viewHeap == pbs.srvs_.GetDescriptorHeap());
+		DBG_ASSERT(viewHeap == pbs.uavs_.GetDescriptorHeap());
 		DBG_ASSERT(Core::ContainsAllFlags(viewHeap->GetDesc().Flags, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE));
 
 		// Lazily setup transitions.
@@ -540,57 +533,29 @@ namespace GPU
 		}
 
 // Validate descriptors
-#if !defined(FINAL)
+#if ENABLE_DESCRIPTOR_DEBUG_DATA
 		{
-			DBG_ASSERT(
-			    pbs.samplers_.gpuDescHandle_.ptr ==
-			    (samplerHeap->GetGPUDescriptorHandleForHeapStart().ptr + pbs.samplers_.offset_ * samplerIncrSize));
-			DBG_ASSERT(pbs.cbvs_.gpuDescHandle_.ptr ==
-			           (viewHeap->GetGPUDescriptorHandleForHeapStart().ptr + pbs.cbvs_.offset_ * viewIncrSize));
-			DBG_ASSERT(pbs.srvs_.gpuDescHandle_.ptr ==
-			           (viewHeap->GetGPUDescriptorHandleForHeapStart().ptr + pbs.srvs_.offset_ * viewIncrSize));
-			DBG_ASSERT(pbs.uavs_.gpuDescHandle_.ptr ==
-			           (viewHeap->GetGPUDescriptorHandleForHeapStart().ptr + pbs.uavs_.offset_ * viewIncrSize));
-
-			for(i32 i = pbs.samplers_.offset_; i < (pbs.samplers_.offset_ + pb[0].samplers_.num_); ++i)
+			for(i32 i = 0; i < pb[0].samplers_.num_; ++i)
 			{
-				DBG_ASSERT(pbs.samplers_.debugData_[i].subType_ == DescriptorHeapSubType::SAMPLER);
+				DBG_ASSERT(pbs.samplers_.GetDebugData(i).subType_ == DescriptorHeapSubType::SAMPLER);
 			}
 
-			for(i32 i = pbs.cbvs_.offset_; i < (pbs.cbvs_.offset_ + pb[0].cbvs_.num_); ++i)
+			for(i32 i = 0; i < pb[0].cbvs_.num_; ++i)
 			{
-				DBG_ASSERT(pbs.cbvs_.debugData_[i].subType_ == DescriptorHeapSubType::CBV);
-				//DBG_ASSERT(pbs.cbvs_.debugData_[i].resource_);
-				if(!pbs.cbvs_.debugData_[i].resource_)
-				{
-					int a = 0;
-					++a;
-				}
+				DBG_ASSERT(pbs.cbvs_.GetDebugData(i).subType_ == DescriptorHeapSubType::CBV);
 			}
 
-			for(i32 i = pbs.srvs_.offset_; i < (pbs.srvs_.offset_ + pb[0].srvs_.num_); ++i)
+			for(i32 i = 0; i < pb[0].srvs_.num_; ++i)
 			{
-				DBG_ASSERT(pbs.srvs_.debugData_[i].subType_ == DescriptorHeapSubType::SRV);
-				//DBG_ASSERT(pbs.srvs_.debugData_[i].resource_);
-				if(!pbs.srvs_.debugData_[i].resource_)
-				{
-					int a = 0;
-					++a;
-				}
+				DBG_ASSERT(pbs.srvs_.GetDebugData(i).subType_ == DescriptorHeapSubType::SRV);
 			}
 
-			for(i32 i = pbs.uavs_.offset_; i < (pbs.uavs_.offset_ + pb[0].uavs_.num_); ++i)
+			for(i32 i = 0; i < pb[0].uavs_.num_; ++i)
 			{
-				DBG_ASSERT(pbs.uavs_.debugData_[i].subType_ == DescriptorHeapSubType::UAV);
-				//DBG_ASSERT(pbs.uavs_.debugData_[i].resource_);
-				if(!pbs.uavs_.debugData_[i].resource_)
-				{
-					int a = 0;
-					++a;
-				}
+				DBG_ASSERT(pbs.uavs_.GetDebugData(i).subType_ == DescriptorHeapSubType::UAV);
 			}
 		}
-#endif // !defined(FINAL)
+#endif // ENABLE_DESCRIPTOR_DEBUG_DATA
 
 		bool rootSigChanged = false;
 		switch(rootSig)
@@ -603,29 +568,29 @@ namespace GPU
 				rootSigChanged = true;
 			}
 
-			if(rootSigChanged || gfxDescHandlesBound_[0].ptr != pbs.samplers_.gpuDescHandle_.ptr)
+			if(rootSigChanged || gfxDescHandlesBound_[0].ptr != pbs.samplers_.GetGPUHandle(0).ptr)
 			{
-				d3dCommandList_->SetGraphicsRootDescriptorTable(0, pbs.samplers_.gpuDescHandle_);
-				gfxDescHandlesBound_[0] = pbs.samplers_.gpuDescHandle_;
+				d3dCommandList_->SetGraphicsRootDescriptorTable(0, pbs.samplers_.GetGPUHandle(0));
+				gfxDescHandlesBound_[0] = pbs.samplers_.GetGPUHandle(0);
 			}
 
-			if(rootSigChanged || gfxDescHandlesBound_[1].ptr != pbs.cbvs_.gpuDescHandle_.ptr)
+			if(rootSigChanged || gfxDescHandlesBound_[1].ptr != pbs.cbvs_.GetGPUHandle(0).ptr)
 			{
-				d3dCommandList_->SetGraphicsRootDescriptorTable(1, pbs.cbvs_.gpuDescHandle_);
-				gfxDescHandlesBound_[1] = pbs.cbvs_.gpuDescHandle_;
+				d3dCommandList_->SetGraphicsRootDescriptorTable(1, pbs.cbvs_.GetGPUHandle(0));
+				gfxDescHandlesBound_[1] = pbs.cbvs_.GetGPUHandle(0);
 			}
 
-			if(rootSigChanged || gfxDescHandlesBound_[2].ptr != pbs.srvs_.gpuDescHandle_.ptr)
+			if(rootSigChanged || gfxDescHandlesBound_[2].ptr != pbs.srvs_.GetGPUHandle(0).ptr)
 			{
-				d3dCommandList_->SetGraphicsRootDescriptorTable(2, pbs.srvs_.gpuDescHandle_);
-				gfxDescHandlesBound_[2] = pbs.srvs_.gpuDescHandle_;
+				d3dCommandList_->SetGraphicsRootDescriptorTable(2, pbs.srvs_.GetGPUHandle(0));
+				gfxDescHandlesBound_[2] = pbs.srvs_.GetGPUHandle(0);
 			}
 
-			if(rootSigChanged || gfxDescHandlesBound_[3].ptr != pbs.uavs_.gpuDescHandle_.ptr)
+			if(rootSigChanged || gfxDescHandlesBound_[3].ptr != pbs.uavs_.GetGPUHandle(0).ptr)
 			{
 
-				d3dCommandList_->SetGraphicsRootDescriptorTable(3, pbs.uavs_.gpuDescHandle_);
-				gfxDescHandlesBound_[3] = pbs.uavs_.gpuDescHandle_;
+				d3dCommandList_->SetGraphicsRootDescriptorTable(3, pbs.uavs_.GetGPUHandle(0));
+				gfxDescHandlesBound_[3] = pbs.uavs_.GetGPUHandle(0);
 			}
 
 			break;
@@ -637,28 +602,28 @@ namespace GPU
 				rootSigChanged = true;
 			}
 
-			if(rootSigChanged || compDescHandlesBound_[0].ptr != pbs.samplers_.gpuDescHandle_.ptr)
+			if(rootSigChanged || compDescHandlesBound_[0].ptr != pbs.samplers_.GetGPUHandle(0).ptr)
 			{
-				d3dCommandList_->SetComputeRootDescriptorTable(0, pbs.samplers_.gpuDescHandle_);
-				compDescHandlesBound_[0] = pbs.samplers_.gpuDescHandle_;
+				d3dCommandList_->SetComputeRootDescriptorTable(0, pbs.samplers_.GetGPUHandle(0));
+				compDescHandlesBound_[0] = pbs.samplers_.GetGPUHandle(0);
 			}
 
-			if(rootSigChanged || compDescHandlesBound_[1].ptr != pbs.cbvs_.gpuDescHandle_.ptr)
+			if(rootSigChanged || compDescHandlesBound_[1].ptr != pbs.cbvs_.GetGPUHandle(0).ptr)
 			{
-				d3dCommandList_->SetComputeRootDescriptorTable(1, pbs.cbvs_.gpuDescHandle_);
-				compDescHandlesBound_[1] = pbs.cbvs_.gpuDescHandle_;
+				d3dCommandList_->SetComputeRootDescriptorTable(1, pbs.cbvs_.GetGPUHandle(0));
+				compDescHandlesBound_[1] = pbs.cbvs_.GetGPUHandle(0);
 			}
 
-			if(rootSigChanged || compDescHandlesBound_[2].ptr != pbs.srvs_.gpuDescHandle_.ptr)
+			if(rootSigChanged || compDescHandlesBound_[2].ptr != pbs.srvs_.GetGPUHandle(0).ptr)
 			{
-				d3dCommandList_->SetComputeRootDescriptorTable(2, pbs.srvs_.gpuDescHandle_);
-				compDescHandlesBound_[2] = pbs.srvs_.gpuDescHandle_;
+				d3dCommandList_->SetComputeRootDescriptorTable(2, pbs.srvs_.GetGPUHandle(0));
+				compDescHandlesBound_[2] = pbs.srvs_.GetGPUHandle(0);
 			}
 
-			if(rootSigChanged || compDescHandlesBound_[3].ptr != pbs.uavs_.gpuDescHandle_.ptr)
+			if(rootSigChanged || compDescHandlesBound_[3].ptr != pbs.uavs_.GetGPUHandle(0).ptr)
 			{
-				d3dCommandList_->SetComputeRootDescriptorTable(3, pbs.uavs_.gpuDescHandle_);
-				compDescHandlesBound_[3] = pbs.uavs_.gpuDescHandle_;
+				d3dCommandList_->SetComputeRootDescriptorTable(3, pbs.uavs_.GetGPUHandle(0));
+				compDescHandlesBound_[3] = pbs.uavs_.GetGPUHandle(0);
 			}
 			break;
 		default:
@@ -687,21 +652,17 @@ namespace GPU
 		if(fbs.numRTs_)
 		{
 			rtvDesc = &rtvDescLocal;
-			rtvDescLocal = fbs.rtvs_.cpuDescHandle_;
+			rtvDescLocal = fbs.rtvs_.GetCPUHandle(rtvBaseIdx);
 
 			for(i32 i = 0; i < fbs.numRTs_; ++i)
 			{
 				AddTransition(fbs.rtvResources_[rtvBaseIdx + i], D3D12_RESOURCE_STATE_RENDER_TARGET);
 			}
-
-			rtvDesc->ptr +=
-			    rtvBaseIdx *
-			    backend_.device_->d3dDevice_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 		}
 		if(fbs.desc_.dsv_.resource_)
 		{
 			dsvDesc = &dsvDescLocal;
-			dsvDescLocal = fbs.dsv_.cpuDescHandle_;
+			dsvDescLocal = fbs.dsv_.GetCPUHandle(0);
 
 			if(Core::ContainsAllFlags(fbs.desc_.dsv_.flags_, DSVFlags::READ_ONLY_DEPTH))
 			{

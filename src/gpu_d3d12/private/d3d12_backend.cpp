@@ -858,12 +858,8 @@ namespace GPU
 		pbs.srvs_ = srvSubAllocator.Alloc(MAX_SRV_BINDINGS, MAX_SRV_BINDINGS);
 		pbs.uavs_ = uavSubAllocator.Alloc(MAX_UAV_BINDINGS, MAX_UAV_BINDINGS);
 
-		pbs.shaderVisible_ = desc.shaderVisible_;
-
-		DBG_ASSERT(pbs.samplers_.debugData_);
-		DBG_ASSERT(pbs.cbvs_.debugData_);
-		DBG_ASSERT(pbs.srvs_.debugData_);
-		DBG_ASSERT(pbs.uavs_.debugData_);
+		pbs.temporary_ = true;
+		pbs.shaderVisible_ = true;
 
 		DBG_ASSERT(pbs.samplers_.size_ >= desc.numSamplers_);
 		DBG_ASSERT(pbs.cbvs_.size_ >= desc.numCBVs_);
@@ -1166,8 +1162,8 @@ namespace GPU
 			    Core::Vector<D3D12SubresourceRange>& dstTransitions, i32 dstOffset, D3D12DescriptorAllocation& srcAlloc,
 			    Core::Vector<D3D12SubresourceRange>& srcTransitions, i32 srcOffset, i32 num,
 			    D3D12_DESCRIPTOR_HEAP_TYPE type, i32 incr, DescriptorHeapSubType subType) {
-				D3D12_CPU_DESCRIPTOR_HANDLE dstHandle = dstAlloc.cpuDescHandle_;
-				D3D12_CPU_DESCRIPTOR_HANDLE srcHandle = srcAlloc.cpuDescHandle_;
+				D3D12_CPU_DESCRIPTOR_HANDLE dstHandle = dstAlloc.GetCPUHandle(dstOffset);
+				D3D12_CPU_DESCRIPTOR_HANDLE srcHandle = srcAlloc.GetCPUHandle(srcOffset);
 				DBG_ASSERT(dstHandle.ptr);
 				DBG_ASSERT(srcHandle.ptr);
 				DBG_ASSERT(dstOffset < dstAlloc.size_);
@@ -1175,13 +1171,11 @@ namespace GPU
 				DBG_ASSERT((dstOffset + num) <= dstAlloc.size_);
 				DBG_ASSERT((srcOffset + num) <= srcAlloc.size_);
 
-				dstHandle.ptr += dstOffset * incr;
-				srcHandle.ptr += srcOffset * incr;
-
+#if ENABLE_DESCRIPTOR_DEBUG_DATA
 				for(i32 i = 0; i < num; ++i)
 				{
-					auto& dstDebug = dstAlloc.debugData_[dstAlloc.offset_ + dstOffset + i];
-					const auto& srcDebug = srcAlloc.debugData_[srcAlloc.offset_ + srcOffset + i];
+					auto& dstDebug = dstAlloc.GetDebugData(dstOffset + i);
+					const auto& srcDebug = srcAlloc.GetDebugData(srcOffset + i);
 					DBG_ASSERT(srcDebug.subType_ == subType);
 					if(srcDebug.subType_ != DescriptorHeapSubType::SAMPLER)
 					{
@@ -1193,14 +1187,8 @@ namespace GPU
 					}
 					dstDebug = srcDebug;
 				}
-
-#if 0
-				i64 dstBase = dstAlloc.d3dDescriptorHeap_->GetCPUDescriptorHandleForHeapStart().ptr;
-				i64 srcBase = srcAlloc.d3dDescriptorHeap_->GetCPUDescriptorHandleForHeapStart().ptr;
-				i64 dstIdx = (dstHandle.ptr - dstBase) / incr;
-				i64 srcIdx = (srcHandle.ptr - srcBase) / incr;
-				DBG_LOG("- CopyDescriptorsSimple: %d, %llx, %llx\n", num, dstIdx, srcIdx);
 #endif
+
 				d3dDevice->CopyDescriptorsSimple(num, dstHandle, srcHandle, type);
 
 				if(srcTransitions.size() > 0)

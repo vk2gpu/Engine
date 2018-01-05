@@ -36,15 +36,10 @@ namespace GPU
 			if(auto alloc = block.allocator_.GetAlloc(allocId))
 			{
 				D3D12DescriptorAllocation retVal;
-				retVal.d3dDescriptorHeap_ = block.d3dDescriptorHeap_;
-				retVal.debugData_ = block.debugData_;
+				retVal.allocator_ = this;
 				retVal.offset_ = alloc.offset_;
 				retVal.size_ = size;
 				retVal.allocId_ = ((u32)i << 16) | (u32)allocId;
-				retVal.cpuDescHandle_ = block.d3dDescriptorHeap_->GetCPUDescriptorHandleForHeapStart();
-				retVal.cpuDescHandle_.ptr += (alloc.offset_ * handleIncrementSize_);
-				retVal.gpuDescHandle_ = block.d3dDescriptorHeap_->GetGPUDescriptorHandleForHeapStart();
-				retVal.gpuDescHandle_.ptr += (alloc.offset_ * handleIncrementSize_);
 				block.numAllocs_++;
 				return retVal;
 			}
@@ -86,8 +81,11 @@ namespace GPU
 		    &desc, IID_ID3D12DescriptorHeap, (void**)block.d3dDescriptorHeap_.GetAddressOf()));
 		SetObjectName(block.d3dDescriptorHeap_.Get(), debugName_);
 
-		ClearDescriptorRange(
-		    block.d3dDescriptorHeap_.Get(), block.debugData_, DescriptorHeapSubType::INVALID, 0, blockSize_);
+		block.cpuHandle_ = block.d3dDescriptorHeap_->GetCPUDescriptorHandleForHeapStart();
+		block.gpuHandle_ = block.d3dDescriptorHeap_->GetGPUDescriptorHandleForHeapStart();
+
+		ClearDescriptorRange(block.d3dDescriptorHeap_.Get(), DescriptorHeapSubType::INVALID, block.cpuHandle_,
+		    blockSize_, block.debugData_);
 
 		blocks_.emplace_back(std::move(block));
 	}
