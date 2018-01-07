@@ -57,6 +57,7 @@ namespace GPU
 		    Handle handle, i32 base, Core::ArrayView<const SamplerState> descs) = 0;
 		virtual ErrorCode CopyPipelineBindings(
 		    Core::ArrayView<const PipelineBinding> dst, Core::ArrayView<const PipelineBinding> src) = 0;
+		virtual ErrorCode ValidatePipelineBindings(Core::ArrayView<const PipelineBinding> pb) = 0;
 
 		/**
 		 * Command list management.

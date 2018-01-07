@@ -235,9 +235,9 @@ namespace Testbed
 			            data.outLightIndex_ =
 			                builder.Write(builder.Create("LC Light Link Index SB", RenderGraphBufferDesc(sizeof(u32))),
 			                    GPU::BindFlags::UNORDERED_ACCESS);
-			            data.outLightTex_ = builder.Write(builder.Create("LC Light Tex",
-			                                                  RenderGraphTextureDesc(GPU::TextureType::TEX2D,
-			                                                      lightTexFormat, light.numTilesX_, light.numTilesY_)),
+			            data.outLightTex_ = builder.Write(
+			                builder.Create("LC Light Tex", RenderGraphTextureDesc(GPU::TextureType::TEX2D,
+			                                                   lightTexFormat, light.numTilesX_, light.numTilesY_)),
 			                GPU::BindFlags::UNORDERED_ACCESS);
 			            data.outLightIndicesSB_ =
 			                builder.Write(builder.Create("LC Light Indices SB",

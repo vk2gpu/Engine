@@ -785,7 +785,7 @@ namespace GPU
 
 	ErrorCode D3D12Backend::CreateCommandList(Handle handle, const char* debugName)
 	{
-		D3D12CommandList* commandList = new D3D12CommandList(*device_, 0x0, D3D12_COMMAND_LIST_TYPE_DIRECT);
+		D3D12CommandList* commandList = new D3D12CommandList(*device_, 0x0, D3D12_COMMAND_LIST_TYPE_DIRECT, debugName);
 		Core::ScopedWriteLock lock(resLock_);
 		commandLists_[handle.GetIndex()] = commandList;
 		return ErrorCode::OK;
@@ -847,6 +847,12 @@ namespace GPU
 	{
 		D3D12PipelineBindingSet pbs;
 
+		if(handle.GetIndex() == 61 || handle.GetIndex() == 62)
+		{
+			int a = 0;
+			++a;
+		}
+
 		// Setup descriptors.
 		auto& samplerAllocator = device_->GetSamplerDescriptorAllocator();
 		auto& cbvSubAllocator = device_->GetCBVSubAllocator();
@@ -854,9 +860,9 @@ namespace GPU
 		auto& uavSubAllocator = device_->GetUAVSubAllocator();
 
 		pbs.samplers_ = samplerAllocator.Alloc(desc.numSamplers_, GPU::DescriptorHeapSubType::SAMPLER);
-		pbs.cbvs_ = cbvSubAllocator.Alloc(MAX_CBV_BINDINGS, MAX_CBV_BINDINGS);
-		pbs.srvs_ = srvSubAllocator.Alloc(MAX_SRV_BINDINGS, MAX_SRV_BINDINGS);
-		pbs.uavs_ = uavSubAllocator.Alloc(MAX_UAV_BINDINGS, MAX_UAV_BINDINGS);
+		pbs.cbvs_ = cbvSubAllocator.Alloc(desc.numCBVs_, MAX_CBV_BINDINGS);
+		pbs.srvs_ = srvSubAllocator.Alloc(desc.numSRVs_, MAX_SRV_BINDINGS);
+		pbs.uavs_ = uavSubAllocator.Alloc(desc.numUAVs_, MAX_UAV_BINDINGS);
 
 		pbs.temporary_ = true;
 		pbs.shaderVisible_ = true;
@@ -1216,6 +1222,79 @@ namespace GPU
 				    D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, samplerIncr, DescriptorHeapSubType::SAMPLER);
 		}
 
+		return ErrorCode::OK;
+	}
+
+	ErrorCode D3D12Backend::ValidatePipelineBindings(Core::ArrayView<const PipelineBinding> pb)
+	{
+#if ENABLE_DESCRIPTOR_DEBUG_DATA
+		auto LogDescriptors = [this](const char* name, const PipelineBinding& pb) {
+			const auto& pbs = pipelineBindingSets_[pb.pbs_.GetIndex()];
+
+			Core::Log("Descriptor (%d):\n", pb.pbs_.GetIndex());
+			Core::Log("- CBV Base: %d, %d\n", pbs.cbvs_.offset_, pb.cbvs_.dstOffset_);
+			Core::Log("- SRV Base: %d, %d\n", pbs.srvs_.offset_, pb.srvs_.dstOffset_);
+			Core::Log("- UAV Base: %d, %d\n", pbs.uavs_.offset_, pb.uavs_.dstOffset_);
+			Core::Log("- Sampler Base: %d, %d\n", pbs.samplers_.offset_, pb.samplers_.dstOffset_);
+
+			Core::Log("- CBVs: %d\n", pbs.cbvs_.size_);
+			for(i32 i = 0; i < pbs.cbvs_.size_; ++i)
+			{
+				const auto& debugData = pbs.cbvs_.GetDebugData(i);
+				Core::Log("- - %d: %d, %s\n", i, debugData.subType_, debugData.name_);
+			}
+
+			Core::Log("- SRVs: %d\n", pbs.srvs_.size_);
+			for(i32 i = 0; i < pbs.srvs_.size_; ++i)
+			{
+				const auto& debugData = pbs.srvs_.GetDebugData(i);
+				Core::Log("- - %d: %d, %s\n", i, debugData.subType_, debugData.name_);
+			}
+
+			Core::Log("- UAVs: %d\n", pbs.uavs_.size_);
+			for(i32 i = 0; i < pbs.uavs_.size_; ++i)
+			{
+				const auto& debugData = pbs.cbvs_.GetDebugData(i);
+				Core::Log("- - %d: %d, %s\n", i, debugData.subType_, debugData.name_);
+			}
+
+			Core::Log("- Samplers: %d\n", pbs.samplers_.size_);
+			for(i32 i = 0; i < pbs.samplers_.size_; ++i)
+			{
+				const auto& debugData = pbs.samplers_.GetDebugData(i);
+				Core::Log("- - %d: %d, %s\n", i, debugData.subType_, debugData.name_);
+			}
+		};
+
+		for(auto singlePb : pb)
+		{
+			LogDescriptors("desc", singlePb);
+			const auto& pbs = pipelineBindingSets_[singlePb.pbs_.GetIndex()];
+			{
+				for(i32 i = 0; i < pb[0].samplers_.num_; ++i)
+				{
+					DBG_ASSERT(pbs.samplers_.GetDebugData(i).subType_ == DescriptorHeapSubType::SAMPLER);
+				}
+
+				for(i32 i = 0; i < pb[0].cbvs_.num_; ++i)
+				{
+					DBG_ASSERT(pbs.cbvs_.GetDebugData(i).subType_ == DescriptorHeapSubType::CBV);
+					DBG_ASSERT(pbs.cbvs_.GetDebugData(i).resource_);
+				}
+
+				for(i32 i = 0; i < pb[0].srvs_.num_; ++i)
+				{
+					DBG_ASSERT(pbs.srvs_.GetDebugData(i).subType_ == DescriptorHeapSubType::SRV);
+				}
+
+				for(i32 i = 0; i < pb[0].uavs_.num_; ++i)
+				{
+					DBG_ASSERT(pbs.uavs_.GetDebugData(i).subType_ == DescriptorHeapSubType::UAV);
+					DBG_ASSERT(pbs.uavs_.GetDebugData(i).resource_);
+				}
+			}
+		}
+#endif // ENABLE_DESCRIPTOR_DEBUG_DATA
 		return ErrorCode::OK;
 	}
 

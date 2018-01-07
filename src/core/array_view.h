@@ -23,8 +23,8 @@ namespace Core
 
 		template<typename OTHER>
 		ArrayView(const ArrayView<OTHER>& other)
-		    : begin_(other.begin_)
-		    , end_(other.end_)
+		    : begin_(other.begin())
+		    , end_(other.end())
 		{
 		}
 

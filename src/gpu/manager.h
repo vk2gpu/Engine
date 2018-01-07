@@ -149,6 +149,12 @@ namespace GPU
 		    Core::ArrayView<const PipelineBinding> dst, Core::ArrayView<const PipelineBinding> src);
 
 		/**
+		 * Validate pipeline bindings.
+		 * @param pb Pipeline bindings.
+		 */
+		static bool ValidatePipelineBindings(Core::ArrayView<const PipelineBinding> pb);
+
+		/**
 		 * Compile command list.
 		 * @param handle Handle to command list.
 		 * @param commandList Input software command list.

@@ -246,6 +246,13 @@ Technique TECH_COMPUTE_HIZ_MIP =
 
 ///////////////////////////////////////////////////////////////////////
 // Debug tile info.
+[frequency(LOW)]
+BindingSet DebugBindings
+{
+	Texture2D<float> debugTex;
+	RWTexture2D<float4> outDebug;
+};
+
 [numthreads(1,1,1)]
 void cs_debug_tile_info(CS_INPUT _in)
 {

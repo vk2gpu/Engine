@@ -570,6 +570,14 @@ namespace GPU
 		return impl_->HandleErrorCode(impl_->backend_->CopyPipelineBindings(dst, src));
 	}
 
+	bool Manager::ValidatePipelineBindings(Core::ArrayView<const PipelineBinding> pb)
+	{
+		DBG_ASSERT(IsInitialized());
+		rmt_ScopedCPUSample(GPU_ValidatePipelineBindings, RMTSF_None);
+		return impl_->HandleErrorCode(impl_->backend_->ValidatePipelineBindings(pb));
+	}
+
+
 	bool Manager::CompileCommandList(Handle handle, const CommandList& commandList)
 	{
 		DBG_ASSERT(IsInitialized());

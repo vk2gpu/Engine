@@ -21,6 +21,13 @@ VS_FULLSCREEN_OUTPUT vs_fullscreen(uint id : SV_VertexID)
 	return output;
 }
 
+[frequency(LOW)]
+BindingSet DebugBindings
+{
+	Texture2D<float> debugTex;
+	RWTexture2D<float4> outDebug;
+};
+
 float4 ps_fullscreen(VS_FULLSCREEN_OUTPUT _in) : SV_TARGET0
 {
 	return debugTex.Sample(SS_NEAREST_CLAMP, _in.texcoord_);

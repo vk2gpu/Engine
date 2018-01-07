@@ -835,6 +835,8 @@ namespace Graphics
 			GPU::Manager::CopyPipelineBindings(dstPbs, srcPbs);
 		}
 
+		GPU::Manager::ValidatePipelineBindings(pb);
+
 		outPb = impl_->cmdList_.Push(Core::ArrayView<GPU::PipelineBinding>(pb));
 		outPs = tech.impl_->shader_->pipelineStates_[tech.impl_->descIdx_];
 		return true;

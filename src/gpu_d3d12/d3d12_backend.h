@@ -53,6 +53,7 @@ namespace GPU
 		ErrorCode UpdatePipelineBindings(Handle pbs, i32 base, Core::ArrayView<const SamplerState> descs) override;
 		ErrorCode CopyPipelineBindings(
 		    Core::ArrayView<const PipelineBinding> dst, Core::ArrayView<const PipelineBinding> src) override;
+		ErrorCode ValidatePipelineBindings(Core::ArrayView<const PipelineBinding> pb) override;
 
 		ErrorCode CompileCommandList(Handle handle, const CommandList& commandList) override;
 		ErrorCode SubmitCommandLists(Core::ArrayView<Handle> handles) override;

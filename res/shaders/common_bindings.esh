@@ -36,14 +36,6 @@ BindingSet LightTileBindings
 };
 
 [shared]
-[frequency(LOW)]
-BindingSet DebugBindings
-{
-	Texture2D<float> debugTex;
-	RWTexture2D<float4> outDebug;
-};
-
-[shared]
 [frequency(MEDIUM)]
 BindingSet ObjectBindings
 {

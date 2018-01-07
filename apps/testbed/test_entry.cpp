@@ -151,9 +151,9 @@ namespace
 			Math::Vec3 viewFromPosition = cameraTarget_ + viewDistance;
 
 			matrix_.Identity();
-			matrix_.LookAt(viewFromPosition, cameraTarget_,
-			    Math::Vec3(
-			        cameraRotationMatrix.Row1().x, cameraRotationMatrix.Row1().y, cameraRotationMatrix.Row1().z));
+			matrix_.LookAt(
+			    viewFromPosition, cameraTarget_, Math::Vec3(cameraRotationMatrix.Row1().x,
+			                                         cameraRotationMatrix.Row1().y, cameraRotationMatrix.Row1().z));
 		}
 
 		Math::Mat44 GetCameraRotationMatrix() const
@@ -850,7 +850,7 @@ void Loop(const Core::CommandLine& cmdLine)
 			forwardPipeline.SetDrawCallback([&](Testbed::DrawContext& drawCtx) {
 				DrawRenderPackets(drawCtx);
 
-#if 0
+#if 1
 				if(testClusteredModel)
 				{
 					testClusteredModel->enableCulling_ = clusterCulling_;

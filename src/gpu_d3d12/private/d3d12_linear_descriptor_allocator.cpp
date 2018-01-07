@@ -100,10 +100,6 @@ namespace GPU
 			retVal.offset_ += allocOffset_;
 			retVal.size_ = padding;
 
-			// TODO: Don't clear!
-			ClearDescriptorRange(retVal.GetDescriptorHeap(), subType_, alloc_.GetCPUHandle(0), retVal.size_,
-			    alloc_.GetDebugDataRange(0, retVal.size_));
-
 			allocOffset_ += num;
 		}
 

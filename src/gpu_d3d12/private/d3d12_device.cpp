@@ -114,7 +114,7 @@ namespace GPU
 
 	D3D12Device::~D3D12Device()
 	{ //
-	  // Check for device removed if shutting down, and log the error.
+		// Check for device removed if shutting down, and log the error.
 		HRESULT drReason = d3dDevice_->GetDeviceRemovedReason();
 		if(drReason != S_OK)
 		{
@@ -399,7 +399,7 @@ namespace GPU
 	{
 		for(auto& d3dUploadAllocator : uploadAllocators_)
 			d3dUploadAllocator = new D3D12LinearHeapAllocator(d3dDevice_.Get(), D3D12_HEAP_TYPE_UPLOAD, 1024 * 1024);
-		uploadCommandList_ = new D3D12CommandList(*this, 0, D3D12_COMMAND_LIST_TYPE_DIRECT);
+		uploadCommandList_ = new D3D12CommandList(*this, 0, D3D12_COMMAND_LIST_TYPE_DIRECT, "Upload Comamnd List");
 
 		d3dDevice_->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_ID3D12Fence, (void**)d3dUploadFence_.GetAddressOf());
 		uploadFenceEvent_ = ::CreateEvent(nullptr, FALSE, FALSE, "Upload fence");

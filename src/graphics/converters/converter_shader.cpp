@@ -28,7 +28,7 @@
 #define DEBUG_DUMP_SHADERS 1
 
 #define DUMP_ESF_PATH "D:\\tmp.esf"
-#define DUMP_HLSL_PATH "C:\\Dev\\shader_dump\\%s-%s.hlsl"
+#define DUMP_HLSL_PATH "D:\\shader_dump\\%s-%s.hlsl"
 
 namespace
 {

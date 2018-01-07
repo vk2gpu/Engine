@@ -6,7 +6,8 @@
 
 namespace GPU
 {
-	D3D12CommandList::D3D12CommandList(D3D12Device& device, u32 nodeMask, D3D12_COMMAND_LIST_TYPE type)
+	D3D12CommandList::D3D12CommandList(
+	    D3D12Device& device, u32 nodeMask, D3D12_COMMAND_LIST_TYPE type, const char* debugName)
 	    : device_(device)
 	{
 		HRESULT hr = S_OK;
@@ -22,6 +23,14 @@ namespace GPU
 		type_ = type;
 		CHECK_D3D(hr = device.d3dDevice_->CreateCommandList(nodeMask, type, d3dCommandAllocators_[0].Get(), nullptr,
 		              IID_ID3D12GraphicsCommandList, (void**)d3dCommandList_.GetAddressOf()));
+
+		SetObjectName(d3dCommandList_.Get(), debugName);
+
+		d3dCommandList_->QueryInterface(
+		    IID_ID3D12GraphicsCommandList1, (void**)d3dCommandList1_.ReleaseAndGetAddressOf());
+		d3dCommandList_->QueryInterface(
+		    IID_ID3D12GraphicsCommandList2, (void**)d3dCommandList2_.ReleaseAndGetAddressOf());
+
 		CHECK_D3D(hr = d3dCommandList_->Close());
 		CHECK_D3D(hr = device.d3dDevice_->CreateFence(
 		              0, D3D12_FENCE_FLAG_NONE, IID_ID3D12Fence, (void**)d3dFence_.GetAddressOf()));

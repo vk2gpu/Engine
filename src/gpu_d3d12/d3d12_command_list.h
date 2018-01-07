@@ -12,7 +12,7 @@ namespace GPU
 	class D3D12CommandList
 	{
 	public:
-		D3D12CommandList(D3D12Device& d3dDevice, u32 nodeMask, D3D12_COMMAND_LIST_TYPE type);
+		D3D12CommandList(D3D12Device& d3dDevice, u32 nodeMask, D3D12_COMMAND_LIST_TYPE type, const char* debugName);
 		~D3D12CommandList();
 
 		/**
@@ -45,6 +45,9 @@ namespace GPU
 		D3D12_COMMAND_LIST_TYPE type_;
 		Core::Vector<ComPtr<ID3D12CommandAllocator>> d3dCommandAllocators_;
 		ComPtr<ID3D12GraphicsCommandList> d3dCommandList_;
+		ComPtr<ID3D12GraphicsCommandList1> d3dCommandList1_;
+		ComPtr<ID3D12GraphicsCommandList2> d3dCommandList2_;
+
 		i32 listCount_ = MAX_GPU_FRAMES;
 		i32 listIdx_ = 0;
 		bool isOpen_ = false;

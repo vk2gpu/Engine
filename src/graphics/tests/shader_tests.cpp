@@ -94,14 +94,13 @@ namespace
 				Math::Vec2 uv;
 			};
 
-			techDesc_ =
-			    Graphics::ShaderTechniqueDesc()
-			        .SetVertexElement(
-			            0, GPU::VertexElement(0, 0, GPU::Format::R32G32B32A32_FLOAT, GPU::VertexUsage::POSITION, 0))
-			        .SetVertexElement(
-			            1, GPU::VertexElement(0, 16, GPU::Format::R32G32_FLOAT, GPU::VertexUsage::TEXCOORD, 0))
-			        .SetTopology(GPU::TopologyType::TRIANGLE)
-			        .SetRTVFormat(0, GPU::Format::R8G8B8A8_UNORM);
+			techDesc_ = Graphics::ShaderTechniqueDesc()
+			                .SetVertexElement(0, GPU::VertexElement(0, 0, GPU::Format::R32G32B32A32_FLOAT,
+			                                         GPU::VertexUsage::POSITION, 0))
+			                .SetVertexElement(
+			                    1, GPU::VertexElement(0, 16, GPU::Format::R32G32_FLOAT, GPU::VertexUsage::TEXCOORD, 0))
+			                .SetTopology(GPU::TopologyType::TRIANGLE)
+			                .SetRTVFormat(0, GPU::Format::R8G8B8A8_UNORM);
 
 			const Vertex vertices[] = {
 			    {{0.0f, 0.0f, 0.0f, 1.0f}, {0.0f, 0.0f}}, {{0.5f, 0.0f, 0.0f, 1.0f}, {1.0f, 0.0f}},
@@ -402,9 +401,8 @@ TEST_CASE("graphics-tests-shader-graphics-binding-sets")
 		{
 			if(auto materialBind = shaderContext.BeginBindingScope(materialBindingSet))
 			{
-				materialBindingSet.Set("tex_diffuse",
-				    GPU::Binding::Texture2D(
-				        drawer.texture_->GetHandle(), GPU::Format::INVALID, 0, drawer.texture_->GetDesc().levels_));
+				materialBindingSet.Set("tex_diffuse", GPU::Binding::Texture2D(drawer.texture_->GetHandle(),
+				                                          GPU::Format::INVALID, 0, drawer.texture_->GetDesc().levels_));
 				materialBindingSet.Set("SS_DEFAULT", GPU::SamplerState());
 
 				if(auto objectScope = shaderContext.BeginBindingScope(objectBindingSet))

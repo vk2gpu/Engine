@@ -11,44 +11,6 @@
 #include <pix_win.h>
 
 #define DEBUG_TRANSITIONS (0)
-#define DEBUG_DESCRIPTORS (0)
-
-namespace
-{
-	void LogDescriptors(const char* name, const GPU::D3D12PipelineBindingSet& pbs)
-	{
-		Core::Log("Descriptor:\n");
-		Core::Log("- Last event: %s\n", name);
-
-		Core::Log("- CBVs: %d\n", pbs.cbvs_.size_);
-		for(i32 i = 0; i < pbs.cbvs_.size_; ++i)
-		{
-			const auto& debugData = pbs.cbvs_.GetDebugData(i);
-			Core::Log("- - %d: %d, %s\n", i, debugData.subType_, debugData.name_);
-		}
-
-		Core::Log("- SRVs: %d\n", pbs.srvs_.size_);
-		for(i32 i = 0; i < pbs.srvs_.size_; ++i)
-		{
-			const auto& debugData = pbs.srvs_.GetDebugData(i);
-			Core::Log("- - %d: %d, %s\n", i, debugData.subType_, debugData.name_);
-		}
-
-		Core::Log("- UAVs: %d\n", pbs.uavs_.size_);
-		for(i32 i = 0; i < pbs.uavs_.size_; ++i)
-		{
-			const auto& debugData = pbs.cbvs_.GetDebugData(i);
-			Core::Log("- - %d: %d, %s\n", i, debugData.subType_, debugData.name_);
-		}
-
-		Core::Log("- Samplers: %d\n", pbs.samplers_.size_);
-		for(i32 i = 0; i < pbs.samplers_.size_; ++i)
-		{
-			const auto& debugData = pbs.samplers_.GetDebugData(i);
-			Core::Log("- - %d: %d, %s\n", i, debugData.subType_, debugData.name_);
-		}
-	}
-}
 
 namespace GPU
 {
@@ -450,8 +412,8 @@ namespace GPU
 		const auto& pbs = backend_.pipelineBindingSets_[pb[0].pbs_.GetIndex()];
 		DBG_ASSERT(pbs.shaderVisible_);
 
-#if DEBUG_DESCRIPTORS
-		LogDescriptors(eventStack_.back(), pbs);
+#if !defined(FINAL)
+		backend_.ValidatePipelineBindings(pb);
 #endif
 
 		auto device = backend_.device_;
@@ -531,31 +493,6 @@ namespace GPU
 			d3dCommandList_->SetPipelineState(d3d12PipelineState);
 			psBound_ = d3d12PipelineState;
 		}
-
-// Validate descriptors
-#if ENABLE_DESCRIPTOR_DEBUG_DATA
-		{
-			for(i32 i = 0; i < pb[0].samplers_.num_; ++i)
-			{
-				DBG_ASSERT(pbs.samplers_.GetDebugData(i).subType_ == DescriptorHeapSubType::SAMPLER);
-			}
-
-			for(i32 i = 0; i < pb[0].cbvs_.num_; ++i)
-			{
-				DBG_ASSERT(pbs.cbvs_.GetDebugData(i).subType_ == DescriptorHeapSubType::CBV);
-			}
-
-			for(i32 i = 0; i < pb[0].srvs_.num_; ++i)
-			{
-				DBG_ASSERT(pbs.srvs_.GetDebugData(i).subType_ == DescriptorHeapSubType::SRV);
-			}
-
-			for(i32 i = 0; i < pb[0].uavs_.num_; ++i)
-			{
-				DBG_ASSERT(pbs.uavs_.GetDebugData(i).subType_ == DescriptorHeapSubType::UAV);
-			}
-		}
-#endif // ENABLE_DESCRIPTOR_DEBUG_DATA
 
 		bool rootSigChanged = false;
 		switch(rootSig)
