@@ -340,6 +340,11 @@ namespace Core
 		FileFlags GetFlags() const;
 
 		/**
+		 * @return File path.
+		 */
+		const char* GetPath() const;
+
+		/**
 		 * @return Is file valid?
 		 */
 		operator bool() const { return impl_ != nullptr; }
@@ -348,8 +353,5 @@ namespace Core
 		File(const File&) = delete;
 
 		class FileImpl* impl_ = nullptr;
-#ifndef FINAL
-		Core::String path_;
-#endif
 	};
 } // namespace Core

@@ -9,11 +9,13 @@ namespace Core
 
 	enum class DataType : i32
 	{
-		FLOAT,
+		INVALID = -1,
+		FLOAT = 0,
 		UNORM,
 		SNORM,
 		UINT,
 		SINT,
+		TYPELESS,
 	};
 
 	struct StreamDesc

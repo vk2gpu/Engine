@@ -1,5 +1,3 @@
-#include "graphics/converters/dds.h"
-#include "graphics/converters/image.h"
 #include "graphics/converters/import_texture.h"
 #include "graphics/texture.h"
 #include "resource/converter.h"
@@ -18,16 +16,11 @@
 #include "job/function_job.h"
 #include "job/manager.h"
 
+#include "image/image.h"
+#include "image/load.h"
+#include "image/process.h"
+
 #include "serialization/serializer.h"
-
-#pragma warning(push)
-#pragma warning(disable : 4244)
-#pragma warning(disable : 4456)
-#define STB_IMAGE_IMPLEMENTATION
-#include <stb_image.h>
-#pragma warning(pop)
-
-#include "graphics/ispc/image_processing_ispc.h"
 
 #include <squish.h>
 
@@ -46,8 +39,9 @@ namespace
 		bool SupportsFileType(const char* fileExt, const Core::UUID& type) const override
 		{
 			return (type == Graphics::Texture::GetTypeUUID()) ||
-			       (fileExt && (strcmp(fileExt, "png") == 0 || strcmp(fileExt, "jpg") == 0 ||
-			                       strcmp(fileExt, "tga") == 0 || strcmp(fileExt, "dds") == 0));
+			       (fileExt &&
+			           (strcmp(fileExt, "png") == 0 || strcmp(fileExt, "jpg") == 0 || strcmp(fileExt, "tga") == 0 ||
+			               strcmp(fileExt, "dds") == 0));
 		}
 
 		bool Convert(Resource::IConverterContext& context, const char* sourceFile, const char* destPath) override
@@ -68,7 +62,7 @@ namespace
 			Core::FileNormalizePath(outFilename, sizeof(outFilename), true);
 
 			// Load image with stb_image.
-			Graphics::Image image = LoadImage(context, sourceFile);
+			Image::Image image = LoadImage(context, sourceFile);
 
 			if(!image)
 			{
@@ -81,7 +75,7 @@ namespace
 			// If we get an R8G8B8A8 image in, we want to attempt to compress it
 			// to an appropriate format.
 			bool retVal = false;
-			if(image.format_ == GPU::Format::R8G8B8A8_UNORM)
+			if(image.GetFormat() == GPU::Format::R8G8B8A8_UNORM)
 			{
 				if(metaData.isInitialized_ == false)
 				{
@@ -91,43 +85,34 @@ namespace
 
 				if(metaData.generateMipLevels_)
 				{
-					u32 maxDim = Core::Max(image.width_, Core::Max(image.height_, image.depth_));
+					u32 maxDim = Core::Max(image.GetWidth(), Core::Max(image.GetHeight(), image.GetDepth()));
 					i32 levels = 32 - Core::CountLeadingZeros(maxDim);
-					Graphics::Image lsImage(image.type_, GPU::Format::R32G32B32A32_FLOAT, image.width_, image.height_,
-					    image.depth_, levels, nullptr, nullptr);
-					Graphics::Image newImage(image.type_, image.format_, image.width_, image.height_, image.depth_,
-					    levels, nullptr, nullptr);
+					Image::Image lsImage(image.GetType(), GPU::Format::R32G32B32A32_FLOAT, image.GetWidth(),
+					    image.GetHeight(), image.GetDepth(), levels, nullptr, nullptr);
+					Image::Image newImage(image.GetType(), image.GetFormat(), image.GetWidth(), image.GetHeight(),
+					    image.GetDepth(), levels, nullptr, nullptr);
 
-					// Unpack into linear space.
-					i32 numTexels = image.width_ * image.height_;
-					ispc::ImageProc_Unpack_R8G8B8A8(
-					    numTexels, image.GetData<ispc::Color_R8G8B8A8>(), lsImage.GetData<ispc::Color>());
-					ispc::ImageProc_GammaToLinear(
-					    image.width_, image.height_, lsImage.GetData<ispc::Color>(), lsImage.GetData<ispc::Color>());
+					bool success = true;
 
-					// Downsample all mip levels, conver to gamma space, then pack into new image.
-					auto* currData = lsImage.GetData<ispc::Color>();
-					auto* nextData = currData + (image.width_ * image.height_);
-					auto* packedData = newImage.GetData<ispc::Color_R8G8B8A8>();
-					i32 currW = image.width_;
-					i32 currH = image.height_;
-					for(i32 mip = 0; mip < levels; ++mip)
-					{
-						if(mip < (levels - 1))
-							ispc::ImageProc_Downsample2x(currW, currH, currData, nextData);
+					// Unpack to floating point.
+					success &= Image::Convert(lsImage, image, Image::ImageFormat::R32G32B32A32_FLOAT);
+					DBG_ASSERT(success);
 
-						ispc::ImageProc_LinearToGamma(currW, currH, currData, currData);
-						ispc::ImageProc_Pack_R8G8B8A8(numTexels, currData, packedData);
+					// Convert to linear space.
+					success &= Image::GammaToLinear(lsImage, lsImage);
+					DBG_ASSERT(success);
 
-						packedData += numTexels;
+					// Generate mips.
+					success &= Image::GenerateMips(lsImage, lsImage);
+					DBG_ASSERT(success);
 
-						currW = Core::Max(1, currW >> 1);
-						currH = Core::Max(1, currH >> 1);
+					// Convert to gamma space.
+					success &= Image::LinearToGamma(lsImage, lsImage);
+					DBG_ASSERT(success);
 
-						numTexels = currW * currH;
-						currData = nextData;
-						nextData = currData + numTexels;
-					}
+					// Pack back to 32-bit RGBA.
+					success &= Image::Convert(newImage, lsImage, Image::ImageFormat::R8G8B8A8_UNORM);
+					DBG_ASSERT(success);
 
 					std::swap(image, newImage);
 				}
@@ -135,7 +120,7 @@ namespace
 				auto formatInfo = GPU::GetFormatInfo(metaData.format_);
 				if(formatInfo.blockW_ > 1 || formatInfo.blockH_ > 1)
 				{
-					Graphics::Image encodedImage = EncodeAsBCn(image, metaData.format_);
+					Image::Image encodedImage = EncodeAsBCn(image, metaData.format_);
 					if(encodedImage)
 					{
 						image = std::move(encodedImage);
@@ -150,13 +135,13 @@ namespace
 			GPU::TextureDesc desc;
 			desc.type_ = GPU::TextureType::TEX2D;
 			desc.bindFlags_ = GPU::BindFlags::SHADER_RESOURCE;
-			desc.format_ = image.format_;
-			desc.width_ = image.width_;
-			desc.height_ = image.height_;
-			desc.depth_ = (i16)image.depth_;
-			desc.levels_ = (i16)image.levels_;
+			desc.format_ = image.GetFormat();
+			desc.width_ = image.GetWidth();
+			desc.height_ = image.GetHeight();
+			desc.depth_ = (i16)image.GetDepth();
+			desc.levels_ = (i16)image.GetLevels();
 
-			retVal = WriteTexture(outFilename, desc, image.data_);
+			retVal = WriteTexture(outFilename, desc, image.GetMipData<u8>(0));
 
 			if(retVal)
 			{
@@ -164,34 +149,20 @@ namespace
 			}
 
 			// Setup metadata.
-			metaData.format_ = image.format_;
+			metaData.format_ = image.GetFormat();
 			context.SetMetaData(metaData);
 
 			return retVal;
 		}
 
-		Graphics::Image LoadImage(Resource::IConverterContext& context, const char* sourceFile)
+		Image::Image LoadImage(Resource::IConverterContext& context, const char* sourceFile)
 		{
 			char fileExt[8] = {0};
 			Core::FileSplitPath(sourceFile, nullptr, 0, nullptr, 0, fileExt, sizeof(fileExt));
-			if(strcmp(fileExt, "dds") == 0)
-			{
-				return Graphics::DDS::LoadImage(context, sourceFile);
-			}
-
-			// Fall through to stb_image for loading other images.
 			Core::File imageFile(sourceFile, Core::FileFlags::READ, context.GetPathResolver());
-			Core::Vector<u8> imageData;
-			imageData.resize((i32)imageFile.Size());
-			imageFile.Read(imageData.data(), imageFile.Size());
 
-			int w, h;
-			u8* data = stbi_load_from_memory(imageData.data(), imageData.size(), &w, &h, nullptr, STBI_rgb_alpha);
-
-			Graphics::Image image(GPU::TextureType::TEX2D, GPU::Format::R8G8B8A8_UNORM, w, h, 1, 1, data,
-			    [](u8* data) { stbi_image_free(data); });
-
-			return image;
+			return Image::Load(
+			    imageFile, [&context](const char* errorMsg) { context.AddError(__FILE__, __LINE__, errorMsg); });
 		}
 
 		bool WriteTexture(const char* outFilename, const GPU::TextureDesc& desc, const u8* data)
@@ -210,14 +181,14 @@ namespace
 			return false;
 		}
 
-		Graphics::Image EncodeAsBCn(const Graphics::Image& image, GPU::Format format)
+		Image::Image EncodeAsBCn(const Image::Image& image, GPU::Format format)
 		{
 			auto formatInfo = GPU::GetFormatInfo(format);
 
-			if(image.type_ != GPU::TextureType::TEX2D)
+			if(image.GetType() != GPU::TextureType::TEX2D)
 			{
 				Core::Log("ERROR: Can only encode TEX2D as BC (for now)");
-				return Graphics::Image();
+				return Image::Image();
 			}
 
 			if(format == GPU::Format::BC1_TYPELESS || format == GPU::Format::BC1_UNORM ||
@@ -262,8 +233,10 @@ namespace
 					DBG_ASSERT(false);
 				}
 
-				auto outImage = Graphics::Image(image.type_, format, Core::PotRoundUp(image.width_, formatInfo.blockW_),
-				    Core::PotRoundUp(image.height_, formatInfo.blockH_), image.depth_, image.levels_, nullptr, nullptr);
+				auto outImage =
+				    Image::Image(image.GetType(), format, Core::PotRoundUp(image.GetWidth(), formatInfo.blockW_),
+				        Core::PotRoundUp(image.GetHeight(), formatInfo.blockH_), image.GetDepth(), image.GetLevels(),
+				        nullptr, nullptr);
 
 				// Setup jobs.
 				struct JobParams
@@ -275,13 +248,13 @@ namespace
 				};
 
 				Core::Vector<JobParams> params;
-				params.reserve(image.levels_);
+				params.reserve(image.GetLevels());
 
 				JobParams param;
-				for(i32 mip = 0; mip < image.levels_; ++mip)
+				for(i32 mip = 0; mip < image.GetLevels(); ++mip)
 				{
-					const i32 w = Core::Max(1, image.width_ >> mip);
-					const i32 h = Core::Max(1, image.height_ >> mip);
+					const i32 w = Core::Max(1, image.GetWidth() >> mip);
+					const i32 h = Core::Max(1, image.GetHeight() >> mip);
 					const i32 bw = Core::PotRoundUp(w, formatInfo.blockW_) / formatInfo.blockW_;
 					const i32 bh = Core::PotRoundUp(h, formatInfo.blockH_) / formatInfo.blockH_;
 
@@ -296,8 +269,8 @@ namespace
 
 				Job::FunctionJob encodeJob("Encode Job", [&params, squishFormat, &image, &outImage](i32 idx) {
 					auto param = params[idx];
-					auto* inData = image.data_ + param.inOffset_;
-					auto* outData = outImage.data_ + param.outOffset_;
+					auto* inData = image.GetMipData<u8>(0) + param.inOffset_;
+					auto* outData = outImage.GetMipData<u8>(0) + param.outOffset_;
 					auto w = param.w_;
 					auto h = param.h_;
 
@@ -336,13 +309,13 @@ namespace
 				});
 
 				Job::Counter* counter = nullptr;
-				encodeJob.RunMultiple(0, image.levels_ - 1, &counter);
+				encodeJob.RunMultiple(0, image.GetLevels() - 1, &counter);
 				Job::Manager::WaitForCounter(counter, 0);
 
 				return outImage;
 			}
 
-			return Graphics::Image();
+			return Image::Image();
 		}
 	};
 }

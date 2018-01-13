@@ -93,27 +93,7 @@ namespace
 	bool GetOutStreamDesc(Core::StreamDesc& outDesc, GPU::Format format)
 	{
 		auto formatInfo = GPU::GetFormatInfo(format);
-
-		switch(formatInfo.rgbaFormat_)
-		{
-		case GPU::FormatType::FLOAT:
-			outDesc.dataType_ = Core::DataType::FLOAT;
-			break;
-		case GPU::FormatType::UNORM:
-			outDesc.dataType_ = Core::DataType::UNORM;
-			break;
-		case GPU::FormatType::SNORM:
-			outDesc.dataType_ = Core::DataType::SNORM;
-			break;
-		case GPU::FormatType::UINT:
-			outDesc.dataType_ = Core::DataType::UINT;
-			break;
-		case GPU::FormatType::SINT:
-			outDesc.dataType_ = Core::DataType::SINT;
-			break;
-		default:
-			return false;
-		}
+		outDesc.dataType_ = formatInfo.rgbaFormat_;
 		outDesc.numBits_ = formatInfo.rBits_;
 		outDesc.stride_ = formatInfo.blockBits_ >> 3;
 		return outDesc.numBits_ > 0;

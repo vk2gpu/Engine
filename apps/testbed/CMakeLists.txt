@@ -2,6 +2,8 @@ SET(SOURCES_PUBLIC
 	"common.h"
 	"clustered_model.h"
 	"clustered_model.cpp"
+	"compressed_model.cpp"
+	"compressed_model.h"
 	"forward_pipeline.h"
 	"forward_pipeline.cpp"
 	"imgui_pipeline.h"

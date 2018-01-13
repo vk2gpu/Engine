@@ -7,6 +7,9 @@
 #define DECLARE_SWIZZLE2(T, X, Y)                                                                                      \
 	inline T X##Y() const { return T(X, Y); }
 
+#define DECLARE_SWIZZLE3(T, X, Y, Z)                                                                                   \
+	inline T X##Y##Z() const { return T(X, Y, Z); }
+
 namespace Math
 {
 	/**

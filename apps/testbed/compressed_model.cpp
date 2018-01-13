@@ -1,4 +1,4 @@
-#include "clustered_model.h"
+#include "compressed_model.h"
 #include "common.h"
 
 #include "core/concurrency.h"
@@ -56,7 +56,7 @@ namespace
 		{
 			i32 minSize = Core::PotRoundUp(offset_ + amount, GROW_ALIGNMENT);
 			if(minSize > data_.size())
-				data_.resize(minSize);
+				data_.resize(minSize * 2);
 		}
 
 		void Write(const void* data, i32 bytes)
@@ -468,6 +468,114 @@ namespace MeshTools
 		}
 	};
 
+	struct Texture
+	{
+		Core::Vector<Math::Vec4> texels_;
+		i32 width_ = 0;
+		i32 height_ = 0;
+
+		void Initialize(i32 numIndices)
+		{
+			i32 minSize = (i32)ceil(sqrt((f32)numIndices));
+			width_ = Core::PotRoundUp(minSize, 4);
+			height_ = Core::PotRoundUp(minSize, 4);
+			texels_.resize(width_ * height_);
+		}
+
+		GPU::Handle Create(GPU::Format format, Core::StreamDesc outStream, const char* debugName)
+		{
+			GPU::TextureDesc desc = {};
+			desc.type_ = GPU::TextureType::TEX2D;
+			desc.bindFlags_ = GPU::BindFlags::SHADER_RESOURCE;
+			desc.width_ = width_;
+			desc.height_ = height_;
+			desc.format_ = format;
+
+			auto size = GPU::GetTextureSize(format, width_, height_, 1, 1, 1);
+			auto layout = GPU::GetTextureLayoutInfo(format, width_, height_);
+			auto formatInfo = GPU::GetFormatInfo(format);
+
+			Core::Vector<u8> uploadData((i32)size);
+
+			Core::StreamDesc inStream(texels_.data(), Core::DataType::FLOAT, 32, sizeof(Math::Vec4));
+			outStream.data_ = uploadData.data();
+			Core::Convert(outStream, inStream, texels_.size(), 2);
+
+			GPU::TextureSubResourceData subRscData;
+			subRscData.data_ = uploadData.data();
+			subRscData.rowPitch_ = layout.pitch_;
+			subRscData.slicePitch_ = layout.slicePitch_;
+
+			return GPU::Manager::CreateTexture(desc, &subRscData, debugName);
+		}
+
+		void Set(i32 idx, Math::Vec4 v) { texels_[idx] = v; }
+
+		Math::Vec4 Get(i32 idx) const { return texels_[idx]; }
+	};
+
+	// Normal encoding methods grabbed from https://aras-p.info/texts/CompactNormalStorage.html
+	Math::Vec2 EncodeSpherical(Math::Vec3 n)
+	{
+		Math::Vec2 o(0.0f, 0.0f);
+		o.x = std::atan2(n.y, n.x) / Core::F32_PI;
+		o.y = n.z;
+		return (o + Math::Vec2(1.0f, 1.0f)) * 0.5f;
+	}
+
+	Math::Vec3 DecodeSpherical(Math::Vec2 enc)
+	{
+		Math::Vec2 ang = enc * 2.0f - Math::Vec2(1.0f, 1.0f);
+		Math::Vec2 scth;
+		scth.x = std::sin(ang.x * Core::F32_PI);
+		scth.y = std::cos(ang.y * Core::F32_PI);
+		Math::Vec2 scphi = Math::Vec2(std::sqrt(1.0f - ang.y * ang.y), ang.y);
+		return Math::Vec3(scth.y * scphi.x, scth.x * scphi.x, scphi.y);
+	}
+
+	Math::Vec2 EncodeSMT(Math::Vec3 n)
+	{
+		Math::Vec2 n2(n.x, n.y);
+		Math::Vec2 enc = n2.Normal() * std::sqrt(-n.z * 0.5f + 0.5f);
+		enc = enc * 0.5f + Math::Vec2(0.5f, 0.5f);
+		return enc;
+	}
+
+	Math::Vec3 DecodeSMT(Math::Vec2 enc)
+	{
+		Math::Vec4 nn = Math::Vec4(enc) * Math::Vec4(2, 2, 0, 0) + Math::Vec4(-1.0f, -1.0f, 1.0f, -1.0f);
+		Math::Vec3 n1(nn.x, nn.y, nn.z);
+		Math::Vec3 n2(-nn.x, -nn.y, -nn.w);
+		f32 l = n1.Dot(n2);
+		nn.z = l;
+		nn.x *= std::sqrt(l);
+		nn.y *= std::sqrt(l);
+		return Math::Vec3(nn.x, nn.y, nn.z) * 2.0f + Math::Vec3(0.0f, 0.0f, -1.0f);
+	}
+
+	Math::Vec3 EncodeYCoCg(Math::Vec3 rgb)
+	{
+		return Math::Vec3(rgb.Dot(Math::Vec3(0.25f, 0.5f, 0.25f)), rgb.Dot(Math::Vec3(0.5f, 0.0f, -0.5f)),
+		    rgb.Dot(Math::Vec3(-0.25f, 0.5f, -0.25f)));
+	}
+
+	Math::Vec3 DecodeYCoCg(Math::Vec3 ycocg)
+	{
+		return Math::Vec3(ycocg.x + ycocg.y - ycocg.z, ycocg.x + ycocg.z, ycocg.x - ycocg.y - ycocg.z);
+	}
+
+	Math::Vec4 EncodeYCoCg(Math::Vec4 rgba)
+	{
+		Math::Vec3 rgb(rgba.x, rgba.y, rgba.z);
+		return Math::Vec4(rgb.Dot(Math::Vec3(0.25f, 0.5f, 0.25f)), rgb.Dot(Math::Vec3(0.5f, 0.0f, -0.5f)),
+		    rgb.Dot(Math::Vec3(-0.25f, 0.5f, -0.25f)), rgba.w);
+	}
+
+	Math::Vec4 DecodeYCoCg(Math::Vec4 ycocg)
+	{
+		return Math::Vec4(ycocg.x + ycocg.y - ycocg.z, ycocg.x + ycocg.z, ycocg.x - ycocg.y - ycocg.z, ycocg.w);
+	}
+
 #if ENABLE_SIMPLYGON
 	SimplygonSDK::spGeometryData CreateSGGeometry(SimplygonSDK::ISimplygonSDK* sg, const Mesh* mesh)
 	{
@@ -627,7 +735,7 @@ namespace MeshTools
 
 } // namespace MeshTools
 
-ClusteredModel::ClusteredModel(const char* sourceFile)
+CompressedModel::CompressedModel(const char* sourceFile)
 {
 	const aiScene* scene = nullptr;
 
@@ -658,7 +766,7 @@ ClusteredModel::ClusteredModel(const char* sourceFile)
 
 	if(scene)
 	{
-		i32 clusterSize = 64;
+		i32 clusterSize = 1024;
 		Core::Vector<MeshTools::Mesh*> meshes;
 		Core::Vector<MeshTools::Mesh*> meshClusters;
 		i32 numVertices = 0;
@@ -678,9 +786,11 @@ ClusteredModel::ClusteredModel(const char* sourceFile)
 		importJob.RunMultiple(0, meshes.size() - 1, &counter);
 		Job::Manager::WaitForCounter(counter, 0);
 
+#if 0
 		Job::FunctionJob sortJob("cluster_model_sort", [&meshes](i32 param) { meshes[param]->SortTriangles(); });
 		sortJob.RunMultiple(0, meshes.size() - 1, &counter);
 		Job::Manager::WaitForCounter(counter, 0);
+#endif
 
 		for(i32 i = 0; i < meshes.size(); ++i)
 		{
@@ -691,6 +801,25 @@ ClusteredModel::ClusteredModel(const char* sourceFile)
 			materials_.emplace_back(std::move(material));
 
 			Core::Log("Mesh %u: Diameter: %.3f\n", i, mesh->bounds_.Diameter());
+
+			MeshTools::Texture packedPositionTex;
+			MeshTools::Texture packedNormalTex;
+			MeshTools::Texture packedColorTex;
+			packedPositionTex.Initialize(mesh->vertices_.size());
+			packedNormalTex.Initialize(mesh->vertices_.size());
+			packedColorTex.Initialize(mesh->vertices_.size());
+
+			for(i32 idx = 0; idx < mesh->vertices_.size(); ++idx)
+			{
+				const auto& vtx = mesh->vertices_[idx];
+
+				packedNormalTex.Set(idx, MeshTools::EncodeSMT(vtx.normal_));
+				packedColorTex.Set(idx, MeshTools::EncodeYCoCg(vtx.color_));
+			}
+
+			Core::StreamDesc outStream(nullptr, Core::DataType::UNORM, 8, 2);
+			auto packedNormalTexGPU = packedNormalTex.Create(GPU::Format::R8G8_UNORM, outStream, "PackedNormalTex");
+
 
 			Mesh outMesh;
 			outMesh.baseCluster_ = clusters_.size();
@@ -862,23 +991,6 @@ ClusteredModel::ClusteredModel(const char* sourceFile)
 		indexDesc_.size_ = numIndices * 4;
 		indexBuffer_ = GPU::Manager::CreateBuffer(indexDesc_, idxStream.Data(), "clustered_model_ib");
 
-		boundsDesc_.bindFlags_ = GPU::BindFlags::SHADER_RESOURCE;
-		boundsDesc_.size_ = clusterBounds_.size() * sizeof(Math::AABB);
-		boundsBuffer_ = GPU::Manager::CreateBuffer(boundsDesc_, clusterBounds_.data(), "clustered_model_bounds");
-
-		clusterDesc_.bindFlags_ = GPU::BindFlags::SHADER_RESOURCE;
-		clusterDesc_.size_ = clusters_.size() * sizeof(MeshCluster);
-		clusterBuffer_ = GPU::Manager::CreateBuffer(clusterDesc_, clusters_.data(), "clustered_model_clusters");
-
-		drawArgsDesc_.bindFlags_ =
-		    GPU::BindFlags::INDEX_BUFFER | GPU::BindFlags::UNORDERED_ACCESS | GPU::BindFlags::INDIRECT_BUFFER;
-		drawArgsDesc_.size_ = clusters_.size() * sizeof(GPU::DrawIndexedArgs);
-		drawArgsBuffer_ = GPU::Manager::CreateBuffer(drawArgsDesc_, nullptr, "clustered_model_draw_args");
-
-		drawCountDesc_.bindFlags_ = GPU::BindFlags::UNORDERED_ACCESS | GPU::BindFlags::INDIRECT_BUFFER;
-		drawCountDesc_.size_ = meshes_.size() * sizeof(GPU::DispatchArgs);
-		drawCountBuffer_ = GPU::Manager::CreateBuffer(drawCountDesc_, nullptr, "clustered_model_draw_count");
-
 		GPU::DrawBindingSetDesc dbsDesc;
 		i32 offset = 0;
 		for(i32 streamIdx = 0; streamIdx < currStream; ++streamIdx)
@@ -898,9 +1010,6 @@ ClusteredModel::ClusteredModel(const char* sourceFile)
 		dbsDesc.ib_.stride_ = 4;
 		dbs_ = GPU::Manager::CreateDrawBindingSet(dbsDesc, "clustered_model_dbs");
 
-		coreShader_ = "shaders/clustered_model.esf";
-		coreShader_.WaitUntilReady();
-
 		techs_.resize(materials_.size());
 		for(i32 i = 0; i < materials_.size(); ++i)
 		{
@@ -909,28 +1018,25 @@ ClusteredModel::ClusteredModel(const char* sourceFile)
 			techs_[i].material_ = materials_[i];
 		}
 
-		cullClusterTech_ = coreShader_->CreateTechnique("TECH_CULL_CLUSTERS", Graphics::ShaderTechniqueDesc());
-		DBG_ASSERT(cullClusterTech_);
-
 		techDesc_.SetVertexElements(elements_);
 		techDesc_.SetTopology(GPU::TopologyType::TRIANGLE);
+
+		objectBindings_ = Graphics::Shader::CreateSharedBindingSet("ObjectBindings");
 	}
 }
 
-ClusteredModel::~ClusteredModel()
+CompressedModel::~CompressedModel()
 {
 	GPU::Manager::DestroyResource(vertexBuffer_);
 	GPU::Manager::DestroyResource(indexBuffer_);
-	GPU::Manager::DestroyResource(boundsBuffer_);
-	GPU::Manager::DestroyResource(clusterBuffer_);
-	GPU::Manager::DestroyResource(drawArgsBuffer_);
-	GPU::Manager::DestroyResource(drawCountBuffer_);
 	GPU::Manager::DestroyResource(dbs_);
 }
 
-void ClusteredModel::DrawClusters(Testbed::DrawContext& drawCtx, Testbed::ObjectConstants object)
+void CompressedModel::DrawClusters(Testbed::DrawContext& drawCtx, Testbed::ObjectConstants object)
 {
-	if(auto event = drawCtx.cmdList_.Eventf(0x0, "ClusteredModel"))
+	return;
+#if 0
+	if(auto event = drawCtx.cmdList_.Eventf(0x0, "CompressedModel"))
 	{
 		i32 numObjects = 1;
 		const i32 objectDataSize = sizeof(Testbed::ObjectConstants);
@@ -945,123 +1051,32 @@ void ClusteredModel::DrawClusters(Testbed::DrawContext& drawCtx, Testbed::Object
 		drawCtx.cmdList_.UpdateBuffer(
 		    drawCtx.objectSBHandle_, 0, sizeof(Testbed::ObjectConstants) * numObjects, objects);
 
-		if(enableCulling_)
+		for(i32 idx = 0; idx < numObjects; ++idx)
 		{
-			static Job::SpinLock spinLock;
-			Job::ScopedSpinLock lock(spinLock);
-
-			if(!cullClusterBindings_)
+			for(i32 meshIdx = 0; meshIdx < meshes_.size(); ++meshIdx)
 			{
-				cullClusterBindings_ = coreShader_->CreateBindingSet("ClusterBindings");
-			}
-
-			if(!objectBindings_)
-			{
-				objectBindings_ = coreShader_->CreateBindingSet("ObjectBindings");
-			}
-
-			cullClusterBindings_.Set("inCluster",
-			    GPU::Binding::Buffer(clusterBuffer_, GPU::Format::INVALID, 0, clusters_.size(), sizeof(MeshCluster)));
-			cullClusterBindings_.Set("inClusterBounds",
-			    GPU::Binding::Buffer(
-			        boundsBuffer_, GPU::Format::INVALID, 0, clusterBounds_.size(), sizeof(Math::AABB)));
-			cullClusterBindings_.Set("outDrawArgs",
-			    GPU::Binding::RWBuffer(
-			        drawArgsBuffer_, GPU::Format::INVALID, 0, clusters_.size(), sizeof(GPU::DrawIndexedArgs)));
-			cullClusterBindings_.Set("outDrawCount",
-			    GPU::Binding::RWBuffer(drawCountBuffer_, GPU::Format::INVALID, 0, meshes_.size(), sizeof(u32)));
-
-			objectBindings_.Set(
-			    "inObject", GPU::Binding::Buffer(drawCtx.objectSBHandle_, GPU::Format::INVALID, 0, 1, objectDataSize));
-
-			if(auto cullClusterBind = drawCtx.shaderCtx_.BeginBindingScope(cullClusterBindings_))
-			{
-				if(auto objectBind = drawCtx.shaderCtx_.BeginBindingScope(objectBindings_))
+				auto it = techs_[meshIdx].passIndices_.find(drawCtx.passName_);
+				if(it != techs_[meshIdx].passIndices_.end())
 				{
-					const i32 groupSize = 64;
-
-					GPU::Handle ps;
-					Core::ArrayView<GPU::PipelineBinding> pb;
-					if(drawCtx.shaderCtx_.CommitBindings(cullClusterTech_, ps, pb))
+					const auto& mesh = meshes_[meshIdx];
+					if(mesh.numClusters_ > 0)
 					{
-						Core::Vector<u32> drawCountData(meshes_.size(), 0);
-						drawCtx.cmdList_.UpdateBuffer(drawCountBuffer_, 0, drawCountData.size() * sizeof(u32),
-						    drawCtx.cmdList_.Push(drawCountData.data(), drawCountData.size()));
+						auto& tech = techs_[meshIdx].passTechniques_[it->second];
+						if(drawCtx.customBindFn_)
+							drawCtx.customBindFn_(techs_[meshIdx].material_->GetShader(), tech);
 
-						drawCtx.cmdList_.Dispatch(ps, pb, (clusters_.size() + (groupSize - 1)) / groupSize, 1, 1);
-					}
-				}
-			}
-		}
-
-		// Perform draws.
-		if(enableCulling_)
-		{
-			for(i32 idx = 0; idx < numObjects; ++idx)
-			{
-				for(i32 meshIdx = 0; meshIdx < meshes_.size(); ++meshIdx)
-				{
-					auto it = techs_[meshIdx].passIndices_.find(drawCtx.passName_);
-					if(it != techs_[meshIdx].passIndices_.end())
-					{
-						const auto& mesh = meshes_[meshIdx];
-						if(mesh.numClusters_ > 0)
+						objectBindings_.Set("inObject", GPU::Binding::Buffer(drawCtx.objectSBHandle_,
+							                                GPU::Format::INVALID, 0, 1, objectDataSize));
+						if(auto objectBind = drawCtx.shaderCtx_.BeginBindingScope(objectBindings_))
 						{
-							auto& tech = techs_[meshIdx].passTechniques_[it->second];
-							if(drawCtx.customBindFn_)
-								drawCtx.customBindFn_(techs_[meshIdx].material_->GetShader(), tech);
-
-							objectBindings_.Set("inObject",
-							    GPU::Binding::Buffer(
-							        drawCtx.objectSBHandle_, GPU::Format::INVALID, 0, 1, objectDataSize));
-
-							if(auto objectBind = drawCtx.shaderCtx_.BeginBindingScope(objectBindings_))
+							GPU::Handle ps;
+							Core::ArrayView<GPU::PipelineBinding> pb;
+							if(drawCtx.shaderCtx_.CommitBindings(tech, ps, pb))
 							{
-								GPU::Handle ps;
-								Core::ArrayView<GPU::PipelineBinding> pb;
-								if(drawCtx.shaderCtx_.CommitBindings(tech, ps, pb))
-								{
-									drawCtx.cmdList_.DrawIndirect(ps, pb, dbs_, drawCtx.fbs_, drawCtx.drawState_,
-									    GPU::PrimitiveTopology::TRIANGLE_LIST, drawArgsBuffer_,
-									    mesh.baseCluster_ * sizeof(GPU::DrawIndexedArgs), drawCountBuffer_,
-									    meshIdx * sizeof(i32), mesh.numClusters_);
-								}
-							}
-						}
-					}
-				}
-			}
-		}
-		else
-		{
-			for(i32 idx = 0; idx < numObjects; ++idx)
-			{
-				for(i32 meshIdx = 0; meshIdx < meshes_.size(); ++meshIdx)
-				{
-					auto it = techs_[meshIdx].passIndices_.find(drawCtx.passName_);
-					if(it != techs_[meshIdx].passIndices_.end())
-					{
-						const auto& mesh = meshes_[meshIdx];
-						if(mesh.numClusters_ > 0)
-						{
-							auto& tech = techs_[meshIdx].passTechniques_[it->second];
-							if(drawCtx.customBindFn_)
-								drawCtx.customBindFn_(techs_[meshIdx].material_->GetShader(), tech);
-
-							objectBindings_.Set("inObject",
-							    GPU::Binding::Buffer(
-							        drawCtx.objectSBHandle_, GPU::Format::INVALID, 0, 1, objectDataSize));
-							if(auto objectBind = drawCtx.shaderCtx_.BeginBindingScope(objectBindings_))
-							{
-								GPU::Handle ps;
-								Core::ArrayView<GPU::PipelineBinding> pb;
-								if(drawCtx.shaderCtx_.CommitBindings(tech, ps, pb))
-								{
-									auto baseCluster = clusters_[meshes_[meshIdx].baseCluster_];
-									drawCtx.cmdList_.Draw(ps, pb, dbs_, drawCtx.fbs_, drawCtx.drawState_,
-									    GPU::PrimitiveTopology::TRIANGLE_LIST, baseCluster.baseIndex_, 0,
-									    mesh.numClusters_ * baseCluster.numIndices_, 0, 1);
-								}
+								auto baseCluster = clusters_[meshes_[meshIdx].baseCluster_];
+								drawCtx.cmdList_.Draw(ps, pb, dbs_, drawCtx.fbs_, drawCtx.drawState_,
+									GPU::PrimitiveTopology::TRIANGLE_LIST, baseCluster.baseIndex_, 0,
+									mesh.numClusters_ * baseCluster.numIndices_, 0, 1);
 							}
 						}
 					}
@@ -1069,4 +1084,5 @@ void ClusteredModel::DrawClusters(Testbed::DrawContext& drawCtx, Testbed::Object
 			}
 		}
 	}
+#endif
 }

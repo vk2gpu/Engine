@@ -445,6 +445,8 @@ namespace Core
 		virtual i64 Size() const = 0;
 		virtual FileFlags GetFlags() const = 0;
 		virtual bool IsValid() const = 0;
+
+		Core::String path_;
 	};
 
 	/// Native file implementation.
@@ -508,6 +510,7 @@ namespace Core
 			}
 
 			flags_ = flags;
+			path_ = path;
 		}
 
 		virtual ~FileImplNative()
@@ -575,6 +578,7 @@ namespace Core
 		    , size_(size)
 		    , flags_(flags)
 		{
+			path_.Printf("memory://%p:%lld", data, size);
 		}
 
 		FileImplMem(const void* data, i64 size)
@@ -582,6 +586,7 @@ namespace Core
 		    , size_(size)
 		    , flags_(FileFlags::READ)
 		{
+			path_.Printf("memory://%p:%lld", data, size);
 		}
 
 		~FileImplMem()
@@ -657,10 +662,6 @@ namespace Core
 			delete impl_;
 			impl_ = nullptr;
 		}
-
-#ifndef FINAL
-		path_ = path;
-#endif
 	}
 
 	File::File(void* data, i64 size, FileFlags flags)
@@ -670,10 +671,6 @@ namespace Core
 		DBG_ASSERT(ContainsAnyFlags(flags, FileFlags::READ) ^ ContainsAnyFlags(flags, FileFlags::WRITE));
 		DBG_ASSERT(!ContainsAnyFlags(flags, FileFlags::APPEND | FileFlags::CREATE));
 		impl_ = new FileImplMem(data, size, flags);
-
-#ifndef FINAL
-		path_.Printf("memory://%p:%lld", data, size);
-#endif
 	}
 
 	File::File(const void* data, i64 size)
@@ -681,10 +678,6 @@ namespace Core
 		DBG_ASSERT(data);
 		DBG_ASSERT(size > 0);
 		impl_ = new FileImplMem(data, size);
-
-#ifndef FINAL
-		path_.Printf("memory://%p:%lld", data, size);
-#endif
 	}
 
 
@@ -694,20 +687,12 @@ namespace Core
 	{
 		using std::swap;
 		swap(impl_, other.impl_);
-
-#ifndef FINAL
-		swap(path_, other.path_);
-#endif
 	}
 
 	File& File::operator=(File&& other)
 	{
 		using std::swap;
 		swap(impl_, other.impl_);
-
-#ifndef FINAL
-		swap(path_, other.path_);
-#endif
 		return *this;
 	}
 
@@ -748,4 +733,6 @@ namespace Core
 	{ //
 		return impl_ ? impl_->GetFlags() : FileFlags::NONE;
 	}
+
+	const char* File::GetPath() const { return impl_ ? impl_->path_.c_str() : "<NULL>"; }
 } // namespace Core

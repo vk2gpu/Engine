@@ -24,6 +24,7 @@
 #include "math/plane.h"
 
 #include "clustered_model.h"
+#include "compressed_model.h"
 #include "texture_compressor.h"
 
 #include <cmath>
@@ -151,9 +152,9 @@ namespace
 			Math::Vec3 viewFromPosition = cameraTarget_ + viewDistance;
 
 			matrix_.Identity();
-			matrix_.LookAt(
-			    viewFromPosition, cameraTarget_, Math::Vec3(cameraRotationMatrix.Row1().x,
-			                                         cameraRotationMatrix.Row1().y, cameraRotationMatrix.Row1().z));
+			matrix_.LookAt(viewFromPosition, cameraTarget_,
+			    Math::Vec3(
+			        cameraRotationMatrix.Row1().x, cameraRotationMatrix.Row1().y, cameraRotationMatrix.Row1().z));
 		}
 
 		Math::Mat44 GetCameraRotationMatrix() const
@@ -524,10 +525,10 @@ void Loop(const Core::CommandLine& cmdLine)
 	Model* sponzaModel = nullptr;
 
 #if LOAD_SPONZA
-	ClusteredModel* testClusteredModel = new ClusteredModel("model_tests/teapot.obj");
+	CompressedModel* testCompressedModel = new CompressedModel("model_tests/teapot.obj");
 #else
-	ClusteredModel* testClusteredModel = new ClusteredModel("model_tests/crytek-sponza/sponza.obj");
-//ClusteredModel* testClusteredModel = new ClusteredModel("model_tests/san_miguel/san-miguel-low-poly.obj");
+	CompressedModel* testCompressedModel = new CompressedModel("model_tests/crytek-sponza/sponza.obj");
+//CompressedModel* testCompressedModel = new CompressedModel("model_tests/san_miguel/san-miguel-low-poly.obj");
 #endif
 
 #if LOAD_SPONZA
@@ -851,9 +852,9 @@ void Loop(const Core::CommandLine& cmdLine)
 				DrawRenderPackets(drawCtx);
 
 #if 1
-				if(testClusteredModel)
+				if(testCompressedModel)
 				{
-					testClusteredModel->enableCulling_ = clusterCulling_;
+					testCompressedModel->enableCulling_ = clusterCulling_;
 
 #if LOAD_SPONZA
 					for(auto position : positions)
@@ -870,7 +871,7 @@ void Loop(const Core::CommandLine& cmdLine)
 #if !LOAD_SPONZA
 						object.world_ = object.world_ * scale;
 #endif
-						testClusteredModel->DrawClusters(drawCtx, object);
+						testCompressedModel->DrawClusters(drawCtx, object);
 					}
 				}
 #endif
@@ -935,9 +936,9 @@ void Loop(const Core::CommandLine& cmdLine)
 					}
 				}
 
-				for(auto& techs : testClusteredModel->techs_)
+				for(auto& techs : testCompressedModel->techs_)
 				{
-					forwardPipeline.CreateTechniques(techs.material_, testClusteredModel->techDesc_, techs);
+					forwardPipeline.CreateTechniques(techs.material_, testCompressedModel->techDesc_, techs);
 				}
 			}
 
@@ -976,7 +977,7 @@ void Loop(const Core::CommandLine& cmdLine)
 		}
 	}
 
-	delete testClusteredModel;
+	delete testCompressedModel;
 
 	GPU::Manager::DestroyResource(finalTexture);
 

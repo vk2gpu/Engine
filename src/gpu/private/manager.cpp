@@ -92,11 +92,16 @@ namespace RenderDoc
 	RENDERDOC_API_1_1_1* renderDocAPI_ = nullptr;
 	void Load()
 	{
+		const char* renderDocPaths[] = {
+		    "renderdoc.dll", "C:\\Dev\\RenderDoc\\renderdoc.dll", "C:\\Program Files\\RenderDoc\\renderdoc.dll"};
+
 		// Attempt to load renderdoc from various paths.
-		if(!renderDocLib_)
-			renderDocLib_ = Core::LibraryOpen("renderdoc.dll");
-		if(!renderDocLib_)
-			renderDocLib_ = Core::LibraryOpen("C:\\Program Files\\RenderDoc\\renderdoc.dll");
+		for(auto renderDocPath : renderDocPaths)
+		{
+			renderDocLib_ = Core::LibraryOpen(renderDocPath);
+			if(renderDocLib_)
+				break;
+		}
 
 		if(renderDocLib_)
 		{

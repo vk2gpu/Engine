@@ -11,7 +11,6 @@ SET(SOURCES_PUBLIC
 )
 
 SET(SOURCES_ISPC 
-	"ispc/image_processing.ispc"
 )
 
 SET(SOURCES_PRIVATE 
@@ -89,11 +88,6 @@ SET(SOURCES_SHADER_CONVERTER
 SET(SOURCES_TEXTURE_CONVERTER
 	"converters/converter_texture.cpp"
 	"converters/import_texture.h"
-	"converters/dds.h"
-	"converters/dds.cpp"
-	"converters/image.h"
-	"converters/image.cpp"
-	"ispc/image_processing.ispc"
 )
 
 SET(SOURCES_TEST_PIPELINE
@@ -123,7 +117,7 @@ TARGET_LINK_LIBRARIES(converter_graphics_shader core graphics resource fcpp)
 
 ADD_ENGINE_PLUGIN(converter_graphics_texture ${SOURCES_TEXTURE_CONVERTER})
 SET_TARGET_PROPERTIES(converter_graphics_texture PROPERTIES FOLDER Libraries/Plugins)
-TARGET_LINK_LIBRARIES(converter_graphics_texture core graphics resource squish)
+TARGET_LINK_LIBRARIES(converter_graphics_texture core graphics resource image)
 
 # Pipeline plugins.
 ADD_ENGINE_PLUGIN(graphics_test_pipeline ${SOURCES_TEST_PIPELINE})

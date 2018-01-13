@@ -250,7 +250,7 @@ namespace GPU
 		case Format::R16_TYPELESS:
 		case Format::R8G8_TYPELESS:
 		case Format::R8_TYPELESS:
-			info.rgbaFormat_ = FormatType::TYPELESS;
+			info.rgbaFormat_ = Core::DataType::TYPELESS;
 			break;
 
 		case Format::R32G32B32A32_FLOAT:
@@ -261,7 +261,7 @@ namespace GPU
 		case Format::R16G16_FLOAT:
 		case Format::R32_FLOAT:
 		case Format::R16_FLOAT:
-			info.rgbaFormat_ = FormatType::FLOAT;
+			info.rgbaFormat_ = Core::DataType::FLOAT;
 			break;
 
 		case Format::R32G32B32A32_UINT:
@@ -275,7 +275,7 @@ namespace GPU
 		case Format::R8G8_UINT:
 		case Format::R16_UINT:
 		case Format::R8_UINT:
-			info.rgbaFormat_ = FormatType::UINT;
+			info.rgbaFormat_ = Core::DataType::UINT;
 			break;
 
 		case Format::R32G32B32A32_SINT:
@@ -288,7 +288,7 @@ namespace GPU
 		case Format::R8G8_SINT:
 		case Format::R16_SINT:
 		case Format::R8_SINT:
-			info.rgbaFormat_ = FormatType::SINT;
+			info.rgbaFormat_ = Core::DataType::SINT;
 			break;
 
 		case Format::R16G16B16A16_UNORM:
@@ -300,7 +300,7 @@ namespace GPU
 		case Format::R16_UNORM:
 		case Format::R8_UNORM:
 		case Format::A8_UNORM:
-			info.rgbaFormat_ = FormatType::UNORM;
+			info.rgbaFormat_ = Core::DataType::UNORM;
 			break;
 
 		case Format::R16G16B16A16_SNORM:
@@ -309,7 +309,7 @@ namespace GPU
 		case Format::R8G8_SNORM:
 		case Format::R16_SNORM:
 		case Format::R8_SNORM:
-			info.rgbaFormat_ = FormatType::SNORM;
+			info.rgbaFormat_ = Core::DataType::SNORM;
 			break;
 
 		default:
