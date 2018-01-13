@@ -6,6 +6,7 @@ SET(SOURCES_PUBLIC
 	"mat44.h"
 	"plane.h"
 	"quat.h"
+	"utils.h"
 	"vec2.h"
 	"vec3.h"
 	"vec4.h"
@@ -17,6 +18,8 @@ SET(SOURCES_PRIVATE
 	"private/mat44.cpp"
 	"private/plane.cpp"
 	"private/quat.cpp"
+	"private/utils.inl"
+	"private/utils.cpp"
 	"private/vec2.cpp"
 	"private/vec3.cpp"
 	"private/vec4.cpp"
@@ -28,8 +31,10 @@ SET(SOURCES_ISPC
 
 SET(SOURCES_TESTS
 	"tests/test_entry.cpp"
-	"tests/vec2_tests.cpp"
 	"tests/mat44_tests.cpp"
+	"tests/utils_tests.cpp"
+	"tests/vec2_tests.cpp"
+
 )
 
 ADD_ENGINE_LIBRARY(math ${SOURCES_PUBLIC} ${SOURCES_PRIVATE} ${SOURCES_ISPC} ${SOURCES_TESTS})

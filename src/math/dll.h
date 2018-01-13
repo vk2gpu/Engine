@@ -8,7 +8,7 @@
 #define MATH_DLL IMPORT
 #endif
 
-#if MATH_INLINE
+#if CODE_INLINE
 #define MATH_DLL_INLINE INLINE
 #else
 #define MATH_DLL_INLINE MATH_DLL
