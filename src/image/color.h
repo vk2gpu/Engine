@@ -33,6 +33,23 @@ namespace Image
 	};
 
 	/**
+	 * Gamma space RGBA color.
+	 */
+	struct IMAGE_DLL SRGBAColor
+	{
+	public:
+		u8 r, g, b, a;
+
+	public:
+		SRGBAColor();
+		SRGBAColor(u8* val);
+		SRGBAColor(u8 r, u8 g, u8 b, u8 a);
+
+		operator u32() const { return (a << 24) | (b << 16) | (g << 8) | r; }
+	};
+
+
+	/**
 	 * Linear space RGBA color.
 	 */
 	struct IMAGE_DLL RGBAColor
@@ -117,6 +134,11 @@ namespace Image
 	IMAGE_DLL YCoCgColor ToYCoCg(RGBAColor rgb);
 
 	/**
+	 * Convert to SRGBA.
+	 */
+	IMAGE_DLL SRGBAColor ToSRGBA(RGBAColor rgba);
+
+	/**
 	 * Convert HSV to RGB.
 	 */
 	IMAGE_DLL RGBAColor ToRGB(HSVColor hsv);
@@ -125,5 +147,10 @@ namespace Image
 	 * Convert YCoCg to RGB.
 	 */
 	IMAGE_DLL RGBAColor ToRGB(YCoCgColor ycocg);
+
+	/**
+	 * Convert to RGBA.
+	 */
+	IMAGE_DLL RGBAColor ToRGBA(SRGBAColor rgba);
 
 } // namespace Image

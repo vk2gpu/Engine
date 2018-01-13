@@ -63,6 +63,31 @@ namespace Image
 	{
 	}
 
+	SRGBAColor::SRGBAColor()
+	    : r(0)
+	    , g(0)
+	    , b(0)
+	    , a(0)
+	{
+	}
+
+	SRGBAColor::SRGBAColor(u8* val)
+	    : r(val[0])
+	    , g(val[1])
+	    , b(val[2])
+	    , a(val[3])
+	{
+	}
+
+	SRGBAColor::SRGBAColor(u8 _r, u8 _g, u8 _b, u8 _a)
+	    : r(_r)
+	    , g(_g)
+	    , b(_b)
+	    , a(_a)
+	{
+	}
+
+
 	RGBAColor::RGBAColor()
 	    : r(0.0f)
 	    , g(0.0f)
@@ -120,6 +145,20 @@ namespace Image
 		    xyz.Dot(Math::Vec3(-0.25f, 0.5f, -0.25f)));
 	}
 
+	SRGBAColor ToSRGBA(RGBAColor rgba)
+	{
+		// http://www.frostbite.com/wp-content/uploads/2014/11/course_notes_moving_frostbite_to_pbr.pdf pg87
+		Math::Vec3 sRGBLo(rgba.r * 12.92f, rgba.g * 12.92f, rgba.b * 12.92f);
+		Math::Vec3 sRGBHi(std::pow(std::abs(rgba.r), 1.0f / 2.4f), std::pow(std::abs(rgba.g), 1.0f / 2.4f),
+		    std::pow(std::abs(rgba.b), 1.0f / 2.4f));
+		sRGBHi = (sRGBHi * 1.055f) - Math::Vec3(0.055f, 0.055f, 0.055f);
+		RGBAColor sRGBA = RGBAColor((rgba.r <= 0.0031308) ? sRGBLo.x : sRGBHi.x,
+		    (rgba.g <= 0.0031308) ? sRGBLo.y : sRGBHi.y, (rgba.b <= 0.0031308) ? sRGBLo.z : sRGBHi.z, rgba.a);
+		sRGBA *= 255.0f;
+		return SRGBAColor((u8)sRGBA.r, (u8)sRGBA.g, (u8)sRGBA.b, (u8)sRGBA.a);
+	}
+
+
 	RGBAColor ToRGB(HSVColor hsv)
 	{
 		const auto ONE = Math::Vec3(1.0f, 1.0f, 1.0f);
@@ -131,6 +170,18 @@ namespace Image
 	{
 		const float v = ycocg.y - ycocg.cg;
 		return RGBAColor(v + ycocg.co, ycocg.y + ycocg.cg, v - ycocg.co, 1.0f);
+	}
+
+	RGBAColor ToRGBA(SRGBAColor rgba)
+	{
+		// http://www.frostbite.com/wp-content/uploads/2014/11/course_notes_moving_frostbite_to_pbr.pdf pg87
+		Math::Vec3 linearRGBLo(rgba.r / 12.92f, rgba.g / 12.92f, rgba.b / 12.92f);
+		Math::Vec3 linearRGBHi(std::pow(((rgba.r / 255.0f) + 0.055f) / 1.055f, 2.4f),
+		    std::pow(((rgba.g / 255.0f) + 0.055f) / 1.055f, 2.4f),
+		    std::pow(((rgba.b / 255.0f) + 0.055f) / 1.055f, 2.4f));
+		return RGBAColor((rgba.r <= (255 * 0.04045)) ? linearRGBLo.x : linearRGBHi.x,
+		    (rgba.g <= (255 * 0.04045)) ? linearRGBLo.y : linearRGBHi.y,
+		    (rgba.b <= (255 * 0.04045)) ? linearRGBLo.z : linearRGBHi.z, rgba.a / 255.0f);
 	}
 
 } // namespace Image

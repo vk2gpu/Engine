@@ -6,6 +6,9 @@ namespace Image
 {
 	class Image;
 
+	static const f32 INFINITE_PSNR = 9999.0f;
+
+
 	/**
 	 * Convert @a input image to @a outFormat.
 	 * @return success.
@@ -38,5 +41,13 @@ namespace Image
 	 * @return success.
 	 */
 	IMAGE_DLL bool GenerateMips(Image& output, const Image& input);
+
+	/**
+	 * Calculate PSNR
+	 * @param base Base image.
+	 * @param compare Image to compare.
+	 * @return PSNR in dB
+	 */
+	IMAGE_DLL f32 CalculatePSNR(const Image& base, const Image& compare);
 
 } // namespace Image

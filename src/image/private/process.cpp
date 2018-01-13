@@ -7,7 +7,9 @@
 #include "core/misc.h"
 #include "core/type_conversion.h"
 #include "gpu/utils.h"
+#include "math/utils.h"
 
+#include <cmath>
 #include <utility>
 
 namespace Image
@@ -190,6 +192,36 @@ namespace Image
 		return true;
 	}
 
-} // namespace Image
 
-#pragma once
+	f32 CalculatePSNR(const Image& base, const Image& compare)
+	{
+		if(!base || !compare)
+			return 0.0f;
+		if(base.GetWidth() != compare.GetWidth())
+			return 0.0f;
+		if(base.GetHeight() != compare.GetHeight())
+			return 0.0f;
+		if(base.GetFormat() != compare.GetFormat())
+			return 0.0f;
+
+		f32 psnr = INFINITE_PSNR;
+		if(base.GetFormat() == ImageFormat::R8G8B8A8_UNORM)
+		{
+			f32 mse = ispc::ImageProc_MSE_R8G8B8A8(base.GetWidth(), base.GetDepth(),
+			    base.GetMipData<ispc::Color_R8G8B8A8>(0), compare.GetMipData<ispc::Color_R8G8B8A8>(0));
+			if(mse > 0.0f)
+				psnr = Math::AmplitudeRatioToDecibels(255.0f / std::sqrt(mse));
+		}
+		else if(base.GetFormat() == ImageFormat::R32G32B32A32_FLOAT)
+		{
+			f32 mse = ispc::ImageProc_MSE(
+			    base.GetWidth(), base.GetDepth(), base.GetMipData<ispc::Color>(0), compare.GetMipData<ispc::Color>(0));
+			if(mse > 0.0f)
+				psnr = Math::AmplitudeRatioToDecibels(1.0f / std::sqrt(mse));
+		}
+
+		return psnr;
+	}
+
+
+} // namespace Image

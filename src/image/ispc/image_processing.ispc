@@ -9,67 +9,67 @@ typedef unsigned int32 u32;
 
 export struct Color
 {
-	float r_;
-	float g_;
-	float b_;
-	float a_;
+	float r;
+	float g;
+	float b;
+	float a;
 };
 
 static inline Color operator+(const Color a, const Color b)
 {
 	Color c;
-	c.r_ = a.r_ + b.r_;
-	c.g_ = a.g_ + b.g_;
-	c.b_ = a.b_ + b.b_;
-	c.a_ = a.a_ + b.a_;
+	c.r = a.r + b.r;
+	c.g = a.g + b.g;
+	c.b = a.b + b.b;
+	c.a = a.a + b.a;
 	return c;
 }
 
 static inline Color operator*(const Color a, const float b)
 {
 	Color c;
-	c.r_ = a.r_ * b;
-	c.g_ = a.g_ * b;
-	c.b_ = a.b_ * b;
-	c.a_ = a.a_ * b;
+	c.r = a.r * b;
+	c.g = a.g * b;
+	c.b = a.b * b;
+	c.a = a.a * b;
 	return c;
 }
 
 export struct Color_R8G8B8A8
 {
-	u8 r_, g_, b_, a_;
+	u8 r, g, b, a;
 };
 
 
 static inline Color GammaToLinear(Color color)
 {
-	// http://www.frostbite.com/wp-content/uploads/2014/11/course_notes_moving_frostbite_to_pbr.pdf pg87
-	float<3> colorVec = { color.r_, color.g_, color.b_ };
-	float<3> linearRGBLo = { color.r_ / 12.92, color.g_ / 12.92, color.b_ / 12.92 };
+	// http://www.frostbite.com/wp-content/uploads/2014/11/course_notes_movingfrostbite_to_pbr.pdf pg87
+	float<3> colorVec = { color.r, color.g, color.b };
+	float<3> linearRGBLo = { color.r / 12.92, color.g / 12.92, color.b / 12.92 };
 	float<3> linearRGBHi = {
 		pow((colorVec.x + 0.055) / 1.055, 2.4),
 		pow((colorVec.y + 0.055) / 1.055, 2.4),
 		pow((colorVec.z + 0.055) / 1.055, 2.4)
 	};
-	color.r_ = (color.r_ <= 0.04045) ? linearRGBLo.x : linearRGBHi.x,
-	color.g_ = (color.g_ <= 0.04045) ? linearRGBLo.y : linearRGBHi.y,
-	color.b_ = (color.b_ <= 0.04045) ? linearRGBLo.z : linearRGBHi.z;
+	color.r = (color.r <= 0.04045) ? linearRGBLo.x : linearRGBHi.x,
+	color.g = (color.g <= 0.04045) ? linearRGBLo.y : linearRGBHi.y,
+	color.b = (color.b <= 0.04045) ? linearRGBLo.z : linearRGBHi.z;
 	return color;
 }
 
 static inline Color LinearToGamma(Color color)
 {
-	// http://www.frostbite.com/wp-content/uploads/2014/11/course_notes_moving_frostbite_to_pbr.pdf pg87
-	float<3> colorVec = { color.r_, color.g_, color.b_ };
-	float<3> sRGBLo = { color.r_ * 12.92, color.g_ * 12.92, color.b_ * 12.92 };
+	// http://www.frostbite.com/wp-content/uploads/2014/11/course_notes_movingfrostbite_to_pbr.pdf pg87
+	float<3> colorVec = { color.r, color.g, color.b };
+	float<3> sRGBLo = { color.r * 12.92, color.g * 12.92, color.b * 12.92 };
 	float<3> sRGBHi = {
 		(pow(abs(colorVec.x), 1.0 / 2.4) * 1.055) - 0.055,
 		(pow(abs(colorVec.y), 1.0 / 2.4) * 1.055) - 0.055,
 		(pow(abs(colorVec.z), 1.0 / 2.4) * 1.055) - 0.055
 	};
-	color.r_ = (color.r_ <= 0.0031308) ? sRGBLo.x : sRGBHi.x,
-	color.g_ = (color.g_ <= 0.0031308) ? sRGBLo.y : sRGBHi.y,
-	color.b_ = (color.b_ <= 0.0031308) ? sRGBLo.z : sRGBHi.z;
+	color.r = (color.r <= 0.0031308) ? sRGBLo.x : sRGBHi.x,
+	color.g = (color.g <= 0.0031308) ? sRGBLo.y : sRGBHi.y,
+	color.b = (color.b <= 0.0031308) ? sRGBLo.z : sRGBHi.z;
 	return color;
 }
 
@@ -77,6 +77,7 @@ export void ImageProc_Downsample2x(uniform int w, uniform int h, uniform const C
 {
 	uniform int hw = w / 2;
 	uniform int hh = h / 2;
+
 	foreach (y = 0 ... hh, x = 0 ... hw)
 	{
 		int inIdx = (x*2) + (y*2) * w;
@@ -113,6 +114,61 @@ export void ImageProc_LinearToGamma(uniform int w, uniform int h, uniform const 
 	}
 }
 
+
+
+export uniform float ImageProc_MSE(uniform int w, uniform int h, uniform const Color base[], uniform const Color compare[])
+{
+	uniform double numTexels = w * h;
+	double sumSq = 0.0;
+
+	foreach (y = 0 ... h, x = 0 ... w)
+	{
+		int inIdx = x + y * w;
+
+		Color baseTexel = base[inIdx];
+		Color compareTexel = compare[inIdx];
+
+		Color diff = {
+			baseTexel.r - compareTexel.r,
+			baseTexel.g - compareTexel.g,
+			baseTexel.b - compareTexel.b,
+			baseTexel.a - compareTexel.a,
+		};
+
+		double error = (diff.r + diff.g + diff.b + diff.a) * 0.25;
+		sumSq += error * error;
+	}
+
+	return reduce_add(sumSq) / numTexels;
+}
+
+
+export uniform float ImageProc_MSE_R8G8B8A8(uniform int w, uniform int h, uniform const Color_R8G8B8A8 base[], uniform const Color_R8G8B8A8 compare[])
+{
+	uniform double numTexels = w * h;
+	double sumSq = 0.0;
+
+	foreach (y = 0 ... h, x = 0 ... w)
+	{
+		int inIdx = x + y * w;
+
+		Color_R8G8B8A8 baseTexel = base[inIdx];
+		Color_R8G8B8A8 compareTexel = compare[inIdx];
+
+		Color_R8G8B8A8 diff = {
+			baseTexel.r - compareTexel.r,
+			baseTexel.g - compareTexel.g,
+			baseTexel.b - compareTexel.b,
+			baseTexel.a - compareTexel.a,
+		};
+
+		double error = ((double)diff.r + (double)diff.g + (double)diff.b + (double)diff.a) * 0.25;
+		sumSq += error * error;
+	}
+
+	return reduce_add(sumSq) / numTexels;
+}
+
 export void ImageProc_Unpack_R8G8B8A8(uniform int numTexels, uniform const Color_R8G8B8A8 input[], uniform Color output[])
 {
 	const float scale = 255.0;
@@ -120,10 +176,10 @@ export void ImageProc_Unpack_R8G8B8A8(uniform int numTexels, uniform const Color
 	{
 		Color_R8G8B8A8 inTexel = input[i];
 		Color outTexel;
-		outTexel.r_ = (float)inTexel.r_ / scale;
-		outTexel.g_ = (float)inTexel.g_ / scale;
-		outTexel.b_ = (float)inTexel.b_ / scale;
-		outTexel.a_ = (float)inTexel.a_ / scale;
+		outTexel.r = (float)inTexel.r / scale;
+		outTexel.g = (float)inTexel.g / scale;
+		outTexel.b = (float)inTexel.b / scale;
+		outTexel.a = (float)inTexel.a / scale;
 		output[i] = outTexel;
 	}
 }
@@ -135,11 +191,12 @@ export void ImageProc_Pack_R8G8B8A8(uniform int numTexels, uniform const Color i
 	{
 		Color inTexel = input[i];
 		Color_R8G8B8A8 outTexel;
-		outTexel.r_ = (u8)(clamp(inTexel.r_, 0.0, 1.0) * scale);
-		outTexel.g_ = (u8)(clamp(inTexel.g_, 0.0, 1.0) * scale);
-		outTexel.b_ = (u8)(clamp(inTexel.b_, 0.0, 1.0) * scale);
-		outTexel.a_ = (u8)(clamp(inTexel.a_, 0.0, 1.0) * scale);
+		outTexel.r = (u8)(clamp(inTexel.r, 0.0, 1.0) * scale);
+		outTexel.g = (u8)(clamp(inTexel.g, 0.0, 1.0) * scale);
+		outTexel.b = (u8)(clamp(inTexel.b, 0.0, 1.0) * scale);
+		outTexel.a = (u8)(clamp(inTexel.a, 0.0, 1.0) * scale);
 		output[i] = outTexel;
 	}
 }
+
 
