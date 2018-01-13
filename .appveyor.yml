@@ -1,4 +1,4 @@
-os: Visual Studio 2015
+os: Visual Studio 2017
 
 platform: x64
 
@@ -22,7 +22,7 @@ before_build:
   - cmd: cd c:\projects\engine
   - cmd: if not exist "build" mkdir build
   - cmd: cd build
-  - cmd: cmake.exe .. -G "Visual Studio 14 2015 Win64"
+  - cmd: cmake.exe .. -G "Visual Studio 15 2017 Win64"
 
 build:
   project: build/Engine.sln
