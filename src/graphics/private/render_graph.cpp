@@ -157,7 +157,7 @@ namespace Graphics
 						    }
 					    }
 					    return false;
-					});
+				    });
 
 				if(foundIt == transientResources_.end())
 				{

@@ -667,8 +667,9 @@ namespace MeshTools
 		mesh->vertices_.resize(geom->GetVertexCount());
 		mesh->triangles_.resize(geom->GetTriangleCount());
 
-		auto GetVec2 = [](
-		    spRealArray arr, i32 idx) { return Math::Vec2(arr->GetItem(idx * 2), arr->GetItem(idx * 2 + 1)); };
+		auto GetVec2 = [](spRealArray arr, i32 idx) {
+			return Math::Vec2(arr->GetItem(idx * 2), arr->GetItem(idx * 2 + 1));
+		};
 
 		auto GetVec3 = [](spRealArray arr, i32 idx) {
 			return Math::Vec3(arr->GetItem(idx * 3), arr->GetItem(idx * 3 + 1), arr->GetItem(idx * 3 + 2));

@@ -154,13 +154,13 @@ namespace Testbed
 			                builder.Write(builder.Create("LC LightCB", RenderGraphBufferDesc(sizeof(LightConstants))));
 			            data.outLightSB_ = builder.Write(
 			                builder.Create("LC LightSB", RenderGraphBufferDesc(sizeof(Light) * light.numLights_)));
-			        },
+		            },
 		            [](RenderGraphResources& res, GPU::CommandList& cmdList, const UpdateLightsPassData& data) {
 			            cmdList.UpdateBuffer(res.GetBuffer(data.outLightCB_), 0, sizeof(data.light_), &data.light_);
 			            cmdList.UpdateBuffer(
 			                res.GetBuffer(data.outLightSB_), 0, sizeof(Light) * data.light_.numLights_, data.lights_);
 
-			        })
+		            })
 		        .GetData();
 
 		auto& computeTileInfoPassData =
@@ -183,16 +183,16 @@ namespace Testbed
 
 			            data.viewBindings_ = shader->CreateBindingSet("ViewBindings");
 			            data.tileInfoBindings_ = shader->CreateBindingSet("TileInfoBindings");
-			        },
+		            },
 		            [](RenderGraphResources& res, GPU::CommandList& cmdList, const ComputeTileInfoPassData& data) {
 			            ShaderContext shaderCtx(cmdList);
 
 			            data.viewBindings_.Set("viewParams", res.CBuffer(data.inViewCB_, 0, sizeof(ViewConstants)));
 			            data.viewBindings_.Set("lightParams", res.CBuffer(data.inLightCB_, 0, sizeof(LightConstants)));
 
-			            data.tileInfoBindings_.Set("outTileInfo",
-			                res.RWBuffer(data.outTileInfoSB_, GPU::Format::INVALID, 0,
-			                    data.light_.numTilesX_ * data.light_.numTilesY_, sizeof(TileInfo)));
+			            data.tileInfoBindings_.Set(
+			                "outTileInfo", res.RWBuffer(data.outTileInfoSB_, GPU::Format::INVALID, 0,
+			                                   data.light_.numTilesX_ * data.light_.numTilesY_, sizeof(TileInfo)));
 
 			            /**
 						 * TODO: Support taking multiple bindings as parameters?
@@ -212,7 +212,7 @@ namespace Testbed
 						            cmdList.Dispatch(ps, pb, data.light_.numTilesX_, data.light_.numTilesY_, 1);
 				            }
 			            }
-			        })
+		            })
 		        .GetData();
 
 		auto& computeLightListsPassData =
@@ -235,9 +235,9 @@ namespace Testbed
 			            data.outLightIndex_ =
 			                builder.Write(builder.Create("LC Light Link Index SB", RenderGraphBufferDesc(sizeof(u32))),
 			                    GPU::BindFlags::UNORDERED_ACCESS);
-			            data.outLightTex_ = builder.Write(builder.Create("LC Light Tex",
-			                                                  RenderGraphTextureDesc(GPU::TextureType::TEX2D,
-			                                                      lightTexFormat, light.numTilesX_, light.numTilesY_)),
+			            data.outLightTex_ = builder.Write(
+			                builder.Create("LC Light Tex", RenderGraphTextureDesc(GPU::TextureType::TEX2D,
+			                                                   lightTexFormat, light.numTilesX_, light.numTilesY_)),
 			                GPU::BindFlags::UNORDERED_ACCESS);
 			            data.outLightIndicesSB_ =
 			                builder.Write(builder.Create("LC Light Indices SB",
@@ -249,7 +249,7 @@ namespace Testbed
 			            data.viewBindings_ = shader->CreateBindingSet("ViewBindings");
 			            data.lightBindings_ = shader->CreateBindingSet("LightBindings");
 			            data.lightListBindings_ = shader->CreateBindingSet("LightListBindings");
-			        },
+		            },
 		            [lightTexFormat](
 		                RenderGraphResources& res, GPU::CommandList& cmdList, const ComputeLightListsPassData& data) {
 			            ShaderContext shaderCtx(cmdList);
@@ -261,19 +261,18 @@ namespace Testbed
 			            data.viewBindings_.Set("viewParams", res.CBuffer(data.inViewCB_, 0, sizeof(ViewConstants)));
 			            data.viewBindings_.Set("lightParams", res.CBuffer(data.inLightCB_, 0, sizeof(LightConstants)));
 
-			            data.lightBindings_.Set("inLights",
-			                res.Buffer(
-			                    data.inLightSB_, GPU::Format::INVALID, 0, data.light_.numLights_, sizeof(Light)));
+			            data.lightBindings_.Set("inLights", res.Buffer(data.inLightSB_, GPU::Format::INVALID, 0,
+			                                                    data.light_.numLights_, sizeof(Light)));
 
-			            data.lightListBindings_.Set("inTileInfo",
-			                res.Buffer(data.inTileInfoSB_, GPU::Format::INVALID, 0,
-			                    data.light_.numTilesX_ * data.light_.numTilesY_, sizeof(TileInfo)));
+			            data.lightListBindings_.Set(
+			                "inTileInfo", res.Buffer(data.inTileInfoSB_, GPU::Format::INVALID, 0,
+			                                  data.light_.numTilesX_ * data.light_.numTilesY_, sizeof(TileInfo)));
 			            data.lightListBindings_.Set("lightIndex",
 			                res.RWBuffer(data.outLightIndex_, GPU::Format::R32_TYPELESS, 0, sizeof(u32), 0));
 			            data.lightListBindings_.Set("outLightTex", res.RWTexture2D(data.outLightTex_, lightTexFormat));
-			            data.lightListBindings_.Set("outLightIndices",
-			                res.RWBuffer(
-			                    data.outLightIndicesSB_, GPU::Format::INVALID, 0, LIGHT_BUFFER_SIZE, sizeof(i32)));
+			            data.lightListBindings_.Set(
+			                "outLightIndices", res.RWBuffer(data.outLightIndicesSB_, GPU::Format::INVALID, 0,
+			                                       LIGHT_BUFFER_SIZE, sizeof(i32)));
 			            data.lightListBindings_.Set("depthTex", res.Texture2D(data.inDepth_, data.depthFormat_, 0, 1));
 
 			            if(auto viewBind = shaderCtx.BeginBindingScope(data.viewBindings_))
@@ -289,7 +288,7 @@ namespace Testbed
 					            }
 				            }
 			            }
-			        })
+		            })
 		        .GetData();
 
 		auto& debugOutputPassData =
@@ -322,7 +321,7 @@ namespace Testbed
 			            data.viewBindings_ = shader->CreateBindingSet("ViewBindings");
 			            data.lightListBindings_ = shader->CreateBindingSet("LightListBindings");
 			            data.debugBindings_ = shader->CreateBindingSet("DebugBindings");
-			        },
+		            },
 		            [lightTexFormat](
 		                RenderGraphResources& res, GPU::CommandList& cmdList, const DebugOutputPassData& data) {
 			            ShaderContext shaderCtx(cmdList);
@@ -330,17 +329,16 @@ namespace Testbed
 			            data.viewBindings_.Set("viewParams", res.CBuffer(data.inViewCB_, 0, sizeof(ViewConstants)));
 			            data.viewBindings_.Set("lightParams", res.CBuffer(data.inLightCB_, 0, sizeof(LightConstants)));
 
-			            data.lightListBindings_.Set("inTileInfo",
-			                res.Buffer(data.inTileInfoSB_, GPU::Format::INVALID, 0,
-			                    data.light_.numTilesX_ * data.light_.numTilesY_, sizeof(TileInfo)));
-			            data.lightListBindings_.Set("inLights",
-			                res.Buffer(
-			                    data.inLightSB_, GPU::Format::INVALID, 0, data.light_.numLights_, sizeof(Light)));
+			            data.lightListBindings_.Set(
+			                "inTileInfo", res.Buffer(data.inTileInfoSB_, GPU::Format::INVALID, 0,
+			                                  data.light_.numTilesX_ * data.light_.numTilesY_, sizeof(TileInfo)));
+			            data.lightListBindings_.Set("inLights", res.Buffer(data.inLightSB_, GPU::Format::INVALID, 0,
+			                                                        data.light_.numLights_, sizeof(Light)));
 			            data.lightListBindings_.Set(
 			                "inLightTex", res.Texture2D(data.inLightTex_, lightTexFormat, 0, 1));
-			            data.lightListBindings_.Set("inLightIndices",
-			                res.Buffer(
-			                    data.inLightIndicesSB_, GPU::Format::INVALID, 0, LIGHT_BUFFER_SIZE, sizeof(i32)));
+			            data.lightListBindings_.Set(
+			                "inLightIndices", res.Buffer(data.inLightIndicesSB_, GPU::Format::INVALID, 0,
+			                                      LIGHT_BUFFER_SIZE, sizeof(i32)));
 
 			            data.debugBindings_.Set(
 			                "outDebug", res.RWTexture2D(data.outDebug_, GPU::Format::R32G32B32A32_FLOAT));
@@ -358,7 +356,7 @@ namespace Testbed
 					            }
 				            }
 			            }
-			        })
+		            })
 		        .GetData();
 
 		// Setup output.
@@ -437,7 +435,7 @@ namespace Testbed
 			    data.outDepth_ = builder.SetDSV(depth);
 
 			    data.viewBindings_ = Shader::CreateSharedBindingSet("ViewBindings");
-			},
+		    },
 
 		    [](RenderGraphResources& res, GPU::CommandList& cmdList, const DepthPassData& data) {
 
@@ -461,7 +459,7 @@ namespace Testbed
 
 				    data.drawFn_(drawCtx);
 			    }
-			});
+		    });
 
 		auto& hizPass = renderGraph.AddCallbackRenderPass<HiZPassData>("Hi-Z Pass",
 		    [&](RenderGraphBuilder& builder, HiZPassData& data) {
@@ -491,7 +489,7 @@ namespace Testbed
 			    data.techMip_ = shader->CreateTechnique("TECH_COMPUTE_HIZ_MIP", ShaderTechniqueDesc());
 
 			    data.hizBindings_ = shader->CreateBindingSet("HiZBindings");
-			},
+		    },
 
 		    [](RenderGraphResources& res, GPU::CommandList& cmdList, const HiZPassData& data) {
 			    ShaderContext shaderCtx(cmdList);
@@ -528,7 +526,7 @@ namespace Testbed
 						    cmdList.Dispatch(ps, pb, GetGroups(w), GetGroups(h), 1);
 				    }
 			    }
-			});
+		    });
 
 		DepthData output;
 		output.outDepth_ = depthPass.GetData().outDepth_;
@@ -608,7 +606,7 @@ namespace Testbed
 			    // Setup frame buffer.
 			    data.outColor_ = builder.SetRTV(0, color);
 			    data.outDepth_ = builder.SetDSV(depth);
-			},
+		    },
 		    [](RenderGraphResources& res, GPU::CommandList& cmdList, const ForwardPassData& data) {
 			    auto fbs = res.GetFrameBindingSet();
 
@@ -645,7 +643,7 @@ namespace Testbed
 					    }
 				    }
 			    }
-			});
+		    });
 
 		ForwardData output;
 		output.outColor_ = pass.GetData().outColor_;
@@ -698,7 +696,7 @@ namespace Testbed
 			    // Setup frame buffer.
 			    data.outColor_ = builder.SetRTV(0, color);
 
-			},
+		    },
 
 		    [](RenderGraphResources& res, GPU::CommandList& cmdList, const FullscreenPassData& data) {
 			    GPU::FrameBindingSetDesc fbsDesc;
@@ -719,7 +717,7 @@ namespace Testbed
 					    cmdList.Draw(ps, pb, GPU::Handle(), fbs, data.drawState_, GPU::PrimitiveTopology::TRIANGLE_LIST,
 					        0, 0, 3, 0, 1);
 			    }
-			});
+		    });
 
 		FullscreenData output;
 		output.outColor_ = pass.GetData().outColor_;
@@ -805,11 +803,11 @@ namespace Testbed
 			        builder.Write(builder.Create("View Constants", viewCBDesc), GPU::BindFlags::CONSTANT_BUFFER);
 			    data.cbs_.objectSB_ =
 			        builder.Write(builder.Create("Object Constants", objectSBDesc), GPU::BindFlags::SHADER_RESOURCE);
-			},
+		    },
 		    [](RenderGraphResources& res, GPU::CommandList& cmdList, const ViewConstantData& data) {
 			    cmdList.UpdateBuffer(
 			        res.GetBuffer(data.cbs_.viewCB_), 0, sizeof(data.view_), cmdList.Push(&data.view_));
-			});
+		    });
 
 		auto cbs = renderPassCommonBuffers.GetData().cbs_;
 
@@ -826,7 +824,7 @@ namespace Testbed
 			AddFullscreenPass(drawFn_, renderGraph, cbs, resources_[0], shader_,
 			    [&](RenderGraphBuilder& builder) {
 				    debugTex = builder.Read(debugTex, GPU::BindFlags::SHADER_RESOURCE);
-				},
+			    },
 			    /*[debugTex](RenderGraphResources& res, Shader* shader, ShaderTechnique& tech) {
 				    tech.Set("debugTex", res.Texture2D(debugTex, GPU::Format::INVALID, 0, -1));
 				}*/ nullptr);

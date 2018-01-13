@@ -103,7 +103,14 @@ namespace Client
 	void WindowImpl::HandleEventMouse(const SDL_Event& event)
 	{
 		static const i32 BUTTON_MAPPING[8] = {
-		    -1, 0, 2, 1, 3, 4, 5, 6,
+		    -1,
+		    0,
+		    2,
+		    1,
+		    3,
+		    4,
+		    5,
+		    6,
 		};
 		if(event.button.button < 0 || event.button.button > 7)
 			return;

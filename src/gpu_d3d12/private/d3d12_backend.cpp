@@ -33,8 +33,9 @@ EXPORT bool GetPlugin(struct Plugin::Plugin* outPlugin, Core::UUID uuid)
 		{
 			auto* plugin = static_cast<GPU::BackendPlugin*>(outPlugin);
 			plugin->api_ = "D3D12";
-			plugin->CreateBackend = [](
-			    const GPU::SetupParams& setupParams) -> GPU::IBackend* { return new GPU::D3D12Backend(setupParams); };
+			plugin->CreateBackend = [](const GPU::SetupParams& setupParams) -> GPU::IBackend* {
+				return new GPU::D3D12Backend(setupParams);
+			};
 			plugin->DestroyBackend = [](GPU::IBackend*& backend) {
 				delete backend;
 				backend = nullptr;
@@ -1165,9 +1166,10 @@ namespace GPU
 			auto& srcPBS = pipelineBindingSets_[src[i].pbs_.GetIndex()];
 
 			auto CopyRange = [d3dDevice](D3D12DescriptorAllocation& dstAlloc,
-			    Core::Vector<D3D12SubresourceRange>& dstTransitions, i32 dstOffset, D3D12DescriptorAllocation& srcAlloc,
-			    Core::Vector<D3D12SubresourceRange>& srcTransitions, i32 srcOffset, i32 num,
-			    D3D12_DESCRIPTOR_HEAP_TYPE type, i32 incr, DescriptorHeapSubType subType) {
+			                     Core::Vector<D3D12SubresourceRange>& dstTransitions, i32 dstOffset,
+			                     D3D12DescriptorAllocation& srcAlloc,
+			                     Core::Vector<D3D12SubresourceRange>& srcTransitions, i32 srcOffset, i32 num,
+			                     D3D12_DESCRIPTOR_HEAP_TYPE type, i32 incr, DescriptorHeapSubType subType) {
 				D3D12_CPU_DESCRIPTOR_HANDLE dstHandle = dstAlloc.GetCPUHandle(dstOffset);
 				D3D12_CPU_DESCRIPTOR_HANDLE srcHandle = srcAlloc.GetCPUHandle(srcOffset);
 				DBG_ASSERT(dstHandle.ptr);

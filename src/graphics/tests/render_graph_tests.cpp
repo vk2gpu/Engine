@@ -427,7 +427,8 @@ namespace
 			Core::ArrayView<const char*> GetResourceNames() const override
 			{
 				static Core::Array<const char*, 2> resourceNames = {
-				    "in_color", "out_color",
+				    "in_color",
+				    "out_color",
 				};
 				return Core::ArrayView<const char*>(resourceNames.data(), resourceNames.size());
 			}

@@ -559,8 +559,9 @@ namespace MeshTools
 		mesh->vertices_.resize(geom->GetVertexCount());
 		mesh->triangles_.resize(geom->GetTriangleCount());
 
-		auto GetVec2 = [](
-		    spRealArray arr, i32 idx) { return Math::Vec2(arr->GetItem(idx * 2), arr->GetItem(idx * 2 + 1)); };
+		auto GetVec2 = [](spRealArray arr, i32 idx) {
+			return Math::Vec2(arr->GetItem(idx * 2), arr->GetItem(idx * 2 + 1));
+		};
 
 		auto GetVec3 = [](spRealArray arr, i32 idx) {
 			return Math::Vec3(arr->GetItem(idx * 3), arr->GetItem(idx * 3 + 1), arr->GetItem(idx * 3 + 2));
@@ -962,12 +963,10 @@ void ClusteredModel::DrawClusters(Testbed::DrawContext& drawCtx, Testbed::Object
 
 			cullClusterBindings_.Set("inCluster",
 			    GPU::Binding::Buffer(clusterBuffer_, GPU::Format::INVALID, 0, clusters_.size(), sizeof(MeshCluster)));
-			cullClusterBindings_.Set("inClusterBounds",
-			    GPU::Binding::Buffer(
-			        boundsBuffer_, GPU::Format::INVALID, 0, clusterBounds_.size(), sizeof(Math::AABB)));
-			cullClusterBindings_.Set("outDrawArgs",
-			    GPU::Binding::RWBuffer(
-			        drawArgsBuffer_, GPU::Format::INVALID, 0, clusters_.size(), sizeof(GPU::DrawIndexedArgs)));
+			cullClusterBindings_.Set("inClusterBounds", GPU::Binding::Buffer(boundsBuffer_, GPU::Format::INVALID, 0,
+			                                                clusterBounds_.size(), sizeof(Math::AABB)));
+			cullClusterBindings_.Set("outDrawArgs", GPU::Binding::RWBuffer(drawArgsBuffer_, GPU::Format::INVALID, 0,
+			                                            clusters_.size(), sizeof(GPU::DrawIndexedArgs)));
 			cullClusterBindings_.Set("outDrawCount",
 			    GPU::Binding::RWBuffer(drawCountBuffer_, GPU::Format::INVALID, 0, meshes_.size(), sizeof(u32)));
 
@@ -1011,9 +1010,8 @@ void ClusteredModel::DrawClusters(Testbed::DrawContext& drawCtx, Testbed::Object
 							if(drawCtx.customBindFn_)
 								drawCtx.customBindFn_(techs_[meshIdx].material_->GetShader(), tech);
 
-							objectBindings_.Set("inObject",
-							    GPU::Binding::Buffer(
-							        drawCtx.objectSBHandle_, GPU::Format::INVALID, 0, 1, objectDataSize));
+							objectBindings_.Set("inObject", GPU::Binding::Buffer(drawCtx.objectSBHandle_,
+							                                    GPU::Format::INVALID, 0, 1, objectDataSize));
 
 							if(auto objectBind = drawCtx.shaderCtx_.BeginBindingScope(objectBindings_))
 							{
@@ -1048,9 +1046,8 @@ void ClusteredModel::DrawClusters(Testbed::DrawContext& drawCtx, Testbed::Object
 							if(drawCtx.customBindFn_)
 								drawCtx.customBindFn_(techs_[meshIdx].material_->GetShader(), tech);
 
-							objectBindings_.Set("inObject",
-							    GPU::Binding::Buffer(
-							        drawCtx.objectSBHandle_, GPU::Format::INVALID, 0, 1, objectDataSize));
+							objectBindings_.Set("inObject", GPU::Binding::Buffer(drawCtx.objectSBHandle_,
+							                                    GPU::Format::INVALID, 0, 1, objectDataSize));
 							if(auto objectBind = drawCtx.shaderCtx_.BeginBindingScope(objectBindings_))
 							{
 								GPU::Handle ps;

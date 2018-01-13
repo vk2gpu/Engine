@@ -95,7 +95,7 @@ namespace Core
 			FN_B(outVal, intermediate.data(), c);
 		}
 
-		// @clang-format off
+		// clang-format off
 		ConvertFn* FLOATtoFLOATFns[] = {
 		    // 8 -> (8, 16, 32)
 		    nullptr, nullptr, nullptr,
@@ -310,7 +310,7 @@ namespace Core
 		    SINTtoFLOATFns, nullptr, nullptr, SINTtoUINTFns, SINTtoSINTFns,
 		};
 
-		// @clang-format on
+		// clang-format on
 	}
 
 	bool Convert(StreamDesc outStream, StreamDesc inStream, i32 num, i32 components)

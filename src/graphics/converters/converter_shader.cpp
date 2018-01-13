@@ -158,8 +158,8 @@ namespace
 
 				Graphics::ShaderCompilerHLSL compilerHLSL;
 				auto GenerateAndCompile = [&](const Graphics::BindingMap& bindingMap,
-				    Core::Vector<CompileInfo>& outCompileInfo,
-				    Core::Vector<Graphics::ShaderCompileOutput>& outCompileOutput) {
+				                              Core::Vector<CompileInfo>& outCompileInfo,
+				                              Core::Vector<Graphics::ShaderCompileOutput>& outCompileOutput) {
 					outCompileInfo.clear();
 					outCompileOutput.clear();
 
@@ -240,8 +240,8 @@ namespace
 
 				// Get list of all used bindings.
 				Graphics::BindingMap usedBindings;
-				const auto AddBindings = [](
-				    const Core::Vector<Graphics::ShaderBinding>& inBindings, Graphics::BindingMap& outBindings) {
+				const auto AddBindings = [](const Core::Vector<Graphics::ShaderBinding>& inBindings,
+				                             Graphics::BindingMap& outBindings) {
 					for(const auto& binding : inBindings)
 					{
 						if(outBindings.find(binding.name_) == outBindings.end())
@@ -296,8 +296,9 @@ namespace
 				outBindingHeaders.reserve(cbvs.size() + srvs.size() + uavs.size() + samplers.size());
 
 				const auto PopulateOutBindingHeaders = [&outBindingHeaders](
-				    const Graphics::ShaderBindingSetInfo& bindingSet, const Graphics::BindingMap& bindings,
-				    Graphics::ShaderBindingFlags flags, i32 baseIdx, i32 num) {
+				                                           const Graphics::ShaderBindingSetInfo& bindingSet,
+				                                           const Graphics::BindingMap& bindings,
+				                                           Graphics::ShaderBindingFlags flags, i32 baseIdx, i32 num) {
 
 					bool bindingSetUsed = false;
 					for(i32 idx = 0; idx < num; ++idx)

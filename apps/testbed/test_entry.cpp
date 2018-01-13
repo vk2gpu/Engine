@@ -271,10 +271,18 @@ namespace
 			}
 
 			Core::Array<ImColor, 12> colors = {
-			    ImColor(0.8f, 0.0f, 0.0f, 1.0f), ImColor(0.0f, 0.8f, 0.0f, 1.0f), ImColor(0.0f, 0.0f, 0.8f, 1.0f),
-			    ImColor(0.0f, 0.8f, 0.8f, 1.0f), ImColor(0.8f, 0.0f, 0.8f, 1.0f), ImColor(0.8f, 0.8f, 0.0f, 1.0f),
-			    ImColor(0.4f, 0.0f, 0.0f, 1.0f), ImColor(0.0f, 0.4f, 0.0f, 1.0f), ImColor(0.0f, 0.0f, 0.4f, 1.0f),
-			    ImColor(0.0f, 0.4f, 0.4f, 1.0f), ImColor(0.4f, 0.0f, 0.4f, 1.0f), ImColor(0.4f, 0.4f, 0.0f, 1.0f),
+			    ImColor(0.8f, 0.0f, 0.0f, 1.0f),
+			    ImColor(0.0f, 0.8f, 0.0f, 1.0f),
+			    ImColor(0.0f, 0.0f, 0.8f, 1.0f),
+			    ImColor(0.0f, 0.8f, 0.8f, 1.0f),
+			    ImColor(0.8f, 0.0f, 0.8f, 1.0f),
+			    ImColor(0.8f, 0.8f, 0.0f, 1.0f),
+			    ImColor(0.4f, 0.0f, 0.0f, 1.0f),
+			    ImColor(0.0f, 0.4f, 0.0f, 1.0f),
+			    ImColor(0.0f, 0.0f, 0.4f, 1.0f),
+			    ImColor(0.0f, 0.4f, 0.4f, 1.0f),
+			    ImColor(0.4f, 0.0f, 0.4f, 1.0f),
+			    ImColor(0.4f, 0.4f, 0.0f, 1.0f),
 			};
 
 			i32 numJobs = 0;
@@ -553,9 +561,15 @@ void Loop(const Core::CommandLine& cmdLine)
 	// For now, they can be permenent.
 	f32 angle = 0.0;
 	const Math::Vec3 positions[] = {
-	    Math::Vec3(-10.0f, 10.0f, -5.0f), Math::Vec3(-5.0f, 10.0f, -5.0f), Math::Vec3(0.0f, 10.0f, -5.0f),
-	    Math::Vec3(5.0f, 10.0f, -5.0f), Math::Vec3(10.0f, 10.0f, -5.0f), Math::Vec3(-10.0f, 10.0f, 5.0f),
-	    Math::Vec3(-5.0f, 10.0f, 5.0f), Math::Vec3(0.0f, 10.0f, 5.0f), Math::Vec3(5.0f, 10.0f, 5.0f),
+	    Math::Vec3(-10.0f, 10.0f, -5.0f),
+	    Math::Vec3(-5.0f, 10.0f, -5.0f),
+	    Math::Vec3(0.0f, 10.0f, -5.0f),
+	    Math::Vec3(5.0f, 10.0f, -5.0f),
+	    Math::Vec3(10.0f, 10.0f, -5.0f),
+	    Math::Vec3(-10.0f, 10.0f, 5.0f),
+	    Math::Vec3(-5.0f, 10.0f, 5.0f),
+	    Math::Vec3(0.0f, 10.0f, 5.0f),
+	    Math::Vec3(5.0f, 10.0f, 5.0f),
 	    Math::Vec3(10.0f, 10.0f, 5.0f),
 	};
 
