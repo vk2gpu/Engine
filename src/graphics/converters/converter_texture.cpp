@@ -22,8 +22,6 @@
 
 #include "serialization/serializer.h"
 
-#include <squish.h>
-
 #include <cstring>
 #include <utility>
 
@@ -119,11 +117,9 @@ namespace
 				auto formatInfo = GPU::GetFormatInfo(metaData.format_);
 				if(formatInfo.blockW_ > 1 || formatInfo.blockH_ > 1)
 				{
-					Image::Image encodedImage = EncodeAsBCn(image, metaData.format_);
-					if(encodedImage)
-					{
+					Image::Image encodedImage;
+					if(Image::Convert(encodedImage, image, metaData.format_))
 						image = std::move(encodedImage);
-					}
 				}
 			}
 			else
@@ -178,143 +174,6 @@ namespace
 				return true;
 			}
 			return false;
-		}
-
-		Image::Image EncodeAsBCn(const Image::Image& image, GPU::Format format)
-		{
-			auto formatInfo = GPU::GetFormatInfo(format);
-
-			if(image.GetType() != GPU::TextureType::TEX2D)
-			{
-				Core::Log("ERROR: Can only encode TEX2D as BC (for now)");
-				return Image::Image();
-			}
-
-			if(format == GPU::Format::BC1_TYPELESS || format == GPU::Format::BC1_UNORM ||
-			    format == GPU::Format::BC1_UNORM_SRGB || format == GPU::Format::BC2_TYPELESS ||
-			    format == GPU::Format::BC2_UNORM || format == GPU::Format::BC2_UNORM_SRGB ||
-			    format == GPU::Format::BC3_TYPELESS || format == GPU::Format::BC3_UNORM ||
-			    format == GPU::Format::BC3_UNORM_SRGB || format == GPU::Format::BC4_TYPELESS ||
-			    format == GPU::Format::BC4_UNORM || format == GPU::Format::BC4_SNORM ||
-			    format == GPU::Format::BC5_TYPELESS || format == GPU::Format::BC5_UNORM ||
-			    format == GPU::Format::BC5_SNORM)
-			{
-				u32 squishFormat = 0;
-
-				switch(format)
-				{
-				case GPU::Format::BC1_TYPELESS:
-				case GPU::Format::BC1_UNORM:
-				case GPU::Format::BC1_UNORM_SRGB:
-					squishFormat = squish::kBc1 | squish::kColourIterativeClusterFit;
-					break;
-				case GPU::Format::BC2_TYPELESS:
-				case GPU::Format::BC2_UNORM:
-				case GPU::Format::BC2_UNORM_SRGB:
-					squishFormat = squish::kBc2 | squish::kColourIterativeClusterFit | squish::kWeightColourByAlpha;
-					break;
-				case GPU::Format::BC3_TYPELESS:
-				case GPU::Format::BC3_UNORM:
-				case GPU::Format::BC3_UNORM_SRGB:
-					squishFormat = squish::kBc3 | squish::kColourIterativeClusterFit | squish::kWeightColourByAlpha;
-					break;
-				case GPU::Format::BC4_TYPELESS:
-				case GPU::Format::BC4_UNORM:
-				case GPU::Format::BC4_SNORM:
-					squishFormat = squish::kBc4;
-					break;
-				case GPU::Format::BC5_TYPELESS:
-				case GPU::Format::BC5_UNORM:
-				case GPU::Format::BC5_SNORM:
-					squishFormat = squish::kBc5;
-					break;
-				default:
-					DBG_ASSERT(false);
-				}
-
-				auto outImage =
-				    Image::Image(image.GetType(), format, Core::PotRoundUp(image.GetWidth(), formatInfo.blockW_),
-				        Core::PotRoundUp(image.GetHeight(), formatInfo.blockH_), image.GetDepth(), image.GetLevels(),
-				        nullptr, nullptr);
-
-				// Setup jobs.
-				struct JobParams
-				{
-					i32 inOffset_ = 0;
-					i32 outOffset_ = 0;
-					i32 w_ = 0;
-					i32 h_ = 0;
-				};
-
-				Core::Vector<JobParams> params;
-				params.reserve(image.GetLevels());
-
-				JobParams param;
-				for(i32 mip = 0; mip < image.GetLevels(); ++mip)
-				{
-					const i32 w = Core::Max(1, image.GetWidth() >> mip);
-					const i32 h = Core::Max(1, image.GetHeight() >> mip);
-					const i32 bw = Core::PotRoundUp(w, formatInfo.blockW_) / formatInfo.blockW_;
-					const i32 bh = Core::PotRoundUp(h, formatInfo.blockH_) / formatInfo.blockH_;
-
-					param.w_ = w;
-					param.h_ = h;
-
-					params.push_back(param);
-
-					param.inOffset_ += (param.w_ * param.h_ * 4);
-					param.outOffset_ += (bw * bh * formatInfo.blockBits_) / 8;
-				}
-
-				Job::FunctionJob encodeJob("Encode Job", [&params, squishFormat, &image, &outImage](i32 idx) {
-					auto param = params[idx];
-					auto* inData = image.GetMipData<u8>(0) + param.inOffset_;
-					auto* outData = outImage.GetMipData<u8>(0) + param.outOffset_;
-					auto w = param.w_;
-					auto h = param.h_;
-
-					// Squish takes RGBA8, so no need to convert before passing in.
-					if(w >= 4 && h >= 4)
-					{
-						squish::CompressImage(inData, w, h, outData, squishFormat);
-					}
-					// If less than block size, copy into a the appropriate block size block.
-					else if(w < 4 || h < 4)
-					{
-						auto rw = Core::PotRoundUp(w, 4);
-						auto rh = Core::PotRoundUp(h, 4);
-
-						Core::Vector<u32> block(rw * rh);
-
-						// Copy into single block.
-						for(i32 y = 0; y < h; ++y)
-						{
-							for(i32 x = 0; x < w; ++x)
-							{
-								i32 srcIdx = x + y * rw * 4; // 4 bytes per pixel.
-								i32 dstIdx = x + y * 4;
-								memcpy(&block[dstIdx], &inData[srcIdx], 4);
-							}
-						}
-
-						// Now encode.
-						squish::CompressImage(
-						    reinterpret_cast<squish::u8*>(block.data()), rw, rh, outData, squishFormat);
-					}
-					else
-					{
-						Core::Log("ERROR: Image can't be encoded. (%ux%u)", w, h);
-					}
-				});
-
-				Job::Counter* counter = nullptr;
-				encodeJob.RunMultiple(0, image.GetLevels() - 1, &counter);
-				Job::Manager::WaitForCounter(counter, 0);
-
-				return outImage;
-			}
-
-			return Image::Image();
 		}
 	};
 }

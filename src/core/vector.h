@@ -215,6 +215,8 @@ namespace Core
 		index_type capacity() const noexcept { return capacity_; }
 		bool empty() const noexcept { return size_ == 0; }
 
+		bool belongs(TYPE* ptr, i32 count) const { return ptr >= begin() && (ptr + count) <= end(); }
+
 	private:
 		static index_type getGrowCapacity(index_type currCapacity)
 		{

@@ -6,17 +6,21 @@ namespace Image
 {
 	class Image;
 
+	/**
+	 * Value in dB to treat as 'infinite'.
+	 */
 	static const f32 INFINITE_PSNR = 9999.0f;
 
-
 	/**
-	 * Convert @a input image to @a outFormat.
+	 * Convert @a input image to @a outFormat. 
+	 * @a output will be created if not provided.
 	 * @return success.
 	 */
 	IMAGE_DLL bool Convert(Image& output, const Image& input, ImageFormat outFormat);
 
 	/**
 	 * Gamma to Linear conversion.
+	 * @a output will be created if not provided.
 	 * @param output Output image.
 	 * @param input Input image.
 	 * @pre @a input format is R32G32B32A32_FLOAT.
@@ -26,6 +30,7 @@ namespace Image
 
 	/**
 	 * Linear to Gamma conversion.
+	 * @a output will be created if not provided.
 	 * @param output Output image.
 	 * @param input Input image.
 	 * @pre @a input format is R32G32B32A32_FLOAT.
@@ -35,6 +40,7 @@ namespace Image
 
 	/**
 	 * Generate mips.
+	 * @a output will be created if not provided.
 	 * @param output Output image.
 	 * @param input Input image.
 	 * @pre @a input format is R32G32B32A32_FLOAT.
@@ -43,7 +49,7 @@ namespace Image
 	IMAGE_DLL bool GenerateMips(Image& output, const Image& input);
 
 	/**
-	 * Calculate PSNR
+	 * Calculate PSNR.
 	 * @param base Base image.
 	 * @param compare Image to compare.
 	 * @return PSNR in dB

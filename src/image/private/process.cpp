@@ -3,9 +3,11 @@
 #include "image/process.h"
 #include "image/image.h"
 #include "image/ispc/image_processing_ispc.h"
+#include "image/ispc/ispc_texcomp_kernel_ispc.h"
 
 #include "core/misc.h"
 #include "core/type_conversion.h"
+#include "core/vector.h"
 #include "gpu/utils.h"
 #include "math/utils.h"
 
@@ -71,6 +73,113 @@ namespace Image
 			}
 
 			return true;
+		}
+
+		auto PadData = [](Core::Vector<u32>& paddedData, const u32* levelData, i32 levelW, i32 levelH, i32 paddedW,
+		                   i32 paddedH) {
+			// Always going largest to smallest, so only need to allocate once and reuse the memory
+			// for subsequent levels.
+			if(paddedData.empty())
+				paddedData.resize(paddedW * paddedH);
+
+			// Copy rows.
+			const u32* srcData = levelData;
+			u32* dstData = paddedData.data();
+			for(i32 y = 0; y < levelH; ++y)
+			{
+				DBG_ASSERT(paddedData.belongs(dstData, levelW));
+				memcpy(dstData, srcData, levelW * sizeof(u32));
+				dstData += paddedW;
+			}
+
+			// Pad out.
+			srcData = paddedData.data() + (levelW - 1);
+			dstData = paddedData.data() + levelW;
+			for(i32 y = 0; y < paddedH; ++y)
+			{
+				const u32 src = *srcData;
+				for(i32 x = levelW; x < paddedW; ++x)
+				{
+					DBG_ASSERT(paddedData.belongs(dstData, 1));
+					*dstData++ = src;
+				}
+				srcData += paddedW;
+				dstData += levelW;
+			}
+
+			srcData = paddedData.data() + ((levelH - 1) * paddedW);
+			dstData = paddedData.data() + (levelH * paddedW);
+			for(i32 y = levelH; y < paddedH; ++y)
+			{
+				DBG_ASSERT(paddedData.belongs(dstData, levelW));
+				memcpy(dstData, srcData, levelW * sizeof(u32));
+
+				srcData += levelW;
+				dstData += paddedW;
+			}
+		};
+
+		// Block compressed support.
+		if(input.GetFormat() == ImageFormat::R8G8B8A8_UNORM)
+		{
+			using CompressFn = void(ispc::rgba_surface*, uint8_t*);
+			CompressFn* compressFn = nullptr;
+
+			switch(output.GetFormat())
+			{
+			case ImageFormat::BC1_UNORM:
+			case ImageFormat::BC1_UNORM_SRGB:
+				compressFn = ispc::CompressBlocksBC1_ispc;
+				break;
+			case ImageFormat::BC3_UNORM:
+			case ImageFormat::BC3_UNORM_SRGB:
+				compressFn = ispc::CompressBlocksBC3_ispc;
+				break;
+			case ImageFormat::BC4_UNORM:
+				//case ImageFormat::BC4_SNORM:
+				compressFn = ispc::CompressBlocksBC4_ispc;
+				break;
+			case ImageFormat::BC5_UNORM:
+				//case ImageFormat::BC5_SNORM:
+				compressFn = ispc::CompressBlocksBC5_ispc;
+				break;
+			}
+
+			if(compressFn)
+			{
+				const i32 numLevels = Core::Min(input.GetLevels(), output.GetLevels());
+				i32 levelW = input.GetWidth();
+				i32 levelH = input.GetHeight();
+
+				Core::Vector<u32> tempPadding;
+
+				for(i32 level = 0; level < output.GetLevels(); ++level)
+				{
+					const i32 paddedW = Core::PotRoundUp(levelW, 4);
+					const i32 paddedH = Core::PotRoundUp(levelH, 4);
+
+					const u32* levelData = input.GetMipData<u32>(level);
+
+					// If the level data is not the correct size then we'll need to pad it out.
+					if((levelW & 3) != 0 || (levelH & 3) != 0)
+					{
+						PadData(tempPadding, levelData, levelW, levelH, paddedW, paddedH);
+						levelData = tempPadding.data();
+					}
+
+					ispc::rgba_surface surface;
+					surface.ptr = (u8*)(levelData);
+					surface.width = paddedW;
+					surface.height = paddedH;
+					surface.stride = paddedW * sizeof(u32);
+					compressFn(&surface, output.GetMipData<u8>(level));
+
+					levelW = Core::Max(levelW >> 1, 1);
+					levelH = Core::Max(levelH >> 1, 1);
+				}
+
+				return true;
+			}
 		}
 
 		// Fallback to generic conversion.

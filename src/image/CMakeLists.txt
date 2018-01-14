@@ -20,6 +20,7 @@ SET(SOURCES_PRIVATE
 
 SET(SOURCES_ISPC
 	"ispc/image_processing.ispc"
+	"ispc/ispc_texcomp_kernel.ispc"
 )
 
 SET(SOURCES_TESTS
