@@ -76,7 +76,7 @@ namespace
 			{
 				if(metaData.isInitialized_ == false)
 				{
-					metaData.format_ = GPU::Format::BC3_UNORM;
+					metaData.format_ = GPU::Format::BC7_UNORM;
 					metaData.generateMipLevels_ = true;
 				}
 
@@ -118,7 +118,8 @@ namespace
 				if(formatInfo.blockW_ > 1 || formatInfo.blockH_ > 1)
 				{
 					Image::Image encodedImage;
-					if(Image::Convert(encodedImage, image, metaData.format_))
+					// TODO: Use better than VERY_LOW in tools.
+					if(Image::Convert(encodedImage, image, metaData.format_, Image::ConvertQuality::VERY_LOW))
 						image = std::move(encodedImage);
 				}
 			}

@@ -16,6 +16,405 @@
 #include <cmath>
 #include <utility>
 
+namespace
+{
+	using namespace ispc;
+
+	void GetProfile_ultrafast(bc7_enc_settings* settings)
+	{
+		settings->channels = 3;
+
+		// mode02
+		settings->mode_selection[0] = false;
+		settings->skip_mode2 = true;
+
+		settings->refineIterations[0] = 2;
+		settings->refineIterations[2] = 2;
+
+		// mode13
+		settings->mode_selection[1] = false;
+		settings->fastSkipTreshold_mode1 = 3;
+		settings->fastSkipTreshold_mode3 = 1;
+		settings->fastSkipTreshold_mode7 = 0;
+
+		settings->refineIterations[1] = 2;
+		settings->refineIterations[3] = 1;
+
+		// mode45
+		settings->mode_selection[2] = false;
+
+		settings->mode45_channel0 = 0;
+		settings->refineIterations_channel = 0;
+		settings->refineIterations[4] = 2;
+		settings->refineIterations[5] = 2;
+
+		// mode6
+		settings->mode_selection[3] = true;
+
+		settings->refineIterations[6] = 1;
+	}
+
+	void GetProfile_veryfast(bc7_enc_settings* settings)
+	{
+		settings->channels = 3;
+
+		// mode02
+		settings->mode_selection[0] = false;
+		settings->skip_mode2 = true;
+
+		settings->refineIterations[0] = 2;
+		settings->refineIterations[2] = 2;
+
+		// mode13
+		settings->mode_selection[1] = true;
+		settings->fastSkipTreshold_mode1 = 3;
+		settings->fastSkipTreshold_mode3 = 1;
+		settings->fastSkipTreshold_mode7 = 0;
+
+		settings->refineIterations[1] = 2;
+		settings->refineIterations[3] = 1;
+
+		// mode45
+		settings->mode_selection[2] = false;
+
+		settings->mode45_channel0 = 0;
+		settings->refineIterations_channel = 0;
+		settings->refineIterations[4] = 2;
+		settings->refineIterations[5] = 2;
+
+		// mode6
+		settings->mode_selection[3] = true;
+
+		settings->refineIterations[6] = 1;
+	}
+
+	void GetProfile_fast(bc7_enc_settings* settings)
+	{
+		settings->channels = 3;
+
+		// mode02
+		settings->mode_selection[0] = false;
+		settings->skip_mode2 = true;
+
+		settings->refineIterations[0] = 2;
+		settings->refineIterations[2] = 2;
+
+		// mode13
+		settings->mode_selection[1] = true;
+		settings->fastSkipTreshold_mode1 = 12;
+		settings->fastSkipTreshold_mode3 = 4;
+		settings->fastSkipTreshold_mode7 = 0;
+
+		settings->refineIterations[1] = 2;
+		settings->refineIterations[3] = 1;
+
+		// mode45
+		settings->mode_selection[2] = false;
+
+		settings->mode45_channel0 = 0;
+		settings->refineIterations_channel = 0;
+		settings->refineIterations[4] = 2;
+		settings->refineIterations[5] = 2;
+
+		// mode6
+		settings->mode_selection[3] = true;
+
+		settings->refineIterations[6] = 2;
+	}
+
+	void GetProfile_basic(bc7_enc_settings* settings)
+	{
+		settings->channels = 3;
+
+		// mode02
+		settings->mode_selection[0] = true;
+		settings->skip_mode2 = true;
+
+		settings->refineIterations[0] = 2;
+		settings->refineIterations[2] = 2;
+
+		// mode13
+		settings->mode_selection[1] = true;
+		settings->fastSkipTreshold_mode1 = 8 + 4;
+		settings->fastSkipTreshold_mode3 = 8;
+		settings->fastSkipTreshold_mode7 = 0;
+
+		settings->refineIterations[1] = 2;
+		settings->refineIterations[3] = 2;
+
+		// mode45
+		settings->mode_selection[2] = true;
+
+		settings->mode45_channel0 = 0;
+		settings->refineIterations_channel = 2;
+		settings->refineIterations[4] = 2;
+		settings->refineIterations[5] = 2;
+
+		// mode6
+		settings->mode_selection[3] = true;
+
+		settings->refineIterations[6] = 2;
+	}
+
+	void GetProfile_slow(bc7_enc_settings* settings)
+	{
+		settings->channels = 3;
+
+		int moreRefine = 2;
+		// mode02
+		settings->mode_selection[0] = true;
+		settings->skip_mode2 = false;
+
+		settings->refineIterations[0] = 2 + moreRefine;
+		settings->refineIterations[2] = 2 + moreRefine;
+
+		// mode13
+		settings->mode_selection[1] = true;
+		settings->fastSkipTreshold_mode1 = 64;
+		settings->fastSkipTreshold_mode3 = 64;
+		settings->fastSkipTreshold_mode7 = 0;
+
+		settings->refineIterations[1] = 2 + moreRefine;
+		settings->refineIterations[3] = 2 + moreRefine;
+
+		// mode45
+		settings->mode_selection[2] = true;
+
+		settings->mode45_channel0 = 0;
+		settings->refineIterations_channel = 2 + moreRefine;
+		settings->refineIterations[4] = 2 + moreRefine;
+		settings->refineIterations[5] = 2 + moreRefine;
+
+		// mode6
+		settings->mode_selection[3] = true;
+
+		settings->refineIterations[6] = 2 + moreRefine;
+	}
+
+	void GetProfile_alpha_ultrafast(bc7_enc_settings* settings)
+	{
+		settings->channels = 4;
+
+		// mode02
+		settings->mode_selection[0] = false;
+		settings->skip_mode2 = true;
+
+		settings->refineIterations[0] = 2;
+		settings->refineIterations[2] = 2;
+
+		// mode137
+		settings->mode_selection[1] = false;
+		settings->fastSkipTreshold_mode1 = 0;
+		settings->fastSkipTreshold_mode3 = 0;
+		settings->fastSkipTreshold_mode7 = 4;
+
+		settings->refineIterations[1] = 1;
+		settings->refineIterations[3] = 1;
+		settings->refineIterations[7] = 2;
+
+		// mode45
+		settings->mode_selection[2] = true;
+
+		settings->mode45_channel0 = 3;
+		settings->refineIterations_channel = 1;
+		settings->refineIterations[4] = 1;
+		settings->refineIterations[5] = 1;
+
+		// mode6
+		settings->mode_selection[3] = true;
+
+		settings->refineIterations[6] = 2;
+	}
+
+	void GetProfile_alpha_veryfast(bc7_enc_settings* settings)
+	{
+		settings->channels = 4;
+
+		// mode02
+		settings->mode_selection[0] = false;
+		settings->skip_mode2 = true;
+
+		settings->refineIterations[0] = 2;
+		settings->refineIterations[2] = 2;
+
+		// mode137
+		settings->mode_selection[1] = true;
+		settings->fastSkipTreshold_mode1 = 0;
+		settings->fastSkipTreshold_mode3 = 0;
+		settings->fastSkipTreshold_mode7 = 4;
+
+		settings->refineIterations[1] = 1;
+		settings->refineIterations[3] = 1;
+		settings->refineIterations[7] = 2;
+
+		// mode45
+		settings->mode_selection[2] = true;
+
+		settings->mode45_channel0 = 3;
+		settings->refineIterations_channel = 2;
+		settings->refineIterations[4] = 2;
+		settings->refineIterations[5] = 2;
+
+		// mode6
+		settings->mode_selection[3] = true;
+
+		settings->refineIterations[6] = 2;
+	}
+
+	void GetProfile_alpha_fast(bc7_enc_settings* settings)
+	{
+		settings->channels = 4;
+
+		// mode02
+		settings->mode_selection[0] = false;
+		settings->skip_mode2 = true;
+
+		settings->refineIterations[0] = 2;
+		settings->refineIterations[2] = 2;
+
+		// mode137
+		settings->mode_selection[1] = true;
+		settings->fastSkipTreshold_mode1 = 4;
+		settings->fastSkipTreshold_mode3 = 4;
+		settings->fastSkipTreshold_mode7 = 8;
+
+		settings->refineIterations[1] = 1;
+		settings->refineIterations[3] = 1;
+		settings->refineIterations[7] = 2;
+
+		// mode45
+		settings->mode_selection[2] = true;
+
+		settings->mode45_channel0 = 3;
+		settings->refineIterations_channel = 2;
+		settings->refineIterations[4] = 2;
+		settings->refineIterations[5] = 2;
+
+		// mode6
+		settings->mode_selection[3] = true;
+
+		settings->refineIterations[6] = 2;
+	}
+
+	void GetProfile_alpha_basic(bc7_enc_settings* settings)
+	{
+		settings->channels = 4;
+
+		// mode02
+		settings->mode_selection[0] = true;
+		settings->skip_mode2 = true;
+
+		settings->refineIterations[0] = 2;
+		settings->refineIterations[2] = 2;
+
+		// mode137
+		settings->mode_selection[1] = true;
+		settings->fastSkipTreshold_mode1 = 8 + 4;
+		settings->fastSkipTreshold_mode3 = 8;
+		settings->fastSkipTreshold_mode7 = 8;
+
+		settings->refineIterations[1] = 2;
+		settings->refineIterations[3] = 2;
+		settings->refineIterations[7] = 2;
+
+		// mode45
+		settings->mode_selection[2] = true;
+
+		settings->mode45_channel0 = 0;
+		settings->refineIterations_channel = 2;
+		settings->refineIterations[4] = 2;
+		settings->refineIterations[5] = 2;
+
+		// mode6
+		settings->mode_selection[3] = true;
+
+		settings->refineIterations[6] = 2;
+	}
+
+	void GetProfile_alpha_slow(bc7_enc_settings* settings)
+	{
+		settings->channels = 4;
+
+		int moreRefine = 2;
+		// mode02
+		settings->mode_selection[0] = true;
+		settings->skip_mode2 = false;
+
+		settings->refineIterations[0] = 2 + moreRefine;
+		settings->refineIterations[2] = 2 + moreRefine;
+
+		// mode137
+		settings->mode_selection[1] = true;
+		settings->fastSkipTreshold_mode1 = 64;
+		settings->fastSkipTreshold_mode3 = 64;
+		settings->fastSkipTreshold_mode7 = 64;
+
+		settings->refineIterations[1] = 2 + moreRefine;
+		settings->refineIterations[3] = 2 + moreRefine;
+		settings->refineIterations[7] = 2 + moreRefine;
+
+		// mode45
+		settings->mode_selection[2] = true;
+
+		settings->mode45_channel0 = 0;
+		settings->refineIterations_channel = 2 + moreRefine;
+		settings->refineIterations[4] = 2 + moreRefine;
+		settings->refineIterations[5] = 2 + moreRefine;
+
+		// mode6
+		settings->mode_selection[3] = true;
+
+		settings->refineIterations[6] = 2 + moreRefine;
+	}
+
+	void GetProfile_bc6h_veryfast(bc6h_enc_settings* settings)
+	{
+		settings->slow_mode = false;
+		settings->fast_mode = true;
+		settings->fastSkipTreshold = 0;
+		settings->refineIterations_1p = 0;
+		settings->refineIterations_2p = 0;
+	}
+
+	void GetProfile_bc6h_fast(bc6h_enc_settings* settings)
+	{
+		settings->slow_mode = false;
+		settings->fast_mode = true;
+		settings->fastSkipTreshold = 2;
+		settings->refineIterations_1p = 0;
+		settings->refineIterations_2p = 1;
+	}
+
+	void GetProfile_bc6h_basic(bc6h_enc_settings* settings)
+	{
+		settings->slow_mode = false;
+		settings->fast_mode = false;
+		settings->fastSkipTreshold = 4;
+		settings->refineIterations_1p = 2;
+		settings->refineIterations_2p = 2;
+	}
+
+	void GetProfile_bc6h_slow(bc6h_enc_settings* settings)
+	{
+		settings->slow_mode = true;
+		settings->fast_mode = false;
+		settings->fastSkipTreshold = 10;
+		settings->refineIterations_1p = 2;
+		settings->refineIterations_2p = 2;
+	}
+
+	void GetProfile_bc6h_veryslow(bc6h_enc_settings* settings)
+	{
+		settings->slow_mode = true;
+		settings->fast_mode = false;
+		settings->fastSkipTreshold = 32;
+		settings->refineIterations_1p = 2;
+		settings->refineIterations_2p = 2;
+	}
+
+	void GetProfile_etc_slow(etc_enc_settings* settings) { settings->fastSkipTreshold = 6; }
+}
+
 namespace Image
 {
 	namespace
@@ -35,7 +434,7 @@ namespace Image
 	}
 
 
-	bool Convert(Image& output, const Image& input, ImageFormat outFormat)
+	bool Convert(Image& output, const Image& input, ImageFormat outFormat, ConvertQuality quality)
 	{
 		if(!SetupOutput(output, input, outFormat))
 			return false;
@@ -77,8 +476,8 @@ namespace Image
 			return true;
 		}
 
-		auto PadData = [](
-		    Core::Vector<u32>& paddedData, const u32* levelData, i32 levelW, i32 levelH, i32 paddedW, i32 paddedH) {
+		auto PadData = [](Core::Vector<u32>& paddedData, const u32* levelData, i32 levelW, i32 levelH, i32 paddedW,
+		                   i32 paddedH) {
 			// Always going largest to smallest, so only need to allocate once and reuse the memory
 			// for subsequent levels.
 			if(paddedData.empty())
@@ -125,7 +524,10 @@ namespace Image
 		if(input.GetFormat() == ImageFormat::R8G8B8A8_UNORM)
 		{
 			using CompressFn = void(ispc::rgba_surface*, uint8_t*);
+			using CompressBc7Fn = void(ispc::rgba_surface*, uint8_t*, struct bc7_enc_settings*);
+
 			CompressFn* compressFn = nullptr;
+			CompressBc7Fn* compressBc7Fn = nullptr;
 
 			switch(output.GetFormat())
 			{
@@ -145,10 +547,53 @@ namespace Image
 				//case ImageFormat::BC5_SNORM:
 				compressFn = ispc::CompressBlocksBC5_ispc;
 				break;
+			case ImageFormat::BC7_UNORM:
+			case ImageFormat::BC7_UNORM_SRGB:
+				compressBc7Fn = ispc::CompressBlocksBC7_ispc;
+				break;
 			}
 
-			if(compressFn)
+			if(compressFn || compressBc7Fn)
 			{
+				ispc::bc6h_enc_settings bc6hSettings = {};
+				ispc::bc7_enc_settings bc7Settings = {};
+				ispc::bc7_enc_settings bc7SettingsAlpha = {};
+				ispc::etc_enc_settings etcSettings = {};
+
+				switch(quality)
+				{
+				case ConvertQuality::VERY_HIGH:
+					GetProfile_bc6h_veryslow(&bc6hSettings);
+					GetProfile_slow(&bc7Settings);
+					GetProfile_alpha_slow(&bc7SettingsAlpha);
+					GetProfile_etc_slow(&etcSettings);
+					break;
+				case ConvertQuality::HIGH:
+					GetProfile_bc6h_slow(&bc6hSettings);
+					GetProfile_basic(&bc7Settings);
+					GetProfile_alpha_basic(&bc7SettingsAlpha);
+					GetProfile_etc_slow(&etcSettings);
+					break;
+				case ConvertQuality::MEDIUM:
+					GetProfile_bc6h_basic(&bc6hSettings);
+					GetProfile_basic(&bc7Settings);
+					GetProfile_alpha_basic(&bc7SettingsAlpha);
+					GetProfile_etc_slow(&etcSettings);
+					break;
+				case ConvertQuality::LOW:
+					GetProfile_bc6h_fast(&bc6hSettings);
+					GetProfile_fast(&bc7Settings);
+					GetProfile_alpha_fast(&bc7SettingsAlpha);
+					GetProfile_etc_slow(&etcSettings);
+					break;
+				case ConvertQuality::VERY_LOW:
+					GetProfile_bc6h_veryfast(&bc6hSettings);
+					GetProfile_veryfast(&bc7Settings);
+					GetProfile_alpha_veryfast(&bc7SettingsAlpha);
+					GetProfile_etc_slow(&etcSettings);
+					break;
+				}
+
 				const i32 numLevels = Core::Min(input.GetLevels(), output.GetLevels());
 				i32 levelW = input.GetWidth();
 				i32 levelH = input.GetHeight();
@@ -174,7 +619,32 @@ namespace Image
 					surface.width = paddedW;
 					surface.height = paddedH;
 					surface.stride = paddedW * sizeof(u32);
-					compressFn(&surface, output.GetMipData<u8>(level));
+
+					if(compressFn)
+					{
+						compressFn(&surface, output.GetMipData<u8>(level));
+					}
+					else if(compressBc7Fn)
+					{
+						// Determine settings.
+						ispc::bc7_enc_settings settings = bc7Settings;
+						for(i32 y = 0; y < levelH; ++y)
+						{
+							for(i32 x = 0; x < levelW; ++x)
+							{
+								const i32 idx = x + y * paddedW;
+								SRGBAColor col = reinterpret_cast<const SRGBAColor&>(levelData[idx]);
+
+								if(col.a < 255)
+								{
+									settings = bc7SettingsAlpha;
+									break;
+								}
+							}
+						}
+
+						compressBc7Fn(&surface, output.GetMipData<u8>(level), &settings);
+					}
 
 					levelW = Core::Max(levelW >> 1, 1);
 					levelH = Core::Max(levelH >> 1, 1);

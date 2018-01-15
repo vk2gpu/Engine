@@ -13,11 +13,24 @@ namespace Image
 	static const RGBAColor INFINITE_PSNR_RGBA = RGBAColor(INFINITE_PSNR, INFINITE_PSNR, INFINITE_PSNR, INFINITE_PSNR);
 
 	/**
+	 * Quality for conversion.
+	 */
+	enum class ConvertQuality
+	{
+		VERY_HIGH,
+		HIGH,
+		MEDIUM,
+		LOW,
+		VERY_LOW
+	};
+
+	/**
 	 * Convert @a input image to @a outFormat. 
 	 * @a output will be created if not provided.
 	 * @return success.
 	 */
-	IMAGE_DLL bool Convert(Image& output, const Image& input, ImageFormat outFormat);
+	IMAGE_DLL bool Convert(
+	    Image& output, const Image& input, ImageFormat outFormat, ConvertQuality quality = ConvertQuality::MEDIUM);
 
 	/**
 	 * Gamma to Linear conversion.
