@@ -48,36 +48,36 @@ export struct Color_R8G8B8A8
 	u8 r, g, b, a;
 };
 
+static inline float SingleToSRGB(float linearCol)
+{
+	const float sRGBLo = linearCol * 12.92f;
+	const float sRGBHi = (pow(abs(linearCol), 1.0f / 2.4f) * 1.055f) - 0.055f;
+	const float sRGB = (linearCol <= 0.0031308f) ? sRGBLo : sRGBHi;
+	return sRGB;
+}
+
+static inline float SingleFromSRGB(float sRGBCol)
+{
+	const float linearRGBLo = sRGBCol / 12.92f;
+	const float linearRGBHi = pow((sRGBCol + 0.055f) / 1.055f, 2.4f);
+	const float linearCol = (sRGBCol <= 0.04045f) ? linearRGBLo : linearRGBHi;
+	return linearCol;
+}
+
 
 static inline Color GammaToLinear(Color color)
 {
-	// http://www.frostbite.com/wp-content/uploads/2014/11/course_notes_movingfrostbite_to_pbr.pdf pg87
-	float<3> colorVec = { color.r, color.g, color.b };
-	float<3> linearRGBLo = { color.r / 12.92, color.g / 12.92, color.b / 12.92 };
-	float<3> linearRGBHi = {
-		pow((colorVec.x + 0.055) / 1.055, 2.4),
-		pow((colorVec.y + 0.055) / 1.055, 2.4),
-		pow((colorVec.z + 0.055) / 1.055, 2.4)
-	};
-	color.r = (color.r <= 0.04045) ? linearRGBLo.x : linearRGBHi.x,
-	color.g = (color.g <= 0.04045) ? linearRGBLo.y : linearRGBHi.y,
-	color.b = (color.b <= 0.04045) ? linearRGBLo.z : linearRGBHi.z;
+	color.r = SingleFromSRGB(color.r);
+	color.g = SingleFromSRGB(color.g);
+	color.b = SingleFromSRGB(color.b);
 	return color;
 }
 
 static inline Color LinearToGamma(Color color)
 {
-	// http://www.frostbite.com/wp-content/uploads/2014/11/course_notes_movingfrostbite_to_pbr.pdf pg87
-	float<3> colorVec = { color.r, color.g, color.b };
-	float<3> sRGBLo = { color.r * 12.92, color.g * 12.92, color.b * 12.92 };
-	float<3> sRGBHi = {
-		(pow(abs(colorVec.x), 1.0 / 2.4) * 1.055) - 0.055,
-		(pow(abs(colorVec.y), 1.0 / 2.4) * 1.055) - 0.055,
-		(pow(abs(colorVec.z), 1.0 / 2.4) * 1.055) - 0.055
-	};
-	color.r = (color.r <= 0.0031308) ? sRGBLo.x : sRGBHi.x,
-	color.g = (color.g <= 0.0031308) ? sRGBLo.y : sRGBHi.y,
-	color.b = (color.b <= 0.0031308) ? sRGBLo.z : sRGBHi.z;
+	color.r = SingleToSRGB(color.r);
+	color.g = SingleToSRGB(color.g);
+	color.b = SingleToSRGB(color.b);
 	return color;
 }
 

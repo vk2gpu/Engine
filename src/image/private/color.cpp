@@ -11,12 +11,29 @@ namespace Image
 	namespace
 	{
 		// http://ploobs.com.br/arquivos/1499
-		Math::Vec3 hue(float h)
+		Math::Vec3 Hue(float h)
 		{
 			float r = std::abs(h * 6.0f - 3.0f) - 1.0f;
 			float g = 2.0f - std::abs(h * 6.0f - 2.0f);
 			float b = 2.0f - std::abs(h * 6.0f - 4.0f);
 			return Math::Vec3(Core::Clamp(r, 0.0f, 1.0f), Core::Clamp(g, 0.0f, 1.0f), Core::Clamp(b, 0.0f, 1.0f));
+		}
+
+		// https://seblagarde.files.wordpress.com/2015/07/course_notes_moving_frostbite_to_pbr_v32.pdf pg87
+		f32 SingleToSRGB(f32 linearCol)
+		{
+			const f32 sRGBLo = linearCol * 12.92f;
+			const f32 sRGBHi = (std::powf(std::abs(linearCol), 1.0f / 2.4f) * 1.055f) - 0.055f;
+			const f32 sRGB = (linearCol <= 0.0031308f) ? sRGBLo : sRGBHi;
+			return sRGB;
+		}
+
+		f32 SingleFromSRGB(f32 sRGBCol)
+		{
+			const f32 linearRGBLo = sRGBCol / 12.92f;
+			const f32 linearRGBHi = std::powf((sRGBCol + 0.055f) / 1.055f, 2.4f);
+			const f32 linearCol = (sRGBCol <= 0.04045f) ? linearRGBLo : linearRGBHi;
+			return linearCol;
 		}
 	}
 
@@ -28,7 +45,7 @@ namespace Image
 	{
 	}
 
-	HSVColor::HSVColor(f32* val)
+	HSVColor::HSVColor(const f32* val)
 	    : h(val[0])
 	    , s(val[1])
 	    , v(val[2])
@@ -49,7 +66,7 @@ namespace Image
 	{
 	}
 
-	YCoCgColor::YCoCgColor(f32* val)
+	YCoCgColor::YCoCgColor(const f32* val)
 	    : y(val[0])
 	    , co(val[1])
 	    , cg(val[2])
@@ -71,7 +88,7 @@ namespace Image
 	{
 	}
 
-	SRGBAColor::SRGBAColor(u8* val)
+	SRGBAColor::SRGBAColor(const u8* val)
 	    : r(val[0])
 	    , g(val[1])
 	    , b(val[2])
@@ -96,7 +113,7 @@ namespace Image
 	{
 	}
 
-	RGBAColor::RGBAColor(f32* val)
+	RGBAColor::RGBAColor(const f32* val)
 	    : r(val[0])
 	    , g(val[1])
 	    , b(val[2])
@@ -147,13 +164,12 @@ namespace Image
 
 	SRGBAColor ToSRGBA(RGBAColor rgba)
 	{
-		// http://www.frostbite.com/wp-content/uploads/2014/11/course_notes_moving_frostbite_to_pbr.pdf pg87
-		Math::Vec3 sRGBLo(rgba.r * 12.92f, rgba.g * 12.92f, rgba.b * 12.92f);
-		Math::Vec3 sRGBHi(std::pow(std::abs(rgba.r), 1.0f / 2.4f), std::pow(std::abs(rgba.g), 1.0f / 2.4f),
-		    std::pow(std::abs(rgba.b), 1.0f / 2.4f));
-		sRGBHi = (sRGBHi * 1.055f) - Math::Vec3(0.055f, 0.055f, 0.055f);
-		RGBAColor sRGBA = RGBAColor((rgba.r <= 0.0031308) ? sRGBLo.x : sRGBHi.x,
-		    (rgba.g <= 0.0031308f) ? sRGBLo.y : sRGBHi.y, (rgba.b <= 0.0031308f) ? sRGBLo.z : sRGBHi.z, rgba.a);
+		RGBAColor sRGBA = {
+		    SingleToSRGB(rgba.r),
+		    SingleToSRGB(rgba.g),
+		    SingleToSRGB(rgba.b),
+		    rgba.a,
+		};
 		sRGBA *= 255.0f;
 		sRGBA.r = std::roundf(sRGBA.r);
 		sRGBA.g = std::roundf(sRGBA.g);
@@ -166,7 +182,7 @@ namespace Image
 	RGBAColor ToRGB(HSVColor hsv)
 	{
 		const auto ONE = Math::Vec3(1.0f, 1.0f, 1.0f);
-		Math::Vec3 rgb = ((hue(hsv.h) - ONE) * hsv.s + ONE) * hsv.v;
+		Math::Vec3 rgb = ((Hue(hsv.h) - ONE) * hsv.s + ONE) * hsv.v;
 		return RGBAColor(rgb.x, rgb.y, rgb.z, 1.0f);
 	}
 
@@ -178,14 +194,13 @@ namespace Image
 
 	RGBAColor ToRGBA(SRGBAColor rgba)
 	{
-		// http://www.frostbite.com/wp-content/uploads/2014/11/course_notes_moving_frostbite_to_pbr.pdf pg87
-		Math::Vec3 linearRGBLo(rgba.r / 12.92f, rgba.g / 12.92f, rgba.b / 12.92f);
-		Math::Vec3 linearRGBHi(std::pow(((rgba.r / 255.0f) + 0.055f) / 1.055f, 2.4f),
-		    std::pow(((rgba.g / 255.0f) + 0.055f) / 1.055f, 2.4f),
-		    std::pow(((rgba.b / 255.0f) + 0.055f) / 1.055f, 2.4f));
-		return RGBAColor((rgba.r <= (255 * 0.04045)) ? linearRGBLo.x : linearRGBHi.x,
-		    (rgba.g <= (255 * 0.04045)) ? linearRGBLo.y : linearRGBHi.y,
-		    (rgba.b <= (255 * 0.04045)) ? linearRGBLo.z : linearRGBHi.z, rgba.a / 255.0f);
+		RGBAColor sRGBA = {
+		    SingleFromSRGB((f32)rgba.r / 255.0f),
+		    SingleFromSRGB((f32)rgba.g / 255.0f),
+		    SingleFromSRGB((f32)rgba.b / 255.0f),
+		    (f32)rgba.a / 255.0f,
+		};
+		return sRGBA;
 	}
 
 } // namespace Image

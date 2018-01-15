@@ -10,7 +10,7 @@
 
 #include "catch.hpp"
 
-#include <squish.h>
+#include <cmath>
 
 namespace
 {
@@ -144,6 +144,83 @@ TEST_CASE("image-tests-convert")
 		CHECK(Image::Save(out2File, compare2Image, Image::FileType::PNG));
 	}
 #endif
+}
+
+TEST_CASE("image-tests-process")
+{
+	const f32 MINIMUM_PSNR = 30.0f;
+
+	i32 levels = 32 - Core::CountLeadingZeros((u32)TEST_SIZE);
+	auto image = CreateTestImage(PatternType::HUE_GRADIENT, Image::RGBAColor(1.0f, 1.0f, 1.0f, 1.0f), levels);
+	REQUIRE(image);
+
+	Image::Image ycocgImage;
+	Image::Image rgbaImage;
+
+	Image::SRGBAColor i(255, 128, 64, 255);
+	Image::RGBAColor c = Image::ToRGBA(i);
+	Image::YCoCgColor y = Image::ToYCoCg(c);
+
+	auto ToYCoCg = [](u32* output, const u32* input) {
+		Image::SRGBAColor i((const u8*)input);
+		Image::RGBAColor c = Image::ToRGBA(i);
+		Image::YCoCgColor y = Image::ToYCoCg(c);
+
+		DBG_ASSERT(y.y >= 0.0f && y.y <= 1.0f);
+		DBG_ASSERT(y.co >= -0.5f && y.co <= 0.5f);
+		DBG_ASSERT(y.cg >= -0.5f && y.cg <= 0.5f);
+
+		y.y = Core::Clamp(y.y, 0.0f, 1.0f) * 255.0f;
+		y.co = Core::Clamp(y.co + 0.5f, 0.0f, 1.0f) * 255.0f;
+		y.cg = Core::Clamp(y.cg + 0.5f, 0.0f, 1.0f) * 255.0f;
+
+		u32 iy = (u8)(y.y);
+		u32 ico = (u8)(y.co);
+		u32 icg = (u8)(y.cg);
+
+		u32 o = 0;
+		o |= iy;
+		o |= ico << 8;
+		o |= icg << 16;
+		o |= 0xff << 24;
+		*output = o;
+	};
+
+	auto FromYCoCg = [](u32* output, const u32* input) {
+		u32 i = *input;
+		u8 iy = i & 0xff;
+		u8 ico = (i >> 8) & 0xff;
+		u8 icg = (i >> 16) & 0xff;
+
+		Image::YCoCgColor y;
+		y.y = Core::Clamp((f32)iy / 255.0f, 0.0f, 1.0f);
+		y.co = Core::Clamp((f32)ico / 255.0f, 0.0f, 1.0f) - 0.5f;
+		y.cg = Core::Clamp((f32)icg / 255.0f, 0.0f, 1.0f) - 0.5f;
+
+		DBG_ASSERT(y.y >= 0.0f && y.y <= 1.0f);
+		DBG_ASSERT(y.co >= -0.5f && y.co <= 0.5f);
+		DBG_ASSERT(y.cg >= -0.5f && y.cg <= 0.5f);
+
+		Image::RGBAColor c = Image::ToRGB(y);
+		c.r = Core::Clamp(c.r, 0.0f, 1.0f);
+		c.g = Core::Clamp(c.g, 0.0f, 1.0f);
+		c.b = Core::Clamp(c.b, 0.0f, 1.0f);
+		c.a = Core::Clamp(c.a, 0.0f, 1.0f);
+		Image::SRGBAColor o = Image::ToSRGBA(c);
+
+		*output = o;
+	};
+
+	REQUIRE(Image::ProcessTexels<u32>(ycocgImage, image, ToYCoCg));
+	REQUIRE(Image::ProcessTexels<u32>(rgbaImage, ycocgImage, FromYCoCg));
+
+
+	auto psnr = Image::CalculatePSNR(rgbaImage, image);
+
+	CHECK(psnr.r > MINIMUM_PSNR);
+	CHECK(psnr.g > MINIMUM_PSNR);
+	CHECK(psnr.b > MINIMUM_PSNR);
+	CHECK(psnr.a == Image::INFINITE_PSNR);
 }
 
 

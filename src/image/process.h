@@ -13,6 +13,12 @@ namespace Image
 	static const RGBAColor INFINITE_PSNR_RGBA = RGBAColor(INFINITE_PSNR, INFINITE_PSNR, INFINITE_PSNR, INFINITE_PSNR);
 
 	/**
+	 * Process functions.
+	 */
+	template<typename TYPE>
+	using ProcessFn = Core::Function<void(TYPE*, const TYPE*)>;
+
+	/**
 	 * Quality for conversion.
 	 */
 	enum class ConvertQuality
@@ -69,5 +75,24 @@ namespace Image
 	 * @return Per channel PSNR in dB
 	 */
 	IMAGE_DLL RGBAColor CalculatePSNR(const Image& base, const Image& compare);
+
+	/**
+	 * Process Texels.
+	 * @a output will be created if not provided.
+	 * @param output Output image.
+	 * @param input Input image.
+	 * @param processFn Function to call to process texels. This will be 1 block.
+	 * @pre @a output and @a input formats match.
+	 * @return success.
+	 */
+	template<typename TYPE>
+	bool ProcessTexels(Image& output, const Image& input, ProcessFn<TYPE> processFn)
+	{
+		return ProcessTexelsCommon(
+		    output, input, [&processFn](void* o, const void* i) { processFn((TYPE*)o, (const TYPE*)i); });
+	}
+
+	IMAGE_DLL bool ProcessTexelsCommon(Image& output, const Image& input, ProcessFn<void> processFn);
+
 
 } // namespace Image

@@ -14,7 +14,7 @@ namespace Image
 
 	public:
 		HSVColor();
-		HSVColor(f32* val);
+		HSVColor(const f32* val);
 		HSVColor(f32 h, f32 s, f32 v);
 	};
 
@@ -28,7 +28,7 @@ namespace Image
 
 	public:
 		YCoCgColor();
-		YCoCgColor(f32* val);
+		YCoCgColor(const f32* val);
 		YCoCgColor(f32 y, f32 co, f32 cg);
 	};
 
@@ -42,7 +42,7 @@ namespace Image
 
 	public:
 		SRGBAColor();
-		SRGBAColor(u8* val);
+		SRGBAColor(const u8* val);
 		SRGBAColor(u8 r, u8 g, u8 b, u8 a);
 
 		operator u32() const { return (a << 24) | (b << 16) | (g << 8) | r; }
@@ -59,7 +59,7 @@ namespace Image
 
 	public:
 		RGBAColor();
-		RGBAColor(f32* val);
+		RGBAColor(const f32* val);
 		RGBAColor(f32 r, f32 g, f32 b, f32 a);
 
 		RGBAColor operator+(const RGBAColor& Rhs) const

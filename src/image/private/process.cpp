@@ -862,4 +862,42 @@ namespace Image
 	}
 
 
+	bool ProcessTexelsCommon(Image& output, const Image& input, ProcessFn<void> processFn)
+	{
+		if(!SetupOutput(output, input, input.GetFormat()))
+			return false;
+
+		if(output.GetFormat() != input.GetFormat())
+			return false;
+
+		auto formatInfo = GPU::GetFormatInfo(input.GetFormat());
+		i32 size = formatInfo.blockBits_ / 8;
+
+		i32 levelW = input.GetWidth() / formatInfo.blockW_;
+		i32 levelH = input.GetHeight() / formatInfo.blockH_;
+
+		// Now the rest in the chain.
+		for(i32 level = 0; level < output.GetLevels() - 1; ++level)
+		{
+			u8* outputData = output.GetMipData<u8>(level);
+			const u8* inputData = input.GetMipData<u8>(level);
+
+			for(i32 y = 0; y < levelH; ++y)
+			{
+				i32 idx = (y * levelW) * size;
+				for(i32 x = 0; x < levelW; ++x)
+				{
+					processFn(&outputData[idx], &inputData[idx]);
+
+					idx += size;
+				}
+			}
+
+			levelW = Core::Max(levelW >> 1, 1);
+			levelH = Core::Max(levelH >> 1, 1);
+		}
+
+		return true;
+	}
+
 } // namespace Image
