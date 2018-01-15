@@ -5,6 +5,6 @@
          "../../../../.converter_output/model_tests/crytek-sponza/textures_pbr/Sponza_Details_roughness.png.converted"
       ]
    },
-   "format" : "BC3_UNORM",
+   "format" : "BC7_UNORM",
    "generateMipLevels" : true
 }
