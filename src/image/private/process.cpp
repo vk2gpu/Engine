@@ -11,6 +11,8 @@
 #include "gpu/utils.h"
 #include "math/utils.h"
 
+#include <squish.h>
+
 #include <cmath>
 #include <utility>
 
@@ -75,8 +77,8 @@ namespace Image
 			return true;
 		}
 
-		auto PadData = [](Core::Vector<u32>& paddedData, const u32* levelData, i32 levelW, i32 levelH, i32 paddedW,
-		                   i32 paddedH) {
+		auto PadData = [](
+		    Core::Vector<u32>& paddedData, const u32* levelData, i32 levelW, i32 levelH, i32 paddedW, i32 paddedH) {
 			// Always going largest to smallest, so only need to allocate once and reuse the memory
 			// for subsequent levels.
 			if(paddedData.empty())
@@ -178,6 +180,46 @@ namespace Image
 					levelH = Core::Max(levelH >> 1, 1);
 				}
 
+				return true;
+			}
+		}
+
+		// Compressed input, R8G8B8A8_UNORM output.
+		if(output.GetFormat() == ImageFormat::R8G8B8A8_UNORM)
+		{
+			u32 squishFlags = 0;
+			switch(input.GetFormat())
+			{
+			case ImageFormat::BC1_UNORM:
+			case ImageFormat::BC1_UNORM_SRGB:
+				squishFlags = squish::kBc1;
+				break;
+			case ImageFormat::BC3_UNORM:
+			case ImageFormat::BC3_UNORM_SRGB:
+				squishFlags = squish::kBc3;
+				break;
+			case ImageFormat::BC4_UNORM:
+				//case ImageFormat::BC4_SNORM:
+				squishFlags = squish::kBc4;
+				break;
+			case ImageFormat::BC5_UNORM:
+				//case ImageFormat::BC5_SNORM:
+				squishFlags = squish::kBc5;
+				break;
+			}
+
+			if(squishFlags)
+			{
+				i32 levelW = output.GetWidth();
+				i32 levelH = output.GetHeight();
+				for(i32 level = 0; level < output.GetLevels(); ++level)
+				{
+					squish::DecompressImage(
+					    output.GetMipData<u8>(level), levelW, levelH, input.GetMipData<void>(level), squishFlags);
+
+					levelW = Core::Max(levelW >> 1, 1);
+					levelH = Core::Max(levelH >> 1, 1);
+				}
 				return true;
 			}
 		}
@@ -302,31 +344,48 @@ namespace Image
 	}
 
 
-	f32 CalculatePSNR(const Image& base, const Image& compare)
+	RGBAColor CalculatePSNR(const Image& base, const Image& compare)
 	{
-		if(!base || !compare)
-			return 0.0f;
-		if(base.GetWidth() != compare.GetWidth())
-			return 0.0f;
-		if(base.GetHeight() != compare.GetHeight())
-			return 0.0f;
-		if(base.GetFormat() != compare.GetFormat())
-			return 0.0f;
+		RGBAColor psnr = INFINITE_PSNR_RGBA;
 
-		f32 psnr = INFINITE_PSNR;
+		if(!base || !compare)
+			return RGBAColor(0.0f, 0.0f, 0.0f, 0.0f);
+		if(base.GetWidth() != compare.GetWidth())
+			return RGBAColor(0.0f, 0.0f, 0.0f, 0.0f);
+		if(base.GetHeight() != compare.GetHeight())
+			return RGBAColor(0.0f, 0.0f, 0.0f, 0.0f);
+		if(base.GetFormat() != compare.GetFormat())
+			return RGBAColor(0.0f, 0.0f, 0.0f, 0.0f);
+
 		if(base.GetFormat() == ImageFormat::R8G8B8A8_UNORM)
 		{
-			f32 mse = ispc::ImageProc_MSE_R8G8B8A8(base.GetWidth(), base.GetDepth(),
+			ispc::Error mse;
+			ispc::ImageProc_MSE_R8G8B8A8(&mse, base.GetWidth(), base.GetHeight(),
 			    base.GetMipData<ispc::Color_R8G8B8A8>(0), compare.GetMipData<ispc::Color_R8G8B8A8>(0));
-			if(mse > 0.0f)
-				psnr = Math::AmplitudeRatioToDecibels(255.0f / std::sqrt(mse));
+
+			if(mse.r > 0.0f)
+				psnr.r = Math::AmplitudeRatioToDecibels((f32)((255.0) / std::sqrt(mse.r)));
+			if(mse.g > 0.0f)
+				psnr.g = Math::AmplitudeRatioToDecibels((f32)((255.0) / std::sqrt(mse.g)));
+			if(mse.b > 0.0f)
+				psnr.b = Math::AmplitudeRatioToDecibels((f32)((255.0) / std::sqrt(mse.b)));
+			if(mse.a > 0.0f)
+				psnr.a = Math::AmplitudeRatioToDecibels((f32)((255.0) / std::sqrt(mse.a)));
 		}
 		else if(base.GetFormat() == ImageFormat::R32G32B32A32_FLOAT)
 		{
-			f32 mse = ispc::ImageProc_MSE(
-			    base.GetWidth(), base.GetDepth(), base.GetMipData<ispc::Color>(0), compare.GetMipData<ispc::Color>(0));
-			if(mse > 0.0f)
-				psnr = Math::AmplitudeRatioToDecibels(1.0f / std::sqrt(mse));
+			ispc::Error mse;
+			ispc::ImageProc_MSE(&mse, base.GetWidth(), base.GetHeight(), base.GetMipData<ispc::Color>(0),
+			    compare.GetMipData<ispc::Color>(0));
+
+			if(mse.r > 0.0f)
+				psnr.r = Math::AmplitudeRatioToDecibels((f32)(1.0 / std::sqrt(mse.r)));
+			if(mse.g > 0.0f)
+				psnr.g = Math::AmplitudeRatioToDecibels((f32)(1.0 / std::sqrt(mse.g)));
+			if(mse.b > 0.0f)
+				psnr.b = Math::AmplitudeRatioToDecibels((f32)(1.0 / std::sqrt(mse.b)));
+			if(mse.a > 0.0f)
+				psnr.a = Math::AmplitudeRatioToDecibels((f32)(1.0 / std::sqrt(mse.a)));
 		}
 
 		return psnr;

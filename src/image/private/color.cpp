@@ -153,8 +153,12 @@ namespace Image
 		    std::pow(std::abs(rgba.b), 1.0f / 2.4f));
 		sRGBHi = (sRGBHi * 1.055f) - Math::Vec3(0.055f, 0.055f, 0.055f);
 		RGBAColor sRGBA = RGBAColor((rgba.r <= 0.0031308) ? sRGBLo.x : sRGBHi.x,
-		    (rgba.g <= 0.0031308) ? sRGBLo.y : sRGBHi.y, (rgba.b <= 0.0031308) ? sRGBLo.z : sRGBHi.z, rgba.a);
+		    (rgba.g <= 0.0031308f) ? sRGBLo.y : sRGBHi.y, (rgba.b <= 0.0031308f) ? sRGBLo.z : sRGBHi.z, rgba.a);
 		sRGBA *= 255.0f;
+		sRGBA.r = std::roundf(sRGBA.r);
+		sRGBA.g = std::roundf(sRGBA.g);
+		sRGBA.b = std::roundf(sRGBA.b);
+		sRGBA.a = std::roundf(sRGBA.a);
 		return SRGBAColor((u8)sRGBA.r, (u8)sRGBA.g, (u8)sRGBA.b, (u8)sRGBA.a);
 	}
 

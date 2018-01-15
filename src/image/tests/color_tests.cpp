@@ -10,18 +10,12 @@ namespace
 	bool EpsilonCompare(f32 a, f32 b, f32 error) { return std::abs(a - b) < error; }
 
 	Image::RGBAColor testNormalizedRGB[] = {
-	    Image::RGBAColor(1.0f, 0.0f, 0.0f, 1.0f),
-	    Image::RGBAColor(0.0f, 1.0f, 0.0f, 1.0f),
-	    Image::RGBAColor(0.0f, 0.0f, 1.0f, 1.0f),
-	    Image::RGBAColor(0.0f, 1.0f, 1.0f, 1.0f),
-	    Image::RGBAColor(1.0f, 0.0f, 1.0f, 1.0f),
-	    Image::RGBAColor(1.0f, 1.0f, 0.0f, 1.0f),
-	    Image::RGBAColor(0.1f, 0.1f, 0.1f, 1.0f),
-	    Image::RGBAColor(0.2f, 0.2f, 0.2f, 1.0f),
-	    Image::RGBAColor(0.2f, 0.2f, 0.2f, 1.0f),
-	    Image::RGBAColor(0.4f, 0.4f, 0.4f, 1.0f),
-	    Image::RGBAColor(0.8f, 0.8f, 0.8f, 1.0f),
-	    Image::RGBAColor(1.0f, 1.0f, 1.0f, 1.0f),
+	    Image::RGBAColor(1.0f, 0.0f, 0.0f, 1.0f), Image::RGBAColor(0.0f, 1.0f, 0.0f, 1.0f),
+	    Image::RGBAColor(0.0f, 0.0f, 1.0f, 1.0f), Image::RGBAColor(0.0f, 1.0f, 1.0f, 1.0f),
+	    Image::RGBAColor(1.0f, 0.0f, 1.0f, 1.0f), Image::RGBAColor(1.0f, 1.0f, 0.0f, 1.0f),
+	    Image::RGBAColor(0.1f, 0.1f, 0.1f, 1.0f), Image::RGBAColor(0.2f, 0.2f, 0.2f, 1.0f),
+	    Image::RGBAColor(0.2f, 0.2f, 0.2f, 1.0f), Image::RGBAColor(0.4f, 0.4f, 0.4f, 1.0f),
+	    Image::RGBAColor(0.8f, 0.8f, 0.8f, 1.0f), Image::RGBAColor(1.0f, 1.0f, 1.0f, 1.0f),
 	};
 }
 

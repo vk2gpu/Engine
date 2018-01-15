@@ -7,6 +7,14 @@ typedef unsigned int16 u16;
 typedef int32 i32;
 typedef unsigned int32 u32;
 
+export struct Error
+{
+	double r;
+	double g;
+	double b;
+	double a;
+};
+
 export struct Color
 {
 	float r;
@@ -115,11 +123,13 @@ export void ImageProc_LinearToGamma(uniform int w, uniform int h, uniform const 
 }
 
 
-
-export uniform float ImageProc_MSE(uniform int w, uniform int h, uniform const Color base[], uniform const Color compare[])
+export void ImageProc_MSE(uniform Error output[], uniform int w, uniform int h, uniform const Color base[], uniform const Color compare[])
 {
-	uniform double numTexels = w * h;
-	double sumSq = 0.0;
+	uniform double numTexels = (double)w * (double)h;
+	double sumSqR = 0.0;
+	double sumSqG = 0.0;
+	double sumSqB = 0.0;
+	double sumSqA = 0.0;
 
 	foreach (y = 0 ... h, x = 0 ... w)
 	{
@@ -135,18 +145,26 @@ export uniform float ImageProc_MSE(uniform int w, uniform int h, uniform const C
 			baseTexel.a - compareTexel.a,
 		};
 
-		double error = (diff.r + diff.g + diff.b + diff.a) * 0.25;
-		sumSq += error * error;
+		sumSqR += diff.r * diff.r;
+		sumSqG += diff.g * diff.g;
+		sumSqB += diff.b * diff.b;
+		sumSqA += diff.a * diff.a;
 	}
 
-	return reduce_add(sumSq) / numTexels;
+	output->r = (reduce_add(sumSqR) / numTexels);
+	output->g = (reduce_add(sumSqG) / numTexels);
+	output->b = (reduce_add(sumSqB) / numTexels);
+	output->a = (reduce_add(sumSqA) / numTexels);
 }
 
 
-export uniform float ImageProc_MSE_R8G8B8A8(uniform int w, uniform int h, uniform const Color_R8G8B8A8 base[], uniform const Color_R8G8B8A8 compare[])
+export void ImageProc_MSE_R8G8B8A8(uniform Error output[], uniform int w, uniform int h, uniform const Color_R8G8B8A8 base[], uniform const Color_R8G8B8A8 compare[])
 {
-	uniform double numTexels = w * h;
-	double sumSq = 0.0;
+	uniform double numTexels = (double)w * (double)h;
+	double sumSqR = 0.0;
+	double sumSqG = 0.0;
+	double sumSqB = 0.0;
+	double sumSqA = 0.0;
 
 	foreach (y = 0 ... h, x = 0 ... w)
 	{
@@ -155,18 +173,24 @@ export uniform float ImageProc_MSE_R8G8B8A8(uniform int w, uniform int h, unifor
 		Color_R8G8B8A8 baseTexel = base[inIdx];
 		Color_R8G8B8A8 compareTexel = compare[inIdx];
 
-		Color_R8G8B8A8 diff = {
-			baseTexel.r - compareTexel.r,
-			baseTexel.g - compareTexel.g,
-			baseTexel.b - compareTexel.b,
-			baseTexel.a - compareTexel.a,
+		Color diff = {
+			(float)baseTexel.r - (float)compareTexel.r,
+			(float)baseTexel.g - (float)compareTexel.g,
+			(float)baseTexel.b - (float)compareTexel.b,
+			(float)baseTexel.a - (float)compareTexel.a,
 		};
 
-		double error = ((double)diff.r + (double)diff.g + (double)diff.b + (double)diff.a) * 0.25;
-		sumSq += error * error;
+		sumSqR += diff.r * diff.r;
+		sumSqG += diff.g * diff.g;
+		sumSqB += diff.b * diff.b;
+		sumSqA += diff.a * diff.a;
 	}
 
-	return reduce_add(sumSq) / numTexels;
+
+	output->r = (reduce_add(sumSqR) / numTexels);
+	output->g = (reduce_add(sumSqG) / numTexels);
+	output->b = (reduce_add(sumSqB) / numTexels);
+	output->a = (reduce_add(sumSqA) / numTexels);
 }
 
 export void ImageProc_Unpack_R8G8B8A8(uniform int numTexels, uniform const Color_R8G8B8A8 input[], uniform Color output[])

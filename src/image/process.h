@@ -1,15 +1,16 @@
 #pragma once
 
-#include "image/types.h"
+#include "image/color.h"
 
 namespace Image
 {
 	class Image;
 
 	/**
-	 * Value in dB to treat as 'infinite'.
+	 * Useful constants for quality checking with PSNR.
 	 */
-	static const f32 INFINITE_PSNR = 9999.0f;
+	static const f32 INFINITE_PSNR = 99999.0f;
+	static const RGBAColor INFINITE_PSNR_RGBA = RGBAColor(INFINITE_PSNR, INFINITE_PSNR, INFINITE_PSNR, INFINITE_PSNR);
 
 	/**
 	 * Convert @a input image to @a outFormat. 
@@ -52,8 +53,8 @@ namespace Image
 	 * Calculate PSNR.
 	 * @param base Base image.
 	 * @param compare Image to compare.
-	 * @return PSNR in dB
+	 * @return Per channel PSNR in dB
 	 */
-	IMAGE_DLL f32 CalculatePSNR(const Image& base, const Image& compare);
+	IMAGE_DLL RGBAColor CalculatePSNR(const Image& base, const Image& compare);
 
 } // namespace Image

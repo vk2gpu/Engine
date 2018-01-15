@@ -482,6 +482,15 @@ namespace Image
 				return Image::Image();
 			}
 
+			if(ddsHeader.dwWidth == 0)
+				ddsHeader.dwWidth = 1;
+			if(ddsHeader.dwHeight == 0)
+				ddsHeader.dwHeight = 1;
+			if(ddsHeader.dwDepth == 0)
+				ddsHeader.dwDepth = 1;
+			if(ddsHeader.dwMipMapCount == 0)
+				ddsHeader.dwMipMapCount = 1;
+
 			// Calculate size.
 			auto formatSize = GPU::GetTextureSize(format, ddsHeader.dwWidth, ddsHeader.dwHeight, ddsHeader.dwDepth,
 			    ddsHeader.dwMipMapCount, ddsHeaderDXT10.arraySize > 0 ? ddsHeaderDXT10.arraySize : 1);
