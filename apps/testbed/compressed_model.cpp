@@ -370,7 +370,6 @@ namespace MeshTools
 		{
 			auto AddVertex = [this](Vertex a) -> i32 {
 				i32 idx = vertices_.size();
-#if 1
 				auto it = std::find_if(vertexHashes_.begin(), vertexHashes_.end(), [&a, this](const u32& b) {
 					if(a.hash_ == b)
 					{
@@ -382,7 +381,6 @@ namespace MeshTools
 
 				if(it != vertexHashes_.end())
 					return (i32)(it - vertexHashes_.begin());
-#endif
 				vertices_.push_back(a);
 				vertexHashes_.push_back(a.hash_);
 				return idx;
@@ -403,6 +401,32 @@ namespace MeshTools
 			vertexHashes_.reserve(mesh->mNumFaces * 3);
 			triangles_.reserve(mesh->mNumFaces);
 
+			for(unsigned int i = 0; i < mesh->mNumVertices; ++i)
+			{
+				auto GetVertex = [mesh](int idx) {
+					Vertex v = {};
+					v.position_ = &mesh->mVertices[idx].x;
+					if(mesh->mNormals)
+						v.normal_ = &mesh->mNormals[idx].x;
+					if(mesh->mTangents)
+						v.tangent_ = &mesh->mTangents[idx].x;
+					if(mesh->mTextureCoords[0])
+						v.texcoord_ = &mesh->mTextureCoords[0][idx].x;
+					if(mesh->mColors[0])
+						v.color_ = &mesh->mColors[0][idx].r;
+					else
+						v.color_ = Math::Vec4(1.0f, 1.0f, 1.0f, 1.0f);
+					v.Initialize();
+					return v;
+				};
+
+				Vertex v = GetVertex(i);
+				bounds_.ExpandBy(v.position_);
+
+				vertices_.push_back(v);
+				vertexHashes_.push_back(v.hash_);
+			}
+
 			for(unsigned int i = 0; i < mesh->mNumFaces; ++i)
 			{
 				// Skip anything that isn't a triangle.
@@ -412,28 +436,7 @@ namespace MeshTools
 					int ib = mesh->mFaces[i].mIndices[1];
 					int ic = mesh->mFaces[i].mIndices[2];
 
-					auto GetVertex = [mesh](int idx) {
-						Vertex v = {};
-						v.position_ = &mesh->mVertices[idx].x;
-						if(mesh->mNormals)
-							v.normal_ = &mesh->mNormals[idx].x;
-						if(mesh->mTangents)
-							v.tangent_ = &mesh->mTangents[idx].x;
-						if(mesh->mTextureCoords[0])
-							v.texcoord_ = &mesh->mTextureCoords[0][idx].x;
-						if(mesh->mColors[0])
-							v.color_ = &mesh->mColors[0][idx].r;
-						else
-							v.color_ = Math::Vec4(1.0f, 1.0f, 1.0f, 1.0f);
-						v.Initialize();
-						return v;
-					};
-
-					Vertex a = GetVertex(ia);
-					Vertex b = GetVertex(ib);
-					Vertex c = GetVertex(ic);
-
-					AddFace(a, b, c);
+					triangles_.emplace_back(ia, ib, ic);
 				}
 			}
 		}
@@ -445,6 +448,11 @@ namespace MeshTools
 				auto bKey = b.SortKey(Core::ArrayView<Vertex>(vertices_.begin(), vertices_.end()), bounds_);
 				return aKey < bKey;
 			});
+		}
+
+		void ReorderIndices()
+		{
+
 		}
 
 		void ImportMeshCluster(Mesh* mesh, i32 firstTri, i32 numTris)
@@ -767,9 +775,7 @@ CompressedModel::CompressedModel(const char* sourceFile)
 
 	if(scene)
 	{
-		i32 clusterSize = 1024;
 		Core::Vector<MeshTools::Mesh*> meshes;
-		Core::Vector<MeshTools::Mesh*> meshClusters;
 		i32 numVertices = 0;
 		i32 numIndices = 0;
 
@@ -801,7 +807,8 @@ CompressedModel::CompressedModel(const char* sourceFile)
 				material = "default.material";
 			materials_.emplace_back(std::move(material));
 
-			Core::Log("Mesh %u: Diameter: %.3f\n", i, mesh->bounds_.Diameter());
+			material = "default_compressed.material";
+			compressedMaterials_.emplace_back(std::move(material));
 
 			MeshTools::Texture packedPositionTex;
 			MeshTools::Texture packedNormalTex;
@@ -819,32 +826,10 @@ CompressedModel::CompressedModel(const char* sourceFile)
 			}
 
 			Core::StreamDesc outStream(nullptr, Core::DataType::UNORM, 8, 2);
-			auto packedNormalTexGPU = packedNormalTex.Create(GPU::Format::R8G8_UNORM, outStream, "PackedNormalTex");
+			normalTex_ = packedNormalTex.Create(GPU::Format::R8G8_UNORM, outStream, "PackedNormalTex");
 
-
-			Mesh outMesh;
-			outMesh.baseCluster_ = clusters_.size();
-			outMesh.numClusters_ = (mesh->triangles_.size() + clusterSize - 1) / clusterSize;
-			meshes_.push_back(outMesh);
-
-			for(i32 triIdx = 0; triIdx < mesh->triangles_.size(); triIdx += clusterSize)
-			{
-				auto* meshCluster = new MeshTools::Mesh();
-				meshCluster->ImportMeshCluster(mesh, triIdx, clusterSize);
-				meshClusters.push_back(meshCluster);
-
-				MeshCluster outMeshCluster;
-				outMeshCluster.meshIdx_ = i;
-				outMeshCluster.baseDrawArg_ = outMesh.baseCluster_;
-				outMeshCluster.baseVertex_ = numVertices;
-				outMeshCluster.baseIndex_ = numIndices;
-				outMeshCluster.numIndices_ = meshCluster->triangles_.size() * 3;
-				clusters_.push_back(outMeshCluster);
-				clusterBounds_.push_back(meshCluster->bounds_);
-
-				numVertices += meshCluster->vertices_.size();
-				numIndices += meshCluster->triangles_.size() * 3;
-			}
+			numIndices += mesh->triangles_.size() * 3;
+			numVertices += mesh->vertices_.size();
 		}
 
 		// Setup vertex declaration.
@@ -885,15 +870,19 @@ CompressedModel::CompressedModel(const char* sourceFile)
 		BinaryStream idxStream;
 
 		i32 indexOffset = 0;
-		auto cluster = clusters_.begin();
-		for(const auto& meshCluster : meshClusters)
+		i32 vertexOffset = 0;
+		for(const auto& mesh : meshes)
 		{
-			indexOffset = cluster->baseVertex_;
-			++cluster;
+			Mesh outMesh;
+			outMesh.bounds_ = mesh->bounds_;
+			outMesh.baseIndex_ = indexOffset;
+			outMesh.baseVertex_ = vertexOffset;
+			outMesh.numIndices_ = mesh->triangles_.size() * 3;
+			meshes_.push_back(outMesh);
 
-			for(i32 triIdx = 0; triIdx < meshCluster->triangles_.size(); ++triIdx)
+			for(i32 triIdx = 0; triIdx < mesh->triangles_.size(); ++triIdx)
 			{
-				auto tri = meshCluster->triangles_[triIdx];
+				auto tri = mesh->triangles_[triIdx];
 				idxStream.Write(tri.idx_[0] + indexOffset);
 				idxStream.Write(tri.idx_[1] + indexOffset);
 				idxStream.Write(tri.idx_[2] + indexOffset);
@@ -905,7 +894,7 @@ CompressedModel::CompressedModel(const char* sourceFile)
 				const i32 stride = GPU::GetStride(elements.data(), numElements, vtxStreamIdx);
 				if(stride > 0)
 				{
-					Core::Vector<u8> vertexData(stride * meshCluster->vertices_.size(), 0);
+					Core::Vector<u8> vertexData(stride * mesh->vertices_.size(), 0);
 					Core::Vector<Core::StreamDesc> inStreamDescs;
 					Core::Vector<Core::StreamDesc> outStreamDescs;
 					Core::Vector<i32> numComponents;
@@ -921,19 +910,19 @@ CompressedModel::CompressedModel(const char* sourceFile)
 								switch(element.usage_)
 								{
 								case GPU::VertexUsage::POSITION:
-									inStreamDesc.data_ = &meshCluster->vertices_.data()->position_;
+									inStreamDesc.data_ = &mesh->vertices_.data()->position_;
 									break;
 								case GPU::VertexUsage::NORMAL:
-									inStreamDesc.data_ = &meshCluster->vertices_.data()->normal_;
+									inStreamDesc.data_ = &mesh->vertices_.data()->normal_;
 									break;
 								case GPU::VertexUsage::TEXCOORD:
-									inStreamDesc.data_ = &meshCluster->vertices_.data()->texcoord_;
+									inStreamDesc.data_ = &mesh->vertices_.data()->texcoord_;
 									break;
 								case GPU::VertexUsage::TANGENT:
-									inStreamDesc.data_ = &meshCluster->vertices_.data()->tangent_;
+									inStreamDesc.data_ = &mesh->vertices_.data()->tangent_;
 									break;
 								case GPU::VertexUsage::COLOR:
-									inStreamDesc.data_ = &meshCluster->vertices_.data()->color_;
+									inStreamDesc.data_ = &mesh->vertices_.data()->color_;
 									break;
 								default:
 									DBG_ASSERT(false);
@@ -964,8 +953,8 @@ CompressedModel::CompressedModel(const char* sourceFile)
 						auto inStreamDesc = inStreamDescs[elementStreamIdx];
 						auto outStreamDesc = outStreamDescs[elementStreamIdx];
 
-						DBG_ASSERT(vertexData.size() >= (outStreamDesc.stride_ * (i32)meshCluster->vertices_.size()));
-						auto retVal = Core::Convert(outStreamDesc, inStreamDesc, meshCluster->vertices_.size(),
+						DBG_ASSERT(vertexData.size() >= (outStreamDesc.stride_ * (i32)mesh->vertices_.size()));
+						auto retVal = Core::Convert(outStreamDesc, inStreamDesc, mesh->vertices_.size(),
 						    numComponents[elementStreamIdx]);
 						DBG_ASSERT_MSG(retVal, "Unable to convert stream.");
 					}
@@ -973,6 +962,8 @@ CompressedModel::CompressedModel(const char* sourceFile)
 					streams[vtxStreamIdx].Write(vertexData.data(), vertexData.size());
 				}
 			}
+
+			indexOffset += mesh->triangles_.size() * 3;
 		}
 
 		BinaryStream vtxStream;
@@ -986,11 +977,11 @@ CompressedModel::CompressedModel(const char* sourceFile)
 			vtxStream.Write(streams[i].Data(), streams[i].Size());
 		}
 
-		vertexBuffer_ = GPU::Manager::CreateBuffer(vertexDesc_, vtxStream.Data(), "clustered_model_vb");
+		vertexBuffer_ = GPU::Manager::CreateBuffer(vertexDesc_, vtxStream.Data(), "compressed_model_vb");
 
 		indexDesc_.bindFlags_ = GPU::BindFlags::INDEX_BUFFER | GPU::BindFlags::SHADER_RESOURCE;
 		indexDesc_.size_ = numIndices * 4;
-		indexBuffer_ = GPU::Manager::CreateBuffer(indexDesc_, idxStream.Data(), "clustered_model_ib");
+		indexBuffer_ = GPU::Manager::CreateBuffer(indexDesc_, idxStream.Data(), "compressed_model_ib");
 
 		GPU::DrawBindingSetDesc dbsDesc;
 		i32 offset = 0;
@@ -1009,20 +1000,27 @@ CompressedModel::CompressedModel(const char* sourceFile)
 		dbsDesc.ib_.offset_ = 0;
 		dbsDesc.ib_.size_ = (i32)indexDesc_.size_;
 		dbsDesc.ib_.stride_ = 4;
-		dbs_ = GPU::Manager::CreateDrawBindingSet(dbsDesc, "clustered_model_dbs");
+		dbs_ = GPU::Manager::CreateDrawBindingSet(dbsDesc, "compressed_model_dbs");
 
 		techs_.resize(materials_.size());
+		compressedTechs_.resize(materials_.size());
 		for(i32 i = 0; i < materials_.size(); ++i)
 		{
 			materials_[i].WaitUntilReady();
+			compressedMaterials_[i].WaitUntilReady();
 
 			techs_[i].material_ = materials_[i];
+			compressedTechs_[i].material_ = compressedMaterials_[i];
 		}
 
 		techDesc_.SetVertexElements(elements_);
 		techDesc_.SetTopology(GPU::TopologyType::TRIANGLE);
 
+		compressedTechDesc_.SetVertexElements(elements_);
+		compressedTechDesc_.SetTopology(GPU::TopologyType::TRIANGLE);
+
 		objectBindings_ = Graphics::Shader::CreateSharedBindingSet("ObjectBindings");
+		geometryBindings_ = Graphics::Shader::CreateSharedBindingSet("GeometryBindings");
 	}
 }
 
@@ -1035,8 +1033,6 @@ CompressedModel::~CompressedModel()
 
 void CompressedModel::DrawClusters(Testbed::DrawContext& drawCtx, Testbed::ObjectConstants object)
 {
-	return;
-#if 0
 	if(auto event = drawCtx.cmdList_.Eventf(0x0, "CompressedModel"))
 	{
 		i32 numObjects = 1;
@@ -1056,28 +1052,35 @@ void CompressedModel::DrawClusters(Testbed::DrawContext& drawCtx, Testbed::Objec
 		{
 			for(i32 meshIdx = 0; meshIdx < meshes_.size(); ++meshIdx)
 			{
-				auto it = techs_[meshIdx].passIndices_.find(drawCtx.passName_);
-				if(it != techs_[meshIdx].passIndices_.end())
+				auto* techs = &techs_[meshIdx];
+				static bool useCompressed = true;
+				if(useCompressed)
+					techs = &compressedTechs_[meshIdx];
+
+				auto it = techs->passIndices_.find(drawCtx.passName_);
+				if(it != techs->passIndices_.end())
 				{
 					const auto& mesh = meshes_[meshIdx];
-					if(mesh.numClusters_ > 0)
-					{
-						auto& tech = techs_[meshIdx].passTechniques_[it->second];
-						if(drawCtx.customBindFn_)
-							drawCtx.customBindFn_(techs_[meshIdx].material_->GetShader(), tech);
+					auto& tech = techs->passTechniques_[it->second];
+					if(drawCtx.customBindFn_)
+						drawCtx.customBindFn_(techs->material_->GetShader(), tech);
 
-						objectBindings_.Set("inObject", GPU::Binding::Buffer(drawCtx.objectSBHandle_,
-							                                GPU::Format::INVALID, 0, 1, objectDataSize));
+					if(geometryBindings_)
+						geometryBindings_.Set("geomNormal", GPU::Binding::Texture2D(normalTex_, GPU::Format::R8G8_UNORM, 0, 1));
+
+					objectBindings_.Set("inObject", GPU::Binding::Buffer(drawCtx.objectSBHandle_,
+							                            GPU::Format::INVALID, 0, 1, objectDataSize));
+					if(auto geometryBind = drawCtx.shaderCtx_.BeginBindingScope(geometryBindings_))
+					{
 						if(auto objectBind = drawCtx.shaderCtx_.BeginBindingScope(objectBindings_))
 						{
 							GPU::Handle ps;
 							Core::ArrayView<GPU::PipelineBinding> pb;
 							if(drawCtx.shaderCtx_.CommitBindings(tech, ps, pb))
 							{
-								auto baseCluster = clusters_[meshes_[meshIdx].baseCluster_];
 								drawCtx.cmdList_.Draw(ps, pb, dbs_, drawCtx.fbs_, drawCtx.drawState_,
-									GPU::PrimitiveTopology::TRIANGLE_LIST, baseCluster.baseIndex_, 0,
-									mesh.numClusters_ * baseCluster.numIndices_, 0, 1);
+									GPU::PrimitiveTopology::TRIANGLE_LIST, 0, 0,
+									mesh.numIndices_, 0, 1);
 							}
 						}
 					}
@@ -1085,5 +1088,4 @@ void CompressedModel::DrawClusters(Testbed::DrawContext& drawCtx, Testbed::Objec
 			}
 		}
 	}
-#endif
 }

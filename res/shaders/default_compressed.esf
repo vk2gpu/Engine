@@ -1,0 +1,70 @@
+#include "base_geometry.esh"
+
+[shared]
+[frequency(MEDIUM)]
+BindingSet GeometryBindings
+{
+	Texture2D<float2> geomNormal; 
+};
+
+
+float2 EncodeSMT(float3 n)
+{
+	float2 n2 = float2(n.x, n.y);
+	float2 enc = normalize(n2) * sqrt(-n.z * 0.5f + 0.5f);
+	enc = enc * 0.5f + float2(0.5f, 0.5f);
+	return enc;
+}
+
+float3 DecodeSMT(float2 enc)
+{
+	float4 nn = float4(enc, 0, 0) * float4(2, 2, 0, 0) + float4(-1.0f, -1.0f, 1.0f, -1.0f);
+	float3 n1 = float3(nn.x, nn.y, nn.z);
+	float3 n2 = float3(-nn.x, -nn.y, -nn.w);
+	float l = dot(n1, n2);
+	nn.z = l;
+	nn.x *= sqrt(l);
+	nn.y *= sqrt(l);
+	return float3(nn.x, nn.y, nn.z) * 2.0f + float3(0.0f, 0.0f, -1.0f);
+}
+
+uint ShadeVertex(uniform int passID, in Object obj, inout VertexData vtxData)
+{
+	uint w, h;
+	geomNormal.GetDimensions(w, h);
+
+	uint x = vtxData.vertexID % w;
+	uint y = vtxData.vertexID / w;
+
+	vtxData.normalWS = DecodeSMT(geomNormal[int2(x, y)].xy);
+	vtxData.normalWS = normalize(vtxData.normalWS);
+
+	return VTX_CHANGED_NORMAL;
+}
+
+uint ShadePixel(uniform int passID, inout PixelData pixData)
+{
+	switch(passID)
+	{
+		case PASS_DEPTH_PREPASS:
+		{
+			return PIX_DEFAULT;
+		}
+
+		case PASS_SHADOW:
+		{
+			return PIX_DEFAULT;
+		}
+
+		case PASS_FORWARD:
+		{
+			pixData.color.rgb = float4(1.0, 1.0, 1.0, 1.0);
+			pixData.roughness = 0.5;
+			pixData.metallic = 0.0;
+			pixData.specular = DIELECTRIC_F0;
+			return PIX_LIGHTING;
+		}
+	}
+
+	return PIX_DEFAULT;
+}

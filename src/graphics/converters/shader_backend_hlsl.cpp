@@ -22,8 +22,9 @@ namespace
 
 namespace Graphics
 {
-	ShaderBackendHLSL::ShaderBackendHLSL(const BindingMap& bindingMap, bool autoReg)
+	ShaderBackendHLSL::ShaderBackendHLSL(const BindingMap& bindingMap, const FunctionExports& functionExports, bool autoReg)
 	    : bindingMap_(bindingMap)
+		, functionExports_(functionExports)
 	    , autoReg_(autoReg)
 	{
 		for(const char* attribute : HLSL_ATTRIBUTES)
@@ -41,6 +42,7 @@ namespace Graphics
 		for(auto* intNode : node->variables_)
 			intNode->Visit(this);
 
+		bool writeUsed = bindingMap_.size() != 0;
 
 		// Write out generated shader.
 		Write("////////////////////////////////////////////////////////////////////////////////////////////////////");
@@ -75,7 +77,7 @@ namespace Graphics
 		NextLine();
 
 		for(auto* intNode : samplerStates_)
-			if(bindingMap_.size() == 0 || bindingMap_.find(intNode->name_) != bindingMap_.end())
+			if(!writeUsed || bindingMap_.find(intNode->name_) != bindingMap_.end())
 				WriteVariable(intNode);
 		NextLine();
 
@@ -85,16 +87,72 @@ namespace Graphics
 		NextLine();
 
 		for(auto* intNode : bindingSets_)
-			WriteBindingSet(intNode);
+			WriteBindingSet(intNode, false);
 		NextLine();
+
+		if(writeUsed)
+		{
+			Write("////////////////////////////////////////////////////////////////////////////////////////////////////");
+			NextLine();
+			Write("// unused resources (used to keep the compiler happy)");
+			NextLine();
+
+			autoReg_ = false;
+
+			for(auto* intNode : samplerStates_)
+				if(bindingMap_.find(intNode->name_) == bindingMap_.end())
+					WriteVariable(intNode);
+			NextLine();
+
+			for(auto* intNode : bindingSets_)
+				WriteBindingSet(intNode, true);
+			NextLine();
+		}
 
 		Write("////////////////////////////////////////////////////////////////////////////////////////////////////");
 		NextLine();
 		Write("// functions");
 		NextLine();
 
+#if 0 // WIP.
+		// Determine if a function is referenced. This is a bit overkill, as it's just a text search.
+		auto IsFunctionReferenced = [this](AST::NodeDeclaration* fn)
+		{
+			for(auto* refFunc : refFunctions_)
+			{
+				if(refFunc->value_ && refFunc->value_->data_.size() > 0)
+				{
+					if(refFunc->value_->data_.find(fn->name_) != Core::String::npos)
+					{
+						return true;
+					}
+				}
+			}
+			return false;
+		};
+
+		// Reference exports.
+		for(const auto& functionExport : functionExports_)
+		{
+			if(auto* fn = node->FindFunction(functionExport.c_str()))
+			{
+				refFunctions_.insert(fn);
+			}
+		}
+
+		// Find all referenced functions.
 		for(auto* intNode : node->functions_)
+		{
+			if(IsFunctionReferenced(intNode))
+			{
+				refFunctions_.insert(intNode);
+			}
+		}
+#endif
+		for(auto* intNode : node->functions_)
+		{
 			WriteFunction(intNode);
+		}
 		NextLine();
 
 		return false;
@@ -332,7 +390,7 @@ namespace Graphics
 		NextLine();
 	}
 
-	void ShaderBackendHLSL::WriteBindingSet(AST::NodeStruct* node)
+	void ShaderBackendHLSL::WriteBindingSet(AST::NodeStruct* node, bool writeOnlyUnused)
 	{
 		Write("// - %s", node->name_.c_str());
 		NextLine();
@@ -341,7 +399,7 @@ namespace Graphics
 		for(auto* member : node->type_->members_)
 			writeBindingSet |= (bindingMap_.size() == 0 || bindingMap_.find(member->name_) != bindingMap_.end());
 
-		if(writeBindingSet)
+		if((writeBindingSet && !writeOnlyUnused) || (!writeBindingSet && writeOnlyUnused))
 		{
 			for(auto* member : node->type_->members_)
 				WriteVariable(member);

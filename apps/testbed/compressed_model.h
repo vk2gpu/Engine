@@ -18,22 +18,13 @@ public:
 
 	struct Mesh
 	{
-		i32 baseCluster_ = 0;
-		i32 numClusters_ = 0;
-	};
-
-	struct MeshCluster
-	{
-		i32 meshIdx_ = 0;
-		i32 baseDrawArg_ = 0;
+		Math::AABB bounds_;
 		i32 baseVertex_ = 0;
 		i32 baseIndex_ = 0;
 		i32 numIndices_ = 0;
 	};
 
 	Core::Vector<Mesh> meshes_;
-	Core::Vector<MeshCluster> clusters_;
-	Core::Vector<Math::AABB> clusterBounds_;
 
 	GPU::BufferDesc vertexDesc_;
 	GPU::BufferDesc indexDesc_;
@@ -50,11 +41,15 @@ public:
 	GPU::Handle dbs_;
 
 	Core::Vector<Graphics::MaterialRef> materials_;
+	Core::Vector<Graphics::MaterialRef> compressedMaterials_;
 
 	Graphics::ShaderBindingSet objectBindings_;
+	Graphics::ShaderBindingSet geometryBindings_;
 
 	Graphics::ShaderTechniqueDesc techDesc_;
+	Graphics::ShaderTechniqueDesc compressedTechDesc_;
 	Core::Vector<Testbed::ShaderTechniques> techs_;
+	Core::Vector<Testbed::ShaderTechniques> compressedTechs_;
 
 	bool enableCulling_ = true;
 };

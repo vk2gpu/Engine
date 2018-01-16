@@ -741,6 +741,9 @@ namespace Graphics
 
 	ShaderContext::ScopedBinding ShaderContext::BeginBindingScope(const ShaderBindingSet& bindingSet)
 	{
+		if(!bindingSet)
+			return ShaderContext::ScopedBinding(*this, -1);
+
 		i32 idx = bindingSet.impl_->idx_;
 		DBG_ASSERT(impl_->bindingSets_[idx] == nullptr);
 		impl_->bindingSets_[idx] = bindingSet.impl_;

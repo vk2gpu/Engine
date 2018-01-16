@@ -60,6 +60,7 @@ struct VertexData
 #endif
 
 	uint instanceID;
+	uint vertexID;
 };
 
 struct PixelData
@@ -147,13 +148,14 @@ float3 CalculateNormal(in PixelData pixData)
 	return v_normal;
 }
 
-VS_OUT vs_position(in float3 _in : POSITION, uint _id : SV_INSTANCEID)
+VS_OUT vs_position(in float3 _in : POSITION, uint _id : SV_INSTANCEID, uint _vtx : SV_VERTEXID)
 {
 	Object o = GetObjectUniforms(inObject, _id);
 
 	VertexData vtxData = (VertexData)0;
 	vtxData.input.position = _in;
 	vtxData.instanceID = _id;
+	vtxData.vertexID = _vtx;
 	vtxData.positionWS = GetPositionWS(o, _in);
 	vtxData.positionVS = GetPositionVS(viewParams, vtxData.positionWS.xyz);
 	vtxData.positionCS = GetPositionCS(viewParams, vtxData.positionWS.xyz);
@@ -178,13 +180,14 @@ VS_OUT vs_position(in float3 _in : POSITION, uint _id : SV_INSTANCEID)
 	return outVtx;
 }
 
-VS_OUT vs_main(in VS_IN _in, uint _id : SV_INSTANCEID)
+VS_OUT vs_main(in VS_IN _in, uint _id : SV_INSTANCEID, uint _vtx : SV_VERTEXID)
 {
 	Object o = GetObjectUniforms(inObject, _id);
 
 	VertexData vtxData = (VertexData)0;
 	vtxData.input = _in;
 	vtxData.instanceID = _id;
+	vtxData.vertexID = _vtx;
 	vtxData.positionWS = GetPositionWS(o, _in.position);
 	vtxData.positionVS = GetPositionVS(viewParams, vtxData.positionWS.xyz);
 	vtxData.positionCS = GetPositionCS(viewParams, vtxData.positionWS.xyz);
@@ -200,9 +203,10 @@ VS_OUT vs_main(in VS_IN _in, uint _id : SV_INSTANCEID)
 	vtxData.texcoord0 = _in.texcoord0;
 #endif
 
-	if(ShadeVertex(PASS_DEPTH_PREPASS, o, vtxData))
+	if(ShadeVertex(PASS_FORWARD, o, vtxData))
 	{
 		vtxData.positionCS = GetPositionCS(viewParams, vtxData.positionWS.xyz);
+		vtxData.normalVS = GetNormalVS(viewParams, vtxData.normalWS.xyz);
 	}
 
 	VS_OUT outVtx = (VS_OUT)0;

@@ -951,9 +951,10 @@ void Loop(const Core::CommandLine& cmdLine)
 				}
 
 				for(auto& techs : testCompressedModel->techs_)
-				{
 					forwardPipeline.CreateTechniques(techs.material_, testCompressedModel->techDesc_, techs);
-				}
+	
+				for(auto& techs : testCompressedModel->compressedTechs_)
+					forwardPipeline.CreateTechniques(techs.material_, testCompressedModel->compressedTechDesc_, techs);
 			}
 
 

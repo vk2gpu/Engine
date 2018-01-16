@@ -27,8 +27,8 @@
 
 #define DEBUG_DUMP_SHADERS 1
 
-#define DUMP_ESF_PATH "D:\\tmp.esf"
-#define DUMP_HLSL_PATH "D:\\shader_dump\\%s-%s.hlsl"
+#define DUMP_ESF_PATH "tmp.esf"
+#define DUMP_HLSL_PATH "shader_dump\\%s-%s.hlsl"
 
 namespace
 {
@@ -114,6 +114,24 @@ namespace
 				Graphics::ShaderBackendMetadata backendMetadata;
 				node->Visit(&backendMetadata);
 
+				// Get all technique entrypoints.
+				Graphics::FunctionExports functionExports;
+				for(const auto& tech : backendMetadata.GetTechniques())
+				{
+					if(tech.vs_.size() > 0)
+						functionExports.push_back(tech.vs_);
+					if(tech.hs_.size() > 0)
+						functionExports.push_back(tech.hs_);
+					if(tech.ds_.size() > 0)
+						functionExports.push_back(tech.ds_);
+					if(tech.hs_.size() > 0)
+						functionExports.push_back(tech.hs_);
+					if(tech.ps_.size() > 0)
+						functionExports.push_back(tech.ps_);
+					if(tech.cs_.size() > 0)
+						functionExports.push_back(tech.cs_);
+				}
+
 				// Gather all unique shaders referenced by techniques.
 				const auto& techniques = backendMetadata.GetTechniques();
 				Core::Array<Core::Set<Core::String>, (i32)GPU::ShaderType::MAX> shaders;
@@ -164,7 +182,7 @@ namespace
 					outCompileOutput.clear();
 
 					// Generate HLSL for the whole ESF.
-					Graphics::ShaderBackendHLSL backendHLSL(bindingMap, true);
+					Graphics::ShaderBackendHLSL backendHLSL(bindingMap, functionExports, true);
 					node->Visit(&backendHLSL);
 
 #if DEBUG_DUMP_SHADERS

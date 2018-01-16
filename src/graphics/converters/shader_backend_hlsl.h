@@ -2,14 +2,24 @@
 
 #include "graphics/converters/shader_ast.h"
 
+
+namespace Core
+{
+	inline u32 Hash(u32 input, Graphics::AST::NodeDeclaration* node)
+	{
+		return Core::HashCRC32(input, &node, sizeof(node));
+	}
+} // namespace Core
+
 namespace Graphics
 {
 	using BindingMap = Core::Map<Core::String, i32>;
+	using FunctionExports = Core::Vector<Core::String>;
 
 	class ShaderBackendHLSL : public AST::IVisitor
 	{
 	public:
-		ShaderBackendHLSL(const BindingMap& bindingMap, bool autoReg);
+		ShaderBackendHLSL(const BindingMap& bindingMap, const FunctionExports& functionExports, bool autoReg);
 		virtual ~ShaderBackendHLSL();
 		bool VisitEnter(AST::NodeShaderFile* node) override;
 		void VisitExit(AST::NodeShaderFile* node) override;
@@ -35,7 +45,7 @@ namespace Graphics
 		void VisitExit(AST::NodeMemberValue* node) override;
 
 		void WriteStruct(AST::NodeStruct* node);
-		void WriteBindingSet(AST::NodeStruct* node);
+		void WriteBindingSet(AST::NodeStruct* node, bool writeOnlyUnused);
 		void WriteFunction(AST::NodeDeclaration* node);
 		void WriteVariable(AST::NodeDeclaration* node);
 		void WriteParameter(AST::NodeDeclaration* node);
@@ -49,6 +59,8 @@ namespace Graphics
 		bool IsInternal(AST::Node* node, const char* internalType = nullptr) const;
 
 		const BindingMap& bindingMap_;
+		const FunctionExports& functionExports_;
+
 		bool autoReg_ = false;
 
 		bool isNewLine_ = false;
@@ -62,6 +74,9 @@ namespace Graphics
 		Core::Set<Core::String> hlslAttributes_;
 
 		Core::String outCode_;
+
+		/// Referenced functions.
+		Core::Set<AST::NodeDeclaration*> refFunctions_;
 
 		Core::Vector<AST::NodeStruct*> structs_;
 		Core::Vector<AST::NodeStruct*> bindingSets_;
