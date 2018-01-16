@@ -25,6 +25,14 @@ public:
 	};
 
 	Core::Vector<Mesh> meshes_;
+	Core::Vector<GPU::Handle> paramsBuffer_;
+	Core::Vector<GPU::Handle> positionTex_;
+	Core::Vector<GPU::Handle> normalTex_;
+	Core::Vector<GPU::Handle> colorTex_;
+
+	GPU::Format positionFmt_;
+	GPU::Format normalFmt_;
+	GPU::Format colorFmt_;
 
 	GPU::BufferDesc vertexDesc_;
 	GPU::BufferDesc indexDesc_;
@@ -33,10 +41,6 @@ public:
 
 	GPU::Handle vertexBuffer_;
 	GPU::Handle indexBuffer_;
-
-	GPU::Handle positionTex_;
-	GPU::Handle normalTex_;
-	GPU::Handle colorTex_;
 
 	GPU::Handle dbs_;
 
@@ -50,6 +54,8 @@ public:
 	Graphics::ShaderTechniqueDesc compressedTechDesc_;
 	Core::Vector<Testbed::ShaderTechniques> techs_;
 	Core::Vector<Testbed::ShaderTechniques> compressedTechs_;
+
+	bool useCompressed_ = true;
 
 	bool enableCulling_ = true;
 };

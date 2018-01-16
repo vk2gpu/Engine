@@ -46,7 +46,7 @@ INCLUDE_DIRECTORIES(
 
 ADD_ENGINE_EXECUTABLE(testbed ${SOURCES_PUBLIC})
 SET_TARGET_PROPERTIES(testbed PROPERTIES FOLDER Apps)
-TARGET_LINK_LIBRARIES(testbed core graphics imgui plugin assimp ${SIMPLYGON_SPL_LIB} ${SIMPLYGON_SSF_LIB})
+TARGET_LINK_LIBRARIES(testbed core graphics image imgui plugin assimp ${SIMPLYGON_SPL_LIB} ${SIMPLYGON_SSF_LIB})
 
 IF(ENABLE_SIMPLYGON)
 	# Copy Simplygon runtime.

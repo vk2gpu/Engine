@@ -36,6 +36,8 @@ namespace GPU
 		i32 xBits_ = 0;
 		/// Number of exponent bits.
 		i32 eBits_ = 0;
+		/// Number of channels.
+		i32 channels_ = 0;
 	};
 
 	/**

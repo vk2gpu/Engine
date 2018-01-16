@@ -1,10 +1,20 @@
+#define MANUAL_VERTEX_FETCH
 #include "base_geometry.esh"
+
+
+struct GeometryParams
+{
+	float4 posScale;
+	float4 posOffset;
+};
 
 [shared]
 [frequency(MEDIUM)]
 BindingSet GeometryBindings
 {
-	Texture2D<float2> geomNormal; 
+	ConstantBuffer<GeometryParams> geomParams;
+	Texture2D<float3> geomPosition;
+	Texture2D<float2> geomNormal;
 };
 
 
@@ -31,15 +41,22 @@ float3 DecodeSMT(float2 enc)
 uint ShadeVertex(uniform int passID, in Object obj, inout VertexData vtxData)
 {
 	uint w, h;
-	geomNormal.GetDimensions(w, h);
+	geomPosition.GetDimensions(w, h);
 
 	uint x = vtxData.vertexID % w;
 	uint y = vtxData.vertexID / w;
 
+	// Decode packed position.
+	float3 position = geomPosition[int2(x, y)].xyz;
+	position *= geomParams.posScale;
+	position += geomParams.posOffset;
+
+	vtxData.positionWS = float4(position, 1.0);
+
 	vtxData.normalWS = DecodeSMT(geomNormal[int2(x, y)].xy);
 	vtxData.normalWS = normalize(vtxData.normalWS);
 
-	return VTX_CHANGED_NORMAL;
+	return VTX_CHANGED_POSITION | VTX_CHANGED_NORMAL;
 }
 
 uint ShadePixel(uniform int passID, inout PixelData pixData)

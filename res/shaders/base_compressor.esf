@@ -1,0 +1,622 @@
+#include "stdlib.esh"
+
+/*
+BCn compression in compute. Based on stb_dxt, license below:
+
+// stb_dxt.h - v1.06 - DXT1/DXT5 compressor - public domain
+// original by fabian "ryg" giesen - ported to C by stb
+------------------------------------------------------------------------------
+This software is available under 2 licenses -- choose whichever you prefer.
+------------------------------------------------------------------------------
+ALTERNATIVE A - MIT License
+Copyright (c) 2017 Sean Barrett
+Permission is hereby granted, free of charge, to any person obtaining a copy of 
+this software and associated documentation files (the "Software"), to deal in 
+the Software without restriction, including without limitation the rights to 
+use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies 
+of the Software, and to permit persons to whom the Software is furnished to do 
+so, subject to the following conditions:
+The above copyright notice and this permission notice shall be included in all 
+copies or substantial portions of the Software.
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR 
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, 
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE 
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER 
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, 
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE 
+SOFTWARE.
+------------------------------------------------------------------------------
+ALTERNATIVE B - Public Domain (www.unlicense.org)
+This is free and unencumbered software released into the public domain.
+Anyone is free to copy, modify, publish, use, compile, sell, or distribute this 
+software, either in source code form or as a compiled binary, for any purpose, 
+commercial or non-commercial, and by any means.
+In jurisdictions that recognize copyright laws, the author or authors of this 
+software dedicate any and all copyright interest in the software to the public 
+domain. We make this dedication for the benefit of the public at large and to 
+the detriment of our heirs and successors. We intend this dedication to be an 
+overt act of relinquishment in perpetuity of all present and future rights to 
+this software under copyright law.
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR 
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, 
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE 
+AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN 
+ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION 
+WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+------------------------------------------------------------------------------
+*/
+
+struct BlockOutput
+{
+	uint dwords[4];
+};
+
+uint packBytes(uint a, uint b, uint c, uint d)
+{
+	return (d & 0xff) << 24 | (c & 0xff) << 16 | (b & 0xff) << 8 | (a & 0xff);
+}
+
+uint packShorts(uint a, uint b)
+{
+	return (b & 0xffff) << 16 | (a & 0xffff);
+}
+
+#define USE_LOOKUP_TABLE 1
+
+struct LookupTable
+{
+	uint4 stb__Expand5[8];
+	uint4 stb__Expand6[16];
+	uint4 stb__OMatch5[64][2];
+	uint4 stb__OMatch6[64][2];
+};
+
+BindingSet TextureCompressorBindings
+{
+	ConstantBuffer<LookupTable> lookupTable;
+
+	// Expects anything UNORM.
+	Texture2D<unorm float4> inTexture;
+
+	// Formats expected:
+	// - BC1: R32G32_UINT
+	// - BC3: R32G32B32A32_UINT
+	// - BC4: R32G32_UINT
+	// - BC5: R32G32B32A32_UINT
+	RWTexture2D<uint4> outTexture;
+};
+
+int stb__Expand5Func(int i)
+{
+#if USE_LOOKUP_TABLE
+	return lookupTable.stb__Expand5[i/4][i%4];
+#else
+	return (i<<3)|(i>>2);
+#endif
+}
+
+int stb__Expand6Func(int i)
+{
+#if USE_LOOKUP_TABLE
+	return lookupTable.stb__Expand6[i/4][i%4];
+#else
+	return (i<<2)|(i>>4);
+#endif
+}
+
+int stb__Mul8Bit(int a, int b)
+{
+	int t = a*b + 128;
+	return (t + (t >> 8)) >> 8;
+}
+
+void stb__From16Bit(out int3 _out, in uint v)
+{
+	int rv = (v & 0xf800) >> 11;
+	int gv = (v & 0x07e0) >> 5;
+	int bv = (v & 0x001f) >> 0;
+
+	_out.r = stb__Expand5Func(rv);
+	_out.g = stb__Expand6Func(gv);
+	_out.b = stb__Expand5Func(bv);
+}
+
+uint stb__As16Bit(int3 color)
+{
+	return (stb__Mul8Bit(color.r,31) << 11) | (stb__Mul8Bit(color.g,63) << 5) | stb__Mul8Bit(color.b,31);
+}
+
+// linear interpolation at 1/3 point between a and b, using desired rounding type
+int stb__Lerp13(int a, int b)
+{
+	return (2*a + b) / 3;
+}
+
+// lerp RGB color
+void stb__Lerp13RGB(out int3 _out, in int3 p1, in int3 p2)
+{
+	_out.r = stb__Lerp13(p1.r, p2.r);
+	_out.g = stb__Lerp13(p1.g, p2.g);
+	_out.b = stb__Lerp13(p1.b, p2.b);
+}
+
+uint stb__OMatch5Func(int i, int j)
+{
+	return lookupTable.stb__OMatch5[i/4][j][i%4];
+}
+
+uint stb__OMatch6Func(int i, int j)
+{
+	return lookupTable.stb__OMatch6[i/4][j][i%4];
+}
+
+void stb__EvalColors(out int4 color[4], uint c0, uint c1)
+{
+	stb__From16Bit(color[0].rgb, c0);
+	stb__From16Bit(color[1].rgb, c1);
+	stb__Lerp13RGB(color[2].rgb, color[0].rgb, color[1].rgb);
+	stb__Lerp13RGB(color[3].rgb, color[1].rgb, color[0].rgb);
+}
+
+// The color matching function
+uint stb__MatchColorsBlock(in int4 block[16], in int4 color[4])
+{
+	uint mask = 0;
+	int3 dir = color[0].rgb - color[1].rgb;
+	int dots[16];
+	int stops[4];
+	int i;
+	int c0Point, halfPoint, c3Point;
+
+	[unroll]
+	for(i=0;i<16;i++)
+		dots[i] = dot(block[i].rgb, dir);
+
+	[unroll]
+	for(i=0;i<4;i++)
+		stops[i] = dot(color[i].rgb, dir);
+
+	// think of the colors as arranged on a line; project point onto that line, then choose
+	// next color out of available ones. we compute the crossover points for "best color in top
+	// half"/"best in bottom half" and then the same inside that subinterval.
+	//
+	// relying on this 1d approximation isn't always optimal in terms of euclidean distance,
+	// but it's very close and a lot faster.
+	// http://cbloomrants.blogspot.com/2008/12/12-08-08-dxtc-summary.html
+	
+	c0Point	= (stops[1] + stops[3]) >> 1;
+	halfPoint = (stops[3] + stops[2]) >> 1;
+	c3Point	= (stops[2] + stops[0]) >> 1;
+
+	[unroll]
+	for (i=15;i>=0;i--) {
+		int _dot = dots[i];
+		mask <<= 2;
+
+		if(_dot < halfPoint)
+			mask |= (_dot < c0Point) ? 1 : 3;
+		else
+			mask |= (_dot < c3Point) ? 2 : 0;
+	}
+
+	return mask;
+}
+
+// The color optimization function. (Clever code, part 1)
+void stb__OptimizeColorsBlock(in int4 block[16], inout uint pmax16, inout uint pmin16)
+{
+	int mind = INT_MAX,maxd = INT_MIN;
+	uint minp = 0;
+	uint maxp = 0;
+	float magn;
+	
+	static const int nIterPower = 4;
+	float covf[6];
+	float3 vf;
+
+	// determine color distribution
+	int cov[6];
+	int3 mu,_min,_max;
+	int ch,i,iter;
+
+	int3 muv,minv,maxv;
+	muv = minv = maxv = block[0].rgb;
+
+	[unroll]
+	for(i=1;i<16;i+=1)
+	{
+		int3 col = block[i].rgb;
+		muv += col;
+		minv = min(minv, col);
+		maxv = max(maxv, col);
+	}
+	mu = (muv + 8) >> 4;
+	_min = minv;
+	_max = maxv;
+
+	// determine covariance matrix
+	[unroll]
+	for (i=0;i<6;i++)
+		cov[i] = 0;
+
+	[unroll]
+	for (i=0;i<16;i++)
+	{
+		int3 rgb = block[i].rgb - mu;
+
+		cov[0] += rgb.r*rgb.r;
+		cov[1] += rgb.r*rgb.g;
+		cov[2] += rgb.r*rgb.b;
+		cov[3] += rgb.g*rgb.g;
+		cov[4] += rgb.g*rgb.b;
+		cov[5] += rgb.b*rgb.b;
+	}
+
+	// convert covariance matrix to float, find principal axis via power iter
+	[unroll]
+	for(i=0;i<6;i++)
+		covf[i] = cov[i] / 255.0;
+
+	vf = (float3) (_max - _min);
+
+	[unroll]
+	for(iter=0;iter<nIterPower;iter++)
+	{
+		float r = dot(vf, float3(covf[0], covf[1], covf[2]));
+		float g = dot(vf, float3(covf[1], covf[3], covf[4]));
+		float b = dot(vf, float3(covf[2], covf[4], covf[5]));
+		vf = float3(r, g, b);
+	}
+
+	magn = max(max(abs(vf.r), abs(vf.g)), abs(vf.b));
+
+	int3 v = int3(299, 587, 144); // JPEG YCbCr luma coefs, scaled by 1000.
+	if(magn >= 4.0)
+	{
+		magn = 512.0 / magn;
+		v = (int3) (vf * magn);
+	}
+
+	// Pick colors at extreme points
+	[unroll]
+	for(i=0;i<16;i++)
+	{
+		int3 col = block[i].rgb;
+		int _dot = dot(col, v);
+
+		if (_dot < mind) {
+			mind = _dot;
+			minp = i;
+		}
+
+		if (_dot > maxd) {
+			maxd = _dot;
+			maxp = i;
+		}
+	}
+
+	pmax16 = stb__As16Bit(block[maxp].rgb);
+	pmin16 = stb__As16Bit(block[minp].rgb);
+}
+
+int stb__sclamp(float y, int p0, int p1)
+{
+	int x = (int) y;
+	if (x < p0) return p0;
+	if (x > p1) return p1;
+	return x;
+}
+
+// The refinement function. (Clever code, part 2)
+// Tries to optimize colors to suit block contents better.
+// (By solving a least squares system via normal equations+Cramer's rule)
+int stb__RefineBlock(in int4 block[16], inout uint pmax16, inout uint pmin16, uint mask)
+{
+	static const int w1Tab[4] = { 3,0,2,1 };
+	static const int prods[4] = { 0x090000,0x000900,0x040102,0x010402 };
+	// ^some magic to save a lot of multiplies in the accumulating loop...
+	// (precomputed products of weights for least squares system, accumulated inside one 32-bit register)
+
+	float frb,fg;
+	uint oldMin, oldMax, min16, max16;
+	int i, akku = 0, xx,xy,yy;
+	int3 At1;
+	int3 At2;
+	uint cm = mask;
+
+	oldMin = pmin16;
+	oldMax = pmax16;
+
+	if((mask ^ (mask<<2)) < 4) // all pixels have the same index?
+	{
+		// yes, linear system would be singular; solve using optimal
+		// single-color match on average color
+		int3 rgb = 8;
+		[unroll]
+		for (i=0;i<16;++i)
+			rgb += block[i];
+
+		rgb >>= 4;
+
+		max16 = (stb__OMatch5Func(rgb.r, 0)<<11) | (stb__OMatch6Func(rgb.g, 0)<<5) | stb__OMatch5Func(rgb.b, 0);
+		min16 = (stb__OMatch5Func(rgb.r, 1)<<11) | (stb__OMatch6Func(rgb.g, 1)<<5) | stb__OMatch5Func(rgb.b, 1);
+	} else {
+		At1 = 0;
+		At2 = 0;
+
+		[unroll]
+		for (i=0;i<16;++i,cm>>=2)
+		{
+			int _step = cm&3;
+			int w1 = w1Tab[_step];
+			int3 rgb = block[i];
+
+			akku += prods[_step];
+			At1	+= w1*rgb;
+			At2	+= rgb;
+		}
+
+		At2 = 3*At2 - At1;
+
+		// extract solutions and decide solvability
+		xx = akku >> 16;
+		yy = (akku >> 8) & 0xff;
+		xy = (akku >> 0) & 0xff;
+
+		frb = 3.0f * 31.0f / 255.0f / (xx*yy - xy*xy);
+		fg = frb * 63.0f / 31.0f;
+
+		// solve.
+		max16 =	stb__sclamp((At1.r*yy - At2.r*xy)*frb+0.5,0,31) << 11;
+		max16 |= stb__sclamp((At1.g*yy - At2.g*xy)*fg +0.5,0,63) << 5;
+		max16 |= stb__sclamp((At1.b*yy - At2.b*xy)*frb+0.5,0,31) << 0;
+
+		min16 =	stb__sclamp((At2.r*xx - At1.r*xy)*frb+0.5,0,31) << 11;
+		min16 |= stb__sclamp((At2.g*xx - At1.g*xy)*fg +0.5,0,63) << 5;
+		min16 |= stb__sclamp((At2.b*xx - At1.b*xy)*frb+0.5,0,31) << 0;
+	}
+
+	pmin16 = min16;
+	pmax16 = max16;
+	return oldMin != min16 || oldMax != max16;
+}
+
+// Color block compression
+void stb__CompressColorBlock(inout BlockOutput dest, in int4 block[16], int refinecount, int offset)
+{
+	uint mask = 0;
+	int i = 0;
+	uint max16 = 0;
+	uint min16 = 0;
+	int4 color[4];
+	
+	// pca+map along principal axis
+	stb__OptimizeColorsBlock(block, max16, min16);
+
+	if (max16 != min16)
+	{
+		stb__EvalColors(color,max16,min16);
+		mask = stb__MatchColorsBlock(block,color);
+	}
+	else
+		mask = 0;
+
+	// refine (multiple times if requested)
+	for (i=0;i<refinecount;i++)
+	{
+		uint lastmask = mask;
+		int retval = 0;
+		retval = stb__RefineBlock(block, max16, min16, mask);
+
+		if(retval)
+		{
+			if (max16 != min16)
+			{
+				stb__EvalColors(color,max16,min16);
+				mask = stb__MatchColorsBlock(block,color);
+			}
+			else
+			{
+				mask = 0;
+				break;
+			}
+		}
+		
+		if(mask == lastmask)
+			break;
+	}
+
+	// write the color block
+	if(max16 < min16)
+	{
+		uint t = min16;
+		min16 = max16;
+		max16 = t;
+		mask ^= 0x55555555;
+	}
+
+	offset /= 4;
+	dest.dwords[offset] = packShorts(max16, min16);
+	dest.dwords[offset+1] = mask;
+}
+
+// Alpha block compression (this is easy for a change)
+void stb__CompressAlphaBlock(inout BlockOutput dest, in int4 src[16], int ch, int offset)
+{
+	int i;
+	int dist;
+	int bias;
+	int dist4;
+	int dist2;
+	int bits;
+	int mask;
+
+	// find _min/_max color
+	int mn,mx;
+	mn = mx = src[0][ch];
+
+	[unroll]
+	for (i=1;i<16;i++)
+	{
+		uint col = src[i][ch];
+		mn = min(mn, col);
+		mx = max(mx, col);
+	}
+
+	// encode them
+	uint shorts[4];
+	shorts[0] = (mx & 0xff) | (mn & 0xff) << 8;
+	uint destOff = 1;
+
+	// determine bias and emit color indices
+	// given the choice of mx/mn, these indices are optimal:
+	// http://fgiesen.wordpress.com/2009/12/15/dxt5-alpha-block-index-determination/
+	dist = mx-mn;
+	dist4 = dist*4;
+	dist2 = dist*2;
+	bias = (dist < 8) ? (dist - 1) : (dist/2 + 2);
+	bias -= mn * 7;
+	bits = 0,mask=0;
+
+	[unroll]
+	for (i=0;i<16;i++) {
+		int a = src[i][ch]*7 + bias;
+		int ind = 0;
+		int t = 0;
+
+		// select index. this is a "linear scale" lerp factor between 0 (val=min) and 7 (val=max).
+		t = (a >= dist4) ? -1 : 0; ind = t & 4; a -= dist4 & t;
+		t = (a >= dist2) ? -1 : 0; ind += t & 2; a -= dist2 & t;
+		ind += (a >= dist);
+		
+		// turn linear scale into DXT index (0/1 are extremal pts)
+		ind = -ind & 7;
+		ind ^= (2 > ind);
+
+		// write index
+		mask |= ind << bits;
+		if((bits += 3) >= 16) {
+			shorts[destOff] = mask & 0xffff;
+			++destOff;
+			mask >>= 16;
+			bits -= 16;
+		}
+	}
+
+	offset /= 4;
+	dest.dwords[offset] = packShorts(shorts[0], shorts[1]);
+	dest.dwords[offset+1] = packShorts(shorts[2], shorts[3]);
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+struct CS_INPUT
+{
+	int3 groupID : SV_GroupID;
+	int groupIndex : SV_GroupIndex;
+	int3 groupThreadID : SV_GroupThreadID;
+	int3 dispatchID : SV_DispatchThreadID;
+};
+
+struct BlockInput
+{
+	int4 color[16];
+};
+
+BlockInput ReadBlock(Texture2D<unorm float4> inTex, int2 base)
+{
+	int i, j;
+	BlockInput input = (BlockInput)0;
+	[unroll]
+	for(j = 0; j < 4; ++j)
+	{
+		[unroll]
+		for(i = 0; i < 4; ++i)
+		{
+			float4 texel = inTex[base + int2(i, j)];
+			input.color[i+j*4].r = (uint)(texel.r * 255.0);
+			input.color[i+j*4].g = (uint)(texel.g * 255.0);
+			input.color[i+j*4].b = (uint)(texel.b * 255.0);
+			input.color[i+j*4].a = (uint)(texel.a * 255.0);
+		}
+	}
+	return input;
+}
+
+void WriteBlock(RWTexture2D<uint4> outTex, BlockOutput block, int2 base)
+{
+	outTex[base].xyzw = (uint4)block.dwords;
+}
+
+// For BC1 and BC3, there can be refinement steps to improve the quality.
+// 0 = low qual, 1 = med qual, 2 = high qual.
+static const int REFINEMENT_STEPS = 0;
+
+[numthreads(1,1,1)]
+void cs_compress_bc1(CS_INPUT _in)
+{
+	BlockInput inputBlock = ReadBlock(inTexture, _in.groupID.xy * int2(4,4));
+	BlockOutput outputBlock = (BlockOutput)0;
+
+	stb__CompressColorBlock(outputBlock, inputBlock.color, REFINEMENT_STEPS, 0);
+
+	WriteBlock(outTexture, outputBlock, _in.groupID.xy);
+}
+
+[numthreads(1,1,1)]
+void cs_compress_bc3(CS_INPUT _in)
+{
+	BlockInput inputBlock = ReadBlock(inTexture, _in.groupID.xy * int2(4,4));
+	BlockOutput outputBlock = (BlockOutput)0;
+
+	stb__CompressAlphaBlock(outputBlock, inputBlock.color, 3, 0);
+	stb__CompressColorBlock(outputBlock, inputBlock.color, REFINEMENT_STEPS, 8);
+
+	WriteBlock(outTexture, outputBlock, _in.groupID.xy);
+}
+
+[numthreads(1,1,1)]
+void cs_compress_bc4(CS_INPUT _in)
+{
+	BlockInput inputBlock = ReadBlock(inTexture, _in.groupID.xy * int2(4,4));
+	BlockOutput outputBlock = (BlockOutput)0;
+
+	stb__CompressAlphaBlock(outputBlock, inputBlock.color, 0, 0);
+
+	WriteBlock(outTexture, outputBlock, _in.groupID.xy);
+}
+
+[numthreads(1,1,1)]
+void cs_compress_bc5(CS_INPUT _in)
+{
+	BlockInput inputBlock;
+	BlockOutput outputBlock;
+
+	inputBlock = ReadBlock(inTexture, _in.groupID.xy * int2(4,4));
+	outputBlock = (BlockOutput)0;
+
+	stb__CompressAlphaBlock(outputBlock, inputBlock.color, 0, 0);
+	stb__CompressAlphaBlock(outputBlock, inputBlock.color, 1, 8);
+
+	WriteBlock(outTexture, outputBlock, _in.groupID.xy);
+}
+
+Technique TECH_COMPRESS_BC1 =
+{
+	.ComputeShader = cs_compress_bc1,
+};
+
+Technique TECH_COMPRESS_BC3 =
+{
+	.ComputeShader = cs_compress_bc3,
+};
+
+Technique TECH_COMPRESS_BC4 =
+{
+	.ComputeShader = cs_compress_bc4,
+};
+
+Technique TECH_COMPRESS_BC5 =
+{
+	.ComputeShader = cs_compress_bc5,
+};
+

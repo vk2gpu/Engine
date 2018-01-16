@@ -14,6 +14,9 @@
 #include "gpu/manager.h"
 #include "gpu/utils.h"
 #include "graphics/converters/import_model.h"
+#include "image/image.h"
+#include "image/process.h"
+#include "image/save.h"
 #include "job/concurrency.h"
 #include "job/function_job.h"
 #include "job/manager.h"
@@ -39,6 +42,12 @@
 #if defined(COMPILER_MSVC)
 #pragma optimize("", on)
 #endif
+
+struct GeometryParams
+{
+	Math::Vec4 posScale;
+	Math::Vec4 posOffset;
+};
 
 // Utility code pulled from model converter.
 namespace
@@ -319,6 +328,19 @@ namespace MeshTools
 				return false;
 			return true;
 		}
+
+		u64 SortKey(Math::AABB bounds) const
+		{
+			Math::Vec3 position = position_;
+			position = (position - bounds.Minimum()) / bounds.Dimensions();
+			f32 scaleFactor = 0x1fffff; // 21 bits x 3 = 63 bits.
+			u32 x = (u32)(position.x * scaleFactor);
+			u32 y = (u32)(position.y * scaleFactor);
+			u32 z = (u32)(position.z * scaleFactor);
+			//u64 s = (u64)((triBounds.Diameter() / bounds.Diameter()) * 4);
+
+			return MortonEncode(x, y, z);
+		}
 	};
 
 	struct Triangle
@@ -356,6 +378,168 @@ namespace MeshTools
 
 		i32 idx_[3];
 	};
+	
+
+	static constexpr i32 BLOCK_SIZE = 4;
+	static constexpr i32 BLOCK_TEXELS = BLOCK_SIZE * BLOCK_SIZE;
+	
+	struct OctTree
+	{
+		struct NodeLinks
+		{
+			i32 c_ = -1;
+			bool IsLeaf() const { return c_ == -1; }
+		};
+
+		struct NodeData
+		{
+			Math::AABB bounds_;
+
+			Core::Array<Math::Vec3, BLOCK_TEXELS> points_;
+			Core::Array<i32, BLOCK_TEXELS> indices_;
+			i32 numPoints_ = 0;
+
+			bool AddPoint(Math::Vec3 point)
+			{
+				if(numPoints_ < points_.size())
+				{
+					points_[numPoints_++] = point;
+					return true;
+				}
+				return false;
+			}
+		};
+
+		Core::Vector<NodeLinks> nodeLinks_;
+		Core::Vector<NodeData> nodeDatas_;
+		i32 numNodes_ = 0;
+
+		i32 NewNodes(i32 numNodes)
+		{
+			i32 idx = numNodes_;
+			numNodes_ += numNodes;
+
+			// Double size.
+			if(numNodes_ > nodeDatas_.size())
+			{
+				nodeDatas_.resize(numNodes_ * 2);
+				nodeLinks_.resize(numNodes_ * 2);
+			}
+
+			return idx;
+		}
+
+		void CreateRoot(Math::AABB bounds)
+		{
+			i32 idx = NewNodes(1);
+			auto& data = nodeDatas_[idx];
+			data.bounds_ = bounds;
+		}
+
+		void Subdivide(i32 idx)
+		{
+			i32 baseIdx = NewNodes(8);
+
+			auto& data = nodeDatas_[idx];
+			auto& links = nodeLinks_[idx];
+
+			Math::Vec3 center = data.bounds_.Centre();
+
+			links.c_ = baseIdx;
+
+			i32 pointsMoved = 0;
+			u64 pointBits = 0xffffffffffffffffULL;
+			for(i32 i = 0; i < 8; ++i)
+			{
+				auto& cData = nodeDatas_[i + baseIdx];
+				Math::AABB bounds;
+				bounds.ExpandBy(center);
+				bounds.ExpandBy(data.bounds_.Corner(i));
+				cData.bounds_ = bounds;
+				cData.numPoints_ = 0;
+
+				for(i32 j = 0; j < data.numPoints_; ++j)
+				{
+					auto point = data.points_[j];
+					u64 pointBit = (1ULL << j);
+					if((pointBit & pointBits) != 0)
+					{
+						if(bounds.Classify(point) == Math::AABB::INSIDE)
+						{
+							bool success = cData.AddPoint(point);
+							DBG_ASSERT(success);
+							pointsMoved++;
+							
+							pointBits &= ~pointBit;
+						}
+					}
+				}
+			}
+
+			DBG_ASSERT(pointsMoved == data.numPoints_);
+			data.numPoints_ = 0;
+		}
+
+		i32 FindNode(Math::Vec3 point) const
+		{
+			i32 idx = 0;
+			i32 oldIdx = 0;
+			while(nodeLinks_[idx].IsLeaf() == false)
+			{
+				oldIdx = idx;
+				for(i32 i = 0; i < 8; ++i)
+				{
+					const i32 cIdx = i + nodeLinks_[idx].c_;
+					const auto& data = nodeDatas_[cIdx];
+					if(data.bounds_.Classify(point) == Math::AABB::INSIDE)
+					{
+						idx = cIdx;
+						break;
+					}
+				}
+
+				DBG_ASSERT(oldIdx != idx);
+			}
+			return idx;
+		}
+
+		i32 FindIndex(Math::Vec3 point) const
+		{
+			i32 nodeIdx = FindNode(point);
+			const auto& data = nodeDatas_[nodeIdx];
+
+			i32 nearestIdx = 0;
+			f32 diff = 1e6f;
+			for(i32 i = 0; i < data.numPoints_; ++i)
+			{
+				f32 calcDiff = (point - data.points_[i]).Magnitude();
+				if(calcDiff < diff)
+				{
+					nearestIdx = i;
+					diff = calcDiff;
+				}
+			}
+			return data.indices_[nearestIdx];
+		}
+
+		void AddPoint(Math::Vec3 point)
+		{
+			bool added = false;
+			i32 tries = 0;
+			do
+			{
+				DBG_ASSERT(tries < 16);
+				i32 idx = FindNode(point);
+				added = nodeDatas_[idx].AddPoint(point);
+				if(!added)
+					Subdivide(idx);
+
+				++tries;
+			}
+			while(!added);
+		}
+	};
+
 
 	struct Mesh
 	{
@@ -452,7 +636,92 @@ namespace MeshTools
 
 		void ReorderIndices()
 		{
+			Core::Vector<Vertex> oldVertices;
+			Core::Vector<Triangle> oldTriangles;
+			std::swap(oldVertices, vertices_);
+			std::swap(oldTriangles, triangles_);
 
+			std::sort(triangles_.begin(), triangles_.end(), [this](const Triangle& a, const Triangle& b) {
+				auto aKey = a.SortKey(Core::ArrayView<Vertex>(vertices_.begin(), vertices_.end()), bounds_);
+				auto bKey = b.SortKey(Core::ArrayView<Vertex>(vertices_.begin(), vertices_.end()), bounds_);
+				return aKey < bKey;
+			});
+
+			struct VtxIdx
+			{
+				Vertex vtx;
+				u32 idx;
+			};
+
+			Core::Vector<VtxIdx> vtxIdx;
+			for(u32 idx = 0; idx < (u32)oldVertices.size(); ++idx)
+			{
+				VtxIdx pair = {oldVertices[idx], idx};
+				vtxIdx.push_back(pair);
+			}
+
+			std::sort(vtxIdx.begin(), vtxIdx.end(), [&](const VtxIdx& a, const VtxIdx& b)
+			{
+				auto aKey = a.vtx.SortKey(bounds_);
+				auto bKey = b.vtx.SortKey(bounds_);
+				return aKey < bKey;
+			});
+
+			
+
+			Core::Map<u32, u32> remap;
+			u32 newIdx = 0;
+			for(const auto& vi : vtxIdx)
+			{
+				remap.insert(vi.idx, newIdx++);
+			}
+
+			// Readd all the vertices.
+			for(const auto& vi : vtxIdx)
+			{
+				vertices_.push_back(vi.vtx);
+			}
+
+			for(const auto& tri : oldTriangles)
+			{
+				auto newTri = tri;
+				newTri.idx_[0] = remap[newTri.idx_[0]];
+				newTri.idx_[1] = remap[newTri.idx_[1]];
+				newTri.idx_[2] = remap[newTri.idx_[2]];
+				triangles_.push_back(newTri);
+			}
+		}
+
+		void ReorderIndices(const OctTree& octtree, i32 numVertices)
+		{
+			Core::Vector<Vertex> oldVertices;
+			Core::Vector<Triangle> oldTriangles;
+			std::swap(oldVertices, vertices_);
+			std::swap(oldTriangles, triangles_);
+
+			vertices_.resize(numVertices);
+
+			for(const auto& tri : oldTriangles)
+			{
+				const auto& a = oldVertices[tri.idx_[0]];
+				const auto& b = oldVertices[tri.idx_[1]];
+				const auto& c = oldVertices[tri.idx_[2]];
+
+				auto ia = octtree.FindIndex(a.position_);
+				auto ib = octtree.FindIndex(b.position_);
+				auto ic = octtree.FindIndex(c.position_);
+
+				vertices_[ia] = oldVertices[tri.idx_[0]];
+				vertices_[ib] = oldVertices[tri.idx_[1]];
+				vertices_[ic] = oldVertices[tri.idx_[2]];
+
+				Triangle newTri;
+				newTri.idx_[0] = ia;
+				newTri.idx_[1] = ib;
+				newTri.idx_[2] = ic;
+
+				triangles_.push_back(newTri);
+			}		
 		}
 
 		void ImportMeshCluster(Mesh* mesh, i32 firstTri, i32 numTris)
@@ -507,12 +776,44 @@ namespace MeshTools
 
 			Core::StreamDesc inStream(texels_.data(), Core::DataType::FLOAT, 32, sizeof(Math::Vec4));
 			outStream.data_ = uploadData.data();
-			Core::Convert(outStream, inStream, texels_.size(), 2);
+			Core::Convert(outStream, inStream, texels_.size(), outStream.stride_ / (outStream.numBits_ / 8));
 
 			GPU::TextureSubResourceData subRscData;
 			subRscData.data_ = uploadData.data();
 			subRscData.rowPitch_ = layout.pitch_;
 			subRscData.slicePitch_ = layout.slicePitch_;
+
+			return GPU::Manager::CreateTexture(desc, &subRscData, debugName);
+		}
+
+		GPU::Handle Create(GPU::Format format, const char* debugName)
+		{
+			GPU::TextureDesc desc = {};
+			desc.type_ = GPU::TextureType::TEX2D;
+			desc.bindFlags_ = GPU::BindFlags::SHADER_RESOURCE;
+			desc.width_ = width_;
+			desc.height_ = height_;
+			desc.format_ = format;
+
+			bool retVal = false;
+			Image::Image inputImage(GPU::TextureType::TEX2D, GPU::Format::R32G32B32A32_FLOAT, 
+				width_, height_, 1, 1,
+				(u8*)texels_.data(), [](u8*){});
+
+			Image::Image intImage;
+			retVal = Image::Convert(intImage, inputImage, Image::ImageFormat::R8G8B8A8_UNORM);
+			DBG_ASSERT(retVal);
+
+			Image::Image outImage;
+			retVal = Image::Convert(outImage, intImage, format, Image::ConvertQuality::VERY_HIGH);
+			DBG_ASSERT(retVal);
+
+			const auto info = GPU::GetTextureLayoutInfo(format, width_, height_);
+
+			GPU::TextureSubResourceData subRscData;
+			subRscData.data_ = outImage.GetMipData<u8>(0);
+			subRscData.rowPitch_ = info.pitch_;
+			subRscData.slicePitch_ = info.slicePitch_;
 
 			return GPU::Manager::CreateTexture(desc, &subRscData, debugName);
 		}
@@ -546,6 +847,8 @@ namespace MeshTools
 		Math::Vec2 n2(n.x, n.y);
 		Math::Vec2 enc = n2.Normal() * std::sqrt(-n.z * 0.5f + 0.5f);
 		enc = enc * 0.5f + Math::Vec2(0.5f, 0.5f);
+		enc.x = Core::Clamp(enc.x, 0.0f, 1.0f);
+		enc.y = Core::Clamp(enc.y, 0.0f, 1.0f);
 		return enc;
 	}
 
@@ -802,9 +1105,81 @@ CompressedModel::CompressedModel(const char* sourceFile)
 		for(i32 i = 0; i < meshes.size(); ++i)
 		{
 			auto* mesh = meshes[i];
+
+			Core::Vector<Math::Vec3> positions;
+			Math::AABB bounds;
+			for(const auto& vtx : mesh->vertices_)
+			{
+				Math::Vec3 scaledPos = vtx.position_;
+				//scaledPos -= mesh->bounds_.Minimum();
+				//scaledPos = scaledPos / (mesh->bounds_.Maximum() - mesh->bounds_.Minimum());
+
+				bounds.ExpandBy(scaledPos);
+				positions.push_back(scaledPos);
+			}
+			
+			MeshTools::OctTree posTree;
+			posTree.CreateRoot(bounds);
+			for(const auto& pos : positions)
+			{
+				posTree.AddPoint(pos);
+			}
+
+			Core::Vector<i32> leafNodes;
+			for(i32 idx = 0; idx < posTree.numNodes_; ++idx)
+			{
+				const auto& link = posTree.nodeLinks_[idx];
+				const auto& data = posTree.nodeDatas_[idx];
+				if(link.IsLeaf() && data.numPoints_ > 0)
+				{
+					leafNodes.push_back(idx);
+				}
+			}
+
+			i32 minSize = (i32)ceil(sqrt((f32)leafNodes.size())) * MeshTools::BLOCK_SIZE;
+
+			auto outImage = Image::Image(GPU::TextureType::TEX2D, GPU::Format::R32G32B32A32_FLOAT, minSize, minSize, 1, 1, nullptr, nullptr);
+			
+			auto* outData = outImage.GetMipData<Math::Vec4>(0);
+			for(i32 idx = 0; idx < leafNodes.size(); ++idx)
+			{
+				i32 blockX = idx % (minSize / MeshTools::BLOCK_SIZE);
+				i32 blockY = idx / (minSize / MeshTools::BLOCK_SIZE);
+				
+				i32 nodeIdx = leafNodes[idx];
+				const auto& link = posTree.nodeLinks_[nodeIdx];
+				auto& data = posTree.nodeDatas_[nodeIdx];
+				if(link.IsLeaf() && data.numPoints_ > 0)
+				{
+					for(i32 j = 0; j < MeshTools::BLOCK_TEXELS; ++j)
+					{
+						const i32 pIdx = Core::Min(j, data.numPoints_ - 1);
+						const i32 x = (j % MeshTools::BLOCK_SIZE) + (blockX * MeshTools::BLOCK_SIZE);
+						const i32 y = (j / MeshTools::BLOCK_SIZE) + (blockY * MeshTools::BLOCK_SIZE);
+
+						const i32 texIdx = (y * minSize) + x;
+						data.indices_[pIdx] = texIdx;
+						auto point = data.points_[pIdx];
+
+						outData[texIdx] = Math::Vec4(point, 1.0f);
+					}
+				}
+			}
+
+#if 0
+			Image::Image fileImage;
+
+			Image::Convert(fileImage, outImage, Image::ImageFormat::R8G8B8A8_UNORM);
+
+			if(auto file = Core::File("packed_positions.png", Core::FileFlags::CREATE | Core::FileFlags::WRITE))
+				Image::Save(file, fileImage, Image::FileType::PNG);
+#endif
+			
+			mesh->ReorderIndices(posTree, minSize * minSize);
+
 			auto material = GetMaterial(sourceFile, scene->mMaterials[scene->mMeshes[i]->mMaterialIndex]);
-			if(!material)
-				material = "default.material";
+			//if(!material)
+			material = "default.material";
 			materials_.emplace_back(std::move(material));
 
 			material = "default_compressed.material";
@@ -821,12 +1196,56 @@ CompressedModel::CompressedModel(const char* sourceFile)
 			{
 				const auto& vtx = mesh->vertices_[idx];
 
+				auto pos = outData[idx];
+				Math::Vec3 scaledPos = pos.xyz();
+				scaledPos -= mesh->bounds_.Minimum();
+				scaledPos = scaledPos / (mesh->bounds_.Maximum() - mesh->bounds_.Minimum());
+
+				// Alpha channel could encode a shared exponent, but that would break the ability to
+				// interpolate.
+				
+				packedPositionTex.Set(idx, Math::Vec4(scaledPos, 1.0f));
 				packedNormalTex.Set(idx, MeshTools::EncodeSMT(vtx.normal_));
 				packedColorTex.Set(idx, MeshTools::EncodeYCoCg(vtx.color_));
 			}
 
-			Core::StreamDesc outStream(nullptr, Core::DataType::UNORM, 8, 2);
-			normalTex_ = packedNormalTex.Create(GPU::Format::R8G8_UNORM, outStream, "PackedNormalTex");
+			bool useCompression = true;
+			if(useCompression)
+			{
+				positionFmt_ = GPU::Format::BC7_UNORM;
+				positionTex_.push_back(packedPositionTex.Create(positionFmt_, "PackedPositionTex"));
+			}
+			else
+			{
+				positionFmt_ = GPU::Format::R8G8B8A8_UNORM;
+				Core::StreamDesc outStream(nullptr, Core::DataType::UNORM, 8, 4 * sizeof(u8));
+				positionTex_.push_back(packedPositionTex.Create(positionFmt_, outStream, "PackedPositionTex"));
+
+			}
+
+			if(useCompression)
+			{
+				normalFmt_ = GPU::Format::BC5_UNORM;
+				normalTex_.push_back(packedNormalTex.Create(normalFmt_, "PackedNormalTex"));
+			}
+			else
+			{
+				normalFmt_ = GPU::Format::R8G8_UNORM;
+				Core::StreamDesc outStream(nullptr, Core::DataType::UNORM, 8, 2 * sizeof(u8));
+				normalTex_.push_back(packedNormalTex.Create(normalFmt_, outStream, "PackedNormalTex"));
+			}
+
+			{
+				GeometryParams params;
+				params.posScale = Math::Vec4((mesh->bounds_.Maximum() - mesh->bounds_.Minimum()), 0.0f);
+				params.posOffset = Math::Vec4(mesh->bounds_.Minimum(), 0.0f);
+
+				GPU::BufferDesc desc;
+				desc.bindFlags_ = GPU::BindFlags::CONSTANT_BUFFER;
+				desc.size_ = sizeof(GeometryParams);
+				paramsBuffer_.push_back(GPU::Manager::CreateBuffer(desc, &params, "GeometryParams"));
+			}
+		
 
 			numIndices += mesh->triangles_.size() * 3;
 			numVertices += mesh->vertices_.size();
@@ -1016,7 +1435,6 @@ CompressedModel::CompressedModel(const char* sourceFile)
 		techDesc_.SetVertexElements(elements_);
 		techDesc_.SetTopology(GPU::TopologyType::TRIANGLE);
 
-		compressedTechDesc_.SetVertexElements(elements_);
 		compressedTechDesc_.SetTopology(GPU::TopologyType::TRIANGLE);
 
 		objectBindings_ = Graphics::Shader::CreateSharedBindingSet("ObjectBindings");
@@ -1053,8 +1471,7 @@ void CompressedModel::DrawClusters(Testbed::DrawContext& drawCtx, Testbed::Objec
 			for(i32 meshIdx = 0; meshIdx < meshes_.size(); ++meshIdx)
 			{
 				auto* techs = &techs_[meshIdx];
-				static bool useCompressed = true;
-				if(useCompressed)
+				if(useCompressed_)
 					techs = &compressedTechs_[meshIdx];
 
 				auto it = techs->passIndices_.find(drawCtx.passName_);
@@ -1066,7 +1483,11 @@ void CompressedModel::DrawClusters(Testbed::DrawContext& drawCtx, Testbed::Objec
 						drawCtx.customBindFn_(techs->material_->GetShader(), tech);
 
 					if(geometryBindings_)
-						geometryBindings_.Set("geomNormal", GPU::Binding::Texture2D(normalTex_, GPU::Format::R8G8_UNORM, 0, 1));
+					{
+						geometryBindings_.Set("geomParams", GPU::Binding::CBuffer(paramsBuffer_[meshIdx], 0, sizeof(GeometryParams)));
+						geometryBindings_.Set("geomPosition", GPU::Binding::Texture2D(positionTex_[meshIdx], positionFmt_, 0, 1));
+						geometryBindings_.Set("geomNormal", GPU::Binding::Texture2D(normalTex_[meshIdx], normalFmt_, 0, 1));
+					}
 
 					objectBindings_.Set("inObject", GPU::Binding::Buffer(drawCtx.objectSBHandle_,
 							                            GPU::Format::INVALID, 0, 1, objectDataSize));

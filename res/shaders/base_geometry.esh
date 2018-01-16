@@ -148,20 +148,28 @@ float3 CalculateNormal(in PixelData pixData)
 	return v_normal;
 }
 
-VS_OUT vs_position(in float3 _in : POSITION, uint _id : SV_INSTANCEID, uint _vtx : SV_VERTEXID)
+VS_OUT vs_position(
+#if !defined(MANUAL_VERTEX_FETCH)
+	in float3 _in : POSITION,
+#endif
+	uint _id : SV_INSTANCEID, uint _vtx : SV_VERTEXID)
 {
 	Object o = GetObjectUniforms(inObject, _id);
 
 	VertexData vtxData = (VertexData)0;
-	vtxData.input.position = _in;
 	vtxData.instanceID = _id;
 	vtxData.vertexID = _vtx;
+#if !defined(MANUAL_VERTEX_FETCH)
+	vtxData.input.position = _in;
 	vtxData.positionWS = GetPositionWS(o, _in);
 	vtxData.positionVS = GetPositionVS(viewParams, vtxData.positionWS.xyz);
 	vtxData.positionCS = GetPositionCS(viewParams, vtxData.positionWS.xyz);
+#endif
 
 	if(ShadeVertex(PASS_DEPTH_PREPASS, o, vtxData))
 	{
+		vtxData.positionWS = GetPositionWS(o, vtxData.positionWS);
+		vtxData.positionVS = GetPositionVS(viewParams, vtxData.positionWS.xyz);
 		vtxData.positionCS = GetPositionCS(viewParams, vtxData.positionWS.xyz);
 	}
 
@@ -180,19 +188,25 @@ VS_OUT vs_position(in float3 _in : POSITION, uint _id : SV_INSTANCEID, uint _vtx
 	return outVtx;
 }
 
-VS_OUT vs_main(in VS_IN _in, uint _id : SV_INSTANCEID, uint _vtx : SV_VERTEXID)
+VS_OUT vs_main(
+#if !defined(MANUAL_VERTEX_FETCH)
+	in VS_IN _in,
+#endif
+	uint _id : SV_INSTANCEID, uint _vtx : SV_VERTEXID)
 {
 	Object o = GetObjectUniforms(inObject, _id);
 
 	VertexData vtxData = (VertexData)0;
-	vtxData.input = _in;
 	vtxData.instanceID = _id;
 	vtxData.vertexID = _vtx;
+#if !defined(MANUAL_VERTEX_FETCH)
+	vtxData.input = _in;
 	vtxData.positionWS = GetPositionWS(o, _in.position);
 	vtxData.positionVS = GetPositionVS(viewParams, vtxData.positionWS.xyz);
 	vtxData.positionCS = GetPositionCS(viewParams, vtxData.positionWS.xyz);
 	vtxData.normalWS = GetNormalWS(o, _in.normal).xyz;
 	vtxData.normalVS = GetNormalVS(viewParams, vtxData.normalWS).xyz;
+#endif
 
 #ifdef REQUIRE_TANGENT
 	vtxData.tangentWS = GetNormalWS(o, _in.tangent).xyz;
@@ -205,6 +219,8 @@ VS_OUT vs_main(in VS_IN _in, uint _id : SV_INSTANCEID, uint _vtx : SV_VERTEXID)
 
 	if(ShadeVertex(PASS_FORWARD, o, vtxData))
 	{
+		vtxData.positionWS = GetPositionWS(o, vtxData.positionWS);
+		vtxData.positionVS = GetPositionVS(viewParams, vtxData.positionWS.xyz);
 		vtxData.positionCS = GetPositionCS(viewParams, vtxData.positionWS.xyz);
 		vtxData.normalVS = GetNormalVS(viewParams, vtxData.normalWS.xyz);
 	}

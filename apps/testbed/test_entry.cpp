@@ -443,6 +443,7 @@ namespace
 	i32 w_, h_;
 	bool updateFrustum_ = true;
 	bool clusterCulling_ = true;
+	bool compressedModel_ = true;
 
 	void DrawRenderPackets(const Testbed::DrawContext& drawCtx)
 	{
@@ -494,6 +495,7 @@ namespace
 
 			ImGui::Checkbox("Update Frustum", &updateFrustum_);
 			ImGui::Checkbox("Cluster Culling", &clusterCulling_);
+			ImGui::Checkbox("Compressed Model", &compressedModel_);
 
 			static int debugMode = 0;
 			ImGui::Text("Debug Modes:");
@@ -869,6 +871,7 @@ void Loop(const Core::CommandLine& cmdLine)
 				if(testCompressedModel)
 				{
 					testCompressedModel->enableCulling_ = clusterCulling_;
+					testCompressedModel->useCompressed_ = compressedModel_;
 
 #if LOAD_SPONZA
 					for(auto position : positions)
@@ -879,7 +882,8 @@ void Loop(const Core::CommandLine& cmdLine)
 #endif
 					{
 						Testbed::ObjectConstants object;
-						object.world_.Rotation(Math::Vec3(0.0f, 0.0f, 0.0f));
+						//object.world_.Scale(Math::Vec3(16.0f, 16.0f, 16.0f));
+						//object.world_.Rotation(Math::Vec3(0.0f, 0.0f, 0.0f));
 						object.world_.Translation(position);
 
 #if !LOAD_SPONZA
