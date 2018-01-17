@@ -381,7 +381,7 @@ namespace Graphics
 	{
 		ShaderBindingSet bindingSet;
 		bindingSet.impl_ = impl_->CreateBindingSet(name);
-#ifndef FINAL
+#if !defined(_RELEASE)
 		if(bindingSet.impl_)
 			bindingSet.name_ = bindingSet.impl_->header_.name_;
 #endif
@@ -431,7 +431,7 @@ namespace Graphics
 		ShaderBindingSet bindingSet;
 		bindingSet.impl_ = CreateBindingSetInternal(name);
 
-#ifndef FINAL
+#if !defined(_RELEASE)
 		if(bindingSet.impl_)
 			bindingSet.name_ = bindingSet.impl_->header_.name_;
 #endif
@@ -562,7 +562,7 @@ namespace Graphics
 	ShaderBindingSet::ShaderBindingSet(ShaderBindingSet&& other)
 	{
 		std::swap(other.impl_, impl_);
-#ifndef FINAL
+#if !defined(_RELEASE)
 		std::swap(other.name_, name_);
 #endif
 	}
@@ -570,7 +570,7 @@ namespace Graphics
 	ShaderBindingSet& ShaderBindingSet::operator=(ShaderBindingSet&& other)
 	{
 		std::swap(other.impl_, impl_);
-#ifndef FINAL
+#if !defined(_RELEASE)
 		std::swap(other.name_, name_);
 #endif
 		return *this;
@@ -731,9 +731,9 @@ namespace Graphics
 		{
 			impl_ = new ShaderContextImpl(cmdList);
 			impl_->bindingSets_.resize(factory->bindingSetHeaders_.size());
-#if !defined(FINAL)
+#if !defined(_RELEASE)
 			impl_->bindingCallstacks_.resize(impl_->bindingSets_.size());
-#endif // !defined(FINAL)
+#endif // !defined(_RELEASE)
 		}
 	}
 
@@ -748,10 +748,10 @@ namespace Graphics
 		DBG_ASSERT(impl_->bindingSets_[idx] == nullptr);
 		impl_->bindingSets_[idx] = bindingSet.impl_;
 
-#if !defined(FINAL)
+#if !defined(_RELEASE)
 		auto& callstack = impl_->bindingCallstacks_[idx];
 		Core::GetCallstack(1, callstack.fns_.data(), callstack.fns_.size(), &callstack.hash_);
-#endif // !defined(FINAL)
+#endif // !defined(_RELEASE)
 
 		return ShaderContext::ScopedBinding(*this, idx);
 	}
@@ -768,14 +768,14 @@ namespace Graphics
 				break;
 
 			const auto* bindingSet = impl_->bindingSets_[bindingSlot.idx_];
-#if !defined(FINAL)
+#if !defined(_RELEASE)
 			if(bindingSet == nullptr)
 			{
 				const auto* factory = Shader::GetFactory();
 				const auto& bindingSetHeader = factory->bindingSetHeaders_[bindingSlot.idx_];
 				DBG_LOG("Binding set expected, but not bound: %s\n", bindingSetHeader.name_);
 			}
-#endif // !defined(FINAL)
+#endif // !defined(_RELEASE)
 			DBG_ASSERT(bindingSet != nullptr);
 
 			tempDesc.numCBVs_ = Core::Max(tempDesc.numCBVs_, bindingSlot.cbvReg_ + bindingSet->cbvs_.size());
@@ -850,9 +850,9 @@ namespace Graphics
 		DBG_ASSERT(impl_->bindingSets_[idx] != nullptr);
 		impl_->bindingSets_[idx] = nullptr;
 
-#if !defined(FINAL)
+#if !defined(_RELEASE)
 		impl_->bindingCallstacks_[idx].fns_.fill(nullptr);
-#endif // !defined(FINAL)
+#endif // !defined(_RELEASE)
 	}
 
 	ShaderImpl::ShaderImpl() {}

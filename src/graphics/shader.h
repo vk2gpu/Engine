@@ -172,7 +172,7 @@ namespace Graphics
 		ShaderBindingSet& operator=(const ShaderBindingSet&) = delete;
 
 		struct ShaderBindingSetImpl* impl_ = nullptr;
-#if !defined(FINAL)
+#if !defined(_RELEASE)
 		const char* name_ = nullptr;
 #endif
 	};

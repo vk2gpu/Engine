@@ -163,16 +163,6 @@
 #endif
 
 //////////////////////////////////////////////////////////////////////////
-// Build type.
-#ifdef _DEBUG
-#define DEBUG
-#endif
-
-#ifdef NDEBUG
-#define RELEASE
-#endif
-
-//////////////////////////////////////////////////////////////////////////
 // Disable warnings.
 #if COMPILER_MSVC
 /// nonstandard extension used: nameless struct/union
@@ -181,6 +171,16 @@
 #pragma warning(disable : 4251)
 /// conditional expression is constant
 #pragma warning(disable : 4127)
+
+#if defined(_RELEASE)
+/// local variable is initialized but not referenced
+#pragma warning(disable : 4189)
+/// empty controlled statement found; is this the intent?
+#pragma warning(disable : 4390)
+/// '==': operator has no effect; did you intend '='?
+#pragma warning(disable : 4553)
+
+#endif // defined(_RELEASE)
 #endif
 
 //////////////////////////////////////////////////////////////////////////

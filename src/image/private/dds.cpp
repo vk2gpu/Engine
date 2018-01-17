@@ -1,4 +1,5 @@
 #include "image/private/dds.h"
+#include "core/array.h"
 #include "core/file.h"
 #include "core/misc.h"
 #include "gpu/types.h"

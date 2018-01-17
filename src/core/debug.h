@@ -69,7 +69,7 @@ namespace Core
 
 //////////////////////////////////////////////////////////////////////////
 // Macros
-#if defined(DEBUG) || defined(RELEASE)
+#if !defined(_RELEASE)
 #if PLATFORM_WINDOWS
 #define DBG_BREAK __debugbreak()
 #else
@@ -88,11 +88,15 @@ namespace Core
 			DBG_BREAK;                                                                                                 \
 	}
 
+
+#define DBG_VERIFY(Condition) DBG_ASSERT(Condition)
+
 #define DBG_LOG(...) Core::Log(__VA_ARGS__)
 
 #else
 #define DBG_BREAK
 #define DBG_ASSERT_MSG(Condition, Message, ...)
 #define DBG_ASSERT(Condition)
+#define DBG_VERIFY(Condition) Condition
 #define DBG_LOG(...)
 #endif

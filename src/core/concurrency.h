@@ -140,7 +140,7 @@ namespace Core
 	private:
 		Thread(const Thread&) = delete;
 		struct ThreadImpl* impl_ = nullptr;
-#if !defined(FINAL)
+#if !defined(_RELEASE)
 		const char* debugName_ = nullptr;
 #endif
 	};
@@ -204,7 +204,7 @@ namespace Core
 	private:
 		Fiber(const Fiber&) = delete;
 		struct FiberImpl* impl_ = nullptr;
-#if !defined(FINAL)
+#if !defined(_RELEASE)
 		const char* debugName_ = nullptr;
 #endif
 	};
@@ -242,7 +242,7 @@ namespace Core
 		Semaphore(const Semaphore&) = delete;
 
 		struct SemaphoreImpl* impl_;
-#if !defined(FINAL)
+#if !defined(_RELEASE)
 		const char* debugName_ = nullptr;
 #endif
 	};

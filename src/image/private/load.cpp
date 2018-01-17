@@ -2,6 +2,7 @@
 #include "image/load.h"
 #include "image/private/dds.h"
 #include "core/file.h"
+#include "core/vector.h"
 
 #define STBI_FAILURE_USERMSG
 #pragma warning(push)

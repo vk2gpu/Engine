@@ -44,7 +44,7 @@ namespace GPU
 		DBG_ASSERT(noofVertices > 0);
 		DBG_ASSERT(firstInstance >= 0);
 		DBG_ASSERT(noofInstances > 0);
-#if !defined(FINAL)
+#if !defined(_RELEASE)
 		for(const auto& b : pb)
 		{
 			DBG_ASSERT(b.pbs_.GetType() == ResourceType::PIPELINE_BINDING_SET);
@@ -94,7 +94,7 @@ namespace GPU
 		DBG_ASSERT(argByteOffset >= 0);
 		DBG_ASSERT(countByteOffset >= 0);
 		DBG_ASSERT(maxCommands >= 1);
-#if !defined(FINAL)
+#if !defined(_RELEASE)
 		for(const auto& b : pb)
 		{
 			DBG_ASSERT(b.pbs_.GetType() == ResourceType::PIPELINE_BINDING_SET);
@@ -138,7 +138,7 @@ namespace GPU
 		DBG_ASSERT(xGroups >= 1);
 		DBG_ASSERT(yGroups >= 1);
 		DBG_ASSERT(zGroups >= 1);
-#if !defined(FINAL)
+#if !defined(_RELEASE)
 		for(const auto& b : pb)
 		{
 			DBG_ASSERT(b.pbs_.GetType() == ResourceType::PIPELINE_BINDING_SET);
@@ -168,7 +168,7 @@ namespace GPU
 		DBG_ASSERT(argByteOffset >= 0);
 		DBG_ASSERT(countByteOffset >= 0);
 		DBG_ASSERT(maxCommands >= 1);
-#if !defined(FINAL)
+#if !defined(_RELEASE)
 		for(const auto& b : pb)
 		{
 			DBG_ASSERT(b.pbs_.GetType() == ResourceType::PIPELINE_BINDING_SET);

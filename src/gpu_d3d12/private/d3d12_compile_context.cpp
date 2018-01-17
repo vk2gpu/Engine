@@ -412,7 +412,7 @@ namespace GPU
 		const auto& pbs = backend_.pipelineBindingSets_[pb[0].pbs_.GetIndex()];
 		DBG_ASSERT(pbs.shaderVisible_);
 
-#if !defined(FINAL)
+#if !defined(_RELEASE)
 		backend_.ValidatePipelineBindings(pb);
 #endif
 

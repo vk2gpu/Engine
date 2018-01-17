@@ -4,6 +4,7 @@
 #include "image/process.h"
 #include "image/save.h"
 
+#include "core/array.h"
 #include "core/file.h"
 #include "core/function.h"
 #include "core/misc.h"

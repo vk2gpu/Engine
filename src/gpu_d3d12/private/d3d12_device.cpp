@@ -69,7 +69,7 @@ namespace GPU
 		}
 
 
-#if !defined(FINAL)
+#if !defined(_RELEASE)
 		// Setup break on error + corruption.
 		ComPtr<ID3D12InfoQueue> d3dInfoQueue;
 		hr = d3dDevice_.As(&d3dInfoQueue);

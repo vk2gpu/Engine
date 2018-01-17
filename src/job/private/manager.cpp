@@ -11,7 +11,7 @@
 #include <utility>
 
 #define VERBOSE_LOGGING (0)
-#define ENABLE_JOB_PROFILER (!defined(FINAL))
+#define ENABLE_JOB_PROFILER (!defined(_RELEASE))
 
 namespace Job
 {

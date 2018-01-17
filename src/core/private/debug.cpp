@@ -72,7 +72,7 @@ namespace Core
 
 	bool AssertInternal(const char* Message, const char* File, int Line, ...)
 	{
-#if defined(DEBUG) || defined(RELEASE)
+#if !defined(_RELEASE)
 		char context[4096];
 		va_list argList;
 		va_start(argList, Line);

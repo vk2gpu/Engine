@@ -209,7 +209,7 @@ namespace Graphics
 		GPU::CommandList& cmdList_;
 		Core::Vector<ShaderBindingSetImpl*> bindingSets_;
 
-#if !defined(FINAL)
+#if !defined(_RELEASE)
 		struct Callstack
 		{
 			Core::Array<void*, 32> fns_ = {};
@@ -217,7 +217,7 @@ namespace Graphics
 		};
 
 		Core::Vector<Callstack> bindingCallstacks_;
-#endif // !defined(FINAL)
+#endif // !defined(_RELEASE)
 	};
 
 } // namespace Graphics

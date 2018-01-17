@@ -28,7 +28,7 @@ namespace Core
 		HANDLE threadHandle_ = 0;
 		Thread::EntryPointFunc entryPointFunc_ = nullptr;
 		void* userData_ = nullptr;
-#if !defined(FINAL)
+#if !defined(_RELEASE)
 		Core::String debugName_;
 #endif
 	};
@@ -37,7 +37,7 @@ namespace Core
 	{
 		auto* impl = reinterpret_cast<ThreadImpl*>(lpThreadParameter);
 
-#if !defined(FINAL)
+#if !defined(_RELEASE)
 		if(IsDebuggerAttached() && impl->debugName_.size() > 0)
 		{
 #pragma pack(push, 8)
@@ -76,7 +76,7 @@ namespace Core
 		impl_->userData_ = userData;
 		impl_->threadHandle_ =
 		    ::CreateThread(nullptr, stackSize, ThreadEntryPoint, impl_, creationFlags, &impl_->threadId_);
-#if !defined(FINAL)
+#if !defined(_RELEASE)
 		impl_->debugName_ = debugName;
 		debugName_ = impl_->debugName_.c_str();
 #endif
@@ -94,7 +94,7 @@ namespace Core
 	{
 		using std::swap;
 		swap(impl_, other.impl_);
-#if !defined(FINAL)
+#if !defined(_RELEASE)
 		swap(debugName_, other.debugName_);
 #endif
 	}
@@ -103,7 +103,7 @@ namespace Core
 	{
 		using std::swap;
 		swap(impl_, other.impl_);
-#if !defined(FINAL)
+#if !defined(_RELEASE)
 		swap(debugName_, other.debugName_);
 #endif
 		return *this;
@@ -139,7 +139,7 @@ namespace Core
 		void* exitFiber_ = nullptr;
 		Fiber::EntryPointFunc entryPointFunc_ = nullptr;
 		void* userData_ = nullptr;
-#if !defined(FINAL)
+#if !defined(_RELEASE)
 		Core::String debugName_;
 #endif
 	};
@@ -162,7 +162,7 @@ namespace Core
 		impl_->entryPointFunc_ = entryPointFunc;
 		impl_->userData_ = userData;
 		impl_->fiber_ = ::CreateFiber(stackSize, FiberEntryPoint, impl_);
-#if !defined(FINAL)
+#if !defined(_RELEASE)
 		impl_->debugName_ = debugName_;
 		debugName_ = impl_->debugName_.c_str();
 #endif
@@ -175,7 +175,7 @@ namespace Core
 	}
 
 	Fiber::Fiber(ThisThread, const char* debugName)
-#if !defined(FINAL)
+#if !defined(_RELEASE)
 	    : debugName_(debugName)
 #endif
 	{
@@ -184,7 +184,7 @@ namespace Core
 		impl_->entryPointFunc_ = nullptr;
 		impl_->userData_ = nullptr;
 		impl_->fiber_ = ::ConvertThreadToFiber(impl_);
-#if !defined(FINAL)
+#if !defined(_RELEASE)
 		impl_->debugName_ = debugName_;
 #endif
 		DBG_ASSERT_MSG(impl_->fiber_, "Unable to create fiber. Is there already one for this thread?");
@@ -215,7 +215,7 @@ namespace Core
 	{
 		using std::swap;
 		swap(impl_, other.impl_);
-#if !defined(FINAL)
+#if !defined(_RELEASE)
 		swap(debugName_, other.debugName_);
 #endif
 		impl_->parent_ = this;
@@ -225,7 +225,7 @@ namespace Core
 	{
 		using std::swap;
 		swap(impl_, other.impl_);
-#if !defined(FINAL)
+#if !defined(_RELEASE)
 		swap(debugName_, other.debugName_);
 #endif
 		impl_->parent_ = this;
@@ -265,7 +265,7 @@ namespace Core
 	struct SemaphoreImpl
 	{
 		HANDLE handle_;
-#if !defined(FINAL)
+#if !defined(_RELEASE)
 		Core::String debugName_;
 #endif
 	};
@@ -279,7 +279,7 @@ namespace Core
 
 		// NOTE: Don't set debug name on semaphore. If 2 names are the same, they'll reference the same event.
 		impl_->handle_ = ::CreateSemaphore(nullptr, initialCount, maximumCount, nullptr);
-#if !defined(FINAL)
+#if !defined(_RELEASE)
 		impl_->debugName_ = debugName;
 		debugName_ = impl_->debugName_.c_str();
 #endif
@@ -295,7 +295,7 @@ namespace Core
 	{
 		using std::swap;
 		swap(impl_, other.impl_);
-#if !defined(FINAL)
+#if !defined(_RELEASE)
 		swap(debugName_, other.debugName_);
 #endif
 	}
@@ -402,7 +402,7 @@ namespace Core
 
 	RWLock::~RWLock()
 	{
-#if !defined(FINAL)
+#if !defined(_RELEASE)
 		if(!::TryAcquireSRWLockExclusive(&impl_->srwLock_))
 			DBG_ASSERT(false);
 #endif

@@ -91,7 +91,7 @@ namespace
 			// Init device.
 			i32 numAdapters = GPU::Manager::EnumerateAdapters(nullptr, 0);
 			DBG_ASSERT(numAdapters > 0);
-			DBG_ASSERT(GPU::Manager::CreateAdapter(0) == GPU::ErrorCode::OK);
+			DBG_VERIFY(GPU::Manager::CreateAdapter(0) == GPU::ErrorCode::OK);
 
 			i32 w, h;
 			window.GetSize(w, h);

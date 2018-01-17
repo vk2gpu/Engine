@@ -570,7 +570,7 @@ namespace GPU
 
 	void SetObjectName(ID3D12Object* object, const char* name)
 	{
-#if !defined(FINAL)
+#if !defined(_RELEASE)
 		if(name)
 		{
 			wchar wName[512] = {0};
@@ -583,7 +583,7 @@ namespace GPU
 
 	void GetObjectName(ID3D12Object* object, char* outName, i32& outSize)
 	{
-#if !defined(FINAL)
+#if !defined(_RELEASE)
 		UINT len = (UINT)outSize;
 		memset(outName, 0, outSize);
 		object->GetPrivateData(GUID_DebugName, &len, outName);

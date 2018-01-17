@@ -2,6 +2,10 @@
 #include "core/array.h"
 #include "core/misc.h"
 
+#if !defined(_RELEASE)
+#include "core/string.h"
+#endif
+
 #include <utility>
 
 #if PLATFORM_LINUX || PLATFORM_OSX
@@ -446,7 +450,9 @@ namespace Core
 		virtual FileFlags GetFlags() const = 0;
 		virtual bool IsValid() const = 0;
 
+#if !defined(_RELEASE)
 		Core::String path_;
+#endif
 	};
 
 	/// Native file implementation.
@@ -510,7 +516,9 @@ namespace Core
 			}
 
 			flags_ = flags;
+#if !defined(_RELEASE)
 			path_ = path;
+#endif
 		}
 
 		virtual ~FileImplNative()
@@ -578,7 +586,9 @@ namespace Core
 		    , size_(size)
 		    , flags_(flags)
 		{
+#if !defined(_RELEASE)
 			path_.Printf("memory://%p:%lld", data, size);
+#endif
 		}
 
 		FileImplMem(const void* data, i64 size)
@@ -586,7 +596,9 @@ namespace Core
 		    , size_(size)
 		    , flags_(FileFlags::READ)
 		{
+#if !defined(_RELEASE)
 			path_.Printf("memory://%p:%lld", data, size);
+#endif
 		}
 
 		~FileImplMem()
@@ -734,5 +746,12 @@ namespace Core
 		return impl_ ? impl_->GetFlags() : FileFlags::NONE;
 	}
 
-	const char* File::GetPath() const { return impl_ ? impl_->path_.c_str() : "<NULL>"; }
+	const char* File::GetPath() const
+	{
+#if !defined(_RELEASE)
+		return impl_ ? impl_->path_.c_str() : "<NULL>";
+#else
+		return "";
+#endif
+	}
 } // namespace Core

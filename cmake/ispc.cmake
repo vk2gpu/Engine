@@ -91,7 +91,7 @@ MACRO (ISPC_COMPILE)
   IF (WIN32 OR "${CMAKE_BUILD_TYPE}" STREQUAL "Release")
     SET(ISPC_OPT_FLAGS -O3)
   ELSE()
-    SET(ISPC_OPT_FLAGS -O2 -g)
+    SET(ISPC_OPT_FLAGS -O2)
   ENDIF()
 
   IF (WIN32)
@@ -148,7 +148,6 @@ MACRO (ISPC_COMPILE)
       ${ISPC_OPT_FLAGS}
       --target=${ISPC_TARGET_ARGS}
       --opt=fast-math
-      -O3
       ${ISPC_ADDITIONAL_ARGS}
       -h ${ISPC_HEADER_DIR}/ispc/${fname}_ispc.h
       -MMM  ${outdir}/${fname}.dev.idep

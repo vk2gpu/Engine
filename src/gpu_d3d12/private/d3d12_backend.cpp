@@ -57,7 +57,7 @@ namespace GPU
 		DBG_ASSERT(retVal == ErrorCode::OK);
 		UINT flags = 0;
 
-#if !defined(FINAL)
+#if !defined(_RELEASE)
 		HRESULT hr = S_OK;
 		// Setup debug interfaces.
 		if(Core::ContainsAnyFlags(
@@ -131,7 +131,7 @@ namespace GPU
 		adapterInfos_.clear();
 		dxgiFactory_ = nullptr;
 
-#if !defined(FINAL)
+#if !defined(_RELEASE)
 		if(dxgiDebug_)
 		{
 			dxgiDebug_->ReportLiveObjects(DXGI_DEBUG_ALL, DXGI_DEBUG_RLO_ALL);

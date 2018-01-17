@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/types.h"
+#include "core/array_view.h"
 #include "gpu/dll.h"
 #include "gpu/command_list.h"
 #include "gpu/resources.h"

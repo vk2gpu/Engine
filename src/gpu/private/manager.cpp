@@ -28,7 +28,7 @@
  */
 namespace GPU
 {
-#if !defined(FINAL)
+#if !defined(_RELEASE)
 	static const i32 MAX_DEBUG_NAME_LENGTH = 256;
 
 	struct ResourceDebugInfo
@@ -52,11 +52,11 @@ namespace GPU
 	{
 		return resourceDebugInfo_[(i32)handle.GetType()][handle.GetIndex()];
 	}
-#endif // !defined(FINAL)
+#endif // !defined(_RELEASE)
 
 	GPU_DLL const char* SetDebugInfo(GPU::Handle handle, const char* debugName)
 	{
-#if !defined(FINAL)
+#if !defined(_RELEASE)
 		Core::ScopedMutex lock(resourceDebugInfoMutex_);
 
 		auto& resourceDebugInfo = resourceDebugInfo_[(i32)handle.GetType()];
@@ -66,11 +66,13 @@ namespace GPU
 		}
 		resourceDebugInfo[handle.GetIndex()] = ResourceDebugInfo(debugName, handle);
 		return resourceDebugInfo[handle.GetIndex()].name_.data();
-#endif // !defined(FINAL)
+#else
+		return nullptr;
+#endif // !defined(_RELEASE)
 	}
 
 // Helper macro for formatting and setting debug name.
-#if !defined(FINAL)
+#if !defined(_RELEASE)
 #define SET_DEBUG_INFO()                                                                                               \
 	Core::Array<char, MAX_DEBUG_NAME_LENGTH> debugName = {};                                                           \
 	va_list argList;                                                                                                   \
@@ -322,7 +324,7 @@ namespace GPU
 		for(i32 idx = 0; idx < MAX_GPU_FRAMES; ++idx)
 			NextFrame();
 
-#if !defined(FINAL)
+#if !defined(_RELEASE)
 		bool handlesAlive = false;
 		for(i32 i = 0; i < (i32)ResourceType::MAX; ++i)
 		{
@@ -512,22 +514,25 @@ namespace GPU
 		DBG_ASSERT(IsInitialized());
 		rmt_ScopedCPUSample(GPU_AllocTemporaryPipelineBindingSet, RMTSF_None);
 		Handle handle = impl_->AllocHandle(ResourceType::PIPELINE_BINDING_SET);
+#if !defined(_RELEASE)
 		Core::Array<char, MAX_DEBUG_NAME_LENGTH> debugName;
 		sprintf_s(debugName.data(), debugName.size(), "Temp/PipelineBindingSet(%i, %i, %i, %i)", desc.numCBVs_,
 		    desc.numSRVs_, desc.numUAVs_, desc.numSamplers_);
 		SetDebugInfo(handle, debugName.data());
+#endif
 		impl_->HandleErrorCode(handle, impl_->backend_->AllocTemporaryPipelineBindingSet(handle, desc));
 		DestroyResource(handle);
 		return handle;
 	}
 
 	bool Manager::UpdatePipelineBindings(Handle handle, i32 base, Core::ArrayView<const BindingCBV> descs)
-	{
+	{	
 		DBG_ASSERT(IsInitialized());
 		DBG_ASSERT(handle.GetType() == ResourceType::PIPELINE_BINDING_SET);
 		rmt_ScopedCPUSample(GPU_UpdatePipelineBindings, RMTSF_None);
 		return impl_->HandleErrorCode(impl_->backend_->UpdatePipelineBindings(handle, base, descs));
 	}
+
 
 	bool Manager::UpdatePipelineBindings(Handle handle, i32 base, Core::ArrayView<const BindingSRV> descs)
 	{
@@ -558,7 +563,7 @@ namespace GPU
 	{
 		DBG_ASSERT(IsInitialized());
 		DBG_ASSERT(dst.size() == src.size());
-#if !defined(FINAL)
+#if !defined(_RELEASE)
 		for(i32 i = 0; i < dst.size(); ++i)
 		{
 			DBG_ASSERT(dst[i].pbs_.IsValid());
@@ -602,7 +607,7 @@ namespace GPU
 	bool Manager::SubmitCommandLists(Core::ArrayView<Handle> handles)
 	{
 		DBG_ASSERT(IsInitialized());
-#if !defined(FINAL)
+#if !defined(_RELEASE)
 		for(auto handle : handles)
 			DBG_ASSERT(handle.GetType() == ResourceType::COMMAND_LIST);
 #endif

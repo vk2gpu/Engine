@@ -3,10 +3,6 @@
 #include "core/types.h"
 #include "core/dll.h"
 
-#ifndef FINAL
-#include "core/string.h"
-#endif
-
 namespace Core
 {
 	/// Maximum path length supported. Platform may vary.
