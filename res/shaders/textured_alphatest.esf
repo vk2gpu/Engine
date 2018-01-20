@@ -13,10 +13,15 @@ uint ShadeVertex(uniform int passID, in Object obj, inout VertexData vtxData)
 
 uint ShadePixel(uniform int passID, inout PixelData pixData)
 {
+	const float2 texcoord = pixData.input.texcoord0;
+	const float opacity = texOpacity.Sample(SS_MIP_WRAP, texcoord);
+	clip(opacity < 0.5 ? -1 : 1);
+
 	switch(passID)
 	{
 		case PASS_DEPTH_PREPASS:
 		{
+
 			return PIX_DEFAULT;
 		}
 
@@ -27,13 +32,13 @@ uint ShadePixel(uniform int passID, inout PixelData pixData)
 
 		case PASS_FORWARD:
 		{
-			const float2 texcoord = pixData.input.texcoord0;
+			float4 specular = texSpecular.Sample(SS_MIP_WRAP, texcoord);
 
 			pixData.normal = DecodeNormal(texNormal.Sample(SS_MIP_WRAP, texcoord)).rgb;
 			pixData.color.rgb = GammaToLinear(texDiffuse.Sample(SS_MIP_WRAP, texcoord).rgb);
 			pixData.color.a = 1.0;
-			pixData.roughness = texRoughness.Sample(SS_MIP_WRAP, texcoord).r;
-			pixData.metallic = texMetallic.Sample(SS_MIP_WRAP, texcoord).r;
+			pixData.roughness = 1.0 - specular.a;
+			pixData.metallic = dot(specular.rgb, float3(1/3, 1/3, 1/3));
 			pixData.specular = DIELECTRIC_F0;
 			return PIX_LIGHTING;
 		}

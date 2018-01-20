@@ -1,0 +1,17 @@
+#ifndef MATERIAL_COMMON_ESH
+#define MATERIAL_COMMON_ESH
+
+///////////////////////////////////////////////////////////////////////
+// Binding sets
+[frequency(HIGH)]
+BindingSet MaterialBindings
+{
+	Texture2D<float4> texDiffuse;
+	Texture2D<float4> texNormal;
+	Texture2D<float4> texMetallic;
+	Texture2D<float4> texRoughness;
+	Texture2D<float4> texSpecular;
+	Texture2D<float> texOpacity;
+};
+
+#endif // MATERIAL_COMMON_ESH

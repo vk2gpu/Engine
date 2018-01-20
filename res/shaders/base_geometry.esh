@@ -152,6 +152,9 @@ VS_OUT vs_position(
 #if !defined(MANUAL_VERTEX_FETCH)
 	in float3 _in : POSITION,
 #endif
+#ifdef REQUIRE_TEXCOORD0
+	float2 texcoord0 : TEXCOORD0,
+#endif
 	uint _id : SV_INSTANCEID, uint _vtx : SV_VERTEXID)
 {
 	Object o = GetObjectUniforms(inObject, _id);
@@ -164,6 +167,10 @@ VS_OUT vs_position(
 	vtxData.positionWS = GetPositionWS(o, _in);
 	vtxData.positionVS = GetPositionVS(viewParams, vtxData.positionWS.xyz);
 	vtxData.positionCS = GetPositionCS(viewParams, vtxData.positionWS.xyz);
+#endif
+
+#ifdef REQUIRE_TEXCOORD0
+	vtxData.texcoord0 = texcoord0;
 #endif
 
 	if(ShadeVertex(PASS_DEPTH_PREPASS, o, vtxData))
@@ -239,7 +246,6 @@ VS_OUT vs_main(
 	return outVtx;
 }
 
-[earlydepthstencil]
 void ps_depthprepass(in VS_OUT _in)
 {
 	PixelData pixData = (PixelData)0;
@@ -247,7 +253,6 @@ void ps_depthprepass(in VS_OUT _in)
 	ShadePixel(PASS_DEPTH_PREPASS, pixData);
 }
 
-[earlydepthstencil]
 void ps_shadow(in VS_OUT _in)
 {
 	PixelData pixData = (PixelData)0;
@@ -312,7 +317,7 @@ RenderState RS_DEPTH_PREPASS =
 	.DepthEnable = 1,
 	.DepthWriteMask = 1,
 	.FillMode = SOLID,
-	.CullMode = CCW,
+	.CullMode = NONE //CCW,
 };
 
 RenderState RS_SHADOW =
@@ -325,8 +330,8 @@ RenderState RS_SHADOW =
 	.DepthEnable = 1,
 	.DepthWriteMask = 1,
 	.FillMode = SOLID,
-	.CullMode = CCW,
-};
+	.CullMode = NONE //CCW,
+};};
 
 RenderState RS_FORWARD =
 {
@@ -334,8 +339,8 @@ RenderState RS_FORWARD =
 	.DepthEnable = 1,
 	.DepthWriteMask = 0,
 	.FillMode = SOLID,
-	.CullMode = CCW,
-};
+	.CullMode = NONE //CCW,
+};};
 
 Technique RenderPassDepthPrepass =
 {

@@ -1,7 +1,7 @@
 {
    "$internal" : {
       "dependencies" : [
-         "shaders/textured.esf",
+         "shaders/textured_alphatest.esf",
          "shaders/base_geometry.esh",
          "shaders/stdlib.esh",
          "shaders/stdlib/color.esh",
@@ -19,6 +19,8 @@
          "shaders/common_bindings.esh",
          "shaders/material_common.esh"
       ],
-      "outputs" : [ "../../../../.converter_output/shaders/textured.esf.converted" ]
+      "outputs" : [
+         "../../../../.converter_output/shaders/textured_alphatest.esf.converted"
+      ]
    }
 }
