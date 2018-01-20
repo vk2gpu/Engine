@@ -25,6 +25,8 @@ public:
 	};
 
 	Core::Vector<Mesh> meshes_;
+
+
 	Core::Vector<GPU::Handle> paramsBuffer_;
 	Core::Vector<GPU::Handle> positionTex_;
 	Core::Vector<GPU::Handle> normalTex_;

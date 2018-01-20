@@ -29,7 +29,7 @@
 
 #include <cmath>
 
-#define LOAD_SPONZA (1)
+#define LOAD_SPONZA (0)
 
 namespace
 {
@@ -78,6 +78,8 @@ namespace
 
 			if(input.WasKeyReleased(Client::KeyCode::LSHIFT))
 				moveFast_ = false;
+			if(input.WasKeyReleased(Client::KeyCode::LCTRL))
+				moveSlow_ = false;
 
 
 			if(input.WasKeyPressed(Client::KeyCode::LEFT))
@@ -104,6 +106,8 @@ namespace
 
 			if(input.WasKeyPressed(Client::KeyCode::LSHIFT))
 				moveFast_ = true;
+			if(input.WasKeyPressed(Client::KeyCode::LCTRL))
+				moveSlow_ = true;
 
 			Math::Vec2 mousePos = input.GetMousePosition();
 			Math::Vec2 mouseDelta = oldMousePos_ - mousePos;
@@ -141,7 +145,7 @@ namespace
 			cameraDistance_ = Core::Clamp(cameraDistance_, 1.0f, 4096.0f);
 			cameraZoom_ = 0.0f;
 
-			f32 walkSpeed = moveFast_ ? 128.0f : 16.0f;
+			f32 walkSpeed = moveFast_ ? 128.0f : moveSlow_ ? 1.0f : 16.0f;
 			Math::Mat44 cameraRotationMatrix = GetCameraRotationMatrix();
 			Math::Vec3 offsetVector = -cameraWalk_ * cameraRotationMatrix;
 			cameraTarget_ += offsetVector * tick * walkSpeed;
@@ -177,6 +181,7 @@ namespace
 		f32 cameraDistance_;
 		f32 cameraZoom_;
 		bool moveFast_ = false;
+		bool moveSlow_ = false;
 
 		Math::Vec2 initialMousePos_;
 		Math::Vec2 oldMousePos_;
@@ -442,8 +447,8 @@ namespace
 	Core::Vector<Testbed::ShaderTechniques> shaderTechniques_;
 	i32 w_, h_;
 	bool updateFrustum_ = true;
-	bool clusterCulling_ = true;
-	bool compressedModel_ = true;
+	bool clusterCulling_ = false;
+	bool compressedModel_ = false;
 
 	void DrawRenderPackets(const Testbed::DrawContext& drawCtx)
 	{
@@ -530,16 +535,19 @@ void Loop(const Core::CommandLine& cmdLine)
 	Resource::Manager::RequestResource(shader, "shaders/simple-mesh.esf");
 
 	Model* model = nullptr;
-	Resource::Manager::RequestResource(model, "model_tests/cube.obj");
+//	Resource::Manager::RequestResource(model, "model_tests/SpeedTree/Azalea/HighPoly/Azalea.fbx");
+//	Resource::Manager::RequestResource(model, "model_tests/SpeedTree/Backyard Grass/HighPoly/Backyard_Grass.fbx");
+//	Resource::Manager::RequestResource(model, "model_tests/SpeedTree/Boston Fern/HighPoly/Boston_Fern.fbx");
+//	Resource::Manager::RequestResource(model, "model_tests/SpeedTree/European Linden/HighPoly/European_Linden.fbx");
+//	Resource::Manager::RequestResource(model, "model_tests/SpeedTree/Hedge/HighPoly/Hedge.fbx");
+//	Resource::Manager::RequestResource(model, "model_tests/SpeedTree/Japanese Maple/HighPoly/Japanese_Maple.fbx");
+//	Resource::Manager::RequestResource(model, "model_tests/SpeedTree/Red Maple Young/HighPoly/Red_Maple_Young.fbx");
+//	Resource::Manager::RequestResource(model, "model_tests/SpeedTree/White Oak/HighPoly/White_Oak.fbx");
 
+	Resource::Manager::RequestResource(model, "model_tests/teapot.obj");
 	Model* sponzaModel = nullptr;
 
-#if LOAD_SPONZA
 	CompressedModel* testCompressedModel = new CompressedModel("model_tests/teapot.obj");
-#else
-	CompressedModel* testCompressedModel = new CompressedModel("model_tests/crytek-sponza/sponza.obj");
-//CompressedModel* testCompressedModel = new CompressedModel("model_tests/san_miguel/san-miguel-low-poly.obj");
-#endif
 
 #if LOAD_SPONZA
 	Resource::Manager::RequestResource(sponzaModel, "model_tests/crytek-sponza/sponza.obj");
@@ -564,7 +572,7 @@ void Loop(const Core::CommandLine& cmdLine)
 	f32 angle = 0.0;
 	const Math::Vec3 positions[] = {
 	    Math::Vec3(-10.0f, 10.0f, -5.0f),
-	    Math::Vec3(-5.0f, 10.0f, -5.0f),
+		Math::Vec3(-5.0f, 10.0f, -5.0f),
 	    Math::Vec3(0.0f, 10.0f, -5.0f),
 	    Math::Vec3(5.0f, 10.0f, -5.0f),
 	    Math::Vec3(10.0f, 10.0f, -5.0f),
@@ -644,9 +652,9 @@ void Loop(const Core::CommandLine& cmdLine)
 	}
 #endif
 
-	shaderTechniques_.reserve(10000);
+	shaderTechniques_.reserve(100000);
 	Testbed::ShaderTechniques* techniques = &*shaderTechniques_.emplace_back();
-	if(!LOAD_SPONZA)
+	//if(!LOAD_SPONZA)
 	{
 		{
 			for(const auto& position : positions)
@@ -662,6 +670,10 @@ void Loop(const Core::CommandLine& cmdLine)
 					packet.draw_ = model->GetMeshDraw(idx);
 					packet.techDesc_ = techDesc;
 					packet.material_ = model->GetMeshMaterial(idx);
+
+					if(techniques->material_ != packet.material_)
+						techniques = &*shaderTechniques_.emplace_back();
+
 					packet.techs_ = techniques;
 
 					packet.world_ = model->GetMeshWorldTransform(idx);
@@ -882,14 +894,15 @@ void Loop(const Core::CommandLine& cmdLine)
 #endif
 					{
 						Testbed::ObjectConstants object;
-						//object.world_.Scale(Math::Vec3(16.0f, 16.0f, 16.0f));
-						//object.world_.Rotation(Math::Vec3(0.0f, 0.0f, 0.0f));
-						object.world_.Translation(position);
+						object.world_.Row0(Math::Vec4(0.1f, 0.0f, 0.0f, 0.0f));
+						object.world_.Row1(Math::Vec4(0.0f, 0.0f, 0.1f, 0.0f));
+						object.world_.Row2(Math::Vec4(0.0f,-0.1f, 0.0f, 0.0f));
+						object.world_.Translation(position * Math::Vec3(10.0f, 1.0f, 10.0f));
 
 #if !LOAD_SPONZA
 						object.world_ = object.world_ * scale;
 #endif
-						testCompressedModel->DrawClusters(drawCtx, object);
+						//testCompressedModel->DrawClusters(drawCtx, object);
 					}
 				}
 #endif

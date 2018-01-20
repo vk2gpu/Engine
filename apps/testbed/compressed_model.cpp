@@ -1177,9 +1177,9 @@ CompressedModel::CompressedModel(const char* sourceFile)
 			
 			mesh->ReorderIndices(posTree, minSize * minSize);
 
-			auto material = GetMaterial(sourceFile, scene->mMaterials[scene->mMeshes[i]->mMaterialIndex]);
+			//auto material = GetMaterial(sourceFile, scene->mMaterials[scene->mMeshes[i]->mMaterialIndex]);
 			//if(!material)
-			material = "default.material";
+			Graphics::MaterialRef material = "default.material";
 			materials_.emplace_back(std::move(material));
 
 			material = "default_compressed.material";
