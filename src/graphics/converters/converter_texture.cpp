@@ -128,12 +128,14 @@ namespace
 				metaData.generateMipLevels_ = false;
 			}
 
+			const auto formatInfo = GPU::GetFormatInfo(image.GetFormat());
+
 			GPU::TextureDesc desc;
 			desc.type_ = GPU::TextureType::TEX2D;
 			desc.bindFlags_ = GPU::BindFlags::SHADER_RESOURCE;
 			desc.format_ = image.GetFormat();
-			desc.width_ = image.GetWidth();
-			desc.height_ = image.GetHeight();
+			desc.width_ = Core::Max(formatInfo.blockW_, image.GetWidth());
+			desc.height_ = Core::Max(formatInfo.blockH_, image.GetHeight());
 			desc.depth_ = (i16)image.GetDepth();
 			desc.levels_ = (i16)image.GetLevels();
 
