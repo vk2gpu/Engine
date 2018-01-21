@@ -411,13 +411,36 @@ namespace GPU
 
 	void D3D12Device::CreateDescriptorAllocators()
 	{
-		const i32 cpuViewBlockSize = Core::Min(65536, D3D12_MAX_SHADER_VISIBLE_DESCRIPTOR_HEAP_SIZE_TIER_1);
-		const i32 cpuSamplerBlockSize = D3D12_MAX_SHADER_VISIBLE_SAMPLER_HEAP_SIZE;
-		const i32 gpuViewBlockSize = Core::Min(65536, D3D12_MAX_SHADER_VISIBLE_DESCRIPTOR_HEAP_SIZE_TIER_1);
-		const i32 gpuSamplerBlockSize = D3D12_MAX_SHADER_VISIBLE_SAMPLER_HEAP_SIZE;
-		const i32 rtvBlockSize = 2048;
-		const i32 dsvBlockSize = 2048;
-		const i32 linearSubAllocatorBlockSize = 256;
+		i32 cpuViewBlockSize = 1024 * 1024;
+		i32 cpuSamplerBlockSize = 1024 * 1024;
+		i32 gpuViewBlockSize = Core::Min(1024 * 1024, D3D12_MAX_SHADER_VISIBLE_DESCRIPTOR_HEAP_SIZE_TIER_1);
+		i32 gpuSamplerBlockSize = D3D12_MAX_SHADER_VISIBLE_SAMPLER_HEAP_SIZE;
+		i32 rtvBlockSize = 2048;
+		i32 dsvBlockSize = 2048;
+		i32 linearSubAllocatorBlockSize = 256;
+
+		// Round all sizes down a power of two if they are not a power of two.
+		auto RoundSize = [](i32 size)
+		{
+			if(!Core::Pot(size))
+			{
+				--size;
+				size |= size >> 1;
+				size |= size >> 2;
+				size |= size >> 4;
+				size |= size >> 8;
+				size |= size >> 16;
+				return (++size) >> 1;
+			}
+			return size;
+		};
+
+		cpuViewBlockSize = RoundSize(cpuViewBlockSize);
+		cpuSamplerBlockSize = RoundSize(cpuSamplerBlockSize);
+		gpuViewBlockSize = RoundSize(gpuViewBlockSize);
+		gpuSamplerBlockSize = RoundSize(gpuSamplerBlockSize);
+		rtvBlockSize = RoundSize(rtvBlockSize);
+		dsvBlockSize = RoundSize(dsvBlockSize);
 
 		cpuViewAllocator_ = new D3D12DescriptorHeapAllocator(d3dDevice_.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
 		    D3D12_DESCRIPTOR_HEAP_FLAG_NONE, cpuViewBlockSize, "CPU View Descriptors");
@@ -1124,21 +1147,23 @@ namespace GPU
 
 	bool D3D12Device::FlushUploads(i64 minCommands, i64 minBytes)
 	{
-		if(uploadCommandsPending_ > minCommands || uploadBytesPending_ > minBytes)
+		bool retVal = false;
+		if(uploadMutex_.TryLock())
 		{
-			Core::ScopedMutex lock(uploadMutex_);
+			if(uploadCommandsPending_ > minCommands || uploadBytesPending_ > minBytes)
+			{
+				uploadCommandList_->Close();
+				uploadCommandList_->Submit(d3dDirectQueue_.Get());
 
-			uploadCommandList_->Close();
-			uploadCommandList_->Submit(d3dDirectQueue_.Get());
+				d3dDirectQueue_->Signal(d3dUploadFence_.Get(), Core::AtomicInc(&uploadFenceIdx_));
 
-			d3dDirectQueue_->Signal(d3dUploadFence_.Get(), Core::AtomicInc(&uploadFenceIdx_));
-
-			Core::AtomicExchg(&uploadBytesPending_, 0);
-			Core::AtomicExchg(&uploadCommandsPending_, 0);
-
-			return true;
+				Core::AtomicExchg(&uploadBytesPending_, 0);
+				Core::AtomicExchg(&uploadCommandsPending_, 0);
+				retVal = true;
+			}
+			uploadMutex_.Unlock();				
 		}
-		return false;
+		return retVal;
 	}
 
 } // namespace GPU

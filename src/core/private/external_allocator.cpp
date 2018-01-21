@@ -1,4 +1,5 @@
 #include "core/external_allocator.h"
+#include "core/misc.h"
 
 #if !CODE_INLINE
 #include "core/private/external_allocator.inl"
@@ -15,6 +16,8 @@ namespace Core
 	{
 		DBG_ASSERT(size > 0);
 		DBG_ASSERT(maxAllocations > 0 && maxAllocations <= 0xffff)
+
+		size = Core::PotRoundDown(size, SIZE_ALIGNMENT);
 		arena_ = etlsf_create((u32)size, (u16)maxAllocations);
 	}
 

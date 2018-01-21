@@ -49,6 +49,7 @@ namespace GPU
 	{
 		const i32 textLength = (i32)strlen(text) + 1;
 		char* dstText = Alloc<char>(textLength);
+		DBG_ASSERT(dstText);
 		strcpy_s(dstText, textLength, text);
 		if(InternalBeginEvent(metaData, dstText))
 			return ScopedEvent(this);
@@ -59,6 +60,7 @@ namespace GPU
 	{
 		static const i32 MAX_TEXT_LENGTH = 256;
 		char* dstText = Alloc<char>(MAX_TEXT_LENGTH);
+		DBG_ASSERT(dstText);
 		dstText[0] = '\0';
 		va_list argList;
 		va_start(argList, format);

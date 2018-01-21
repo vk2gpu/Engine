@@ -467,9 +467,9 @@ namespace GPU
 		FormatInfo formatInfo = GetFormatInfo(format);
 		for(i32 i = 0; i < levels; ++i)
 		{
-			i32 blocksW = Core::PotRoundUp(width, formatInfo.blockW_) / formatInfo.blockW_;
-			i32 blocksH = Core::PotRoundUp(height, formatInfo.blockH_) / formatInfo.blockH_;
-			i32 blocksD = depth;
+			i64 blocksW = Core::PotRoundUp(width, formatInfo.blockW_) / formatInfo.blockW_;
+			i64 blocksH = Core::PotRoundUp(height, formatInfo.blockH_) / formatInfo.blockH_;
+			i64 blocksD = depth;
 
 			size += (formatInfo.blockBits_ * blocksW * blocksH * blocksD) / 8;
 			width = Core::Max(width / 2, 1);

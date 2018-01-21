@@ -22,13 +22,13 @@ namespace Core
 	{
 		inline u16& GetMagicID(u16* magicIds, u32 index, u32 type)
 		{
-			return magicIds[index + (type * Handle::MAX_MAGIC)];
+			return magicIds[index + (type * Handle::MAX_INDEX)];
 		}
 	}
 
 	HandleAllocator::HandleAllocator(i32 numTypes)
 	{
-		const i32 magicSize = Handle::MAX_TYPE * Handle::MAX_MAGIC;
+		const i32 magicSize = Handle::MAX_TYPE * Handle::MAX_INDEX;
 		magicIDs_ = new u16[magicSize];
 		for(i32 i = 0; i < magicSize; ++i)
 			magicIDs_[i] = 1;

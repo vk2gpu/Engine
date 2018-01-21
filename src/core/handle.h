@@ -13,9 +13,9 @@ namespace Core
 	public:
 		enum
 		{
-			MAX_INDEX = 65536,
-			MAX_MAGIC = 4096,
-			MAX_TYPE = 16,
+			MAX_INDEX = (1 << 16) - 1,
+			MAX_MAGIC = (1 << 12) - 1,
+			MAX_TYPE = (1 << 4) - 1,
 		};
 
 		Handle()
@@ -41,7 +41,7 @@ namespace Core
 		/**
 		 * Get combined type & index.
 		 */
-		i32 GetCombined() const { return type_ << 16 | index_; }
+		i32 GetCombined() const { return type_ << 20 | index_; }
 
 		/**
 		 * Validity check.
@@ -59,7 +59,6 @@ namespace Core
 		{
 			struct
 			{
-				;
 				u32 index_ : 16;
 				u32 magic_ : 12;
 				u32 type_ : 4;
@@ -147,7 +146,7 @@ namespace Core
 		 */
 		bool IsValid(Handle handle) const
 		{
-			return magicIDs_[handle.index_ + (handle.type_ * Handle::MAX_MAGIC)] == handle.magic_;
+			return magicIDs_[handle.index_ + (handle.type_ * Handle::MAX_INDEX)] == handle.magic_;
 		}
 
 	private:

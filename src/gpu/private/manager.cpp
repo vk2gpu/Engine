@@ -23,6 +23,8 @@
 #include <cstdarg>
 #include <utility>
 
+#define ENABLE_TEMP_DEBUG_INFO		(0)
+
 /**
  * GPU debug information.
  */
@@ -514,7 +516,7 @@ namespace GPU
 		DBG_ASSERT(IsInitialized());
 		rmt_ScopedCPUSample(GPU_AllocTemporaryPipelineBindingSet, RMTSF_None);
 		Handle handle = impl_->AllocHandle(ResourceType::PIPELINE_BINDING_SET);
-#if !defined(_RELEASE)
+#if ENABLE_TEMP_DEBUG_INFO && !defined(_RELEASE)
 		Core::Array<char, MAX_DEBUG_NAME_LENGTH> debugName;
 		sprintf_s(debugName.data(), debugName.size(), "Temp/PipelineBindingSet(%i, %i, %i, %i)", desc.numCBVs_,
 		    desc.numSRVs_, desc.numUAVs_, desc.numSamplers_);

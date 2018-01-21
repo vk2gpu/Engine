@@ -25,19 +25,26 @@ namespace Core
 	}
 
 	template<typename TYPE>
-	bool Pot(TYPE T)
+	constexpr bool Pot(TYPE T)
 	{
 		return ((T & (T - 1)) == 0) || (T == 1);
 	}
 
 	template<typename TYPE, typename TYPE2>
-	TYPE PotRoundUp(TYPE value, TYPE2 RoundUpTo)
+	TYPE PotRoundUp(TYPE value, TYPE2 roundUpTo)
 	{
-		DBG_ASSERT(Pot(RoundUpTo));
-		return (value + (((TYPE)RoundUpTo) - 1)) & ~((TYPE)RoundUpTo - 1);
+		DBG_ASSERT(Pot(roundUpTo));
+		return (value + (((TYPE)roundUpTo) - 1)) & ~((TYPE)roundUpTo - 1);
 	}
 
-	inline i32 BitsSet(u32 value)
+	template<typename TYPE, typename TYPE2>
+	TYPE PotRoundDown(TYPE value, TYPE2 roundDownTo)
+	{
+		DBG_ASSERT(Pot(roundDownTo));
+		return value & ~((TYPE)roundDownTo - 1);
+	}
+
+	constexpr inline i32 BitsSet(u32 value)
 	{
 		value = (value & 0x55555555U) + ((value & 0xAAAAAAAAU) >> 1);
 		value = (value & 0x33333333U) + ((value & 0xCCCCCCCCU) >> 2);
@@ -47,22 +54,22 @@ namespace Core
 	}
 
 	template<typename ENUM>
-	inline bool ContainsAllFlags(ENUM value, ENUM Flags)
+	constexpr inline bool ContainsAllFlags(ENUM value, ENUM Flags)
 	{
 		static_assert(sizeof(ENUM) <= sizeof(int), "Enum size too large.");
 		return ((int)value & (int)Flags) == (int)Flags;
 	}
 
-	inline bool ContainsAllFlags(int value, int Flags) { return ((int)value & (int)Flags) == (int)Flags; }
+	constexpr inline bool ContainsAllFlags(int value, int Flags) { return ((int)value & (int)Flags) == (int)Flags; }
 
 	template<typename ENUM>
-	inline bool ContainsAnyFlags(ENUM value, ENUM Flags)
+	constexpr inline bool ContainsAnyFlags(ENUM value, ENUM Flags)
 	{
 		static_assert(sizeof(ENUM) <= sizeof(int), "Enum size too large.");
 		return ((int)value & (int)Flags) != 0;
 	}
 
-	inline bool ContainsAnyFlags(int value, int Flags) { return ((int)value & (int)Flags) != 0; }
+	constexpr inline bool ContainsAnyFlags(int value, int Flags) { return ((int)value & (int)Flags) != 0; }
 
 	CORE_DLL_INLINE i32 CountLeadingZeros(u32 mask);
 	CORE_DLL_INLINE i32 CountLeadingZeros(u64 mask);

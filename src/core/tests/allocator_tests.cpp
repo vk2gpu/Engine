@@ -1,10 +1,11 @@
 #include "core/debug.h"
+#include "core/misc.h"
 
 #include "core/external_allocator.h"
 
 #include "catch.hpp"
 
-TEST_CASE("allocator-tests-etlsf")
+TEST_CASE("allocator-tests-etlsf-small")
 {
 	const i32 MAX_SIZE = 1024 * 1024;
 	Core::ExternalAllocator allocator(MAX_SIZE, 0xffff);
