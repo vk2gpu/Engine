@@ -1,5 +1,6 @@
 #include "resource/private/converter_context.h"
 #include "core/misc.h"
+#include "core/timer.h"
 #include "job/manager.h"
 
 #include <algorithm>
@@ -69,7 +70,14 @@ namespace Resource
 		Core::FileCreateDir(destDir);
 
 		// Do conversion.
-		return converter->Convert(*this, sourceFile, destPath);
+		Core::Timer timer;
+		timer.Mark();
+
+		Core::Log("Converting \"%s\"...\n", sourceFile);
+		auto retVal = converter->Convert(*this, sourceFile, destPath);
+
+		Core::Log("...converted \"%s\" in %.2f ms.\n", sourceFile, timer.GetTime() * 1000.0f);
+		return retVal;
 	}
 
 	void ConverterContext::SetMetaData(MetaDataCb callback, void* metaData)
