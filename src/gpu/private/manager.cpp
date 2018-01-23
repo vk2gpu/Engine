@@ -398,6 +398,8 @@ namespace GPU
 	Handle Manager::CreateBuffer(const BufferDesc& desc, const void* initialData, const char* debugFmt, ...)
 	{
 		DBG_ASSERT(IsInitialized());
+		DBG_ASSERT(desc.size_ > 0);
+
 		rmt_ScopedCPUSample(GPU_CreateBuffer, RMTSF_None);
 		Handle handle = impl_->AllocHandle(ResourceType::BUFFER);
 		SET_DEBUG_INFO();
@@ -409,6 +411,12 @@ namespace GPU
 	    const TextureDesc& desc, const TextureSubResourceData* initialData, const char* debugFmt, ...)
 	{
 		DBG_ASSERT(IsInitialized());
+		DBG_ASSERT(desc.width_ > 0);
+		DBG_ASSERT(desc.height_ > 0);
+		DBG_ASSERT(desc.depth_ > 0);
+		DBG_ASSERT(desc.levels_ > 0);
+		DBG_ASSERT(desc.elements_ > 0);
+
 		rmt_ScopedCPUSample(GPU_CreateTexture, RMTSF_None);
 		Handle handle = impl_->AllocHandle(ResourceType::TEXTURE);
 		SET_DEBUG_INFO();

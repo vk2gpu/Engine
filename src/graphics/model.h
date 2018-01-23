@@ -5,6 +5,7 @@
 #include "core/array.h"
 #include "gpu/fwd_decls.h"
 #include "gpu/types.h"
+#include "resource/ref.h"
 #include "resource/resource.h"
 #include "math/mat44.h"
 
@@ -18,6 +19,8 @@ namespace Graphics
 		i32 noofVertices_ = 0;
 		i32 noofIndices_ = 0;
 	};
+
+	using ModelRef = Resource::Ref<class Model>;
 
 	class GRAPHICS_DLL Model
 	{

@@ -1449,22 +1449,22 @@ CompressedModel::~CompressedModel()
 	GPU::Manager::DestroyResource(dbs_);
 }
 
-void CompressedModel::DrawClusters(Testbed::DrawContext& drawCtx, Testbed::ObjectConstants object)
+void CompressedModel::DrawClusters(DrawContext& drawCtx, ObjectConstants object)
 {
 	if(auto event = drawCtx.cmdList_.Eventf(0x0, "CompressedModel"))
 	{
 		i32 numObjects = 1;
-		const i32 objectDataSize = sizeof(Testbed::ObjectConstants);
+		const i32 objectDataSize = sizeof(ObjectConstants);
 
 
 		// Allocate command list memory.
-		auto* objects = drawCtx.cmdList_.Alloc<Testbed::ObjectConstants>(numObjects);
+		auto* objects = drawCtx.cmdList_.Alloc<ObjectConstants>(numObjects);
 
 		// Update all render packet uniforms.
 		for(i32 idx = 0; idx < numObjects; ++idx)
 			objects[idx] = object;
 		drawCtx.cmdList_.UpdateBuffer(
-		    drawCtx.objectSBHandle_, 0, sizeof(Testbed::ObjectConstants) * numObjects, objects);
+		    drawCtx.objectSBHandle_, 0, sizeof(ObjectConstants) * numObjects, objects);
 
 		for(i32 idx = 0; idx < numObjects; ++idx)
 		{

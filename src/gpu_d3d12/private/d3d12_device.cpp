@@ -413,7 +413,7 @@ namespace GPU
 	{
 		i32 cpuViewBlockSize = 1024 * 1024;
 		i32 cpuSamplerBlockSize = 1024 * 1024;
-		i32 gpuViewBlockSize = Core::Min(1024 * 1024, D3D12_MAX_SHADER_VISIBLE_DESCRIPTOR_HEAP_SIZE_TIER_1);
+		i32 gpuViewBlockSize = Core::Min(128 * 1024, D3D12_MAX_SHADER_VISIBLE_DESCRIPTOR_HEAP_SIZE_TIER_1);
 		i32 gpuSamplerBlockSize = D3D12_MAX_SHADER_VISIBLE_SAMPLER_HEAP_SIZE;
 		i32 rtvBlockSize = 2048;
 		i32 dsvBlockSize = 2048;

@@ -14,7 +14,7 @@ public:
 	CompressedModel(const char* fileName);
 	~CompressedModel();
 
-	void DrawClusters(Testbed::DrawContext& drawCtx, Testbed::ObjectConstants object);
+	void DrawClusters(DrawContext& drawCtx, ObjectConstants object);
 
 	struct Mesh
 	{
@@ -54,8 +54,8 @@ public:
 
 	Graphics::ShaderTechniqueDesc techDesc_;
 	Graphics::ShaderTechniqueDesc compressedTechDesc_;
-	Core::Vector<Testbed::ShaderTechniques> techs_;
-	Core::Vector<Testbed::ShaderTechniques> compressedTechs_;
+	Core::Vector<ShaderTechniques> techs_;
+	Core::Vector<ShaderTechniques> compressedTechs_;
 
 	bool useCompressed_ = true;
 

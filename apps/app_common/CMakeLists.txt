@@ -1,7 +1,21 @@
 SET(SOURCES_PUBLIC 
-	"clustered_model.h"
-	"clustered_model.cpp"
-	"test_entry.cpp"
+	"dll.h"
+	"app.h"
+	"app.cpp"
+	"camera.h"
+	"camera.cpp"
+	"common.h"
+	"forward_pipeline.h"
+	"forward_pipeline.cpp"
+	"imgui_pipeline.h"
+	"imgui_pipeline.cpp"
+	"test_shared.h"
+	"texture_compressor.h"
+	"texture_compressor.cpp"
+	"render_packets.h"
+	"render_packets.cpp"
+	"shadow_pipeline.h"
+	"shadow_pipeline.cpp"
 )
 
 IF(ENABLE_SIMPLYGON)
@@ -22,8 +36,6 @@ ENDIF()
 
 
 INCLUDE_DIRECTORIES(
-	"${ENGINE_ROOT}/apps/app_common"
-
 	# 3rd party includes.
 	"${ENGINE_3RDPARTY_PATH}/assimp/include"
 
@@ -32,14 +44,14 @@ INCLUDE_DIRECTORIES(
 	"${SIMPLYGON_SDK_PATH}/SSF/Public"
 )
 
-ADD_ENGINE_EXECUTABLE(testbed ${SOURCES_PUBLIC})
-SET_TARGET_PROPERTIES(testbed PROPERTIES FOLDER Apps)
-TARGET_LINK_LIBRARIES(testbed app_common core graphics image imgui plugin assimp ${SIMPLYGON_SPL_LIB} ${SIMPLYGON_SSF_LIB})
+ADD_ENGINE_LIBRARY(app_common ${SOURCES_PUBLIC})
+SET_TARGET_PROPERTIES(app_common PROPERTIES FOLDER Apps)
+TARGET_LINK_LIBRARIES(app_common core graphics image imgui plugin assimp ${SIMPLYGON_SPL_LIB} ${SIMPLYGON_SSF_LIB})
 
 IF(ENABLE_SIMPLYGON)
 	# Copy Simplygon runtime.
 	ADD_CUSTOM_COMMAND(
-        	TARGET testbed POST_BUILD
+        	TARGET app_common POST_BUILD
         	COMMAND ${CMAKE_COMMAND} -E copy
                 	${SIMPLYGON_BINARIES_PATH}/SimplygonSDKRuntimeReleasex64.dll
                 	${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/$<CONFIG>/SimplygonSDKRuntimeReleasex64.dll)

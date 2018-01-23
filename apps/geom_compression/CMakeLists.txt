@@ -1,6 +1,6 @@
 SET(SOURCES_PUBLIC 
-	"clustered_model.h"
-	"clustered_model.cpp"
+	"compressed_model.cpp"
+	"compressed_model.h"
 	"test_entry.cpp"
 )
 
@@ -32,14 +32,14 @@ INCLUDE_DIRECTORIES(
 	"${SIMPLYGON_SDK_PATH}/SSF/Public"
 )
 
-ADD_ENGINE_EXECUTABLE(testbed ${SOURCES_PUBLIC})
-SET_TARGET_PROPERTIES(testbed PROPERTIES FOLDER Apps)
-TARGET_LINK_LIBRARIES(testbed app_common core graphics image imgui plugin assimp ${SIMPLYGON_SPL_LIB} ${SIMPLYGON_SSF_LIB})
+ADD_ENGINE_EXECUTABLE(geom_compression ${SOURCES_PUBLIC})
+SET_TARGET_PROPERTIES(geom_compression PROPERTIES FOLDER Apps)
+TARGET_LINK_LIBRARIES(geom_compression app_common core graphics image imgui plugin assimp ${SIMPLYGON_SPL_LIB} ${SIMPLYGON_SSF_LIB})
 
 IF(ENABLE_SIMPLYGON)
 	# Copy Simplygon runtime.
 	ADD_CUSTOM_COMMAND(
-        	TARGET testbed POST_BUILD
+        	TARGET geom_compression POST_BUILD
         	COMMAND ${CMAKE_COMMAND} -E copy
                 	${SIMPLYGON_BINARIES_PATH}/SimplygonSDKRuntimeReleasex64.dll
                 	${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/$<CONFIG>/SimplygonSDKRuntimeReleasex64.dll)

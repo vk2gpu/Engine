@@ -1,8 +1,10 @@
 #pragma once
+
+#include "dll.h"
 #include "test_shared.h"
 #include "graphics/texture.h"
 
-class TextureCompressor
+class APP_COMMON_DLL TextureCompressor
 {
 public:
 	TextureCompressor();

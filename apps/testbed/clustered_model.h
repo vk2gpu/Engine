@@ -25,7 +25,7 @@ public:
 	ClusteredModel(const char* fileName);
 	~ClusteredModel();
 
-	void DrawClusters(Testbed::DrawContext& drawCtx, Testbed::ObjectConstants object);
+	void DrawClusters(DrawContext& drawCtx, ObjectConstants object);
 
 	struct Mesh
 	{
@@ -75,7 +75,7 @@ public:
 
 
 	Graphics::ShaderTechniqueDesc techDesc_;
-	Core::Vector<Testbed::ShaderTechniques> techs_;
+	Core::Vector<ShaderTechniques> techs_;
 
 	bool enableCulling_ = true;
 };

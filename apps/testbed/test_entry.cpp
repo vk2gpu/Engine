@@ -24,12 +24,11 @@
 #include "math/plane.h"
 
 #include "clustered_model.h"
-#include "compressed_model.h"
 #include "texture_compressor.h"
 
 #include <cmath>
 
-#define LOAD_SPONZA (0)
+#if 0
 
 namespace
 {
@@ -443,35 +442,35 @@ namespace
 
 
 	Core::Mutex packetMutex_;
-	Core::Vector<Testbed::RenderPacketBase*> packets_;
-	Core::Vector<Testbed::ShaderTechniques> shaderTechniques_;
+	Core::Vector<RenderPacketBase*> packets_;
+	Core::Vector<ShaderTechniques> shaderTechniques_;
 	i32 w_, h_;
 	bool updateFrustum_ = true;
 	bool clusterCulling_ = false;
 	bool compressedModel_ = false;
 
-	void DrawRenderPackets(const Testbed::DrawContext& drawCtx)
+	void DrawRenderPackets(const DrawContext& drawCtx)
 	{
 		namespace Binding = GPU::Binding;
 
 		{
 			Core::ScopedMutex lock(packetMutex_);
-			Testbed::SortPackets(packets_);
+			SortPackets(packets_);
 		}
 
 		rmt_ScopedCPUSample(DrawRenderPackets, RMTSF_None);
 		if(auto event = drawCtx.cmdList_.Eventf(0, "DrawRenderPackets(\"%s\")", drawCtx.passName_))
 		{
 			// Gather mesh packets for this pass.
-			Core::Vector<Testbed::MeshRenderPacket*> meshPackets;
+			Core::Vector<MeshRenderPacket*> meshPackets;
 			Core::Vector<i32> meshPassTechIndices;
 			meshPackets.reserve(packets_.size());
 			meshPassTechIndices.reserve(packets_.size());
 			for(auto& packet : packets_)
 			{
-				if(packet->type_ == Testbed::MeshRenderPacket::TYPE)
+				if(packet->type_ == MeshRenderPacket::TYPE)
 				{
-					auto* meshPacket = static_cast<Testbed::MeshRenderPacket*>(packet);
+					auto* meshPacket = static_cast<MeshRenderPacket*>(packet);
 					auto passIdxIt = meshPacket->techs_->passIndices_.find(drawCtx.passName_);
 					if(passIdxIt != meshPacket->techs_->passIndices_.end() &&
 					    passIdxIt->second < meshPacket->techs_->passTechniques_.size())
@@ -482,11 +481,11 @@ namespace
 				}
 			}
 
-			Testbed::MeshRenderPacket::DrawPackets(meshPackets, meshPassTechIndices, drawCtx);
+			MeshRenderPacket::DrawPackets(meshPackets, meshPassTechIndices, drawCtx);
 		}
 	}
 
-	void DrawUIGraphicsDebug(Testbed::ForwardPipeline& forwardPipeline)
+	void DrawUIGraphicsDebug(ForwardPipeline& forwardPipeline)
 	{
 		if(ImGui::Begin("Graphics Debug"))
 		{
@@ -507,7 +506,7 @@ namespace
 			ImGui::RadioButton("Off", &debugMode, 0);
 			ImGui::RadioButton("Light Culling", &debugMode, 1);
 
-			forwardPipeline.debugMode_ = (Testbed::ForwardPipeline::DebugMode)debugMode;
+			forwardPipeline.debugMode_ = (ForwardPipeline::DebugMode)debugMode;
 		}
 		ImGui::End();
 	}
@@ -517,75 +516,16 @@ void Loop(const Core::CommandLine& cmdLine)
 {
 	ScopedEngine engine("Test Bed App", cmdLine);
 	ImGui::Manager::Scoped imgui;
-	Testbed::ImGuiPipeline imguiPipeline;
-	Testbed::ForwardPipeline forwardPipeline;
-	Testbed::ShadowPipeline shadowPipeline;
+	ImGuiPipeline imguiPipeline;
+	ForwardPipeline forwardPipeline;
+	ShadowPipeline shadowPipeline;
 	RenderGraph graph;
 
-	MaterialRef testMaterial("test_material.material");
-	testMaterial.WaitUntilReady();
-
-	TextureCompressor texCompressor;
-
-	Texture* texture = nullptr;
-	Resource::Manager::RequestResource(texture, "test_texture_compress.png");
-
-	// Load shader + teapot model.
-	Shader* shader = nullptr;
-	Resource::Manager::RequestResource(shader, "shaders/simple-mesh.esf");
-
-	Model* model = nullptr;
-//	Resource::Manager::RequestResource(model, "model_tests/SpeedTree/Azalea/HighPoly/Azalea.fbx");
-//	Resource::Manager::RequestResource(model, "model_tests/SpeedTree/Backyard Grass/HighPoly/Backyard_Grass.fbx");
-//	Resource::Manager::RequestResource(model, "model_tests/SpeedTree/Boston Fern/HighPoly/Boston_Fern.fbx");
-//	Resource::Manager::RequestResource(model, "model_tests/SpeedTree/European Linden/HighPoly/European_Linden.fbx");
-//	Resource::Manager::RequestResource(model, "model_tests/SpeedTree/Hedge/HighPoly/Hedge.fbx");
-//	Resource::Manager::RequestResource(model, "model_tests/SpeedTree/Japanese Maple/HighPoly/Japanese_Maple.fbx");
-//	Resource::Manager::RequestResource(model, "model_tests/SpeedTree/Red Maple Young/HighPoly/Red_Maple_Young.fbx");
-//	Resource::Manager::RequestResource(model, "model_tests/SpeedTree/White Oak/HighPoly/White_Oak.fbx");
-
-	Resource::Manager::RequestResource(model, "model_tests/teapot.obj");
 	Model* sponzaModel = nullptr;
-
-	CompressedModel* testCompressedModel = new CompressedModel("model_tests/teapot.obj");
-
-#if LOAD_SPONZA
 	Resource::Manager::RequestResource(sponzaModel, "model_tests/crytek-sponza/sponza.obj");
-//Resource::Manager::RequestResource(sponzaModel, "model_tests/san_miguel/san-miguel-low-poly.obj");
-//Resource::Manager::RequestResource(sponzaModel, "model_tests/san_miguel/san-miguel.obj");
-#endif
-
-	Resource::Manager::WaitForResource(texture);
-	Resource::Manager::WaitForResource(shader);
-	Resource::Manager::WaitForResource(model);
-#if LOAD_SPONZA
 	Resource::Manager::WaitForResource(sponzaModel);
-#endif
 
-	GPU::TextureDesc finalTextureDesc = texture->GetDesc();
-	finalTextureDesc.format_ = GPU::Format::BC5_UNORM;
-	GPU::Handle finalTexture = GPU::Manager::CreateTexture(finalTextureDesc, nullptr, "finalCompressed");
-	DBG_ASSERT(finalTexture);
-
-	// Create some render packets.
-	// For now, they can be permenent.
-	f32 angle = 0.0;
-	const Math::Vec3 positions[] = {
-	    Math::Vec3(-10.0f, 10.0f, -5.0f),
-		Math::Vec3(-5.0f, 10.0f, -5.0f),
-	    Math::Vec3(0.0f, 10.0f, -5.0f),
-	    Math::Vec3(5.0f, 10.0f, -5.0f),
-	    Math::Vec3(10.0f, 10.0f, -5.0f),
-	    Math::Vec3(-10.0f, 10.0f, 5.0f),
-	    Math::Vec3(-5.0f, 10.0f, 5.0f),
-	    Math::Vec3(0.0f, 10.0f, 5.0f),
-	    Math::Vec3(5.0f, 10.0f, 5.0f),
-	    Math::Vec3(10.0f, 10.0f, 5.0f),
-	};
-
-	Core::Random rng;
-
-	Testbed::Light light = {};
+	Light light = {};
 
 	light.position_ = Math::Vec3(1000.0f, 1000.0f, 1000.0f);
 	light.color_.x = 1.0f;
@@ -596,97 +536,8 @@ void Loop(const Core::CommandLine& cmdLine)
 	light.radiusOuter_ = 20000.0f;
 	forwardPipeline.lights_.push_back(light);
 
-	auto randF32 = [&rng](f32 min, f32 max) {
-		const u32 large = 65536;
-		auto val = (f32)(((u32)rng.Generate()) % large);
-		val /= (f32)large;
-		return min + val * (max - min);
-	};
-
-	if(true)
-	{
-		f32 r = 0.0f, g = 0.0f, b = 0.0f, h = 0.0f, s = 1.0f, v = 1.0f;
-		for(const auto& position : positions)
-		{
-			ImGui::ColorConvertHSVtoRGB(h, s, v, r, g, b);
-			h += 0.1f;
-			light.position_ = position + Math::Vec3(0.0f, 10.0f, 0.0f);
-			light.color_.x = r;
-			light.color_.y = g;
-			light.color_.z = b;
-			light.color_ *= 4.0f;
-			light.radiusInner_ = 15.0f;
-			light.radiusOuter_ = 25.0f;
-
-			forwardPipeline.lights_.push_back(light);
-		}
-	}
-
-#if 0
-	for(i32 idx = 0; idx < 1000; ++idx)
-	{
-		light.position_.x = randF32(-100.0f, 100.0f);
-		light.position_.y = randF32(0.0f, 50.0f);
-		light.position_.z = randF32(-100.0f, 100.0f);
-		light.color_.x = randF32(0.0f, 1.0f);
-		light.color_.y = randF32(0.0f, 1.0f);
-		light.color_.z = randF32(0.0f, 1.0f);
-		light.color_ *= 200.0f;
-		light.radiusInner_ = 10.0f;
-		light.radiusOuter_ = 15.0f;
-		forwardPipeline.lights_.push_back(light);
-	}
-
-	for(i32 idx = 0; idx < 2000; ++idx)
-	{
-		light.position_.x = randF32(-100.0f, 100.0f);
-		light.position_.y = randF32(0.0f, 50.0f);
-		light.position_.z = randF32(-100.0f, 100.0f);
-		light.color_.x = randF32(0.0f, 1.0f);
-		light.color_.y = randF32(0.0f, 1.0f);
-		light.color_.z = randF32(0.0f, 1.0f);
-		light.color_ *= 5.0f;
-		light.radiusInner_ = 1.0f;
-		light.radiusOuter_ = 2.0f;
-		forwardPipeline.lights_.push_back(light);
-	}
-#endif
-
 	shaderTechniques_.reserve(100000);
-	Testbed::ShaderTechniques* techniques = &*shaderTechniques_.emplace_back();
-	//if(!LOAD_SPONZA)
-	{
-		{
-			for(const auto& position : positions)
-			{
-				for(i32 idx = 0; idx < model->GetNumMeshes(); ++idx)
-				{
-					ShaderTechniqueDesc techDesc;
-					techDesc.SetVertexElements(model->GetMeshVertexElements(idx));
-					techDesc.SetTopology(GPU::TopologyType::TRIANGLE);
-
-					Testbed::MeshRenderPacket packet;
-					packet.db_ = model->GetMeshDrawBinding(idx);
-					packet.draw_ = model->GetMeshDraw(idx);
-					packet.techDesc_ = techDesc;
-					packet.material_ = model->GetMeshMaterial(idx);
-
-					if(techniques->material_ != packet.material_)
-						techniques = &*shaderTechniques_.emplace_back();
-
-					packet.techs_ = techniques;
-
-					packet.world_ = model->GetMeshWorldTransform(idx);
-					packet.angle_ = angle;
-					packet.position_ = position;
-
-					angle += 0.5f;
-
-					packets_.emplace_back(new Testbed::MeshRenderPacket(packet));
-				}
-			}
-		}
-	}
+	ShaderTechniques* techniques = &*shaderTechniques_.emplace_back();
 
 	if(sponzaModel)
 	{
@@ -696,7 +547,7 @@ void Loop(const Core::CommandLine& cmdLine)
 			techDesc.SetVertexElements(sponzaModel->GetMeshVertexElements(idx));
 			techDesc.SetTopology(GPU::TopologyType::TRIANGLE);
 
-			Testbed::MeshRenderPacket packet;
+			MeshRenderPacket packet;
 			packet.db_ = sponzaModel->GetMeshDrawBinding(idx);
 			packet.draw_ = sponzaModel->GetMeshDraw(idx);
 			packet.techDesc_ = techDesc;
@@ -707,17 +558,11 @@ void Loop(const Core::CommandLine& cmdLine)
 
 			packet.techs_ = techniques;
 
-			packet.world_ = sponzaModel->GetMeshWorldTransform(idx);
-			Math::Mat44 scale;
-			scale.Scale(Math::Vec3(1.0f, 1.0f, 1.0f));
-			packet.world_ = scale * packet.world_;
-			packet.angle_ = 0.0f;
-			packet.position_ = Math::Vec3(0.0f, 0.0f, 0.0f);
+			packet.object_.world_ = sponzaModel->GetMeshWorldTransform(idx);
 
-			packets_.emplace_back(new Testbed::MeshRenderPacket(packet));
+			packets_.emplace_back(new MeshRenderPacket(packet));
 		}
 	}
-
 
 	const Client::IInputProvider& input = engine.window.GetInputProvider();
 
@@ -849,9 +694,9 @@ void Loop(const Core::CommandLine& cmdLine)
 
 				for(auto& packet : packets_)
 				{
-					if(packet->type_ == Testbed::MeshRenderPacket::TYPE)
+					if(packet->type_ == MeshRenderPacket::TYPE)
 					{
-						auto* meshPacket = static_cast<Testbed::MeshRenderPacket*>(packet);
+						auto* meshPacket = static_cast<MeshRenderPacket*>(packet);
 
 						//meshPacket->angle_ += (f32)times_.frame_;
 						meshPacket->object_.world_.Rotation(Math::Vec3(0.0f, meshPacket->angle_, 0.0f));
@@ -876,7 +721,7 @@ void Loop(const Core::CommandLine& cmdLine)
 			shadowPipeline.SetDirectionalLight(camera_.cameraTarget_, forwardPipeline.lights_[0]);
 
 			// Set draw callback.
-			forwardPipeline.SetDrawCallback([&](Testbed::DrawContext& drawCtx) {
+			forwardPipeline.SetDrawCallback([&](DrawContext& drawCtx) {
 				DrawRenderPackets(drawCtx);
 
 #if 1
@@ -893,7 +738,7 @@ void Loop(const Core::CommandLine& cmdLine)
 					scale.Scale(Math::Vec3(0.1f, 0.1f, 0.1f));
 #endif
 					{
-						Testbed::ObjectConstants object;
+						ObjectConstants object;
 						object.world_.Row0(Math::Vec4(0.1f, 0.0f, 0.0f, 0.0f));
 						object.world_.Row1(Math::Vec4(0.0f, 0.0f, 0.1f, 0.0f));
 						object.world_.Row2(Math::Vec4(0.0f,-0.1f, 0.0f, 0.0f));
@@ -959,9 +804,9 @@ void Loop(const Core::CommandLine& cmdLine)
 				rmt_ScopedCPUSample(CreateTechniques, RMTSF_None);
 				for(auto& packet : packets_)
 				{
-					if(packet->type_ == Testbed::MeshRenderPacket::TYPE)
+					if(packet->type_ == MeshRenderPacket::TYPE)
 					{
-						auto* meshPacket = static_cast<Testbed::MeshRenderPacket*>(packet);
+						auto* meshPacket = static_cast<MeshRenderPacket*>(packet);
 						forwardPipeline.CreateTechniques(
 						    meshPacket->material_, meshPacket->techDesc_, *meshPacket->techs_);
 					}
@@ -1002,9 +847,9 @@ void Loop(const Core::CommandLine& cmdLine)
 	// Clean up.
 	for(auto* packet : packets_)
 	{
-		if(packet->type_ == Testbed::MeshRenderPacket::TYPE)
+		if(packet->type_ == MeshRenderPacket::TYPE)
 		{
-			auto* meshPacket = static_cast<Testbed::MeshRenderPacket*>(packet);
+			auto* meshPacket = static_cast<MeshRenderPacket*>(packet);
 			delete meshPacket;
 		}
 	}
@@ -1038,3 +883,9 @@ int main(int argc, char* const argv[])
 
 	return 0;
 }
+#else
+int main(int argc, char* const argv[])
+{
+	return 0;
+}
+#endif

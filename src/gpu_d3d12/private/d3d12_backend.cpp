@@ -942,9 +942,12 @@ namespace GPU
 			const auto& srv = descs[i];
 
 			i32 mipLevels = srv.mipLevels_NumElements_;
-			if(mipLevels == -1)
-				mipLevels = textureRes->desc_.levels_;
-			DBG_ASSERT(mipLevels > 0);
+			if(textureRes)
+			{
+				if(mipLevels == -1)
+					mipLevels = textureRes->desc_.levels_;
+				DBG_ASSERT(mipLevels > 0);
+			}
 
 			auto& srvDesc = srvDescs[bindingIdx];
 
