@@ -26,15 +26,15 @@ struct ViewConstants
 	void CalculateFrustum()
 	{
 		frustumPlanes_[0] = Math::Plane(viewProj_[0][3] + viewProj_[0][0], viewProj_[1][3] + viewProj_[1][0],
-			viewProj_[2][3] + viewProj_[2][0], viewProj_[3][3] + viewProj_[3][0]);
+		    viewProj_[2][3] + viewProj_[2][0], viewProj_[3][3] + viewProj_[3][0]);
 		frustumPlanes_[1] = Math::Plane(viewProj_[0][3] - viewProj_[0][0], viewProj_[1][3] - viewProj_[1][0],
-			viewProj_[2][3] - viewProj_[2][0], viewProj_[3][3] - viewProj_[3][0]);
+		    viewProj_[2][3] - viewProj_[2][0], viewProj_[3][3] - viewProj_[3][0]);
 		frustumPlanes_[2] = Math::Plane(viewProj_[0][3] + viewProj_[0][1], viewProj_[1][3] + viewProj_[1][1],
-			viewProj_[2][3] + viewProj_[2][1], viewProj_[3][3] + viewProj_[3][1]);
+		    viewProj_[2][3] + viewProj_[2][1], viewProj_[3][3] + viewProj_[3][1]);
 		frustumPlanes_[3] = Math::Plane(viewProj_[0][3] - viewProj_[0][1], viewProj_[1][3] - viewProj_[1][1],
-			viewProj_[2][3] - viewProj_[2][1], viewProj_[3][3] - viewProj_[3][1]);
+		    viewProj_[2][3] - viewProj_[2][1], viewProj_[3][3] - viewProj_[3][1]);
 		frustumPlanes_[4] = Math::Plane(viewProj_[0][3] - viewProj_[0][2], viewProj_[1][3] - viewProj_[1][2],
-			viewProj_[2][3] - viewProj_[2][2], viewProj_[3][3] - viewProj_[3][2]);
+		    viewProj_[2][3] - viewProj_[2][2], viewProj_[3][3] - viewProj_[3][2]);
 		frustumPlanes_[5] = Math::Plane(viewProj_[0][3], viewProj_[1][3], viewProj_[2][3], viewProj_[3][3]);
 
 		for(i32 i = 0; i < 6; ++i)
@@ -42,8 +42,8 @@ struct ViewConstants
 			Math::Vec3 normal = frustumPlanes_[i].Normal();
 			f32 scale = 1.0f / normal.Magnitude();
 			frustumPlanes_[i] =
-				Math::Plane(frustumPlanes_[i].Normal().x * -scale, frustumPlanes_[i].Normal().y * -scale,
-				    frustumPlanes_[i].Normal().z * -scale, frustumPlanes_[i].D() * scale);
+			    Math::Plane(frustumPlanes_[i].Normal().x * -scale, frustumPlanes_[i].Normal().y * -scale,
+			        frustumPlanes_[i].Normal().z * -scale, frustumPlanes_[i].D() * scale);
 		}
 	}
 };
@@ -62,4 +62,3 @@ struct ShaderTechniques
 	Core::Map<Core::String, i32> passIndices_;
 	Core::Vector<Graphics::ShaderTechnique> passTechniques_;
 };
-

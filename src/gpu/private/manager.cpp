@@ -23,7 +23,7 @@
 #include <cstdarg>
 #include <utility>
 
-#define ENABLE_TEMP_DEBUG_INFO		(0)
+#define ENABLE_TEMP_DEBUG_INFO (0)
 
 /**
  * GPU debug information.
@@ -536,7 +536,7 @@ namespace GPU
 	}
 
 	bool Manager::UpdatePipelineBindings(Handle handle, i32 base, Core::ArrayView<const BindingCBV> descs)
-	{	
+	{
 		DBG_ASSERT(IsInitialized());
 		DBG_ASSERT(handle.GetType() == ResourceType::PIPELINE_BINDING_SET);
 		rmt_ScopedCPUSample(GPU_UpdatePipelineBindings, RMTSF_None);

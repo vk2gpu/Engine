@@ -15,16 +15,16 @@ using CustomBindFn = Core::Function<bool(Graphics::Shader*, Graphics::ShaderTech
 struct DrawContext
 {
 	DrawContext(GPU::CommandList& cmdList, Graphics::ShaderContext& shaderCtx, const char* passName,
-		const GPU::DrawState& drawState, GPU::Handle fbs, GPU::Handle viewCBHandle, GPU::Handle objectSBHandle,
-		CustomBindFn customBindFn)
-		: cmdList_(cmdList)
-		, shaderCtx_(shaderCtx)
-		, passName_(passName)
-		, drawState_(drawState)
-		, fbs_(fbs)
-		, viewCBHandle_(viewCBHandle)
-		, objectSBHandle_(objectSBHandle)
-		, customBindFn_(customBindFn)
+	    const GPU::DrawState& drawState, GPU::Handle fbs, GPU::Handle viewCBHandle, GPU::Handle objectSBHandle,
+	    CustomBindFn customBindFn)
+	    : cmdList_(cmdList)
+	    , shaderCtx_(shaderCtx)
+	    , passName_(passName)
+	    , drawState_(drawState)
+	    , fbs_(fbs)
+	    , viewCBHandle_(viewCBHandle)
+	    , objectSBHandle_(objectSBHandle)
+	    , customBindFn_(customBindFn)
 	{
 	}
 
@@ -79,13 +79,13 @@ struct MeshRenderPacket : RenderPacket<MeshRenderPacket>
 	Graphics::Material* material_ = nullptr;
 	ShaderTechniques* techs_ = nullptr;
 
-	static void DrawPackets(Core::ArrayView<MeshRenderPacket*> packets, Core::ArrayView<i32> passTechIndices,
-		const DrawContext& drawCtx);
+	static void DrawPackets(
+	    Core::ArrayView<MeshRenderPacket*> packets, Core::ArrayView<i32> passTechIndices, const DrawContext& drawCtx);
 
 	bool IsInstancableWith(const MeshRenderPacket& other) const
 	{
 		return db_ == other.db_ && memcmp(&draw_, &other.draw_, sizeof(draw_)) == 0 &&
-			    memcmp(&techDesc_, &other.techDesc_, sizeof(techDesc_)) == 0 && material_ == other.material_ &&
-			    techs_ == other.techs_;
+		       memcmp(&techDesc_, &other.techDesc_, sizeof(techDesc_)) == 0 && material_ == other.material_ &&
+		       techs_ == other.techs_;
 	}
 };

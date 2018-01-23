@@ -238,7 +238,7 @@ namespace
 			aiSetImportPropertyInteger(propertyStore, AI_CONFIG_PP_LBW_MAX_WEIGHTS, metaData_.maxBoneInfluences_);
 			aiSetImportPropertyInteger(propertyStore, AI_CONFIG_IMPORT_MD5_NO_ANIM_AUTOLOAD, true);
 			aiSetImportPropertyInteger(propertyStore, AI_CONFIG_PP_ICL_PTCACHE_SIZE, 64);
-			aiSetImportPropertyInteger(propertyStore, AI_CONFIG_PP_SLM_VERTEX_LIMIT, 65535);
+			aiSetImportPropertyInteger(propertyStore, AI_CONFIG_PP_SLM_VERTEX_LIMIT, 65534);
 			aiSetImportPropertyFloat(propertyStore, AI_CONFIG_PP_GSN_MAX_SMOOTHING_ANGLE, metaData_.smoothingAngle_);
 
 			aiLogStream assimpLogger = {AssimpLogStream, (char*)this};
@@ -456,10 +456,10 @@ namespace
 					{
 						elements[numElements++] = GPU::VertexElement(
 						    currStream, 0, metaData_.vertexFormat_.texcoord_, GPU::VertexUsage::TEXCOORD, idx);
-					}
 
-					if(metaData_.splitStreams_)
-						currStream++;
+						if(metaData_.splitStreams_)
+							currStream++;
+					}
 				}
 
 				for(i32 idx = 0; idx < AI_MAX_NUMBER_OF_COLOR_SETS; ++idx)
@@ -468,10 +468,10 @@ namespace
 					{
 						elements[numElements++] = GPU::VertexElement(
 						    currStream, 0, metaData_.vertexFormat_.color_, GPU::VertexUsage::COLOR, idx);
-					}
 
-					if(metaData_.splitStreams_)
-						currStream++;
+						if(metaData_.splitStreams_)
+							currStream++;
+					}
 				}
 
 				// Add bones to vertex declaration if they exist.

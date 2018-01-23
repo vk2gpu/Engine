@@ -54,10 +54,13 @@ bool operator<(const RenderPacketBase& inA, const RenderPacketBase& inB)
 	return false;
 }
 
-void SortPackets(Core::Vector<RenderPacketBase*>& packets) { std::sort(packets.begin(), packets.end()); }
+void SortPackets(Core::Vector<RenderPacketBase*>& packets)
+{
+	std::sort(packets.begin(), packets.end());
+}
 
-void MeshRenderPacket::DrawPackets(Core::ArrayView<MeshRenderPacket*> packets, Core::ArrayView<i32> passTechIndices,
-	const DrawContext& drawCtx)
+void MeshRenderPacket::DrawPackets(
+    Core::ArrayView<MeshRenderPacket*> packets, Core::ArrayView<i32> passTechIndices, const DrawContext& drawCtx)
 {
 	if(packets.size() == 0)
 		return;
@@ -68,8 +71,7 @@ void MeshRenderPacket::DrawPackets(Core::ArrayView<MeshRenderPacket*> packets, C
 	// Update all render packet uniforms.
 	for(i32 idx = 0; idx < packets.size(); ++idx)
 		objects[idx] = packets[idx]->object_;
-	drawCtx.cmdList_.UpdateBuffer(
-		drawCtx.objectSBHandle_, 0, sizeof(ObjectConstants) * packets.size(), objects);
+	drawCtx.cmdList_.UpdateBuffer(drawCtx.objectSBHandle_, 0, sizeof(ObjectConstants) * packets.size(), objects);
 
 	i32 baseInstanceIdx = 0;
 	i32 numInstances = 0;
@@ -98,21 +100,22 @@ void MeshRenderPacket::DrawPackets(Core::ArrayView<MeshRenderPacket*> packets, C
 		{
 			if(numInstances > 0)
 			{
-				objectBindings.Set("inObject", GPU::Binding::Buffer(drawCtx.objectSBHandle_, GPU::Format::INVALID,
-					                                baseInstanceIdx, numInstances, objectDataSize));
+				objectBindings.Set("inObject",
+				    GPU::Binding::Buffer(
+				        drawCtx.objectSBHandle_, GPU::Format::INVALID, baseInstanceIdx, numInstances, objectDataSize));
 				if(auto objectBind = drawCtx.shaderCtx_.BeginBindingScope(objectBindings))
 				{
 					if(auto event = drawCtx.cmdList_.Eventf(0x0, "Material: %s", meshPacket->material_->GetName()))
 					{
-						auto materialBind = drawCtx.shaderCtx_.BeginBindingScope(meshPacket->material_->GetBindingSet());
+						auto materialBind =
+						    drawCtx.shaderCtx_.BeginBindingScope(meshPacket->material_->GetBindingSet());
 						GPU::Handle ps;
 						Core::ArrayView<GPU::PipelineBinding> pb;
 						if(drawCtx.shaderCtx_.CommitBindings(tech, ps, pb))
 						{
 							drawCtx.cmdList_.Draw(ps, pb, meshPacket->db_, drawCtx.fbs_, drawCtx.drawState_,
-								GPU::PrimitiveTopology::TRIANGLE_LIST, meshPacket->draw_.indexOffset_,
-								meshPacket->draw_.vertexOffset_, meshPacket->draw_.noofIndices_, 0,
-								numInstances);
+							    GPU::PrimitiveTopology::TRIANGLE_LIST, meshPacket->draw_.indexOffset_,
+							    meshPacket->draw_.vertexOffset_, meshPacket->draw_.noofIndices_, 0, numInstances);
 						}
 					}
 				}
@@ -123,4 +126,3 @@ void MeshRenderPacket::DrawPackets(Core::ArrayView<MeshRenderPacket*> packets, C
 		}
 	}
 }
-

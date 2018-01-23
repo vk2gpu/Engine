@@ -190,19 +190,18 @@ namespace Graphics
 				}
 
 				// Create draw binding sets.
-				i32 idx = 0;
 				i32 dbsIdx = 0;
 				for(const auto& mesh : impl->modelMeshes_)
 				{
 					GPU::DrawBindingSetDesc desc;
 					desc.ib_.offset_ = 0;
-					desc.ib_.resource_ = impl->ibs_[idx];
+					desc.ib_.resource_ = impl->ibs_[dbsIdx];
 					desc.ib_.size_ = mesh.noofIndices_ * mesh.indexStride_;
 					desc.ib_.stride_ = mesh.indexStride_;
 
-					auto vertexElements = Core::ArrayView<GPU::VertexElement>(
-					    impl->elements_.data() + impl->modelMeshes_[idx].startVertexElements_,
-					    impl->elements_.data() + impl->modelMeshes_[idx].endVertexElements_);
+					auto vertexElements =
+					    Core::ArrayView<GPU::VertexElement>(impl->elements_.data() + mesh.startVertexElements_,
+					        impl->elements_.data() + mesh.endVertexElements_);
 
 					i32 offset = 0;
 					for(i32 streamIdx = 0; streamIdx < GPU::MAX_VERTEX_ELEMENTS; ++streamIdx)
@@ -213,7 +212,7 @@ namespace Graphics
 							auto& vb = desc.vbs_[streamIdx];
 
 							vb.offset_ = offset;
-							vb.resource_ = impl->vbs_[idx];
+							vb.resource_ = impl->vbs_[dbsIdx];
 							vb.size_ = mesh.noofVertices_ * stride;
 							vb.stride_ = stride;
 

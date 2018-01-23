@@ -69,39 +69,39 @@ static ShadowData AddShadowPass(DrawFn drawFn, RenderGraph& renderGraph, ShadowS
 	};
 
 	auto& renderPassShadowMap = renderGraph.AddCallbackRenderPass<ShadowPassData>("Shadow Map Pass",
-		[&](RenderGraphBuilder& builder, ShadowPassData& data) {
-			data.drawFn_ = drawFn;
-			data.drawState_.scissorRect_.w_ = settings.width_;
-			data.drawState_.scissorRect_.h_ = settings.height_;
-			data.drawState_.viewport_.w_ = (f32)settings.width_;
-			data.drawState_.viewport_.h_ = (f32)settings.height_;
+	    [&](RenderGraphBuilder& builder, ShadowPassData& data) {
+		    data.drawFn_ = drawFn;
+		    data.drawState_.scissorRect_.w_ = settings.width_;
+		    data.drawState_.scissorRect_.h_ = settings.height_;
+		    data.drawState_.viewport_.w_ = (f32)settings.width_;
+		    data.drawState_.viewport_.h_ = (f32)settings.height_;
 
-			// Create shadow map if none are provided.
-			if(!settings.outShadowMap_)
-			{
-				RenderGraphTextureDesc desc;
-				desc.type_ = GPU::TextureType::TEX2D;
-				desc.width_ = settings.width_;
-				desc.height_ = settings.height_;
-				desc.elements_ = settings.elements_;
-				desc.format_ = settings.format_;
-				settings.outShadowMap_ = builder.Create("Shadow Map", desc);
-			}
+		    // Create shadow map if none are provided.
+		    if(!settings.outShadowMap_)
+		    {
+			    RenderGraphTextureDesc desc;
+			    desc.type_ = GPU::TextureType::TEX2D;
+			    desc.width_ = settings.width_;
+			    desc.height_ = settings.height_;
+			    desc.elements_ = settings.elements_;
+			    desc.format_ = settings.format_;
+			    settings.outShadowMap_ = builder.Create("Shadow Map", desc);
+		    }
 
 
-			// Setup frame buffer.
-			data.outShadowMap_ = builder.SetDSV(settings.outShadowMap_);
+		    // Setup frame buffer.
+		    data.outShadowMap_ = builder.SetDSV(settings.outShadowMap_);
 		},
 
-		[](RenderGraphResources& res, GPU::CommandList& cmdList, const ShadowPassData& data) {
+	    [](RenderGraphResources& res, GPU::CommandList& cmdList, const ShadowPassData& data) {
 
-			ShaderContext shaderCtx(cmdList);
-			auto fbs = res.GetFrameBindingSet();
+		    ShaderContext shaderCtx(cmdList);
+		    auto fbs = res.GetFrameBindingSet();
 
-			// Clear depth buffer.
-			cmdList.ClearDSV(fbs, 1.0f, 0);
+		    // Clear depth buffer.
+		    cmdList.ClearDSV(fbs, 1.0f, 0);
 
-			DBG_ASSERT(false);
+		    DBG_ASSERT(false);
 #if 0
 			// Draw all render packets that are valid for this pass.
 			DrawContext drawCtx(cmdList, shaderCtx, "RenderPassForward", data.drawState_, fbs, res.GetBuffer(data.inViewCB_),
@@ -192,7 +192,7 @@ static FullscreenData AddFullscreenPass(DrawFn drawFn, RenderGraph& renderGraph,
 static const char* SHADOW_RESOURCE_NAMES[] = {"in_depth", "out_shadow_map", nullptr};
 
 ShadowPipeline::ShadowPipeline()
-	: Pipeline(SHADOW_RESOURCE_NAMES)
+    : Pipeline(SHADOW_RESOURCE_NAMES)
 {
 	Resource::Manager::RequestResource(shader_, "shaders/shadow_pipeline.esf");
 	Resource::Manager::WaitForResource(shader_);
@@ -200,10 +200,13 @@ ShadowPipeline::ShadowPipeline()
 	ShaderTechniqueDesc desc;
 }
 
-ShadowPipeline::~ShadowPipeline() { Resource::Manager::ReleaseResource(shader_); }
+ShadowPipeline::~ShadowPipeline()
+{
+	Resource::Manager::ReleaseResource(shader_);
+}
 
 void ShadowPipeline::CreateTechniques(
-	Graphics::Material* material, ShaderTechniqueDesc desc, ShaderTechniques& outTechniques)
+    Graphics::Material* material, ShaderTechniqueDesc desc, ShaderTechniques& outTechniques)
 {
 	auto AddTechnique = [&](const char* name) {
 		auto techIt = fbsDescs_.find(name);
@@ -236,7 +239,10 @@ void ShadowPipeline::SetDirectionalLight(Math::Vec3 eyePos, Light light)
 	Math::Mat44 view;
 }
 
-void ShadowPipeline::SetDrawCallback(DrawFn drawFn) { drawFn_ = drawFn; }
+void ShadowPipeline::SetDrawCallback(DrawFn drawFn)
+{
+	drawFn_ = drawFn;
+}
 
 void ShadowPipeline::Setup(RenderGraph& renderGraph)
 {
@@ -268,16 +274,15 @@ void ShadowPipeline::Setup(RenderGraph& renderGraph)
 	settings.view_ = view_;
 
 	auto& renderPassCommonBuffers = renderGraph.AddCallbackRenderPass<ViewConstantData>("Setup Common Buffers",
-		[&](RenderGraphBuilder& builder, ViewConstantData& data) {
-			data.view_ = view_;
-			data.cbs_.viewCB_ =
-			    builder.Write(builder.Create("View Constants", objectSBDesc), GPU::BindFlags::CONSTANT_BUFFER);
-			data.cbs_.objectSB_ =
-			    builder.Write(builder.Create("Object Constants", objectSBDesc), GPU::BindFlags::SHADER_RESOURCE);
+	    [&](RenderGraphBuilder& builder, ViewConstantData& data) {
+		    data.view_ = view_;
+		    data.cbs_.viewCB_ =
+		        builder.Write(builder.Create("View Constants", objectSBDesc), GPU::BindFlags::CONSTANT_BUFFER);
+		    data.cbs_.objectSB_ =
+		        builder.Write(builder.Create("Object Constants", objectSBDesc), GPU::BindFlags::SHADER_RESOURCE);
 		},
-		[](RenderGraphResources& res, GPU::CommandList& cmdList, const ViewConstantData& data) {
-			cmdList.UpdateBuffer(
-			    res.GetBuffer(data.cbs_.viewCB_), 0, sizeof(data.view_), cmdList.Push(&data.view_));
+	    [](RenderGraphResources& res, GPU::CommandList& cmdList, const ViewConstantData& data) {
+		    cmdList.UpdateBuffer(res.GetBuffer(data.cbs_.viewCB_), 0, sizeof(data.view_), cmdList.Push(&data.view_));
 		});
 
 	auto cbs = renderPassCommonBuffers.GetData().cbs_;

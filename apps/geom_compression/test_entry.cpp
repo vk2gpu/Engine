@@ -36,26 +36,22 @@
 class App : public IApp
 {
 public:
-	const char* GetName() const override
-	{
-		return "Geometry Compression";
-	}
+	const char* GetName() const override { return "Geometry Compression"; }
 
 	void Initialize() override
 	{
 		modelNames_.push_back("model_tests/teapot.obj");
 		modelNames_.push_back("model_tests/cube.obj");
 		modelNames_.push_back("model_tests/crytek-sponza/sponza.obj");
+		modelNames_.push_back("model_tests/Bistro/Bistro_Research_Interior.fbx");
+		modelNames_.push_back("model_tests/Bistro/Bistro_Research_Exterior.fbx");
 
 		Graphics::ModelRef model = modelNames_[selectedModelIdx_];
 		pendingModels_.push_back(model);
 		models_.emplace_back(std::move(model));
 	}
 
-	void Shutdown() override
-	{
-		models_.clear();
-	}
+	void Shutdown() override { models_.clear(); }
 
 	void Update(const Client::IInputProvider& input, const Client::Window& window, f32 tick) override
 	{
@@ -65,7 +61,7 @@ public:
 		view_.LookAt(Math::Vec3(0.0f, 5.0f, -15.0f), Math::Vec3(0.0f, 1.0f, 0.0f), Math::Vec3(0.0f, 1.0f, 0.0f));
 		proj_.PerspProjectionVertical(Core::F32_PIDIV4, (f32)h_ / (f32)w_, 0.1f, 2000.0f);
 
-		for(auto it = pendingModels_.begin(); it != pendingModels_.end(); )
+		for(auto it = pendingModels_.begin(); it != pendingModels_.end();)
 		{
 			Graphics::Model* model = *it;
 			if(model->IsReady())
@@ -83,19 +79,14 @@ public:
 		{
 			if(numLights_ > lightMoveInfos_.size())
 			{
-				auto RandomF32 = [this](f32 min, f32 max)
-				{
+				auto RandomF32 = [this](f32 min, f32 max) {
 					const i32 v = rng_.Generate() & 0xffff;
 					const f32 r = max - min;
 					return ((f32(v) / f32(0xffff)) * r) + min;
 				};
 
-				auto RandomVec3 = [&](f32 min, f32 max)
-				{
-					return Math::Vec3(
-						RandomF32(min, max), 
-						RandomF32(min, max), 
-						RandomF32(min, max));
+				auto RandomVec3 = [&](f32 min, f32 max) {
+					return Math::Vec3(RandomF32(min, max), RandomF32(min, max), RandomF32(min, max));
 				};
 
 				// Add new lights.
@@ -131,7 +122,6 @@ public:
 		{
 			lightInfo.time_ += tick;
 		}
-
 	}
 
 
@@ -191,10 +181,10 @@ public:
 
 		for(auto& lightInfo : lightMoveInfos_)
 		{
-			light.position_ = Math::Vec3(
-				(f32)std::sin(lightInfo.axisTimeMultiplier_.x * lightInfo.time_),
-				(f32)std::sin(lightInfo.axisTimeMultiplier_.y * lightInfo.time_),
-				(f32)std::sin(lightInfo.axisTimeMultiplier_.z * lightInfo.time_)) * lightInfo.axisSizeMultiplier_;
+			light.position_ = Math::Vec3((f32)std::sin(lightInfo.axisTimeMultiplier_.x * lightInfo.time_),
+			                      (f32)std::sin(lightInfo.axisTimeMultiplier_.y * lightInfo.time_),
+			                      (f32)std::sin(lightInfo.axisTimeMultiplier_.z * lightInfo.time_)) *
+			                  lightInfo.axisSizeMultiplier_;
 			light.color_ = lightInfo.color_ * lightBrightness_;
 			light.radiusInner_ = 50.0f;
 			light.radiusOuter_ = 100.0f;
@@ -267,7 +257,6 @@ public:
 	Core::Random rng_;
 
 	Core::Vector<const char*> modelNames_;
-
 };
 
 #if 0

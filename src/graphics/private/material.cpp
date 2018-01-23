@@ -75,10 +75,6 @@ namespace Graphics
 			// Attempt to load in all dependent resources.
 			impl->shaderRes_ = ShaderRef(impl->data_.shader_);
 			impl->textureRes_.reserve(impl->data_.numTextures_);
-			for(i32 idx = 0; idx < impl->data_.numTextures_; ++idx)
-			{
-				impl->textureRes_.emplace_back(impl->textures_[idx].resourceName_);
-			}
 
 			// Wait on resources to finish loading.
 			impl->shaderRes_.WaitUntilReady();
@@ -88,37 +84,44 @@ namespace Graphics
 					textureRes.WaitUntilReady();
 			}
 
-			// Setup material bindings, if there are any,
+			// Setup material bindings, if there are any.
 			if(impl->bindings_ = impl->shaderRes_->CreateBindingSet("MaterialBindings"))
 			{
 				// Set default texture for everything. Temporary workaround.
 				impl->bindings_.SetAll(GPU::Binding::Texture2D(defaultTex_, GPU::Format::R8G8B8A8_UNORM, 0, 1));
 
-				for(i32 idx = 0; idx < impl->textures_.size(); ++idx)
+				//
+				for(i32 idx = 0; idx < impl->data_.numTextures_; ++idx)
 				{
-					const char* bindingName = impl->textures_[idx].bindingName_.data();
-					Texture* tex = impl->textureRes_[idx];
-					if(tex)
+					impl->textureRes_.emplace_back(impl->textures_[idx].resourceName_);
+					if(impl->textureRes_.back())
 					{
-						const auto& texDesc = tex->GetDesc();
-						switch(texDesc.type_)
+						impl->textureRes_.back().WaitUntilReady();
+
+						const char* bindingName = impl->textures_[idx].bindingName_.data();
+						Texture* tex = impl->textureRes_[idx];
+						if(tex)
 						{
-						case GPU::TextureType::TEX1D:
-							impl->bindings_.Set(bindingName,
-							    GPU::Binding::Texture1D(tex->GetHandle(), texDesc.format_, 0, texDesc.levels_));
-							break;
-						case GPU::TextureType::TEX2D:
-							impl->bindings_.Set(bindingName,
-							    GPU::Binding::Texture2D(tex->GetHandle(), texDesc.format_, 0, texDesc.levels_));
-							break;
-						case GPU::TextureType::TEX3D:
-							impl->bindings_.Set(bindingName,
-							    GPU::Binding::Texture3D(tex->GetHandle(), texDesc.format_, 0, texDesc.levels_));
-							break;
-						case GPU::TextureType::TEXCUBE:
-							impl->bindings_.Set(bindingName,
-							    GPU::Binding::TextureCube(tex->GetHandle(), texDesc.format_, 0, texDesc.levels_));
-							break;
+							const auto& texDesc = tex->GetDesc();
+							switch(texDesc.type_)
+							{
+							case GPU::TextureType::TEX1D:
+								impl->bindings_.Set(bindingName,
+								    GPU::Binding::Texture1D(tex->GetHandle(), texDesc.format_, 0, texDesc.levels_));
+								break;
+							case GPU::TextureType::TEX2D:
+								impl->bindings_.Set(bindingName,
+								    GPU::Binding::Texture2D(tex->GetHandle(), texDesc.format_, 0, texDesc.levels_));
+								break;
+							case GPU::TextureType::TEX3D:
+								impl->bindings_.Set(bindingName,
+								    GPU::Binding::Texture3D(tex->GetHandle(), texDesc.format_, 0, texDesc.levels_));
+								break;
+							case GPU::TextureType::TEXCUBE:
+								impl->bindings_.Set(bindingName,
+								    GPU::Binding::TextureCube(tex->GetHandle(), texDesc.format_, 0, texDesc.levels_));
+								break;
+							}
 						}
 					}
 				}

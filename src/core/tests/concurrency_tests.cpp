@@ -318,7 +318,7 @@ TEST_CASE("concurrency-tests-thread")
 		    [](void* userData) -> int {
 			    AtomicDec((volatile i32*)userData);
 			    return 123;
-		    },
+			},
 		    (void*)&value);
 		REQUIRE(thread);
 		int retVal = thread.Join();
@@ -334,7 +334,7 @@ TEST_CASE("concurrency-tests-thread")
 		    [](void* userData) -> int {
 			    AtomicDec((volatile i32*)userData);
 			    return 123;
-		    },
+			},
 		    (void*)&value);
 		REQUIRE(thread);
 
@@ -418,7 +418,7 @@ TEST_CASE("concurrency-tests-sem")
 		    [](void* userData) -> int {
 			    auto* sem = (Semaphore*)userData;
 			    return sem->Signal(2) ? 1 : 0;
-		    },
+			},
 		    (void*)&sem);
 		REQUIRE(sem.Wait(-1));
 		REQUIRE(thread.Join());
@@ -438,7 +438,7 @@ TEST_CASE("concurrency-tests-sem")
 		    [](void* userData) -> int {
 			    auto* sem = (Semaphore*)userData;
 			    return sem->Signal(2) ? 1 : 0;
-		    },
+			},
 		    (void*)&sem);
 		REQUIRE(sem.Wait(-1));
 		REQUIRE(thread.Join());

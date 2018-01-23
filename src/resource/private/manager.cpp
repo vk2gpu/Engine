@@ -237,7 +237,7 @@ namespace Resource
 			auto it =
 			    std::find_if(resourceList_.begin(), resourceList_.end(), [&name, &type](ResourceEntry* listEntry) {
 				    return listEntry->name_ == name && listEntry->type_ == type;
-			    });
+				});
 			if(it == resourceList_.end())
 			{
 				// Add resource to db.

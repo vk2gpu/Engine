@@ -93,7 +93,7 @@ void DrawRenderGraphUI(Graphics::RenderGraph& renderGraph)
 
 
 void DrawUIJobProfiler(
-	bool& profilingEnabled, Core::Vector<Job::ProfilerEntry>& profilerEntries, i32 numProfilerEntries)
+    bool& profilingEnabled, Core::Vector<Job::ProfilerEntry>& profilerEntries, i32 numProfilerEntries)
 {
 	if(ImGui::Begin("Job Profiler"))
 	{
@@ -110,18 +110,10 @@ void DrawUIJobProfiler(
 		}
 
 		Core::Array<ImColor, 12> colors = {
-			ImColor(0.8f, 0.0f, 0.0f, 1.0f),
-			ImColor(0.0f, 0.8f, 0.0f, 1.0f),
-			ImColor(0.0f, 0.0f, 0.8f, 1.0f),
-			ImColor(0.0f, 0.8f, 0.8f, 1.0f),
-			ImColor(0.8f, 0.0f, 0.8f, 1.0f),
-			ImColor(0.8f, 0.8f, 0.0f, 1.0f),
-			ImColor(0.4f, 0.0f, 0.0f, 1.0f),
-			ImColor(0.0f, 0.4f, 0.0f, 1.0f),
-			ImColor(0.0f, 0.0f, 0.4f, 1.0f),
-			ImColor(0.0f, 0.4f, 0.4f, 1.0f),
-			ImColor(0.4f, 0.0f, 0.4f, 1.0f),
-			ImColor(0.4f, 0.4f, 0.0f, 1.0f),
+		    ImColor(0.8f, 0.0f, 0.0f, 1.0f), ImColor(0.0f, 0.8f, 0.0f, 1.0f), ImColor(0.0f, 0.0f, 0.8f, 1.0f),
+		    ImColor(0.0f, 0.8f, 0.8f, 1.0f), ImColor(0.8f, 0.0f, 0.8f, 1.0f), ImColor(0.8f, 0.8f, 0.0f, 1.0f),
+		    ImColor(0.4f, 0.0f, 0.0f, 1.0f), ImColor(0.0f, 0.4f, 0.0f, 1.0f), ImColor(0.0f, 0.0f, 0.4f, 1.0f),
+		    ImColor(0.0f, 0.4f, 0.4f, 1.0f), ImColor(0.4f, 0.0f, 0.4f, 1.0f), ImColor(0.4f, 0.4f, 0.0f, 1.0f),
 		};
 
 		i32 numJobs = 0;
@@ -262,7 +254,7 @@ void DrawUIJobProfiler(
 				const auto& entry = profilerEntries[hoverEntry];
 
 				auto name = Core::String().Printf(
-					"%s (%.4f ms)", entry.name_.data(), (entry.endTime_ - entry.startTime_) * 1000.0);
+				    "%s (%.4f ms)", entry.name_.data(), (entry.endTime_ - entry.startTime_) * 1000.0);
 
 				Math::Vec2 size = ImGui::CalcTextSize(name.c_str(), nullptr);
 
@@ -316,7 +308,7 @@ void DrawRenderPackets(Core::ArrayView<RenderPacketBase*> packets, const DrawCon
 				auto* meshPacket = static_cast<MeshRenderPacket*>(packet);
 				auto passIdxIt = meshPacket->techs_->passIndices_.find(drawCtx.passName_);
 				if(passIdxIt != meshPacket->techs_->passIndices_.end() &&
-					passIdxIt->second < meshPacket->techs_->passTechniques_.size())
+				    passIdxIt->second < meshPacket->techs_->passTechniques_.size())
 				{
 					meshPackets.push_back(meshPacket);
 					meshPassTechIndices.push_back(passIdxIt->second);
@@ -478,9 +470,7 @@ void RunApp(const Core::CommandLine& cmdLine, IApp& app)
 
 
 			// Set draw callback.
-			forwardPipeline.SetDrawCallback([&](DrawContext& drawCtx) {
-				DrawRenderPackets(packets_, drawCtx);
-			});
+			forwardPipeline.SetDrawCallback([&](DrawContext& drawCtx) { DrawRenderPackets(packets_, drawCtx); });
 
 			// Clear graph prior to beginning work.
 			graph.Clear();
@@ -549,8 +539,7 @@ void RunApp(const Core::CommandLine& cmdLine, IApp& app)
 				if(packet->type_ == MeshRenderPacket::TYPE)
 				{
 					auto* meshPacket = static_cast<MeshRenderPacket*>(packet);
-					forwardPipeline.CreateTechniques(
-						meshPacket->material_, meshPacket->techDesc_, *meshPacket->techs_);
+					forwardPipeline.CreateTechniques(meshPacket->material_, meshPacket->techDesc_, *meshPacket->techs_);
 				}
 			}
 

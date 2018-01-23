@@ -165,10 +165,7 @@ namespace Image
 	SRGBAColor ToSRGBA(RGBAColor rgba)
 	{
 		RGBAColor sRGBA = {
-		    SingleToSRGB(rgba.r),
-		    SingleToSRGB(rgba.g),
-		    SingleToSRGB(rgba.b),
-		    rgba.a,
+		    SingleToSRGB(rgba.r), SingleToSRGB(rgba.g), SingleToSRGB(rgba.b), rgba.a,
 		};
 		sRGBA *= 255.0f;
 		sRGBA.r = std::roundf(sRGBA.r);
@@ -195,10 +192,8 @@ namespace Image
 	RGBAColor ToRGBA(SRGBAColor rgba)
 	{
 		RGBAColor sRGBA = {
-		    SingleFromSRGB((f32)rgba.r / 255.0f),
-		    SingleFromSRGB((f32)rgba.g / 255.0f),
-		    SingleFromSRGB((f32)rgba.b / 255.0f),
-		    (f32)rgba.a / 255.0f,
+		    SingleFromSRGB((f32)rgba.r / 255.0f), SingleFromSRGB((f32)rgba.g / 255.0f),
+		    SingleFromSRGB((f32)rgba.b / 255.0f), (f32)rgba.a / 255.0f,
 		};
 		return sRGBA;
 	}

@@ -378,11 +378,11 @@ namespace MeshTools
 
 		i32 idx_[3];
 	};
-	
+
 
 	static constexpr i32 BLOCK_SIZE = 4;
 	static constexpr i32 BLOCK_TEXELS = BLOCK_SIZE * BLOCK_SIZE;
-	
+
 	struct OctTree
 	{
 		struct NodeLinks
@@ -469,7 +469,7 @@ namespace MeshTools
 							bool success = cData.AddPoint(point);
 							DBG_ASSERT(success);
 							pointsMoved++;
-							
+
 							pointBits &= ~pointBit;
 						}
 					}
@@ -535,8 +535,7 @@ namespace MeshTools
 					Subdivide(idx);
 
 				++tries;
-			}
-			while(!added);
+			} while(!added);
 		}
 	};
 
@@ -660,14 +659,12 @@ namespace MeshTools
 				vtxIdx.push_back(pair);
 			}
 
-			std::sort(vtxIdx.begin(), vtxIdx.end(), [&](const VtxIdx& a, const VtxIdx& b)
-			{
+			std::sort(vtxIdx.begin(), vtxIdx.end(), [&](const VtxIdx& a, const VtxIdx& b) {
 				auto aKey = a.vtx.SortKey(bounds_);
 				auto bKey = b.vtx.SortKey(bounds_);
 				return aKey < bKey;
 			});
 
-			
 
 			Core::Map<u32, u32> remap;
 			u32 newIdx = 0;
@@ -721,7 +718,7 @@ namespace MeshTools
 				newTri.idx_[2] = ic;
 
 				triangles_.push_back(newTri);
-			}		
+			}
 		}
 
 		void ImportMeshCluster(Mesh* mesh, i32 firstTri, i32 numTris)
@@ -796,9 +793,8 @@ namespace MeshTools
 			desc.format_ = format;
 
 			bool retVal = false;
-			Image::Image inputImage(GPU::TextureType::TEX2D, GPU::Format::R32G32B32A32_FLOAT, 
-				width_, height_, 1, 1,
-				(u8*)texels_.data(), [](u8*){});
+			Image::Image inputImage(GPU::TextureType::TEX2D, GPU::Format::R32G32B32A32_FLOAT, width_, height_, 1, 1,
+			    (u8*)texels_.data(), [](u8*) {});
 
 			Image::Image intImage;
 			retVal = Image::Convert(intImage, inputImage, Image::ImageFormat::R8G8B8A8_UNORM);
@@ -978,9 +974,8 @@ namespace MeshTools
 		mesh->vertices_.resize(geom->GetVertexCount());
 		mesh->triangles_.resize(geom->GetTriangleCount());
 
-		auto GetVec2 = [](spRealArray arr, i32 idx) {
-			return Math::Vec2(arr->GetItem(idx * 2), arr->GetItem(idx * 2 + 1));
-		};
+		auto GetVec2 = [](
+		    spRealArray arr, i32 idx) { return Math::Vec2(arr->GetItem(idx * 2), arr->GetItem(idx * 2 + 1)); };
 
 		auto GetVec3 = [](spRealArray arr, i32 idx) {
 			return Math::Vec3(arr->GetItem(idx * 3), arr->GetItem(idx * 3 + 1), arr->GetItem(idx * 3 + 2));
@@ -1117,7 +1112,7 @@ CompressedModel::CompressedModel(const char* sourceFile)
 				bounds.ExpandBy(scaledPos);
 				positions.push_back(scaledPos);
 			}
-			
+
 			MeshTools::OctTree posTree;
 			posTree.CreateRoot(bounds);
 			for(const auto& pos : positions)
@@ -1138,14 +1133,15 @@ CompressedModel::CompressedModel(const char* sourceFile)
 
 			i32 minSize = (i32)ceil(sqrt((f32)leafNodes.size())) * MeshTools::BLOCK_SIZE;
 
-			auto outImage = Image::Image(GPU::TextureType::TEX2D, GPU::Format::R32G32B32A32_FLOAT, minSize, minSize, 1, 1, nullptr, nullptr);
-			
+			auto outImage = Image::Image(
+			    GPU::TextureType::TEX2D, GPU::Format::R32G32B32A32_FLOAT, minSize, minSize, 1, 1, nullptr, nullptr);
+
 			auto* outData = outImage.GetMipData<Math::Vec4>(0);
 			for(i32 idx = 0; idx < leafNodes.size(); ++idx)
 			{
 				i32 blockX = idx % (minSize / MeshTools::BLOCK_SIZE);
 				i32 blockY = idx / (minSize / MeshTools::BLOCK_SIZE);
-				
+
 				i32 nodeIdx = leafNodes[idx];
 				const auto& link = posTree.nodeLinks_[nodeIdx];
 				auto& data = posTree.nodeDatas_[nodeIdx];
@@ -1174,7 +1170,7 @@ CompressedModel::CompressedModel(const char* sourceFile)
 			if(auto file = Core::File("packed_positions.png", Core::FileFlags::CREATE | Core::FileFlags::WRITE))
 				Image::Save(file, fileImage, Image::FileType::PNG);
 #endif
-			
+
 			mesh->ReorderIndices(posTree, minSize * minSize);
 
 			//auto material = GetMaterial(sourceFile, scene->mMaterials[scene->mMeshes[i]->mMaterialIndex]);
@@ -1203,7 +1199,7 @@ CompressedModel::CompressedModel(const char* sourceFile)
 
 				// Alpha channel could encode a shared exponent, but that would break the ability to
 				// interpolate.
-				
+
 				packedPositionTex.Set(idx, Math::Vec4(scaledPos, 1.0f));
 				packedNormalTex.Set(idx, MeshTools::EncodeSMT(vtx.normal_));
 				packedColorTex.Set(idx, MeshTools::EncodeYCoCg(vtx.color_));
@@ -1220,7 +1216,6 @@ CompressedModel::CompressedModel(const char* sourceFile)
 				positionFmt_ = GPU::Format::R8G8B8A8_UNORM;
 				Core::StreamDesc outStream(nullptr, Core::DataType::UNORM, 8, 4 * sizeof(u8));
 				positionTex_.push_back(packedPositionTex.Create(positionFmt_, outStream, "PackedPositionTex"));
-
 			}
 
 			if(useCompression)
@@ -1245,7 +1240,7 @@ CompressedModel::CompressedModel(const char* sourceFile)
 				desc.size_ = sizeof(GeometryParams);
 				paramsBuffer_.push_back(GPU::Manager::CreateBuffer(desc, &params, "GeometryParams"));
 			}
-		
+
 
 			numIndices += mesh->triangles_.size() * 3;
 			numVertices += mesh->vertices_.size();
@@ -1373,8 +1368,8 @@ CompressedModel::CompressedModel(const char* sourceFile)
 						auto outStreamDesc = outStreamDescs[elementStreamIdx];
 
 						DBG_ASSERT(vertexData.size() >= (outStreamDesc.stride_ * (i32)mesh->vertices_.size()));
-						auto retVal = Core::Convert(outStreamDesc, inStreamDesc, mesh->vertices_.size(),
-						    numComponents[elementStreamIdx]);
+						auto retVal = Core::Convert(
+						    outStreamDesc, inStreamDesc, mesh->vertices_.size(), numComponents[elementStreamIdx]);
 						DBG_ASSERT_MSG(retVal, "Unable to convert stream.");
 					}
 
@@ -1463,8 +1458,7 @@ void CompressedModel::DrawClusters(DrawContext& drawCtx, ObjectConstants object)
 		// Update all render packet uniforms.
 		for(i32 idx = 0; idx < numObjects; ++idx)
 			objects[idx] = object;
-		drawCtx.cmdList_.UpdateBuffer(
-		    drawCtx.objectSBHandle_, 0, sizeof(ObjectConstants) * numObjects, objects);
+		drawCtx.cmdList_.UpdateBuffer(drawCtx.objectSBHandle_, 0, sizeof(ObjectConstants) * numObjects, objects);
 
 		for(i32 idx = 0; idx < numObjects; ++idx)
 		{
@@ -1484,13 +1478,16 @@ void CompressedModel::DrawClusters(DrawContext& drawCtx, ObjectConstants object)
 
 					if(geometryBindings_)
 					{
-						geometryBindings_.Set("geomParams", GPU::Binding::CBuffer(paramsBuffer_[meshIdx], 0, sizeof(GeometryParams)));
-						geometryBindings_.Set("geomPosition", GPU::Binding::Texture2D(positionTex_[meshIdx], positionFmt_, 0, 1));
-						geometryBindings_.Set("geomNormal", GPU::Binding::Texture2D(normalTex_[meshIdx], normalFmt_, 0, 1));
+						geometryBindings_.Set(
+						    "geomParams", GPU::Binding::CBuffer(paramsBuffer_[meshIdx], 0, sizeof(GeometryParams)));
+						geometryBindings_.Set(
+						    "geomPosition", GPU::Binding::Texture2D(positionTex_[meshIdx], positionFmt_, 0, 1));
+						geometryBindings_.Set(
+						    "geomNormal", GPU::Binding::Texture2D(normalTex_[meshIdx], normalFmt_, 0, 1));
 					}
 
-					objectBindings_.Set("inObject", GPU::Binding::Buffer(drawCtx.objectSBHandle_,
-							                            GPU::Format::INVALID, 0, 1, objectDataSize));
+					objectBindings_.Set("inObject",
+					    GPU::Binding::Buffer(drawCtx.objectSBHandle_, GPU::Format::INVALID, 0, 1, objectDataSize));
 					if(auto geometryBind = drawCtx.shaderCtx_.BeginBindingScope(geometryBindings_))
 					{
 						if(auto objectBind = drawCtx.shaderCtx_.BeginBindingScope(objectBindings_))
@@ -1500,8 +1497,7 @@ void CompressedModel::DrawClusters(DrawContext& drawCtx, ObjectConstants object)
 							if(drawCtx.shaderCtx_.CommitBindings(tech, ps, pb))
 							{
 								drawCtx.cmdList_.Draw(ps, pb, dbs_, drawCtx.fbs_, drawCtx.drawState_,
-									GPU::PrimitiveTopology::TRIANGLE_LIST, 0, 0,
-									mesh.numIndices_, 0, 1);
+								    GPU::PrimitiveTopology::TRIANGLE_LIST, 0, 0, mesh.numIndices_, 0, 1);
 							}
 						}
 					}

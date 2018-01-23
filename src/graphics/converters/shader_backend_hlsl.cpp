@@ -22,9 +22,10 @@ namespace
 
 namespace Graphics
 {
-	ShaderBackendHLSL::ShaderBackendHLSL(const BindingMap& bindingMap, const FunctionExports& functionExports, bool autoReg)
+	ShaderBackendHLSL::ShaderBackendHLSL(
+	    const BindingMap& bindingMap, const FunctionExports& functionExports, bool autoReg)
 	    : bindingMap_(bindingMap)
-		, functionExports_(functionExports)
+	    , functionExports_(functionExports)
 	    , autoReg_(autoReg)
 	{
 		for(const char* attribute : HLSL_ATTRIBUTES)
@@ -92,7 +93,8 @@ namespace Graphics
 
 		if(writeUsed)
 		{
-			Write("////////////////////////////////////////////////////////////////////////////////////////////////////");
+			Write(
+			    "////////////////////////////////////////////////////////////////////////////////////////////////////");
 			NextLine();
 			Write("// unused resources (used to keep the compiler happy)");
 			NextLine();

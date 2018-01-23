@@ -82,7 +82,7 @@ namespace Image
 			if(i == level)
 				return data;
 
-			const i32 numBlocks = blockW * blockH;
+			const i64 numBlocks = blockW * blockH;
 			data += (numBlocks * formatInfo.blockBits_) >> 3;
 
 			blockW = Core::Max(blockW >> 1, 1);

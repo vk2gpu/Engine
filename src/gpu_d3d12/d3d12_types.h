@@ -129,7 +129,7 @@ namespace GPU
 
 } // namespace GPU
 
-#ifdef DEBUG
+#if !defined(_RELEASE)
 #define CHECK_ERRORCODE(a) DBG_ASSERT((a) == ErrorCode::OK)
 #define CHECK_D3D(a) DBG_ASSERT((a) == S_OK)
 #define CHECK_D3D_RESULT(hr, a)                                                                                        \

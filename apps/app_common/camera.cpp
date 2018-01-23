@@ -19,12 +19,10 @@ void Camera::Update(const Client::IInputProvider& input, f32 tick)
 	if(input.WasKeyReleased(Client::KeyCode::UP) || input.WasKeyReleased(Client::KeyCode::DOWN))
 		cameraRotationDelta_.x = 0.0f;
 
-	if(input.WasKeyReleased('W') || input.WasKeyReleased('w') || input.WasKeyReleased('S') ||
-		input.WasKeyReleased('s'))
+	if(input.WasKeyReleased('W') || input.WasKeyReleased('w') || input.WasKeyReleased('S') || input.WasKeyReleased('s'))
 		cameraWalk_.z = 0.0f;
 
-	if(input.WasKeyReleased('A') || input.WasKeyReleased('a') || input.WasKeyReleased('D') ||
-		input.WasKeyReleased('d'))
+	if(input.WasKeyReleased('A') || input.WasKeyReleased('a') || input.WasKeyReleased('D') || input.WasKeyReleased('d'))
 		cameraWalk_.x = 0.0f;
 
 	if(input.WasKeyReleased(Client::KeyCode::LSHIFT))
@@ -74,7 +72,7 @@ void Camera::Update(const Client::IInputProvider& input, f32 tick)
 	{
 		f32 rotateSpeed = 1.0f / 200.0f;
 		Math::Vec3 cameraRotateAmount =
-			Math::Vec3(mousePos.y - initialMousePos_.y, -(mousePos.x - initialMousePos_.x), 0.0f) * rotateSpeed;
+		    Math::Vec3(mousePos.y - initialMousePos_.y, -(mousePos.x - initialMousePos_.x), 0.0f) * rotateSpeed;
 		cameraRotation_ = baseCameraRotation_ + cameraRotateAmount;
 	}
 	break;
@@ -108,8 +106,7 @@ void Camera::Update(const Client::IInputProvider& input, f32 tick)
 
 	matrix_.Identity();
 	matrix_.LookAt(viewFromPosition, cameraTarget_,
-		Math::Vec3(
-			cameraRotationMatrix.Row1().x, cameraRotationMatrix.Row1().y, cameraRotationMatrix.Row1().z));
+	    Math::Vec3(cameraRotationMatrix.Row1().x, cameraRotationMatrix.Row1().y, cameraRotationMatrix.Row1().z));
 }
 
 Math::Mat44 Camera::GetCameraRotationMatrix() const
