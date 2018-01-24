@@ -211,11 +211,30 @@ namespace Core
 	 */
 	enum class FileFlags : u32
 	{
-		NONE = 0x0,
-		READ = 0x1,
-		WRITE = 0x2,
-		APPEND = 0x4,
-		CREATE = 0x8,
+		NONE = 0,
+
+		/// File can be accessed for read.
+		READ = 1 << 0,
+		/// File can be accessed for write.
+		WRITE = 1 << 1,
+		/// File is created if it doesn't exist.
+		CREATE = 1 << 2,
+		/// File can be memory mapped.
+		MMAP = 1 << 3,
+
+		/// Used with WRITE, will be flushed without delay.
+		CACHE_WRITE_THROUGH = 1 << 8,
+		/// Used with READ, will hint that it's for sequential access.
+		CACHE_SEQUENTIAL = 1 << 9,
+		/// Used with READ, will hint that it's for random access.
+		CACHE_RANDOM_ACCESS = 1 << 10,
+
+		/// Default read.
+		DEFAULT_READ = READ | MMAP,
+		/// Default write.
+		DEFAULT_WRITE = WRITE | CREATE,
+		/// Stream data without buffering.
+		STREAM_WRITE = WRITE | CACHE_WRITE_THROUGH,
 	};
 
 	DEFINE_ENUM_CLASS_FLAG_OPERATOR(FileFlags, |);
@@ -258,7 +277,7 @@ namespace Core
 		 * @param path Path to open.
 		 * @param flags Flags to control file behavior.
 		 * @param resolver Path resolver to use. Can be nullptr.
-		 * @pre @a flags only contains READ or WRITE, but not both.
+		 * @pre @a flags only contains READ or WRITE, but not both unless MMAP is set.
 		 * @pre If @a flags contains READ, it doesn't contain APPEND or CREATE.
 		 */
 		File(const char* path, FileFlags flags, IFilePathResolver* resolver = nullptr);
@@ -343,11 +362,56 @@ namespace Core
 		/**
 		 * @return Is file valid?
 		 */
-		operator bool() const { return impl_ != nullptr; }
+		explicit operator bool() const { return impl_ != nullptr; }
 
 	private:
+		friend class MappedFile;
+
 		File(const File&) = delete;
 
 		class FileImpl* impl_ = nullptr;
+	};
+
+	/**
+	 * Memory mapped file.
+	 */
+	class CORE_DLL MappedFile
+	{
+	public:
+		MappedFile() = default;
+
+		/**
+		 * Create a mapped file.
+		 * @param file File to map.
+		 * @param offset Offset in file to map.
+		 * @param size Size in bytes to map.
+		 */
+		MappedFile(File& file, i64 offset, i64 size);
+
+		~MappedFile();
+
+		/// Move operators.
+		MappedFile(MappedFile&&);
+		MappedFile& operator=(MappedFile&&);
+
+		/**
+		 * Get address.
+		 */
+		void* GetAddress() const;
+
+		/**
+		 * Get size.
+		 */
+		i64 GetSize() const;
+
+		/**
+		 * @return Is mapped file valid?
+		 */
+		explicit operator bool() { return impl_ != nullptr; }
+
+	private:
+		MappedFile(const MappedFile&) = delete;
+
+		class MappedFileImpl* impl_ = nullptr;
 	};
 } // namespace Core

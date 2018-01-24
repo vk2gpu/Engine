@@ -81,7 +81,7 @@ namespace
 				matTexs.push_back(matTex);
 			}
 
-			Core::File outFile(outFilename, Core::FileFlags::CREATE | Core::FileFlags::WRITE);
+			Core::File outFile(outFilename, Core::FileFlags::DEFAULT_WRITE);
 			if(!outFile)
 				return false;
 

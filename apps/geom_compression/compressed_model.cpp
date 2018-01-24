@@ -1167,7 +1167,7 @@ CompressedModel::CompressedModel(const char* sourceFile)
 
 			Image::Convert(fileImage, outImage, Image::ImageFormat::R8G8B8A8_UNORM);
 
-			if(auto file = Core::File("packed_positions.png", Core::FileFlags::CREATE | Core::FileFlags::WRITE))
+			if(auto file = Core::File("packed_positions.png", Core::FileFlags::DEFAULT_WRITE))
 				Image::Save(file, fileImage, Image::FileType::PNG);
 #endif
 

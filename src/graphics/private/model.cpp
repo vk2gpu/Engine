@@ -144,49 +144,48 @@ namespace Graphics
 			// Now load in and create vertex + index buffers.
 			if(GPU::Manager::IsInitialized())
 			{
-				Core::Vector<u8> data;
-				i32 vbIdx = 0;
+				// Calculate size to map.
+				i64 totalDataSize = 0;
 				for(const auto& mesh : impl->modelMeshes_)
 				{
-					readBytes = mesh.noofVertices_ * mesh.vertexSize_;
-					if(data.capacity() < readBytes)
-						data.resize((i32)readBytes);
-
-					if(inFile.Read(data.data(), readBytes) != readBytes)
-					{
-						delete impl;
-						return false;
-					}
-
-					{
-						GPU::BufferDesc desc;
-						desc.size_ = readBytes;
-						desc.bindFlags_ = GPU::BindFlags::VERTEX_BUFFER;
-						GPU::Handle vb = GPU::Manager::CreateBuffer(desc, data.data(), "%s/vb_%d", name, vbIdx++);
-						impl->vbs_.push_back(vb);
-					}
+					totalDataSize += mesh.noofVertices_ * mesh.vertexSize_;
+					totalDataSize += mesh.noofIndices_ * mesh.indexStride_;
 				}
 
-				i32 ibIdx = 0;
-				for(const auto& mesh : impl->modelMeshes_)
+				impl->vbs_.reserve(impl->modelMeshes_.size());
+				impl->ibs_.reserve(impl->modelMeshes_.size());
+
+				// Map data.
+				if(auto mapped = Core::MappedFile(inFile, inFile.Tell(), totalDataSize))
 				{
-					readBytes = mesh.noofIndices_ * mesh.indexStride_;
-					if(data.capacity() < readBytes)
-						data.resize((i32)readBytes);
-
-					if(inFile.Read(data.data(), readBytes) != readBytes)
-					{
-						delete impl;
-						return false;
-					}
-
+					const u8* data = reinterpret_cast<const u8*>(mapped.GetAddress());
+					i32 vbIdx = 0;
+					for(const auto& mesh : impl->modelMeshes_)
 					{
 						GPU::BufferDesc desc;
-						desc.size_ = readBytes;
-						desc.bindFlags_ = GPU::BindFlags::INDEX_BUFFER;
-						GPU::Handle ib = GPU::Manager::CreateBuffer(desc, data.data(), "%s/ib_%d", name, ibIdx++);
-						impl->ibs_.push_back(ib);
+						desc.size_ = mesh.noofVertices_ * mesh.vertexSize_;
+						desc.bindFlags_ = GPU::BindFlags::VERTEX_BUFFER;
+						GPU::Handle vb = GPU::Manager::CreateBuffer(desc, data, "%s/vb_%d", name, vbIdx++);
+						impl->vbs_.push_back(vb);
+						data += desc.size_;
 					}
+
+					i32 ibIdx = 0;
+					for(const auto& mesh : impl->modelMeshes_)
+					{
+						GPU::BufferDesc desc;
+						desc.size_ = mesh.noofIndices_ * mesh.indexStride_;
+						desc.bindFlags_ = GPU::BindFlags::INDEX_BUFFER;
+						GPU::Handle ib = GPU::Manager::CreateBuffer(desc, data, "%s/ib_%d", name, ibIdx++);
+						impl->ibs_.push_back(ib);
+						data += desc.size_;
+					}
+				}
+				else
+				{
+					DBG_ASSERT_MSG(false, "FATAL: Unable to map model data for \"%s\"\n", inFile.GetPath());
+					delete impl;
+					return false;
 				}
 
 				// Create draw binding sets.

@@ -275,7 +275,7 @@ namespace
 			CalculateNodeWorldTransforms();
 
 			// Write out converted model.
-			Core::File outFile(outFilename, Core::FileFlags::CREATE | Core::FileFlags::WRITE);
+			Core::File outFile(outFilename, Core::FileFlags::DEFAULT_WRITE);
 			if(outFile)
 			{
 				// Model data header.
@@ -928,8 +928,7 @@ namespace
 
 						{
 							Core::FileRemove(materialPath.data());
-							auto materialFile =
-							    Core::File(materialPath.data(), Core::FileFlags::CREATE | Core::FileFlags::WRITE);
+							auto materialFile = Core::File(materialPath.data(), Core::FileFlags::DEFAULT_WRITE);
 							auto materialSer = Serialization::Serializer(materialFile, Serialization::Flags::TEXT);
 							importMaterial.Serialize(materialSer);
 						}

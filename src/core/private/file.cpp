@@ -1,5 +1,7 @@
 #include "core/file.h"
+#include "core/file_impl.h"
 #include "core/array.h"
+#include "core/concurrency.h"
 #include "core/misc.h"
 
 #if !defined(_RELEASE)
@@ -438,28 +440,11 @@ namespace Core
 		return true;
 	}
 
-	class FileImpl
-	{
-	public:
-		virtual ~FileImpl() {}
-		virtual i64 Read(void* buffer, i64 bytes) = 0;
-		virtual i64 Write(const void* buffer, i64 bytes) = 0;
-		virtual bool Seek(i64 offset) = 0;
-		virtual i64 Tell() const = 0;
-		virtual i64 Size() const = 0;
-		virtual FileFlags GetFlags() const = 0;
-		virtual bool IsValid() const = 0;
-
-#if !defined(_RELEASE)
-		Core::String path_;
-#endif
-	};
-
 	/// Native file implementation.
-	class FileImplNative : public FileImpl
+	class FileImplGeneric : public FileImpl
 	{
 	public:
-		FileImplNative(const char* path, FileFlags flags, IFilePathResolver* resolver)
+		FileImplGeneric(const char* path, FileFlags flags, IFilePathResolver* resolver)
 		{
 			char resolvedPath[MAX_PATH_LENGTH];
 
@@ -486,11 +471,6 @@ namespace Core
 				lowLevelFlags |= lowLevelWriteFlags;
 				openString[openStringIdx++] = 'w';
 				openString[openStringIdx++] = 'b';
-			}
-			if(ContainsAllFlags(flags, FileFlags::APPEND))
-			{
-				lowLevelFlags |= lowLevelAppendFlags;
-				openString[openStringIdx++] = 'a';
 			}
 			if(ContainsAllFlags(flags, FileFlags::CREATE))
 			{
@@ -521,7 +501,7 @@ namespace Core
 #endif
 		}
 
-		virtual ~FileImplNative()
+		virtual ~FileImplGeneric()
 		{
 			if(fileHandle_)
 				::fclose(fileHandle_);
@@ -572,10 +552,23 @@ namespace Core
 
 		bool IsValid() const override { return fileDescriptor_ != -1; }
 
+		const char* GetPath() const override
+		{
+#if !defined(_RELEASE)
+			return path_.c_str();
+#else
+			return "";
+#endif
+		}
+
 	private:
 		FILE* fileHandle_ = nullptr;
 		int fileDescriptor_ = -1;
 		FileFlags flags_ = FileFlags::NONE;
+
+#if !defined(_RELEASE)
+		Core::String path_;
+#endif
 	};
 
 	class FileImplMem : public FileImpl
@@ -649,6 +642,15 @@ namespace Core
 
 		bool IsValid() const override { return !!constData_; }
 
+		const char* GetPath() const override
+		{
+#if !defined(_RELEASE)
+			return path_.c_str();
+#else
+			return "";
+#endif
+		}
+
 	private:
 		/// Choosing this over const_cast.
 		union
@@ -659,16 +661,281 @@ namespace Core
 		i64 size_ = 0;
 		FileFlags flags_ = FileFlags::NONE;
 		i64 offset_ = 0;
+
+#if !defined(_RELEASE)
+		Core::String path_;
+#endif
 	};
+
+#if defined(PLATFORM_WINDOWS)
+	class FileImplWin32 : public FileImpl
+	{
+	public:
+		FileImplWin32(const char* path, FileFlags flags, IFilePathResolver* resolver)
+		    : flags_(flags)
+		{
+			char resolvedPath[MAX_PATH_LENGTH] = {};
+
+			// Resolve path if required.
+			if(resolver)
+			{
+				if(resolver->ResolvePath(path, resolvedPath, sizeof(resolvedPath)))
+					path = &resolvedPath[0];
+			}
+
+			DWORD desiredAccess = 0;
+			DWORD shareMode = 0;
+			DWORD createFlags = 0;
+			DWORD fileFlags = 0;
+
+			if(ContainsAnyFlags(flags, FileFlags::CREATE))
+			{
+				if(Core::FileExists(path))
+					createFlags = TRUNCATE_EXISTING;
+				else
+					createFlags = CREATE_ALWAYS;
+			}
+			else
+			{
+				createFlags = OPEN_EXISTING;
+			}
+
+			if(ContainsAnyFlags(flags, FileFlags::READ))
+			{
+				desiredAccess |= GENERIC_READ;
+				shareMode = FILE_SHARE_READ;
+			}
+			if(ContainsAnyFlags(flags, FileFlags::WRITE))
+			{
+				desiredAccess |= GENERIC_WRITE;
+			}
+
+			if(ContainsAnyFlags(flags, FileFlags::CACHE_WRITE_THROUGH))
+				fileFlags |= FILE_FLAG_WRITE_THROUGH;
+			if(ContainsAnyFlags(flags, FileFlags::CACHE_SEQUENTIAL))
+				fileFlags |= FILE_FLAG_SEQUENTIAL_SCAN;
+			if(ContainsAnyFlags(flags, FileFlags::CACHE_RANDOM_ACCESS))
+				fileFlags |= FILE_FLAG_RANDOM_ACCESS;
+
+			fileHandle_ = ::CreateFile(path, desiredAccess, shareMode, nullptr, createFlags, fileFlags, 0);
+			if(fileHandle_ != INVALID_HANDLE_VALUE)
+			{
+				DWORD sizeHi = 0;
+				DWORD sizeLo = ::GetFileSize(fileHandle_, &sizeHi);
+				size_ = (i64)sizeHi << 32ull | sizeLo;
+			}
+			else
+			{
+				auto error = ::GetLastError();
+
+				++error;
+				(void)error;
+			}
+
+#if !defined(_RELEASE)
+			path_ = path;
+#endif
+		}
+
+		~FileImplWin32()
+		{
+			if(fileHandle_ != INVALID_HANDLE_VALUE)
+			{
+				::FlushFileBuffers(fileHandle_);
+				::CloseHandle(fileHandle_);
+			}
+		}
+
+		i64 Read(void* buffer, i64 bytes) override
+		{
+			const i64 maxReadSize = 0x000000007fffffffull;
+			i64 totalRead = 0;
+			u8* readBuffer = static_cast<u8*>(buffer);
+			while(bytes > 0)
+			{
+				DWORD bytesToRead = (DWORD)(Core::Min(maxReadSize, bytes));
+				DWORD bytesRead = 0;
+				if(FALSE == ::ReadFile(fileHandle_, readBuffer, bytesToRead, &bytesRead, nullptr))
+				{
+					return bytesRead;
+				}
+				totalRead += bytesRead;
+				readBuffer += bytesRead;
+				bytes -= bytesRead;
+			}
+			return totalRead;
+		}
+
+		i64 Write(const void* buffer, i64 bytes) override
+		{
+			const i64 maxWriteSize = 0x00000000ffffffffull;
+			i64 totalWritten = 0;
+			const u8* writeBuffer = static_cast<const u8*>(buffer);
+			while(bytes > 0)
+			{
+				DWORD bytesToWrite = (DWORD)(Core::Min(maxWriteSize, bytes));
+				DWORD bytesWritten = 0;
+				if(FALSE == ::WriteFile(fileHandle_, writeBuffer, bytesToWrite, &bytesWritten, nullptr))
+				{
+					return bytesWritten;
+				}
+				totalWritten += bytesWritten;
+				writeBuffer += bytesWritten;
+				bytes -= bytesWritten;
+			}
+			return totalWritten;
+		}
+
+		bool Seek(i64 offset) override
+		{
+			const LONG offsetHi = offset >> 32u;
+			const LONG offsetLo = offset & 0xffffffffu;
+			LONG offsetHiOut = offsetHi;
+			return ::SetFilePointer(fileHandle_, offsetLo, &offsetHiOut, FILE_BEGIN) == (DWORD)offsetLo &&
+			       offsetHiOut == offsetHi;
+		}
+
+		i64 Tell() const override
+		{
+			LONG offsetHi = 0;
+			DWORD offsetLo = ::SetFilePointer(fileHandle_, 0, &offsetHi, FILE_CURRENT);
+			return (i64)offsetHi << 32ull | offsetLo;
+		}
+
+		i64 Size() const override { return size_; }
+
+		FileFlags GetFlags() const override { return flags_; }
+
+		bool IsValid() const override { return fileHandle_ != INVALID_HANDLE_VALUE; }
+
+		const char* GetPath() const override
+		{
+#if !defined(_RELEASE)
+			return path_.c_str();
+#else
+			return "";
+#endif
+		}
+
+	private:
+		friend class MappedFileImpl;
+
+		i64 size_ = 0;
+		FileFlags flags_ = FileFlags::NONE;
+		HANDLE fileHandle_ = INVALID_HANDLE_VALUE;
+		volatile i32 mappedCount_ = 0;
+
+#if !defined(_RELEASE)
+		Core::String path_;
+#endif
+	};
+
+	class MappedFileImpl
+	{
+	public:
+		MappedFileImpl(FileImpl* fileImpl, i64 offset, i64 size)
+		{
+			const FileFlags flags = fileImpl->GetFlags();
+
+			// Have to explicitly declare MMAP to be memory mappable.
+			if(!ContainsAllFlags(flags, FileFlags::MMAP))
+			{
+				return;
+			}
+
+			fileImpl_ = static_cast<FileImplWin32*>(fileImpl);
+
+			DWORD protect = 0;
+			DWORD desiredAccess = 0;
+			if(ContainsAnyFlags(flags, FileFlags::WRITE) && ContainsAnyFlags(flags, FileFlags::READ))
+			{
+				protect |= PAGE_READWRITE;
+				desiredAccess |= FILE_MAP_WRITE | FILE_MAP_READ;
+			}
+			else if(ContainsAnyFlags(flags, FileFlags::WRITE))
+			{
+				protect |= PAGE_READWRITE | PAGE_WRITECOMBINE;
+				desiredAccess |= FILE_MAP_WRITE;
+			}
+			else if(ContainsAnyFlags(flags, FileFlags::READ))
+			{
+				protect |= PAGE_READONLY;
+				desiredAccess |= FILE_MAP_READ;
+			}
+
+			size_ = size;
+
+			// Round offset down to nearest page, and round up the size appropriately.
+			SYSTEM_INFO sysInfo = {};
+			::GetSystemInfo(&sysInfo);
+			const i64 newOffset = Core::PotRoundDown(offset, sysInfo.dwAllocationGranularity);
+			const i64 newSize = size_ + (offset - newOffset);
+
+			const DWORD sizeHi = newSize >> 32ull;
+			const DWORD sizeLo = newSize & 0xffffffffull;
+			mappingHandle_ =
+			    ::CreateFileMapping(fileImpl_->fileHandle_, nullptr, protect, sizeHi, sizeLo, fileImpl_->path_.c_str());
+			if(mappingHandle_ == INVALID_HANDLE_VALUE)
+				return;
+
+			Core::AtomicInc(&fileImpl_->mappedCount_);
+
+			const DWORD offsetHi = newOffset >> 32u;
+			const DWORD offsetLo = newOffset & 0xffffffffu;
+			baseAddress_ = ::MapViewOfFile(mappingHandle_, desiredAccess, offsetHi, offsetLo, newSize);
+			if(baseAddress_)
+			{
+				mappedAddress_ = (u8*)baseAddress_ + offset;
+			}
+			else
+			{
+				auto error = ::GetLastError();
+				++error;
+				return;
+			}
+		}
+
+		~MappedFileImpl()
+		{
+			if(mappedAddress_)
+			{
+				::UnmapViewOfFile(baseAddress_);
+				mappedAddress_ = nullptr;
+			}
+
+			if(mappingHandle_ != INVALID_HANDLE_VALUE)
+			{
+				::CloseHandle(mappingHandle_);
+				mappingHandle_ = INVALID_HANDLE_VALUE;
+
+				Core::AtomicDec(&fileImpl_->mappedCount_);
+			}
+		}
+
+		bool IsValid() const { return !!mappedAddress_; }
+
+		FileImplWin32* fileImpl_ = nullptr;
+
+		HANDLE mappingHandle_ = INVALID_HANDLE_VALUE;
+		i64 size_ = 0;
+		void* baseAddress_ = nullptr;
+		void* mappedAddress_ = nullptr;
+	};
+#endif // defined(PLATFORM_WINDOWS)
 
 	File::File(const char* path, FileFlags flags, IFilePathResolver* resolver)
 	{
-		DBG_ASSERT(ContainsAnyFlags(flags, FileFlags::READ) ^ ContainsAnyFlags(flags, FileFlags::WRITE));
+		DBG_ASSERT((ContainsAnyFlags(flags, FileFlags::READ) ^ ContainsAnyFlags(flags, FileFlags::WRITE)) ||
+		           ContainsAnyFlags(flags, FileFlags::MMAP));
 		DBG_ASSERT(ContainsAnyFlags(flags, FileFlags::WRITE) ||
-		           (ContainsAnyFlags(flags, FileFlags::READ) &&
-		               !ContainsAnyFlags(flags, FileFlags::APPEND | FileFlags::CREATE)));
+		           (ContainsAnyFlags(flags, FileFlags::READ) && !ContainsAnyFlags(flags, FileFlags::CREATE)));
 
-		impl_ = new FileImplNative(path, flags, resolver);
+#if defined(PLATFORM_WINDOWS)
+		impl_ = new FileImplWin32(path, flags, resolver);
+#else
+		impl_ = new FileImplGeneric(path, flags, resolver);
+#endif
+
 		if(!impl_->IsValid())
 		{
 			delete impl_;
@@ -681,7 +948,7 @@ namespace Core
 		DBG_ASSERT(data);
 		DBG_ASSERT(size > 0);
 		DBG_ASSERT(ContainsAnyFlags(flags, FileFlags::READ) ^ ContainsAnyFlags(flags, FileFlags::WRITE));
-		DBG_ASSERT(!ContainsAnyFlags(flags, FileFlags::APPEND | FileFlags::CREATE));
+		DBG_ASSERT(!ContainsAnyFlags(flags, FileFlags::CREATE));
 		impl_ = new FileImplMem(data, size, flags);
 	}
 
@@ -747,11 +1014,41 @@ namespace Core
 	}
 
 	const char* File::GetPath() const
-	{
-#if !defined(_RELEASE)
-		return impl_ ? impl_->path_.c_str() : "<NULL>";
-#else
-		return "";
-#endif
+	{ //
+		return impl_ ? impl_->GetPath() : "<NULL>";
 	}
+
+	MappedFile::MappedFile(File& file, i64 offset, i64 size)
+	{
+		if(file.impl_)
+		{
+			impl_ = new MappedFileImpl(file.impl_, offset, size);
+			if(!impl_->IsValid())
+			{
+				delete impl_;
+				impl_ = nullptr;
+			}
+		}
+	}
+
+	MappedFile::~MappedFile() { delete impl_; }
+
+	MappedFile::MappedFile(MappedFile&& other)
+	{
+		using std::swap;
+		swap(impl_, other.impl_);
+	}
+
+	MappedFile& MappedFile::operator=(MappedFile&& other)
+	{
+		using std::swap;
+		swap(impl_, other.impl_);
+		return *this;
+	}
+
+	void* MappedFile::GetAddress() const { return impl_->mappedAddress_; }
+
+	i64 MappedFile::GetSize() const { return impl_->size_; }
+
+
 } // namespace Core

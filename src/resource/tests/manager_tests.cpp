@@ -167,7 +167,7 @@ TEST_CASE("resource-tests-request")
 	REQUIRE(Resource::Manager::RegisterFactory(TestResource::GetTypeUUID(), factory));
 
 	{
-		auto file = Core::File("converter.test", Core::FileFlags::CREATE | Core::FileFlags::WRITE);
+		auto file = Core::File("converter.test", Core::FileFlags::DEFAULT_WRITE);
 		REQUIRE(file);
 	}
 
@@ -195,7 +195,7 @@ TEST_CASE("resource-tests-request-multiple")
 	TestResource* testResourceB = nullptr;
 
 	{
-		auto file = Core::File("converter.test", Core::FileFlags::CREATE | Core::FileFlags::WRITE);
+		auto file = Core::File("converter.test", Core::FileFlags::DEFAULT_WRITE);
 		REQUIRE(file);
 	}
 
@@ -229,7 +229,7 @@ TEST_CASE("resource-tests-refs")
 	REQUIRE(Resource::Manager::RegisterFactory(TestResource::GetTypeUUID(), factory));
 
 	{
-		auto file = Core::File("converter.test", Core::FileFlags::CREATE | Core::FileFlags::WRITE);
+		auto file = Core::File("converter.test", Core::FileFlags::DEFAULT_WRITE);
 		REQUIRE(file);
 	}
 

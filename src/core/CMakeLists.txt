@@ -9,6 +9,7 @@ SET(SOURCES_PUBLIC
 	"enum.h"
 	"external_allocator.h"
 	"file.h"
+	"file_impl.h"
 	"float.h"
 	"function.h"
 	"handle.h"

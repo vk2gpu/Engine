@@ -167,7 +167,7 @@ namespace
 		bool WriteTexture(const char* outFilename, const GPU::TextureDesc& desc, const u8* data)
 		{
 			// Write out texture data.
-			Core::File outFile(outFilename, Core::FileFlags::CREATE | Core::FileFlags::WRITE);
+			Core::File outFile(outFilename, Core::FileFlags::DEFAULT_WRITE);
 			if(outFile)
 			{
 				outFile.Write(&desc, sizeof(desc));

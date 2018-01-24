@@ -71,7 +71,7 @@ namespace
 		    : logFile_()
 		{
 			if(logFile)
-				logFile_ = Core::File(logFile, Core::FileFlags::WRITE | Core::FileFlags::CREATE);
+				logFile_ = Core::File(logFile, Core::FileFlags::DEFAULT_WRITE);
 		}
 
 		void OnError(Graphics::ErrorType errorType, const char* fileName, i32 lineNumber, i32 lineOffset,

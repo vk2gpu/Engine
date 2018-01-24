@@ -42,7 +42,7 @@ namespace Resource
 		{
 			strcat_s(metaDataFilename.data(), metaDataFilename.size(), ".metadata");
 
-			auto metaDataFile = Core::File(metaDataFilename.data(), Core::FileFlags::READ);
+			auto metaDataFile = Core::File(metaDataFilename.data(), Core::FileFlags::DEFAULT_READ);
 			if(metaDataFile)
 			{
 				auto metaDataSer = Serialization::Serializer(metaDataFile, Serialization::Flags::TEXT);
@@ -622,7 +622,7 @@ namespace Resource
 		// If conversion was successful and there is a load job to chain, run it but block untll completion.
 		if(success_ && loadJob_)
 		{
-			loadJob_->file_ = Core::File(convertedPath_.data(), Core::FileFlags::READ);
+			loadJob_->file_ = Core::File(convertedPath_.data(), Core::FileFlags::DEFAULT_READ);
 			DBG_ASSERT_MSG(loadJob_->file_, "Can't load converted file \"%s\"", convertedPath_.data());
 
 			Job::Counter* counter = nullptr;
@@ -750,7 +750,7 @@ namespace Resource
 					else
 					{
 						auto* jobData = new ResourceLoadJob(factory, entry, type, fileName.data(),
-						    Core::File(convertedPath.data(), Core::FileFlags::READ));
+						    Core::File(convertedPath.data(), Core::FileFlags::DEFAULT_READ));
 
 						jobData->RunSingle(0);
 					}
@@ -844,7 +844,7 @@ namespace Resource
 	Result Manager::ReadFileData(Core::File& file, i64 offset, i64 size, void* dest, AsyncResult* result)
 	{
 		DBG_ASSERT(IsInitialized());
-		DBG_ASSERT(Core::ContainsAllFlags(file.GetFlags(), Core::FileFlags::READ));
+		DBG_ASSERT(Core::ContainsAllFlags(file.GetFlags(), Core::FileFlags::DEFAULT_READ));
 		DBG_ASSERT(offset >= 0);
 		DBG_ASSERT(size > 0);
 		DBG_ASSERT(dest != nullptr);

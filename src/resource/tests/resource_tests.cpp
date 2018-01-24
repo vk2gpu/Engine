@@ -71,7 +71,7 @@ TEST_CASE("resource-tests-file-io")
 	}
 
 	{
-		auto file = Core::File(testFileName, Core::FileFlags::WRITE | Core::FileFlags::CREATE);
+		auto file = Core::File(testFileName, Core::FileFlags::DEFAULT_WRITE);
 		REQUIRE(file);
 
 		Resource::AsyncResult result;
@@ -188,7 +188,7 @@ TEST_CASE("resource-tests-converter")
 
 	// Setup converter input + output.
 	REQUIRE(Core::FileCreateDir("converter_output"));
-	Core::File testFile("converter.test", Core::FileFlags::CREATE | Core::FileFlags::WRITE);
+	Core::File testFile("converter.test", Core::FileFlags::DEFAULT_WRITE);
 	REQUIRE(testFile);
 	const char* data = "converter.test data";
 	testFile.Write(data, strlen(data));

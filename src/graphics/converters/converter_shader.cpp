@@ -88,7 +88,7 @@ namespace
 #if DEBUG_DUMP_SHADERS
 				if(Core::FileExists(DUMP_ESF_PATH))
 					Core::FileRemove(DUMP_ESF_PATH);
-				if(auto outTmpFile = Core::File(DUMP_ESF_PATH, Core::FileFlags::WRITE | Core::FileFlags::CREATE))
+				if(auto outTmpFile = Core::File(DUMP_ESF_PATH, Core::FileFlags::DEFAULT_WRITE))
 				{
 					outTmpFile.Write(preprocessor.GetOutput().c_str(), preprocessor.GetOutput().size());
 				}
@@ -191,8 +191,7 @@ namespace
 					hlslFileName.Printf(DUMP_HLSL_PATH, file, "all");
 					if(Core::FileExists(hlslFileName.c_str()))
 						Core::FileRemove(hlslFileName.c_str());
-					if(auto outTmpFile =
-					        Core::File(hlslFileName.c_str(), Core::FileFlags::WRITE | Core::FileFlags::CREATE))
+					if(auto outTmpFile = Core::File(hlslFileName.c_str(), Core::FileFlags::DEFAULT_WRITE))
 					{
 						outTmpFile.Write(backendHLSL.GetOutputCode().c_str(), backendHLSL.GetOutputCode().size());
 					}
@@ -520,7 +519,7 @@ namespace
 
 				auto WriteShader = [&](const char* outFilename) {
 					// Write out shader data.
-					if(auto outFile = Core::File(outFilename, Core::FileFlags::CREATE | Core::FileFlags::WRITE))
+					if(auto outFile = Core::File(outFilename, Core::FileFlags::DEFAULT_WRITE))
 					{
 						outFile.Write(&outHeader, sizeof(outHeader));
 						if(outBindingSets.size() > 0)

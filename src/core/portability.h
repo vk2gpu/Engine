@@ -2,14 +2,6 @@
 
 //////////////////////////////////////////////////////////////////////////
 // Platform Identification
-#define PLATFORM_HTML5 0
-#define PLATFORM_ANDROID 0
-#define PLATFORM_LINUX 0
-#define PLATFORM_WINDOWS 0
-#define PLATFORM_WINPHONE 0
-#define PLATFORM_IOS 0
-#define PLATFORM_OSX 0
-
 // Emscripten (HTML5)
 #if defined(EMSCRIPTEN) || defined(__EMSCRIPTEN__)
 #undef PLATFORM_HTML5

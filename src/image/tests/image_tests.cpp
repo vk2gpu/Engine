@@ -131,8 +131,8 @@ TEST_CASE("image-tests-convert")
 	Image::Convert(compareImage, bc1, Image::ImageFormat::R8G8B8A8_UNORM);
 	Image::RGBAColor bc1PSNR = Image::CalculatePSNR(image, compareImage);
 	{
-		auto inFile = Core::File("test_input_bc1.png", Core::FileFlags::CREATE | Core::FileFlags::WRITE);
-		auto outFile = Core::File("test_output_bc1.png", Core::FileFlags::CREATE | Core::FileFlags::WRITE);
+		auto inFile = Core::File("test_input_bc1.png", Core::FileFlags::DEFAULT_WRITE);
+		auto outFile = Core::File("test_output_bc1.png", Core::FileFlags::DEFAULT_WRITE);
 		CHECK(Image::Save(inFile, image, Image::FileType::PNG));
 		CHECK(Image::Save(outFile, compareImage, Image::FileType::PNG));
 
@@ -141,7 +141,7 @@ TEST_CASE("image-tests-convert")
 		squish::CompressImage(image.GetMipData<u8>(0), bc1Squish.GetWidth(), bc1Squish.GetHeight(), bc1Squish.GetMipData<void>(0), squish::kBc1 | squish::kColourIterativeClusterFit);
 		Image::Convert(compare2Image, bc1Squish, Image::ImageFormat::R8G8B8A8_UNORM);
 		Image::RGBAColor bc1SquishPSNR = Image::CalculatePSNR(image, compare2Image);
-		auto out2File = Core::File("test_output_bc1squish.png", Core::FileFlags::CREATE | Core::FileFlags::WRITE);
+		auto out2File = Core::File("test_output_bc1squish.png", Core::FileFlags::DEFAULT_WRITE);
 		CHECK(Image::Save(out2File, compare2Image, Image::FileType::PNG));
 	}
 #endif
@@ -268,7 +268,7 @@ TEST_CASE("image-tests-save")
 	auto image = CreateTestImage(PatternType::HUE_GRADIENT, Image::RGBAColor(1.0f, 1.0f, 1.0f, 1.0f));
 	REQUIRE(image);
 
-	auto file = Core::File(fileName, Core::FileFlags::CREATE | Core::FileFlags::WRITE);
+	auto file = Core::File(fileName, Core::FileFlags::DEFAULT_WRITE);
 	REQUIRE(file);
 	REQUIRE(Image::Save(file, image, Image::FileType::PNG));
 }
@@ -289,7 +289,7 @@ TEST_CASE("image-tests-load")
 		if(Core::FileExists(fileName))
 			Core::FileRemove(fileName);
 
-		auto file = Core::File(fileName, Core::FileFlags::CREATE | Core::FileFlags::WRITE);
+		auto file = Core::File(fileName, Core::FileFlags::DEFAULT_WRITE);
 		REQUIRE(file);
 		REQUIRE(Image::Save(file, expectedImage, Image::FileType::PNG));
 	}

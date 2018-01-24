@@ -7,6 +7,7 @@
 #include "core/debug.h"
 #include "core/file.h"
 #include "core/misc.h"
+#include "core/timer.h"
 #include "gpu/manager.h"
 #include "gpu/resources.h"
 #include "gpu/utils.h"
@@ -50,46 +51,53 @@ namespace Graphics
 			i64 bytes =
 			    GPU::GetTextureSize(desc.format_, desc.width_, desc.height_, desc.depth_, desc.levels_, desc.elements_);
 
-			// Allocate bytes to read in.
-			// TODO: Implement a Map/Unmap interface on Core::File to allow reading in-place or memory mapping.
-			Core::Vector<u8> texData((i32)bytes);
-			memset(texData.data(), 0, texData.size());
-
-			// Read texture data in.
-			inFile.Read(texData.data(), texData.size());
-
-			// Setup subresources.
-			i32 numSubRsc = desc.levels_ * desc.elements_;
-			Core::Vector<GPU::TextureSubResourceData> subRscs;
-			subRscs.reserve(numSubRsc);
-
-			i64 texDataOffset = 0;
-			for(i32 element = 0; element < desc.elements_; ++element)
-			{
-				for(i32 level = 0; level < desc.levels_; ++level)
-				{
-					const auto width = Core::Max(1, desc.width_ >> level);
-					const auto height = Core::Max(1, desc.height_ >> level);
-					const auto depth = Core::Max(1, desc.depth_ >> level);
-
-					const auto texLayoutInfo = GPU::GetTextureLayoutInfo(desc.format_, width, height);
-					const auto subRscSize = GPU::GetTextureSize(desc.format_, width, height, depth, 1, 1);
-
-					GPU::TextureSubResourceData subRsc;
-					subRsc.data_ = texData.data() + texDataOffset;
-					subRsc.rowPitch_ = texLayoutInfo.pitch_;
-					subRsc.slicePitch_ = texLayoutInfo.slicePitch_;
-
-					texDataOffset += subRscSize;
-					subRscs.push_back(subRsc);
-				}
-			}
-
-			// Create GPU texture if initialized.
 			GPU::Handle handle;
-			if(GPU::Manager::IsInitialized())
+
+			auto CreateTexture = [&](const u8* texData) {
+				// Setup subresources.
+				i32 numSubRsc = desc.levels_ * desc.elements_;
+				Core::Vector<GPU::TextureSubResourceData> subRscs;
+				subRscs.reserve(numSubRsc);
+
+				i64 texDataOffset = 0;
+				for(i32 element = 0; element < desc.elements_; ++element)
+				{
+					for(i32 level = 0; level < desc.levels_; ++level)
+					{
+						const auto width = Core::Max(1, desc.width_ >> level);
+						const auto height = Core::Max(1, desc.height_ >> level);
+						const auto depth = Core::Max(1, desc.depth_ >> level);
+
+						const auto texLayoutInfo = GPU::GetTextureLayoutInfo(desc.format_, width, height);
+						const auto subRscSize = GPU::GetTextureSize(desc.format_, width, height, depth, 1, 1);
+
+						GPU::TextureSubResourceData subRsc;
+						subRsc.data_ = texData + texDataOffset;
+						subRsc.rowPitch_ = texLayoutInfo.pitch_;
+						subRsc.slicePitch_ = texLayoutInfo.slicePitch_;
+
+						texDataOffset += subRscSize;
+						subRscs.push_back(subRsc);
+					}
+				}
+
+				// Create GPU texture if initialized.
+				if(GPU::Manager::IsInitialized())
+				{
+					handle = GPU::Manager::CreateTexture(desc, subRscs.data(), "%s/%s", name, "texture");
+				}
+			};
+
+			// Map texture data and create.
+			if(auto mapped = Core::MappedFile(inFile, inFile.Tell(), bytes))
 			{
-				handle = GPU::Manager::CreateTexture(desc, subRscs.data(), "%s/%s", name, "texture");
+				const u8* texData = static_cast<const u8*>(mapped.GetAddress());
+				CreateTexture(texData);
+			}
+			else
+			{
+				DBG_ASSERT_MSG(false, "FATAL: Unable to map texture data for \"%s\"\n", inFile.GetPath());
+				return false;
 			}
 
 			// Create impl.

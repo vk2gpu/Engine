@@ -91,7 +91,7 @@ namespace Resource
 			Job::Manager::YieldCPU();
 		}
 
-		metaDataFile_ = Core::File(metaDataFileName_, Core::FileFlags::CREATE | Core::FileFlags::WRITE);
+		metaDataFile_ = Core::File(metaDataFileName_, Core::FileFlags::DEFAULT_WRITE);
 		metaDataSer_ = Serialization::Serializer(metaDataFile_, Serialization::Flags::TEXT);
 
 		if(callback)
