@@ -475,16 +475,6 @@ namespace GPU
 	{
 		if(d3dFrameFence_)
 		{
-			i64 completedValue = (i64)d3dFrameFence_->GetCompletedValue();
-			i64 waitValue = (frameIdx_ - MAX_GPU_FRAMES) + 1;
-			if(completedValue < waitValue)
-			{
-				d3dFrameFence_->SetEventOnCompletion(waitValue, frameFenceEvent_);
-				::WaitForSingleObject(frameFenceEvent_, INFINITE);
-			}
-
-			frameIdx_++;
-
 			// Flush pending uploads and wait before resetting.
 			if(FlushUploads(0, 0))
 			{
@@ -494,6 +484,16 @@ namespace GPU
 					::WaitForSingleObject(uploadFenceEvent_, INFINITE);
 				}
 			}
+
+			i64 completedValue = (i64)d3dFrameFence_->GetCompletedValue();
+			i64 waitValue = (frameIdx_ - MAX_GPU_FRAMES) + 1;
+			if(completedValue < waitValue)
+			{
+				d3dFrameFence_->SetEventOnCompletion(waitValue, frameFenceEvent_);
+				::WaitForSingleObject(frameFenceEvent_, INFINITE);
+			}
+
+			frameIdx_++;
 
 			// Reset allocators as we go along.
 			GetUploadAllocator().Reset();
@@ -613,12 +613,12 @@ namespace GPU
 		// Use copy queue to upload resource initial data.
 		if(initialData)
 		{
+			Core::ScopedMutex lock(uploadMutex_);
 			auto& uploadAllocator = GetUploadAllocator();
 			auto resAlloc = uploadAllocator.Alloc(resourceDesc.Width);
 			memcpy(resAlloc.address_, initialData, desc.size_);
 
 			// Add upload to command list and transition to default state.
-			Core::ScopedMutex lock(uploadMutex_);
 			if(auto* d3dCommandList = uploadCommandList_->Get())
 			{
 				D3D12_RESOURCE_BARRIER copyBarrier = TransitionBarrier(outResource.resource_.Get(), 0xffffffff,
@@ -752,11 +752,13 @@ namespace GPU
 			d3dDevice_->GetCopyableFootprints(&resourceDesc, 0, numSubRsc, 0, layouts.data(), (u32*)numRows.data(),
 			    (u64*)rowSizeInBytes.data(), (u64*)&totalBytes);
 
+			Core::ScopedMutex lock(uploadMutex_);
 			auto& uploadAllocator = GetUploadAllocator();
 			auto resAlloc = uploadAllocator.Alloc(totalBytes, D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT);
 
 			u8* dstData = (u8*)resAlloc.address_;
 			memset(dstData, 0xcd, totalBytes);
+
 			for(i32 i = 0; i < numSubRsc; ++i)
 			{
 				auto& srcLayout = initialData[i];
@@ -781,7 +783,6 @@ namespace GPU
 			}
 
 			// Do upload.
-			Core::ScopedMutex lock(uploadMutex_);
 			if(auto* d3dCommandList = uploadCommandList_->Get())
 			{
 				D3D12_RESOURCE_BARRIER copyBarrier = TransitionBarrier(outResource.resource_.Get(), 0xffffffff,
@@ -1144,8 +1145,12 @@ namespace GPU
 	bool D3D12Device::FlushUploads(i64 minCommands, i64 minBytes)
 	{
 		bool retVal = false;
-		if(uploadMutex_.TryLock())
+		bool force = minCommands == 0 || minBytes == 0;
+		if(force || uploadMutex_.TryLock())
 		{
+			if(force)
+				uploadMutex_.Lock();
+
 			if(uploadCommandsPending_ > minCommands || uploadBytesPending_ > minBytes)
 			{
 				uploadCommandList_->Close();
