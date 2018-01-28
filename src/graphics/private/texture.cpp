@@ -11,6 +11,7 @@
 #include "gpu/manager.h"
 #include "gpu/resources.h"
 #include "gpu/utils.h"
+#include "serialization/serializer.h"
 
 namespace Graphics
 {
@@ -59,6 +60,15 @@ namespace Graphics
 				Core::Vector<GPU::TextureSubResourceData> subRscs;
 				subRscs.reserve(numSubRsc);
 
+				// Should we skip loading mip levels?
+				i16 skipMips = skipMips_;
+				if(desc.levels_ < skipMips)
+				{
+					skipMips = desc.levels_ - 1;
+				}
+
+				auto formatInfo = GPU::GetFormatInfo(desc.format_);
+
 				i64 texDataOffset = 0;
 				for(i32 element = 0; element < desc.elements_; ++element)
 				{
@@ -77,9 +87,18 @@ namespace Graphics
 						subRsc.slicePitch_ = texLayoutInfo.slicePitch_;
 
 						texDataOffset += subRscSize;
-						subRscs.push_back(subRsc);
+
+						if(level >= skipMips)
+						{
+							subRscs.push_back(subRsc);
+						}
 					}
 				}
+
+				desc.width_ = Core::Max(1, desc.width_ >> (i32)skipMips);
+				desc.height_ = Core::Max(1, desc.height_ >> (i32)skipMips);
+				desc.depth_ = Core::Max((i16)1, desc.depth_ >> skipMips);
+				desc.levels_ -= skipMips_;
 
 				// Create GPU texture if initialized.
 				if(GPU::Manager::IsInitialized())
@@ -119,6 +138,22 @@ namespace Graphics
 
 			return true;
 		}
+
+		bool SerializeSettings(Serialization::Serializer& ser) override
+		{
+			bool retVal = true;
+			if(auto object = ser.Object("texture"))
+			{
+				retVal &= ser.Serialize("skipMips", skipMips_);
+			}
+			return retVal;
+		}
+
+
+		/**
+		 * Settings.
+		 */
+		i16 skipMips_ = 0;
 	};
 
 	DEFINE_RESOURCE(Texture);

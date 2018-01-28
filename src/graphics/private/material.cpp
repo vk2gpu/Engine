@@ -135,6 +135,9 @@ namespace Graphics
 			return true;
 		}
 
+		bool SerializeSettings(Serialization::Serializer& ser) override { return true; }
+
+
 		GPU::Handle defaultTex_;
 	};
 

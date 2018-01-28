@@ -333,6 +333,13 @@ namespace
 					meshData.endVertexElements_ = numVertexElements + mesh.elements_.size();
 					meshData.startDraws_ = numDraws;
 					meshData.endDraws_ = numDraws + mesh.draws_.size();
+
+					for(const auto& stream : mesh.vertexData_)
+						meshData.vertexDataCrc32_ =
+						    Core::HashCRC32(meshData.vertexDataCrc32_, stream.Data(), stream.Size());
+					meshData.indexDataCrc32_ =
+					    Core::HashCRC32(meshData.indexDataCrc32_, mesh.indexData_.Data(), mesh.indexData_.Size());
+
 					outFile.Write(&meshData, sizeof(meshData));
 
 					numVertexElements += mesh.elements_.size();
@@ -902,13 +909,24 @@ namespace
 
 						// If file exists, load and serialize. Otherwise, use template.
 						Graphics::ImportMaterial importMaterial;
+						bool useTemplate = true;
 						if(Core::FileExists(materialPath.data()))
 						{
-							auto materialFile = Core::File(materialPath.data(), Core::FileFlags::READ);
-							auto materialSer = Serialization::Serializer(materialFile, Serialization::Flags::TEXT);
-							importMaterial.Serialize(materialSer);
+							auto materialFile = Core::File(materialPath.data(), Core::FileFlags::DEFAULT_READ);
+							if(auto materialSer = Serialization::Serializer(materialFile, Serialization::Flags::TEXT))
+							{
+								importMaterial.Serialize(materialSer);
+
+								if(importMaterial.shader_.size() == 0)
+									useTemplate = false;
+							}
+							else
+							{
+								importMaterial = materialEntry.template_;
+							}
 						}
-						else
+
+						if(useTemplate)
 						{
 							importMaterial = materialEntry.template_;
 						}

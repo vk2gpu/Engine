@@ -134,10 +134,14 @@ namespace Graphics
 			}
 
 			// Create materials for mesh nodes.
+			// Only load them one by one.
+			// TODO: We need a better heuristic to control
+			// the wait policy for certain resource types.
 			impl->materials_.reserve(impl->meshNodes_.size());
 			for(const auto& meshNode : impl->meshNodes_)
 			{
 				impl->materials_.emplace_back(meshNode.material_);
+				impl->materials_.back().WaitUntilReady();
 				DBG_ASSERT(impl->materials_.back());
 			}
 
@@ -167,6 +171,10 @@ namespace Graphics
 						desc.bindFlags_ = GPU::BindFlags::VERTEX_BUFFER;
 						GPU::Handle vb = GPU::Manager::CreateBuffer(desc, data, "%s/vb_%d", name, vbIdx++);
 						impl->vbs_.push_back(vb);
+
+						u32 dataCrc32 = Core::HashCRC32(0, data, desc.size_);
+						DBG_ASSERT(mesh.vertexDataCrc32_ == dataCrc32);
+
 						data += desc.size_;
 					}
 
@@ -178,6 +186,10 @@ namespace Graphics
 						desc.bindFlags_ = GPU::BindFlags::INDEX_BUFFER;
 						GPU::Handle ib = GPU::Manager::CreateBuffer(desc, data, "%s/ib_%d", name, ibIdx++);
 						impl->ibs_.push_back(ib);
+
+						u32 dataCrc32 = Core::HashCRC32(0, data, desc.size_);
+						DBG_ASSERT(mesh.indexDataCrc32_ == dataCrc32);
+
 						data += desc.size_;
 					}
 				}
@@ -232,6 +244,8 @@ namespace Graphics
 
 			return true;
 		}
+
+		bool SerializeSettings(Serialization::Serializer& ser) override { return true; }
 	};
 
 	DEFINE_RESOURCE(Model);

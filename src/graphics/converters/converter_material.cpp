@@ -55,7 +55,7 @@ namespace
 			strcat_s(outFilename, sizeof(outFilename), destPath);
 			Core::FileNormalizePath(outFilename, sizeof(outFilename), true);
 
-			auto materialFile = Core::File(sourceFile, Core::FileFlags::READ, context.GetPathResolver());
+			auto materialFile = Core::File(sourceFile, Core::FileFlags::DEFAULT_READ, context.GetPathResolver());
 			auto materialSer = Serialization::Serializer(materialFile, Serialization::Flags::TEXT);
 
 			Graphics::ImportMaterial material;

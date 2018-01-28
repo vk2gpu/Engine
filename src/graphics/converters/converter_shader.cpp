@@ -70,7 +70,7 @@ namespace
 			bool retVal = false;
 
 			//
-			Core::File shaderFile(sourceFile, Core::FileFlags::READ, pathResolver);
+			Core::File shaderFile(sourceFile, Core::FileFlags::DEFAULT_READ, pathResolver);
 			if(shaderFile)
 			{
 				Core::Vector<char> shaderSource;

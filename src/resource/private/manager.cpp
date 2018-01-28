@@ -294,7 +294,7 @@ namespace Resource
 			{
 				char uuidStr[38];
 				type.AsString(uuidStr);
-				DBG_LOG("Fsctory does not exist for type %s\n", uuidStr);
+				DBG_LOG("Factory does not exist for type %s\n", uuidStr);
 				return nullptr;
 			}
 			return it->second;
@@ -820,6 +820,19 @@ namespace Resource
 			return false;
 
 		impl_->factories_.insert(type, factory);
+
+		// Load settings.
+		if(auto file = Core::File("settings.json", Core::FileFlags::DEFAULT_READ, &impl_->pathResolver_))
+		{
+			if(auto ser = Serialization::Serializer(file, Serialization::Flags::TEXT))
+			{
+				if(auto object = ser.Object("resources"))
+				{
+					factory->SerializeSettings(ser);
+				}
+			}
+		}
+
 		return true;
 	}
 

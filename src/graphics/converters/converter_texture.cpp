@@ -158,7 +158,7 @@ namespace
 		{
 			char fileExt[8] = {0};
 			Core::FileSplitPath(sourceFile, nullptr, 0, nullptr, 0, fileExt, sizeof(fileExt));
-			Core::File imageFile(sourceFile, Core::FileFlags::READ, context.GetPathResolver());
+			Core::File imageFile(sourceFile, Core::FileFlags::DEFAULT_READ, context.GetPathResolver());
 
 			return Image::Load(
 			    imageFile, [&context](const char* errorMsg) { context.AddError(__FILE__, __LINE__, errorMsg); });

@@ -105,6 +105,8 @@ namespace
 			*inResource = nullptr;
 			return true;
 		}
+
+		bool SerializeSettings(Serialization::Serializer& ser) { return true; }
 	};
 
 	DEFINE_RESOURCE(TestResource);

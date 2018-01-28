@@ -89,6 +89,8 @@ namespace Graphics
 		i32 endVertexElements_ = 0;
 		i32 startDraws_ = 0;
 		i32 endDraws_ = 0;
+		u32 vertexDataCrc32_ = 0;
+		u32 indexDataCrc32_ = 0;
 	};
 
 	struct ModelImpl

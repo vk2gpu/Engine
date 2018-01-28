@@ -321,6 +321,8 @@ namespace Graphics
 			return true;
 		}
 
+		bool SerializeSettings(Serialization::Serializer& ser) override { return true; }
+
 		i32 FindBindingSetIdx(const char* name)
 		{
 			for(i32 idx = 0; idx < bindingSetHeaders_.size(); ++idx)

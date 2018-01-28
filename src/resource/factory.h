@@ -9,6 +9,11 @@ namespace Core
 	class UUID;
 } // namespace Core
 
+namespace Serialization
+{
+	class Serializer;
+}
+
 namespace Resource
 {
 	/**
@@ -61,6 +66,13 @@ namespace Resource
 		 * @param type Type UUID.
 		 */
 		virtual bool DestroyResource(IFactoryContext& context, void** inResource, const Core::UUID& type) = 0;
+
+		/**
+		 * Serialize settings.
+		 * Used to load/save resource loading settings.
+		 * @param ser Serializer to use.
+		 */
+		virtual bool SerializeSettings(Serialization::Serializer& ser) = 0;
 	};
 
 } // namespace Resource
