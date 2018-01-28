@@ -115,7 +115,7 @@ namespace Resource
 		if(!Core::ContainsAnyFlags(metaDataFile_.GetFlags(), Core::FileFlags::READ) &&
 		    Core::FileExists(metaDataFileName_))
 		{
-			metaDataFile_ = Core::File(metaDataFileName_, Core::FileFlags::READ);
+			metaDataFile_ = Core::File(metaDataFileName_, Core::FileFlags::DEFAULT_READ);
 			metaDataSer_ = Serialization::Serializer(metaDataFile_, Serialization::Flags::TEXT);
 
 			if(callback)

@@ -373,9 +373,8 @@ namespace Resource
 
 			// Wait for pending resource jobs to complete.
 			while(pendingResourceJobs_ > 0)
-			{
 				Job::Manager::YieldCPU();
-			}
+
 
 			ProcessReleasedResources();
 
@@ -482,15 +481,16 @@ namespace Resource
 							{
 								DBG_LOG("Resource \"%s\" is out of date.\n", entry->sourceFile_.c_str());
 
-								// Setup convert job.
-								auto* convertJob = new ResourceConvertJob(
-								    entry, entry->type_, entry->sourceFile_.c_str(), entry->convertedFile_.c_str());
-
-								// Setup load job to chain.
 								if(auto factory = impl->GetFactory(entry->type_))
 								{
+									// Setup convert job.
+									auto* convertJob = new ResourceConvertJob(
+									    entry, entry->type_, entry->sourceFile_.c_str(), entry->convertedFile_.c_str());
+
+									// Setup load job to chain.
 									convertJob->loadJob_ = new ResourceLoadJob(
 									    factory, entry, entry->type_, entry->sourceFile_.c_str(), Core::File());
+
 									convertJob->RunSingle(0);
 								}
 							}
