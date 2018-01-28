@@ -266,6 +266,7 @@ namespace Serialization
 		virtual Core::String GetObjectKey(i32 idx) = 0;
 		virtual bool IsReading() const = 0;
 		virtual bool IsWriting() const = 0;
+		virtual bool IsValid() const = 0;
 	};
 
 	struct SerializerImplWriteJson : SerializerImpl
@@ -427,6 +428,7 @@ namespace Serialization
 
 		bool IsReading() const override { return false; }
 		bool IsWriting() const override { return true; }
+		bool IsValid() const override { return objectStack_.size() > 0; }
 	};
 
 	struct SerializerImplReadJson : SerializerImpl
@@ -440,12 +442,14 @@ namespace Serialization
 		    : inFile_(inFile)
 		{
 			Json::Reader reader;
-			Core::Vector<char> inBuffer;
-			inBuffer.resize((i32)inFile.Size());
-			inFile.Read(inBuffer.data(), inBuffer.size());
-			reader.parse(inBuffer.data(), inBuffer.data() + inBuffer.size(), rootValue_, false);
-
-			objectStack_.push_back(&rootValue_);
+			i64 offset = inFile.Tell();
+			i64 size = inFile.Size() - offset;
+			if(auto mapped = Core::MappedFile(inFile, offset, size))
+			{
+				const char* data = (const char*)mapped.GetAddress();
+				reader.parse(data, data + size, rootValue_, false);
+				objectStack_.push_back(&rootValue_);
+			}
 		}
 
 		~SerializerImplReadJson() { DBG_ASSERT(objectStack_.size() == 1); }
@@ -588,6 +592,7 @@ namespace Serialization
 
 		bool IsReading() const override { return true; }
 		bool IsWriting() const override { return false; }
+		bool IsValid() const override { return objectStack_.size() > 0; }
 	};
 
 	Serializer::Serializer(Core::File& file, Flags flags)
@@ -599,6 +604,12 @@ namespace Serialization
 				impl_ = new SerializerImplWriteJson(file);
 			if(Core::ContainsAnyFlags(file.GetFlags(), Core::FileFlags::READ))
 				impl_ = new SerializerImplReadJson(file);
+		}
+
+		if(!impl_->IsValid())
+		{
+			delete impl_;
+			impl_ = nullptr;
 		}
 	}
 

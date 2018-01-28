@@ -189,6 +189,8 @@ namespace Serialization
 		bool IsReading() const;
 		bool IsWriting() const;
 
+		explicit operator bool() const { return impl_ != nullptr; }
+
 	private:
 		i32 BeginObject(const char* key, bool isArray = false);
 		void EndObject();
