@@ -118,10 +118,9 @@ namespace Core
 
 		void copy(func_obj_base* other)
 		{
+			destroy();
 			if(other)
 				funcObj_ = other->DoCopy(storage_);
-			else
-				destroy();
 		}
 
 		u8 storage_[MAX_SIZE];

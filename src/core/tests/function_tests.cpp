@@ -68,6 +68,51 @@ TEST_CASE("function-tests-copy")
 		REQUIRE(func2 == true);
 		REQUIRE(func2(2) == (a * 2));
 	}
+
+	SECTION("copy-capture-ctor-dtor")
+	{
+		struct CaptureCount
+		{
+			CaptureCount(i32& count)
+				: count_(count)
+			{
+				++count_;
+			}
+
+			CaptureCount(const CaptureCount& other)
+				: count_(other.count_)
+			{
+				++count_;
+			}
+
+			~CaptureCount()
+			{
+				if(count_)
+					--count_;
+			}
+			i32& count_;
+		};
+
+		i32 count = 0;
+		{
+			auto lambda = [cap = CaptureCount(count)]() { return cap.count_; };
+			auto lambda2 = [cap = CaptureCount(count)]() { return cap.count_; };
+			CHECK(count == 2);
+
+			Core::Function<i32()> func;
+
+			func = lambda;
+			CHECK(count == 3);
+			func = nullptr;
+			CHECK(count == 2);
+
+			func = lambda2;
+			CHECK(count == 3);
+			func = lambda;
+			CHECK(count == 3);
+		}
+		CHECK(count == 0);
+	}
 }
 
 
