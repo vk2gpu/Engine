@@ -27,7 +27,7 @@ namespace Resource
 		void Reset();
 		bool IsReady() const;
 		void WaitUntilReady() const;
-		operator bool() const { return !!resource_; }
+		explicit operator bool() const { return !!resource_; }
 
 	protected:
 		RefBase(const RefBase&) = delete;

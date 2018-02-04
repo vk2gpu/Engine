@@ -59,7 +59,7 @@ namespace GPU
 
 		ErrorCode ResizeSwapChain(D3D12SwapChain& swapChain, i32 width, i32 height);
 
-		operator bool() const { return !!d3dDevice_; }
+		explicit operator bool() const { return !!d3dDevice_; }
 
 		bool FlushUploads(i64 minCommands, i64 minBytes);
 

@@ -18,7 +18,7 @@ namespace Core
 		i32 size_ = -1;
 
 		/// @return is valid allocation.
-		operator bool() const { return offset_ >= 0 && size_ > 0; }
+		explicit operator bool() const { return offset_ >= 0 && size_ > 0; }
 	};
 
 	/**

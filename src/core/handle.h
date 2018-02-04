@@ -46,13 +46,19 @@ namespace Core
 		/**
 		 * Validity check.
 		 */
-		operator bool() const { return handle_ != 0; }
+		explicit operator bool() const { return handle_ != 0; }
 
-		bool operator<(const Handle& other) { return handle_ < other.handle_; }
-		bool operator==(const Handle& other) { return handle_ == other.handle_; }
-		bool operator!=(const Handle& other) { return handle_ != other.handle_; }
+		/**
+		 * Comparison.
+		 */
+		bool operator<(const Handle other) const { return handle_ < other.handle_; }
+		bool operator>(const Handle other) const { return handle_ > other.handle_; }
+		bool operator<=(const Handle other) const { return handle_ <= other.handle_; }
+		bool operator>=(const Handle other) const { return handle_ >= other.handle_; }
+		bool operator==(const Handle other) const { return handle_ == other.handle_; }
+		bool operator!=(const Handle other) const { return handle_ != other.handle_; }
 
-	private:
+	protected:
 		friend class HandleAllocator;
 
 		union

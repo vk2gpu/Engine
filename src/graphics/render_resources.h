@@ -35,7 +35,7 @@ namespace Graphics
 			return idx_ == other.idx_ && version_ == other.version_;
 		}
 
-		operator bool() const { return idx_ != -1 && version_ != -1; }
+		explicit operator bool() const { return idx_ != -1 && version_ != -1; }
 
 		i16 idx_ = -1;
 		i16 version_ = -1;

@@ -122,7 +122,7 @@ namespace GPU
 		i32 firstSubRsc_ = 0;
 		i32 numSubRsc_ = 0;
 
-		operator bool() const { return resource_ && numSubRsc_ > 0; }
+		explicit operator bool() const { return resource_ && numSubRsc_ > 0; }
 	};
 
 	struct D3D12GraphicsPipelineState

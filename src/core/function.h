@@ -104,7 +104,7 @@ namespace Core
 			return funcObj_->DoCall(std::forward<ARGS>(args)...);
 		}
 
-		operator bool() const { return !!funcObj_; }
+		explicit operator bool() const { return !!funcObj_; }
 
 	private:
 		void destroy()

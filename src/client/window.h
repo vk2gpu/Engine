@@ -75,7 +75,7 @@ namespace Client
 		/**
 		 * Bool operator for validity checking.
 		 */
-		operator bool() const { return !!impl_; }
+		explicit operator bool() const { return !!impl_; }
 
 	private:
 		Window(const Window&) = delete;

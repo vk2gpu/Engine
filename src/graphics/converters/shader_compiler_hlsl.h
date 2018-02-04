@@ -38,7 +38,7 @@ namespace Graphics
 		Core::Vector<ShaderBinding> srvs_;
 		Core::Vector<ShaderBinding> uavs_;
 
-		operator bool() const { return !!byteCodeBegin_; }
+		explicit operator bool() const { return !!byteCodeBegin_; }
 	};
 
 	class ShaderCompilerHLSL

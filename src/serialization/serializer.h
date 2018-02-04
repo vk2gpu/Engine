@@ -100,7 +100,7 @@ namespace Serialization
 					serializer_.EndObject();
 			}
 
-			operator bool() const { return valid_; }
+			explicit operator bool() const { return valid_; }
 
 			Serializer& serializer_;
 			const char* key_ = nullptr;

@@ -31,9 +31,9 @@ TEST_CASE("function-tests-basic")
 	auto lambda = [](i32) {};
 
 	Core::Function<void(i32)> func;
-	REQUIRE(func == false);
+	REQUIRE(!func);
 	func = lambda;
-	REQUIRE(func == true);
+	REQUIRE(func);
 }
 
 TEST_CASE("function-tests-copy")
@@ -42,13 +42,13 @@ TEST_CASE("function-tests-copy")
 	{
 		auto lambda = [](i32) {};
 		Core::Function<void(i32)> func;
-		REQUIRE(func == false);
+		REQUIRE(!func);
 		func = lambda;
-		REQUIRE(func == true);
+		REQUIRE(func);
 
 		Core::Function<void(i32)> func2 = func;
-		REQUIRE(func == true);
-		REQUIRE(func2 == true);
+		REQUIRE(func);
+		REQUIRE(func2);
 	}
 
 	SECTION("copy-capture")
@@ -57,15 +57,15 @@ TEST_CASE("function-tests-copy")
 		auto lambda = [a](i32 b) { return a * b; };
 		REQUIRE(lambda(2) == (a * 2));
 		Core::Function<i32(i32)> func;
-		REQUIRE(func == false);
+		REQUIRE(!func);
 		func = lambda;
-		REQUIRE(func == true);
+		REQUIRE(func);
 		REQUIRE(func(2) == (a * 2));
 
 		Core::Function<i32(i32)> func2 = func;
-		REQUIRE(func == true);
+		REQUIRE(func);
 		REQUIRE(func(2) == (a * 2));
-		REQUIRE(func2 == true);
+		REQUIRE(func2);
 		REQUIRE(func2(2) == (a * 2));
 	}
 

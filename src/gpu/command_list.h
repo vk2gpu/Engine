@@ -246,7 +246,7 @@ namespace GPU
 					cmdList_->InternalEndEvent();
 			}
 
-			operator bool() const { return !!cmdList_; }
+			explicit operator bool() const { return !!cmdList_; }
 
 		private:
 			friend class CommandList;

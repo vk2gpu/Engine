@@ -42,7 +42,7 @@ namespace Graphics
 			f32 valueFloat_;
 			i32 valueInt_;
 
-			operator bool() const { return type_ != TokenType::INVALID; }
+			explicit operator bool() const { return type_ != TokenType::INVALID; }
 		};
 
 		enum class Nodes : i32
@@ -125,7 +125,7 @@ namespace Graphics
 			}
 
 			~ScopedVisit() { visitor_->VisitExit(node_); }
-			operator bool() const { return recurse_; }
+			explicit operator bool() const { return recurse_; }
 
 		private:
 			IVisitor* visitor_;

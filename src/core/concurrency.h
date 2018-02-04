@@ -135,7 +135,7 @@ namespace Core
 		/**
 		 * @return Is thread valid?
 		 */
-		operator bool() const { return impl_ != nullptr; }
+		explicit operator bool() const { return impl_ != nullptr; }
 
 	private:
 		Thread(const Thread&) = delete;
@@ -199,7 +199,7 @@ namespace Core
 		/**
 		 * @return Is thread valid?
 		 */
-		operator bool() const { return impl_ != nullptr; }
+		explicit operator bool() const { return impl_ != nullptr; }
 
 	private:
 		Fiber(const Fiber&) = delete;
@@ -457,7 +457,7 @@ namespace Core
 		/**
 		 * @return Is valid?
 		 */
-		operator bool() { return impl_ != nullptr; }
+		explicit operator bool() { return impl_ != nullptr; }
 
 	private:
 		TLS(TLS&&) = delete;
@@ -493,7 +493,7 @@ namespace Core
 		/**
 		 * @return Is valid?
 		 */
-		operator bool() { return impl_ != nullptr; }
+		explicit operator bool() { return impl_ != nullptr; }
 
 	private:
 		FLS(FLS&&) = delete;
