@@ -126,7 +126,7 @@ namespace Core
 		 * SLOW: Iterates internally to check.
 		 */
 		template<typename TYPE_ENUM>
-		Handle GetTotalHandles(TYPE_ENUM type) const
+		i32 GetTotalHandles(TYPE_ENUM type) const
 		{
 			return GetTotalHandles((i32)type);
 		}
