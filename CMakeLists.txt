@@ -41,9 +41,6 @@ IF(MSVC)
     ADD_DEFINITIONS(/W4)		# level 4
     ADD_DEFINITIONS(/WX)		# warnings as errors
     ADD_DEFINITIONS(/wd4100)	# disable unreferenced formal parameter
-
-    # Disable exceptions.
-	ADD_DEFINITIONS(/EHsc)
 ENDIF()
 
 INCLUDE_DIRECTORIES(
