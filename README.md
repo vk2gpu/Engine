@@ -37,10 +37,13 @@ Notes about style choices:
   - As most APIs use American English for spelling rather than British English, in the name of consistency I will be trying to stick with American English spelling (synchronize, color, etc).
 
 
+
 References used during development:
-- Bounded MPMC queue
+- Bounded MPMC queue:
   - http://www.1024cores.net/home/lock-free-algorithms/queues/bounded-mpmc-queue
-- Parallelizing the Naughty Dog Engine Using Fibers
+- Parallelizing the Naughty Dog Engine Using Fibers:
   - http://www.gdcvault.com/play/1022186/Parallelizing-the-Naughty-Dog-Engine
-- Hashing algorithms.
+- Framegraph:
+  - https://www.ea.com/frostbite/news/framegraph-extensible-rendering-architecture-in-frostbite
+- Hashing algorithms:
   - https://github.com/B-Con/crypto-algorithms
