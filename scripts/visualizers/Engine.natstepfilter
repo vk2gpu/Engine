@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<StepFilter xmlns="http://schemas.microsoft.com/vstudio/debugger/natstepfilter/2010">
+	<Function>
+		<Name>Catch\:\:.*</Name>
+		<Action>NoStepInto</Action>  
+	</Function> 
+
+	<Function>
+		<Name>Core\:\:Array.*</Name>
+		<Action>NoStepInto</Action>  
+	</Function> 
+
+	<Function>
+		<Name>Core\:\:Vector.*</Name>
+		<Action>NoStepInto</Action>  
+	</Function> 
+
+	<Function>
+		<Name>Core\:\:Map.*</Name>
+		<Action>NoStepInto</Action>  
+	</Function> 
+
+	<Function>
+		<Name>Core\:\:Set.*</Name>
+		<Action>NoStepInto</Action>  
+	</Function> 
+
+	<Function>
+		<Name>Core\:\:Atomic.*</Name>
+		<Action>NoStepInto</Action>  
+	</Function> 
+</StepFilter>
