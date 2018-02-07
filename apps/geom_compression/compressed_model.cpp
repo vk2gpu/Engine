@@ -1469,10 +1469,10 @@ void CompressedModel::DrawClusters(DrawContext& drawCtx, ObjectConstants object)
 					techs = &compressedTechs_[meshIdx];
 
 				auto it = techs->passIndices_.find(drawCtx.passName_);
-				if(it != techs->passIndices_.end())
+				if(it != nullptr)
 				{
 					const auto& mesh = meshes_[meshIdx];
-					auto& tech = techs->passTechniques_[it->second];
+					auto& tech = techs->passTechniques_[*it];
 					if(drawCtx.customBindFn_)
 						drawCtx.customBindFn_(techs->material_->GetShader(), tech);
 

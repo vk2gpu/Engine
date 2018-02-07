@@ -289,15 +289,15 @@ namespace Resource
 		IFactory* GetFactory(const Core::UUID& type)
 		{
 			Core::ScopedMutex lock(factoriesMutex_);
-			auto it = factories_.find(type);
-			if(it == factories_.end())
+			auto val = factories_.find(type);
+			if(val == nullptr)
 			{
 				char uuidStr[38];
 				type.AsString(uuidStr);
 				DBG_LOG("Factory does not exist for type %s\n", uuidStr);
 				return nullptr;
 			}
-			return it->second;
+			return *val;
 		}
 
 
@@ -816,7 +816,7 @@ namespace Resource
 	{
 		DBG_ASSERT(IsInitialized());
 
-		if(impl_->factories_.find(type) != impl_->factories_.end())
+		if(impl_->factories_.find(type) != nullptr)
 			return false;
 
 		impl_->factories_.insert(type, factory);
@@ -842,9 +842,11 @@ namespace Resource
 		bool success = false;
 		for(auto it = impl_->factories_.begin(); it != impl_->factories_.end();)
 		{
-			if(it->second == factory)
+			if((*it).value == factory)
 			{
-				it = impl_->factories_.erase(it);
+				// TODO: Return valid iterator.
+				impl_->factories_.erase((*it).key);
+				it = impl_->factories_.begin();
 				success = true;
 			}
 			else

@@ -127,16 +127,16 @@ TEST_CASE("serializer-tests-map-write-read")
 		{
 			REQUIRE(serializer.Serialize("map", testMap));
 			REQUIRE(testMap.size() == 5);
-			REQUIRE(testMap.find("first") != testMap.end());
-			REQUIRE(testMap.find("second") != testMap.end());
-			REQUIRE(testMap.find("third") != testMap.end());
-			REQUIRE(testMap.find("fourth") != testMap.end());
-			REQUIRE(testMap.find("fifth") != testMap.end());
-			REQUIRE(testMap.find("first")->second == 1);
-			REQUIRE(testMap.find("second")->second == 2);
-			REQUIRE(testMap.find("third")->second == 3);
-			REQUIRE(testMap.find("fourth")->second == 4);
-			REQUIRE(testMap.find("fifth")->second == 5);
+			REQUIRE(testMap.find("first") != nullptr);
+			REQUIRE(testMap.find("second") != nullptr);
+			REQUIRE(testMap.find("third") != nullptr);
+			REQUIRE(testMap.find("fourth") != nullptr);
+			REQUIRE(testMap.find("fifth") != nullptr);
+			REQUIRE(*testMap.find("first") == 1);
+			REQUIRE(*testMap.find("second") == 2);
+			REQUIRE(*testMap.find("third") == 3);
+			REQUIRE(*testMap.find("fourth") == 4);
+			REQUIRE(*testMap.find("fifth") == 5);
 		}
 	}
 }

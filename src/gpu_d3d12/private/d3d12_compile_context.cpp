@@ -671,12 +671,12 @@ namespace GPU
 			Subresource subRsc(resource, subRscIdx);
 
 			auto stateEntry = stateTracker_.find(subRsc);
-			if(stateEntry == stateTracker_.end())
+			if(stateEntry == nullptr)
 			{
 				stateEntry = stateTracker_.insert(subRsc, resource->defaultState_);
 			}
 
-			auto prevState = stateEntry->second;
+			auto prevState = *stateEntry;
 			if(state != prevState)
 			{
 				D3D12_RESOURCE_BARRIER barrier;
@@ -684,10 +684,10 @@ namespace GPU
 				barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
 				barrier.Transition.pResource = resource->resource_.Get();
 				barrier.Transition.Subresource = subRscIdx;
-				barrier.Transition.StateBefore = stateEntry->second;
+				barrier.Transition.StateBefore = *stateEntry;
 				barrier.Transition.StateAfter = state;
 				pendingBarriers_.insert(Subresource(resource, barrier.Transition.Subresource), barrier);
-				stateEntry->second = state;
+				*stateEntry = state;
 				changed = true;
 			}
 		}
@@ -717,9 +717,9 @@ namespace GPU
 			Core::Log("FlushTransitions.\n");
 #endif
 			// Copy pending barriers into flat vector.
-			for(auto barrier : pendingBarriers_)
+			for(const auto& pair : pendingBarriers_)
 			{
-				auto barrierInfo = barrier.second;
+				auto barrierInfo = pair.value;
 				barriers_.push_back(barrierInfo);
 
 #if DEBUG_TRANSITIONS
@@ -769,9 +769,9 @@ namespace GPU
 
 	void D3D12CompileContext::RestoreDefault()
 	{
-		for(auto state : stateTracker_)
+		for(const auto& state : stateTracker_)
 		{
-			auto& subRsc = state.first;
+			auto& subRsc = state.key;
 			AddTransition(subRsc.resource_, subRsc.idx_, 1, subRsc.resource_->defaultState_);
 		}
 		FlushTransitions();

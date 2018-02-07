@@ -145,8 +145,8 @@ namespace Graphics
 			TYPE* Find(const char* name)
 			{
 				auto it = storage_.find(name);
-				if(it != storage_.end())
-					return it->second;
+				if(it != nullptr)
+					return *it;
 				return nullptr;
 			}
 

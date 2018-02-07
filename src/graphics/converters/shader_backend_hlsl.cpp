@@ -78,7 +78,7 @@ namespace Graphics
 		NextLine();
 
 		for(auto* intNode : samplerStates_)
-			if(!writeUsed || bindingMap_.find(intNode->name_) != bindingMap_.end())
+			if(!writeUsed || bindingMap_.find(intNode->name_) != nullptr)
 				WriteVariable(intNode);
 		NextLine();
 
@@ -102,7 +102,7 @@ namespace Graphics
 			autoReg_ = false;
 
 			for(auto* intNode : samplerStates_)
-				if(bindingMap_.find(intNode->name_) == bindingMap_.end())
+				if(bindingMap_.find(intNode->name_) == nullptr)
 					WriteVariable(intNode);
 			NextLine();
 
@@ -399,7 +399,7 @@ namespace Graphics
 
 		bool writeBindingSet = false;
 		for(auto* member : node->type_->members_)
-			writeBindingSet |= (bindingMap_.size() == 0 || bindingMap_.find(member->name_) != bindingMap_.end());
+			writeBindingSet |= (bindingMap_.size() == 0 || bindingMap_.find(member->name_) != nullptr);
 
 		if((writeBindingSet && !writeOnlyUnused) || (!writeBindingSet && writeOnlyUnused))
 		{

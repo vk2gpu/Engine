@@ -175,9 +175,9 @@ namespace Serialization
 			{
 				if(0 == BeginObject(key, false))
 				{
-					for(auto& val : type)
+					for(const auto& pair : type)
 					{
-						Serialize(val.first.c_str(), val.second);
+						Serialize(pair.key.c_str(), pair.value);
 					}
 					EndObject();
 				}

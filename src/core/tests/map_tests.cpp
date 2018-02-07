@@ -1,12 +1,43 @@
 #include "core/map.h"
 #include "core/string.h"
+#include "core/timer.h"
 
 #include "catch.hpp"
 
+#include <unordered_map>
+
 using namespace Core;
+
+namespace std
+{
+	template<>
+	struct hash<Core::String>
+	{
+		typedef Core::String argument_type;
+		typedef std::size_t result_type;
+		result_type operator()(argument_type const& s) const noexcept { return Core::Hash(0, s); }
+	};
+}
 
 namespace
 {
+	struct ScopedTimer
+	{
+		ScopedTimer(const char* message)
+		    : message_(message)
+		{
+			timer_.Mark();
+		}
+
+		~ScopedTimer()
+		{
+			f64 time = timer_.GetTime();
+			Core::Log("%s: %.2fus\n", message_, time * 1000000.0);
+		}
+		const char* message_ = nullptr;
+		Core::Timer timer_;
+	};
+
 	typedef i32 index_type;
 
 	template<typename KEY_TYPE, typename VALUE_TYPE>
@@ -24,15 +55,15 @@ namespace
 	{
 		Map<KEY_TYPE, VALUE_TYPE> TestMap;
 
-		for(index_type Idx = 0; Idx < SIZE; ++Idx)
+		for(index_type idx = 0; idx < SIZE; ++idx)
 		{
-			TestMap.insert(IdxToKey(Idx), IdxToVal(Idx));
+			TestMap.insert(IdxToKey(idx), IdxToVal(idx));
 		}
 		REQUIRE(TestMap.size() == SIZE);
 
-		for(index_type Idx = 0; Idx < SIZE; ++Idx)
+		for(index_type idx = 0; idx < SIZE; ++idx)
 		{
-			TestMap.insert(IdxToKey(Idx), IdxToVal(Idx));
+			TestMap.insert(IdxToKey(idx), IdxToVal(idx));
 		}
 		REQUIRE(TestMap.size() == SIZE);
 	}
@@ -42,19 +73,22 @@ namespace
 	{
 		Map<KEY_TYPE, VALUE_TYPE> TestMap;
 
-		for(index_type Idx = 0; Idx < SIZE; ++Idx)
+		for(index_type idx = 0; idx < SIZE; ++idx)
 		{
-			TestMap.insert(IdxToKey(Idx), IdxToVal(Idx));
+			TestMap.insert(IdxToKey(idx), IdxToVal(idx));
 		}
 
-		bool Success = true;
-		for(index_type Idx = 0; Idx < SIZE; ++Idx)
+		bool success = true;
+		for(index_type idx = 0; idx < SIZE; ++idx)
 		{
-			auto Val = TestMap.find(IdxToKey(Idx));
-			Success &= Val->first == IdxToKey(Idx);
-			Success &= Val->second == IdxToVal(Idx);
+			auto* Val = TestMap.find(IdxToKey(idx));
+			success &= Val != nullptr;
+			if(Val)
+			{
+				success &= *Val == IdxToVal(idx);
+			}
 		}
-		REQUIRE(Success);
+		REQUIRE(success);
 	}
 
 	template<typename KEY_TYPE, typename VALUE_TYPE, index_type SIZE>
@@ -62,19 +96,32 @@ namespace
 	{
 		Map<KEY_TYPE, VALUE_TYPE> TestMap;
 
-		for(index_type Idx = 0; Idx < SIZE; ++Idx)
+		for(index_type idx = 0; idx < SIZE; ++idx)
 		{
-			TestMap[IdxToKey(Idx)] = IdxToVal(Idx);
+			if(idx == 0x71)
+			{
+				int a = 0;
+				++a;
+			}
+			TestMap[IdxToKey(idx)] = IdxToVal(idx);
 		}
 
-		bool Success = true;
-		for(index_type Idx = 0; Idx < SIZE; ++Idx)
+		bool success = true;
+		for(index_type idx = 0; idx < SIZE; ++idx)
 		{
-			auto Val = TestMap.find(IdxToKey(Idx));
-			Success &= Val->first == IdxToKey(Idx);
-			Success &= Val->second == IdxToVal(Idx);
+			auto* Val = TestMap.find(IdxToKey(idx));
+			success &= Val != nullptr;
+			if(Val)
+			{
+				success &= *Val == IdxToVal(idx);
+				if(!success)
+				{
+					int a = 0;
+					++a;
+				}
+			}
 		}
-		REQUIRE(Success);
+		REQUIRE(success);
 	}
 
 	template<typename KEY_TYPE, typename VALUE_TYPE, index_type SIZE>
@@ -82,18 +129,18 @@ namespace
 	{
 		Map<KEY_TYPE, VALUE_TYPE> TestMap;
 
-		for(index_type Idx = 0; Idx < SIZE; ++Idx)
+		for(index_type idx = 0; idx < SIZE; ++idx)
 		{
-			TestMap[IdxToKey(Idx)] = IdxToVal(Idx);
+			TestMap[IdxToKey(idx)] = IdxToVal(idx);
 		}
 
-		bool Success = true;
-		for(index_type Idx = 0; Idx < SIZE; ++Idx)
+		bool success = true;
+		for(index_type idx = 0; idx < SIZE; ++idx)
 		{
-			auto Val = TestMap[IdxToKey(Idx)];
-			Success &= Val == IdxToVal(Idx);
+			auto Val = TestMap[IdxToKey(idx)];
+			success &= Val == IdxToVal(idx);
 		}
-		REQUIRE(Success);
+		REQUIRE(success);
 	}
 
 	template<typename KEY_TYPE, typename VALUE_TYPE, index_type SIZE>
@@ -101,45 +148,49 @@ namespace
 	{
 		Map<KEY_TYPE, VALUE_TYPE> TestMap;
 
-		for(index_type Idx = 0; Idx < SIZE; ++Idx)
+		for(index_type idx = 0; idx < SIZE; ++idx)
 		{
-			TestMap[IdxToKey(Idx)] = IdxToVal(Idx);
+			TestMap[IdxToKey(idx)] = IdxToVal(idx);
 		}
 
-		bool Success = true;
-		for(index_type Idx = 0; Idx < SIZE; ++Idx)
+		bool success = true;
+		for(index_type idx = 0; idx < SIZE; ++idx)
 		{
-			auto Val = TestMap[IdxToKey(Idx)];
-			Success &= Val == IdxToVal(Idx);
-			REQUIRE(Success);
+			auto Val = TestMap[IdxToKey(idx)];
+			success &= Val == IdxToVal(idx);
+			REQUIRE(success);
 
-			if(Idx == (SIZE / 2))
+			if(idx == (SIZE / 2))
 			{
-				TestMap.erase(TestMap.find(IdxToVal(Idx)));
+				TestMap.erase(IdxToVal(idx));
 			}
 		}
 
-		for(index_type Idx = 0; Idx < SIZE; ++Idx)
+		for(index_type idx = 0; idx < SIZE; ++idx)
 		{
-			auto it = TestMap.find(IdxToKey(Idx));
-			if(Idx != (SIZE / 2))
+			auto val = TestMap.find(IdxToKey(idx));
+			if(idx != (SIZE / 2))
 			{
-				Success &= it->second == IdxToVal(Idx);
+				success &= val != nullptr;
+				if(val)
+				{
+					success &= *val == IdxToVal(idx);
+				}
 			}
 			else
 			{
-				Success &= it == TestMap.end();
-				REQUIRE(Success);
+				success &= (val == nullptr);
+				REQUIRE(success);
 			}
 		}
 	}
 
-	index_type IdxToVal_index_type(index_type Idx) { return Idx; }
+	index_type IdxToVal_index_type(index_type idx) { return idx; }
 
-	Core::String IdxToVal_string(index_type Idx)
+	Core::String IdxToVal_string(index_type idx)
 	{
 		Core::String str;
-		str.Printf("%u", (int)Idx);
+		str.Printf("%u", (int)idx);
 		return str;
 	}
 }
@@ -244,5 +295,220 @@ TEST_CASE("map-tests-operator-erase")
 		MapTestOperatorErase<Core::String, Core::String, 0x2>(IdxToVal_string, IdxToVal_string);
 		MapTestOperatorErase<Core::String, Core::String, 0xff>(IdxToVal_string, IdxToVal_string);
 		MapTestOperatorErase<Core::String, Core::String, 0x100>(IdxToVal_string, IdxToVal_string);
+	}
+}
+
+TEST_CASE("map-tests-iterate")
+{
+	Core::Map<u32, i32> map;
+	const i32 NUM_VALUES = 4096;
+	for(i32 i = 0; i < NUM_VALUES; ++i)
+	{
+		i32 k = Core::HashCRC32(0, &i, sizeof(i));
+		map[k] = i;
+	}
+
+	i32 total = 0;
+	for(auto pair : map)
+	{
+		auto k = pair.key;
+		auto v = pair.value;
+		REQUIRE(map[k] == v);
+		++total;
+	}
+	REQUIRE(total == NUM_VALUES);
+}
+
+TEST_CASE("map-tests-bench")
+{
+	const i32 NUM_ITERATIONS = 32;
+	const i32 NUM_VALUES = 1024 * 32;
+
+	SECTION("trivial")
+	{
+		Core::Log("<u32, i32>\n");
+		Core::Map<u32, i32> mapA;
+		std::unordered_map<u32, i32> mapB;
+
+		// Insertion.
+		{
+			ScopedTimer timer("- Core::Map insertion");
+
+			for(i32 j = 0; j < NUM_ITERATIONS; ++j)
+			{
+				for(i32 i = 0; i < NUM_VALUES; ++i)
+				{
+					i32 k = Core::HashCRC32(0, &i, sizeof(i));
+					mapA[k] = i;
+				}
+			}
+		}
+
+		{
+			ScopedTimer timer("-  std::map insertion");
+
+			for(i32 j = 0; j < NUM_ITERATIONS; ++j)
+			{
+				for(i32 i = 0; i < NUM_VALUES; ++i)
+				{
+					i32 k = Core::HashCRC32(0, &i, sizeof(i));
+					mapB[k] = i;
+				}
+			}
+		}
+
+		Core::Log(" - - Average Probe Count: %f\n", mapA.AverageProbeCount());
+
+		// Find.
+		{
+			ScopedTimer timer("- Core::Map find");
+
+			for(i32 j = 0; j < NUM_ITERATIONS; ++j)
+			{
+				for(i32 i = 0; i < NUM_VALUES; ++i)
+				{
+					i32 k = Core::HashCRC32(0, &i, sizeof(i));
+					auto v = mapA.find(k);
+					REQUIRE(*v == i);
+				}
+			}
+		}
+
+		{
+			ScopedTimer timer("-  std::map find");
+
+			for(i32 j = 0; j < NUM_ITERATIONS; ++j)
+			{
+				for(i32 i = 0; i < NUM_VALUES; ++i)
+				{
+					i32 k = Core::HashCRC32(0, &i, sizeof(i));
+					auto it = mapB.find(k);
+					REQUIRE(it->second == i);
+				}
+			}
+		}
+
+		// Verify.
+		for(i32 i = 0; i < NUM_VALUES; ++i)
+		{
+			i32 k = Core::HashCRC32(0, &i, sizeof(i));
+			bool match = mapA[k] == mapB[k];
+			REQUIRE(match);
+		}
+
+		// Erase.
+		{
+			ScopedTimer timer("- Core::Map erase");
+
+			for(i32 i = 0; i < NUM_VALUES; ++i)
+			{
+				i32 k = Core::HashCRC32(0, &i, sizeof(i));
+				mapA.erase(k);
+			}
+		}
+
+		{
+			ScopedTimer timer("-  std::map erase");
+
+			for(i32 i = 0; i < NUM_VALUES; ++i)
+			{
+				i32 k = Core::HashCRC32(0, &i, sizeof(i));
+				mapB.erase(k);
+			}
+		}
+	}
+
+	SECTION("non-trivial")
+	{
+		Core::Log("<Core::String, i32>\n");
+		Core::Map<Core::String, i32> mapA;
+		std::unordered_map<Core::String, i32> mapB;
+
+		// Insertion.
+		{
+			ScopedTimer timer("- Core::Map insertion");
+
+			for(i32 j = 0; j < NUM_ITERATIONS; ++j)
+			{
+				for(i32 i = 0; i < NUM_VALUES; ++i)
+				{
+					auto k = IdxToVal_string(i);
+					mapA[k] = i;
+				}
+			}
+		}
+
+		{
+			ScopedTimer timer("-  std::map insertion");
+
+			for(i32 j = 0; j < NUM_ITERATIONS; ++j)
+			{
+				for(i32 i = 0; i < NUM_VALUES; ++i)
+				{
+					auto k = IdxToVal_string(i);
+					mapB[k] = i;
+				}
+			}
+		}
+
+		Core::Log(" - - Average Probe Count: %f\n", mapA.AverageProbeCount());
+
+		// Find.
+		{
+			ScopedTimer timer("- Core::Map find");
+
+			for(i32 j = 0; j < NUM_ITERATIONS; ++j)
+			{
+				for(i32 i = 0; i < NUM_VALUES; ++i)
+				{
+					auto k = IdxToVal_string(i);
+					auto v = mapA.find(k);
+					CHECK(*v == i);
+				}
+			}
+		}
+
+		{
+			ScopedTimer timer("-  std::map find");
+
+			for(i32 j = 0; j < NUM_ITERATIONS; ++j)
+			{
+				for(i32 i = 0; i < NUM_VALUES; ++i)
+				{
+					auto k = IdxToVal_string(i);
+					auto it = mapB.find(k);
+					CHECK(it->second == i);
+				}
+			}
+		}
+
+		// Verify.
+		for(i32 i = 0; i < NUM_VALUES; ++i)
+		{
+			auto k = IdxToVal_string(i);
+			bool match = mapA[k] == mapB[k];
+			REQUIRE(match);
+		}
+
+		// Erase.
+		{
+			ScopedTimer timer("- Core::Map erase");
+
+			for(i32 i = 0; i < NUM_VALUES; ++i)
+			{
+				auto k = IdxToVal_string(i);
+				mapA.erase(k);
+			}
+		}
+
+		{
+			ScopedTimer timer("-  std::map erase");
+
+			for(i32 i = 0; i < NUM_VALUES; ++i)
+			{
+				auto k = IdxToVal_string(i);
+				mapB.erase(k);
+			}
+		}
 	}
 }

@@ -1001,12 +1001,12 @@ void ClusteredModel::DrawClusters(DrawContext& drawCtx, ObjectConstants object)
 				for(i32 meshIdx = 0; meshIdx < meshes_.size(); ++meshIdx)
 				{
 					auto it = techs_[meshIdx].passIndices_.find(drawCtx.passName_);
-					if(it != techs_[meshIdx].passIndices_.end())
+					if(it != nullptr)
 					{
 						const auto& mesh = meshes_[meshIdx];
 						if(mesh.numClusters_ > 0)
 						{
-							auto& tech = techs_[meshIdx].passTechniques_[it->second];
+							auto& tech = techs_[meshIdx].passTechniques_[*it];
 							if(drawCtx.customBindFn_)
 								drawCtx.customBindFn_(techs_[meshIdx].material_->GetShader(), tech);
 
@@ -1038,12 +1038,12 @@ void ClusteredModel::DrawClusters(DrawContext& drawCtx, ObjectConstants object)
 				for(i32 meshIdx = 0; meshIdx < meshes_.size(); ++meshIdx)
 				{
 					auto it = techs_[meshIdx].passIndices_.find(drawCtx.passName_);
-					if(it != techs_[meshIdx].passIndices_.end())
+					if(it != nullptr)
 					{
 						const auto& mesh = meshes_[meshIdx];
 						if(mesh.numClusters_ > 0)
 						{
-							auto& tech = techs_[meshIdx].passTechniques_[it->second];
+							auto& tech = techs_[meshIdx].passTechniques_[*it];
 							if(drawCtx.customBindFn_)
 								drawCtx.customBindFn_(techs_[meshIdx].material_->GetShader(), tech);
 

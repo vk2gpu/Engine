@@ -59,13 +59,13 @@ namespace Resource
 			if(resolver_.OriginalPath(absolutePath.data(), origPath.data(), origPath.size()))
 			{
 				Core::UUID uuid = origPath.data();
-				auto it = uuidToPath_.find(uuid);
-				if(it != uuidToPath_.end())
+				auto foundPath = uuidToPath_.find(uuid);
+				if(foundPath != nullptr)
 				{
-					if(it->second.c_str() != origPath.data())
+					if(foundPath->c_str() != origPath.data())
 					{
 						DBG_LOG("Resource UUID Conflict: \"%s\" has conflicting entry \"%s\"\n", origPath.data(),
-						    it->second.c_str());
+						    foundPath->c_str());
 						continue;
 					}
 				}
@@ -77,9 +77,9 @@ namespace Resource
 	Core::String Database::GetPath(const Core::UUID& uuid) const
 	{
 		Core::ScopedReadLock lock(uuidLock_);
-		auto it = uuidToPath_.find(uuid);
-		if(it != uuidToPath_.end())
-			return it->second;
+		auto path = uuidToPath_.find(uuid);
+		if(path != nullptr)
+			return *path;
 		return Core::String();
 	}
 

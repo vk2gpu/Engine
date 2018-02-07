@@ -884,7 +884,7 @@ namespace
 				if(std::regex_match(materialName.c_str(), regex))
 				{
 					auto foundMaterial = addedMaterials_.find(materialName);
-					if(foundMaterial == addedMaterials_.end())
+					if(foundMaterial == nullptr)
 					{
 						// Find material file name.
 						Core::Array<char, Core::MAX_PATH_LENGTH> materialPath = {0};
@@ -954,7 +954,7 @@ namespace
 					}
 					else
 					{
-						retVal = foundMaterial->second;
+						retVal = *foundMaterial;
 					}
 				}
 			}

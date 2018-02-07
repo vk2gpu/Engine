@@ -486,7 +486,7 @@ namespace Core
 
 	namespace
 	{
-		// clang-format off
+// clang-format off
 		/*
 		 * hash_64 - 64 bit Fowler/Noll/Vo-0 FNV-1a hash code
 		 *
@@ -855,10 +855,7 @@ namespace Core
 		// clang-format on
 	}
 
-	u64 HashFNV1a(u64 input, const void* pInData, size_t size)
-	{
-		return fnv_64a_buf(pInData, size, input);
-	}
+	u64 HashFNV1a(u64 input, const void* pInData, size_t size) { return fnv_64a_buf(pInData, size, input); }
 
 	u64 Hash(u64 Input, const char* Data)
 	{ //

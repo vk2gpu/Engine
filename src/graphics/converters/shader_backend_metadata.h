@@ -96,17 +96,17 @@ namespace Graphics
 				{
 					{
 						auto it = parseFns_.find(node->member_);
-						if(it != parseFns_.end())
+						if(it != nullptr)
 						{
-							it->second(data_, node->value_);
+							(*it)(data_, node->value_);
 							return false;
 						}
 					}
 					{
 						auto it = descendFns_.find(node->member_);
-						if(it != descendFns_.end())
+						if(it != nullptr)
 						{
-							it->second(data_, file_, backend_, node->value_);
+							(*it)(data_, file_, backend_, node->value_);
 							return false;
 						}
 					}

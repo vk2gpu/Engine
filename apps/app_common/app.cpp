@@ -307,11 +307,10 @@ void DrawRenderPackets(Core::ArrayView<RenderPacketBase*> packets, const DrawCon
 			{
 				auto* meshPacket = static_cast<MeshRenderPacket*>(packet);
 				auto passIdxIt = meshPacket->techs_->passIndices_.find(drawCtx.passName_);
-				if(passIdxIt != meshPacket->techs_->passIndices_.end() &&
-				    passIdxIt->second < meshPacket->techs_->passTechniques_.size())
+				if(passIdxIt != nullptr && *passIdxIt < meshPacket->techs_->passTechniques_.size())
 				{
 					meshPackets.push_back(meshPacket);
-					meshPassTechIndices.push_back(passIdxIt->second);
+					meshPassTechIndices.push_back(*passIdxIt);
 				}
 			}
 		}

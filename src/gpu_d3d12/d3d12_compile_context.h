@@ -25,6 +25,11 @@ namespace GPU
 			{
 			}
 
+			bool operator==(const Subresource& other) const
+			{
+				return resource_ == other.resource_ && idx_ == other.idx_;
+			}
+
 			const D3D12Resource* resource_ = nullptr;
 			i32 idx_ = 0;
 		};

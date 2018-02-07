@@ -210,17 +210,17 @@ void ShadowPipeline::CreateTechniques(
 {
 	auto AddTechnique = [&](const char* name) {
 		auto techIt = fbsDescs_.find(name);
-		if(techIt != fbsDescs_.end())
+		if(techIt != nullptr)
 		{
-			desc.SetFrameBindingSet(techIt->second);
+			desc.SetFrameBindingSet(*techIt);
 		}
 
 		i32 size = outTechniques.passIndices_.size();
 		auto idxIt = outTechniques.passIndices_.find(name);
-		if(idxIt != outTechniques.passIndices_.end())
+		if(idxIt != nullptr)
 		{
-			if(!outTechniques.passTechniques_[idxIt->second])
-				outTechniques.passTechniques_[idxIt->second] = material->CreateTechnique(name, desc);
+			if(!outTechniques.passTechniques_[*idxIt])
+				outTechniques.passTechniques_[*idxIt] = material->CreateTechnique(name, desc);
 		}
 		else
 		{

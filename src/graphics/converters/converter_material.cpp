@@ -73,11 +73,11 @@ namespace
 
 			Core::Vector<Graphics::MaterialTexture> matTexs;
 			matTexs.reserve(materialData.numTextures_);
-			for(auto& texParam : material.textures_)
+			for(const auto& texParam : material.textures_)
 			{
 				Graphics::MaterialTexture matTex;
-				strcpy_s(matTex.bindingName_.data(), matTex.bindingName_.size(), texParam.first.c_str());
-				matTex.resourceName_ = texParam.second.c_str();
+				strcpy_s(matTex.bindingName_.data(), matTex.bindingName_.size(), texParam.key.c_str());
+				matTex.resourceName_ = texParam.value.c_str();
 				matTexs.push_back(matTex);
 			}
 

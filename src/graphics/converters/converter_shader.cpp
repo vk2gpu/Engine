@@ -261,7 +261,7 @@ namespace
 				    const Core::Vector<Graphics::ShaderBinding>& inBindings, Graphics::BindingMap& outBindings) {
 					for(const auto& binding : inBindings)
 					{
-						if(outBindings.find(binding.name_) == outBindings.end())
+						if(outBindings.find(binding.name_) == nullptr)
 						{
 							outBindings.insert(binding.name_, binding.slot_);
 						}
@@ -321,7 +321,7 @@ namespace
 					{
 						const auto& member = bindingSet.members_[idx + baseIdx];
 
-						if(bindings.find(member) != bindings.end())
+						if(bindings.find(member) != nullptr)
 						{
 							bindingSetUsed = true;
 						}
@@ -487,7 +487,7 @@ namespace
 						auto& bindingSlot = techniqueHeader.bindingSlots_[numBindingSets];
 						for(auto member : inBindingSet.members_)
 						{
-							if(techBindings.find(member) != techBindings.end())
+							if(techBindings.find(member) != nullptr)
 							{
 								bindingSlot.idx_ = bsIdx;
 								bindingSlot.cbvReg_ = cbvReg;

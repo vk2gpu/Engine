@@ -157,7 +157,7 @@ namespace Plugin
 		DBG_ASSERT(impl_);
 		for(auto pluginDescIt : impl_->pluginDesc_)
 		{
-			delete pluginDescIt.second;
+			delete pluginDescIt.value;
 		}
 		impl_->pluginDesc_.clear();
 
@@ -191,7 +191,7 @@ namespace Plugin
 					pluginDesc->plugin_.fileName_ = pluginDesc->fileName_.data();
 					pluginDesc->plugin_.fileUuid_ = Core::UUID(pluginDesc->plugin_.fileName_);
 
-					if(impl_->pluginDesc_.find(pluginDesc->plugin_.fileUuid_) == impl_->pluginDesc_.end())
+					if(impl_->pluginDesc_.find(pluginDesc->plugin_.fileUuid_) == nullptr)
 					{
 						impl_->pluginDesc_.insert(pluginDesc->plugin_.fileUuid_, pluginDesc);
 					}
@@ -209,10 +209,10 @@ namespace Plugin
 	bool Manager::HasChanged(const Plugin& plugin)
 	{
 		DBG_ASSERT(IsInitialized());
-		auto it = impl_->pluginDesc_.find(plugin.fileUuid_);
-		if(it != impl_->pluginDesc_.end())
+		auto* val = impl_->pluginDesc_.find(plugin.fileUuid_);
+		if(val != nullptr)
 		{
-			return it->second->HasChanged();
+			return (*val)->HasChanged();
 		}
 		return false;
 	}
@@ -220,10 +220,10 @@ namespace Plugin
 	bool Manager::Reload(Plugin& inOutPlugin)
 	{
 		DBG_ASSERT(IsInitialized());
-		auto it = impl_->pluginDesc_.find(inOutPlugin.fileUuid_);
-		if(it != impl_->pluginDesc_.end())
+		auto* val = impl_->pluginDesc_.find(inOutPlugin.fileUuid_);
+		if(val != nullptr)
 		{
-			bool retVal = it->second->Reload();
+			bool retVal = (*val)->Reload();
 			if(retVal)
 			{
 				i32 num = GetPlugins(inOutPlugin.uuid_, &inOutPlugin, sizeof(Plugin), 1);
@@ -233,8 +233,7 @@ namespace Plugin
 			else
 			{
 				// Erase plugin that failed to reload?
-				delete it->second;
-				impl_->pluginDesc_.erase(it);
+				impl_->pluginDesc_.erase(inOutPlugin.fileUuid_);
 			}
 			return retVal;
 		}
@@ -250,15 +249,15 @@ namespace Plugin
 
 		if(outPlugins)
 		{
-			for(auto& it : impl_->pluginDesc_)
+			for(const auto& pair : impl_->pluginDesc_)
 			{
 				Plugin* plugin = (Plugin*)((u8*)outPlugins + (pluginSize * found));
 				if(found < maxPlugins)
 				{
-					if(it.second->getPlugin_(plugin, uuid))
+					if(pair.value->getPlugin_(plugin, uuid))
 					{
-						plugin->fileUuid_ = it.second->plugin_.fileUuid_;
-						plugin->fileName_ = it.second->fileName_.data();
+						plugin->fileUuid_ = pair.value->plugin_.fileUuid_;
+						plugin->fileName_ = pair.value->fileName_.data();
 						++found;
 					}
 				}
@@ -268,9 +267,9 @@ namespace Plugin
 		}
 		else
 		{
-			for(auto& it : impl_->pluginDesc_)
+			for(const auto& pair : impl_->pluginDesc_)
 			{
-				if(it.second->getPlugin_(nullptr, uuid))
+				if(pair.value->getPlugin_(nullptr, uuid))
 					++found;
 			}
 		}
