@@ -893,7 +893,7 @@ namespace Graphics
 
 		// See if there is a matching name + descriptor, if not, add it.
 		i32 foundIdx = -1;
-		u32 hash = Core::HashCRC32(0, &desc, sizeof(desc));
+		u64 hash = Core::HashFNV1a(0, &desc, sizeof(desc));
 		hash = Core::Hash(hash, name);
 		for(i32 idx = 0; idx < techniqueDescHashes_.size(); ++idx)
 		{

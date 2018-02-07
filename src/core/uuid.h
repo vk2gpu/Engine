@@ -50,7 +50,6 @@ namespace Core
 
 		union CORE_DLL
 		{
-			;
 			u8 data8_[16] = {0};
 			u32 data32_[4];
 			u64 data64_[2];
@@ -60,7 +59,7 @@ namespace Core
 	/**
 	 * Custom hash function.
 	 */
-	CORE_DLL u32 Hash(u32 input, const UUID& data);
+	CORE_DLL u64 Hash(u64 input, const UUID& data);
 
 
 } // namespace Core

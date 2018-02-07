@@ -179,7 +179,7 @@ namespace GPU
 	ErrorCode D3D12Backend::Initialize(i32 adapterIdx)
 	{
 		device_ = new D3D12Device(*this, setupParams_, dxgiFactory_.Get(), dxgiAdapters_[adapterIdx].Get());
-		if(*device_)
+		if(!(*device_))
 		{
 			delete device_;
 			device_ = nullptr;

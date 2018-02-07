@@ -116,8 +116,8 @@ namespace Core
 		data8_[8] = (data8_[8] & 0x1f) | (variant << 6);
 	}
 
-	u32 Hash(u32 input, const UUID& data)
+	u64 Hash(u64 input, const UUID& data)
 	{ //
-		return HashCRC32(input, &data, sizeof(data));
+		return HashFNV1a(input, &data, sizeof(data));
 	}
 } // namespace core

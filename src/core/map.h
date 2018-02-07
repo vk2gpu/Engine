@@ -86,7 +86,7 @@ namespace Core
 		iterator insert(const KEY_TYPE& key, const VALUE_TYPE& value)
 		{
 			const auto keyValuePair = Pair<typename KEY_TYPE, typename VALUE_TYPE>(key, value);
-			const u32 keyHash = hasher_(0, key);
+			const u64 keyHash = hasher_(0, key);
 			const index_type indicesIdx = keyHash & mask_;
 			const index_type idx = indices_[indicesIdx];
 			if(idx != INVALID_INDEX)
@@ -139,7 +139,7 @@ namespace Core
 		{
 			if(indices_.size() > 0)
 			{
-				const u32 keyHash = hasher_(0, key);
+				const u64 keyHash = hasher_(0, key);
 				const index_type indicesIdx = keyHash & mask_;
 				const index_type idx = indices_[indicesIdx];
 				if(idx != INVALID_INDEX)
@@ -156,7 +156,7 @@ namespace Core
 		{
 			if(indices_.size() > 0)
 			{
-				const u32 keyHash = hasher_(0, key);
+				const u64 keyHash = hasher_(0, key);
 				const index_type indicesIdx = keyHash & mask_;
 				const index_type idx = indices_[indicesIdx];
 				if(idx != INVALID_INDEX)
@@ -190,7 +190,7 @@ namespace Core
 				// Reinsert all keys.
 				for(index_type idx = 0; idx < values_.size(); ++idx)
 				{
-					const u32 keyHash = hasher_(0, values_[idx].first);
+					const u64 keyHash = hasher_(0, values_[idx].first);
 					const index_type indicesIdx = keyHash & mask_;
 					if(indices_[indicesIdx] == INVALID_INDEX)
 					{

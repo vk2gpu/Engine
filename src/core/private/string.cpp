@@ -205,7 +205,7 @@ namespace Core
 		return strncmp("", begin, 1);
 	}
 
-	u32 Hash(u32 input, const String& str)
+	u64 Hash(u64 input, const String& str)
 	{
 		if(str.size() > 0)
 			return Hash(input, str.c_str());
@@ -213,10 +213,10 @@ namespace Core
 			return Hash(input, "");
 	}
 
-	u32 Hash(u32 input, const StringView& str)
+	u64 Hash(u64 input, const StringView& str)
 	{
 		if(str.size() > 0)
-			return HashSDBM(input, str.begin(), str.size());
+			return HashFNV1a(input, str.begin(), str.size());
 		else
 			return Hash(input, "");
 	}

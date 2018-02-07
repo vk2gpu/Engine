@@ -74,13 +74,13 @@ TEST_CASE("function-tests-copy")
 		struct CaptureCount
 		{
 			CaptureCount(i32& count)
-				: count_(count)
+			    : count_(count)
 			{
 				++count_;
 			}
 
 			CaptureCount(const CaptureCount& other)
-				: count_(other.count_)
+			    : count_(other.count_)
 			{
 				++count_;
 			}

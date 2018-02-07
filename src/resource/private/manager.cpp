@@ -105,14 +105,14 @@ namespace Resource
 
 namespace Core
 {
-	u32 Hash(u32 input, const Core::Pair<Core::UUID, Core::UUID>& pair)
+	u64 Hash(u64 input, const Core::Pair<Core::UUID, Core::UUID>& pair)
 	{
-		return HashCRC32(input, &pair, sizeof(pair));
+		return HashFNV1a(input, &pair, sizeof(pair));
 	}
 
-	u32 Hash(u32 input, Resource::ResourceEntry* resourceEntry)
+	u64 Hash(u64 input, Resource::ResourceEntry* resourceEntry)
 	{
-		return HashCRC32(input, &resourceEntry, sizeof(resourceEntry));
+		return HashFNV1a(input, &resourceEntry, sizeof(resourceEntry));
 	}
 } // namespace Core
 

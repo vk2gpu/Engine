@@ -138,7 +138,7 @@ namespace Graphics
 		Core::Vector<ShaderTechniqueImpl*> techniques_;
 
 		// Data that's between different techniques.
-		Core::Vector<u32> techniqueDescHashes_;
+		Core::Vector<u64> techniqueDescHashes_;
 		Core::Vector<ShaderTechniqueDesc> techniqueDescs_;
 		Core::Vector<GPU::Handle> pipelineStates_;
 

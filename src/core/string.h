@@ -205,7 +205,7 @@ namespace Core
 	inline bool operator<=(const String& str, const StringView& view) { return view > str; }
 	inline bool operator>=(const String& str, const StringView& view) { return view < str; }
 
-	CORE_DLL u32 Hash(u32 input, const String& string);
-	CORE_DLL u32 Hash(u32 input, const StringView& string);
+	CORE_DLL u64 Hash(u64 input, const String& string);
+	CORE_DLL u64 Hash(u64 input, const StringView& string);
 
 } // end namespace Core
