@@ -65,7 +65,7 @@ namespace
 			passes_.insert(name);
 		}
 
-		bool HavePass(const char* name) const { return passes_.find(name) != passes_.end(); }
+		bool HavePass(const char* name) const { return passes_.find(name) != nullptr; }
 	};
 
 	class RenderPassMain : public Graphics::RenderPass

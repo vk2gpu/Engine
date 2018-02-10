@@ -253,7 +253,7 @@ namespace Graphics
 					auto it = std::find_if(bindingSetHeaders_.begin(), bindingSetHeaders_.end(),
 					    [&bindingSetHeader](const ShaderBindingSetHeader& other) {
 						    return memcmp(&bindingSetHeader, &other, sizeof(ShaderBindingSetHeader)) == 0;
-						});
+					    });
 
 					if(it == bindingSetHeaders_.end())
 					{

@@ -332,7 +332,7 @@ TEST_CASE("map-tests-bench")
 
 		// Insertion.
 		{
-			ScopedTimer timer("- Core::Map insertion");
+			ScopedTimer timer("-           Core::Map insertion");
 
 			for(i32 j = 0; j < NUM_ITERATIONS; ++j)
 			{
@@ -345,7 +345,7 @@ TEST_CASE("map-tests-bench")
 		}
 
 		{
-			ScopedTimer timer("-  std::map insertion");
+			ScopedTimer timer("-  std::unordered_map insertion");
 
 			for(i32 j = 0; j < NUM_ITERATIONS; ++j)
 			{
@@ -361,7 +361,7 @@ TEST_CASE("map-tests-bench")
 
 		// Find.
 		{
-			ScopedTimer timer("- Core::Map find");
+			ScopedTimer timer("-           Core::Map find");
 
 			for(i32 j = 0; j < NUM_ITERATIONS; ++j)
 			{
@@ -375,7 +375,7 @@ TEST_CASE("map-tests-bench")
 		}
 
 		{
-			ScopedTimer timer("-  std::map find");
+			ScopedTimer timer("-  std::unordered_map find");
 
 			for(i32 j = 0; j < NUM_ITERATIONS; ++j)
 			{
@@ -398,7 +398,7 @@ TEST_CASE("map-tests-bench")
 
 		// Erase.
 		{
-			ScopedTimer timer("- Core::Map erase");
+			ScopedTimer timer("-           Core::Map erase");
 
 			for(i32 i = 0; i < NUM_VALUES; ++i)
 			{
@@ -408,7 +408,7 @@ TEST_CASE("map-tests-bench")
 		}
 
 		{
-			ScopedTimer timer("-  std::map erase");
+			ScopedTimer timer("-  std::unordered_map erase");
 
 			for(i32 i = 0; i < NUM_VALUES; ++i)
 			{
@@ -426,7 +426,7 @@ TEST_CASE("map-tests-bench")
 
 		// Insertion.
 		{
-			ScopedTimer timer("- Core::Map insertion");
+			ScopedTimer timer("-           Core::Map insertion");
 
 			for(i32 j = 0; j < NUM_ITERATIONS; ++j)
 			{
@@ -439,7 +439,7 @@ TEST_CASE("map-tests-bench")
 		}
 
 		{
-			ScopedTimer timer("-  std::map insertion");
+			ScopedTimer timer("-  std::unordered_map insertion");
 
 			for(i32 j = 0; j < NUM_ITERATIONS; ++j)
 			{
@@ -455,7 +455,7 @@ TEST_CASE("map-tests-bench")
 
 		// Find.
 		{
-			ScopedTimer timer("- Core::Map find");
+			ScopedTimer timer("-           Core::Map find");
 
 			for(i32 j = 0; j < NUM_ITERATIONS; ++j)
 			{
@@ -469,7 +469,7 @@ TEST_CASE("map-tests-bench")
 		}
 
 		{
-			ScopedTimer timer("-  std::map find");
+			ScopedTimer timer("-  std::unordered_map find");
 
 			for(i32 j = 0; j < NUM_ITERATIONS; ++j)
 			{
@@ -492,7 +492,7 @@ TEST_CASE("map-tests-bench")
 
 		// Erase.
 		{
-			ScopedTimer timer("- Core::Map erase");
+			ScopedTimer timer("-           Core::Map erase");
 
 			for(i32 i = 0; i < NUM_VALUES; ++i)
 			{
@@ -502,7 +502,7 @@ TEST_CASE("map-tests-bench")
 		}
 
 		{
-			ScopedTimer timer("-  std::map erase");
+			ScopedTimer timer("-  std::unordered_map erase");
 
 			for(i32 i = 0; i < NUM_VALUES; ++i)
 			{

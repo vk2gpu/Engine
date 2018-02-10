@@ -24,24 +24,20 @@ namespace Image
 		switch(fileType)
 		{
 		case FileType::BMP:
-			return 0 !=
-			       stbi_write_bmp_to_func(
-			           writeFn, &file, image.GetWidth(), image.GetHeight(), 4, image.GetMipBaseAddr(0));
+			return 0 != stbi_write_bmp_to_func(
+			                writeFn, &file, image.GetWidth(), image.GetHeight(), 4, image.GetMipBaseAddr(0));
 			break;
 		case FileType::PNG:
-			return 0 !=
-			       stbi_write_png_to_func(writeFn, &file, image.GetWidth(), image.GetHeight(), 4,
-			           image.GetMipBaseAddr(0), image.GetWidth() * sizeof(u32));
+			return 0 != stbi_write_png_to_func(writeFn, &file, image.GetWidth(), image.GetHeight(), 4,
+			                image.GetMipBaseAddr(0), image.GetWidth() * sizeof(u32));
 			break;
 		case FileType::TGA:
-			return 0 !=
-			       stbi_write_tga_to_func(
-			           writeFn, &file, image.GetWidth(), image.GetHeight(), 4, image.GetMipBaseAddr(0));
+			return 0 != stbi_write_tga_to_func(
+			                writeFn, &file, image.GetWidth(), image.GetHeight(), 4, image.GetMipBaseAddr(0));
 			break;
 		case FileType::HDR:
-			return 0 !=
-			       stbi_write_hdr_to_func(
-			           writeFn, &file, image.GetWidth(), image.GetHeight(), 4, (const float*)image.GetMipBaseAddr(0));
+			return 0 != stbi_write_hdr_to_func(writeFn, &file, image.GetWidth(), image.GetHeight(), 4,
+			                (const float*)image.GetMipBaseAddr(0));
 			break;
 
 		default:

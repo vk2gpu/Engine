@@ -607,6 +607,30 @@ namespace GPU
 		ComPtr<ID3D12Device> d3dDevice;
 		d3dDescriptorHeap->GetDevice(IID_ID3D12Device, (void**)d3dDevice.GetAddressOf());
 		auto descriptorSize = d3dDevice->GetDescriptorHandleIncrementSize(d3dDesc.Type);
+
+		D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
+
+		// Setup easy to spot when debugging, but valid default.
+		D3D12_SAMPLER_DESC samplerDesc = {};
+		samplerDesc.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+		samplerDesc.AddressV = D3D12_TEXTURE_ADDRESS_MODE_MIRROR;
+		samplerDesc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+		samplerDesc.BorderColor[0] = 1.0f;
+		samplerDesc.BorderColor[1] = 2.0f;
+		samplerDesc.BorderColor[2] = 3.0f;
+		samplerDesc.BorderColor[3] = 4.0f;
+
+		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+		srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+		srvDesc.Shader4ComponentMapping = D3D12_ENCODE_SHADER_4_COMPONENT_MAPPING(
+		    D3D12_SHADER_COMPONENT_MAPPING_FORCE_VALUE_0, D3D12_SHADER_COMPONENT_MAPPING_FORCE_VALUE_0,
+		    D3D12_SHADER_COMPONENT_MAPPING_FORCE_VALUE_0, D3D12_SHADER_COMPONENT_MAPPING_FORCE_VALUE_0);
+
+		D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
+		uavDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+		uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
+
 		for(i32 i = 0; i < numDescriptors; ++i)
 		{
 			if(subType == DescriptorHeapSubType::INVALID)
@@ -622,22 +646,12 @@ namespace GPU
 				{
 				case D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV:
 				{
-					D3D12_CONSTANT_BUFFER_VIEW_DESC desc = {};
-					d3dDevice->CreateConstantBufferView(&desc, handle);
+					d3dDevice->CreateConstantBufferView(&cbvDesc, handle);
 					break;
 				}
 				case D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER:
 				{
-					D3D12_SAMPLER_DESC desc = {};
-					// Setup easy to spot when debugging, but valid default.
-					desc.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-					desc.AddressV = D3D12_TEXTURE_ADDRESS_MODE_MIRROR;
-					desc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
-					desc.BorderColor[0] = 1.0f;
-					desc.BorderColor[1] = 2.0f;
-					desc.BorderColor[2] = 3.0f;
-					desc.BorderColor[3] = 4.0f;
-					d3dDevice->CreateSampler(&desc, handle);
+					d3dDevice->CreateSampler(&samplerDesc, handle);
 					break;
 				}
 				case D3D12_DESCRIPTOR_HEAP_TYPE_RTV:
@@ -655,8 +669,7 @@ namespace GPU
 				{
 				case DescriptorHeapSubType::CBV:
 				{
-					D3D12_CONSTANT_BUFFER_VIEW_DESC desc = {};
-					d3dDevice->CreateConstantBufferView(&desc, handle);
+					d3dDevice->CreateConstantBufferView(&cbvDesc, handle);
 					if(debugDataBase)
 					{
 						debugDataBase[i].subType_ = DescriptorHeapSubType::CBV;
@@ -667,13 +680,7 @@ namespace GPU
 				}
 				case DescriptorHeapSubType::SRV:
 				{
-					D3D12_SHADER_RESOURCE_VIEW_DESC desc = {};
-					desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-					desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-					desc.Shader4ComponentMapping = D3D12_ENCODE_SHADER_4_COMPONENT_MAPPING(
-					    D3D12_SHADER_COMPONENT_MAPPING_FORCE_VALUE_0, D3D12_SHADER_COMPONENT_MAPPING_FORCE_VALUE_0,
-					    D3D12_SHADER_COMPONENT_MAPPING_FORCE_VALUE_0, D3D12_SHADER_COMPONENT_MAPPING_FORCE_VALUE_0);
-					d3dDevice->CreateShaderResourceView(nullptr, &desc, handle);
+					d3dDevice->CreateShaderResourceView(nullptr, &srvDesc, handle);
 					if(debugDataBase)
 					{
 						debugDataBase[i].subType_ = DescriptorHeapSubType::SRV;
@@ -684,10 +691,7 @@ namespace GPU
 				}
 				case DescriptorHeapSubType::UAV:
 				{
-					D3D12_UNORDERED_ACCESS_VIEW_DESC desc = {};
-					desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-					desc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
-					d3dDevice->CreateUnorderedAccessView(nullptr, nullptr, &desc, handle);
+					d3dDevice->CreateUnorderedAccessView(nullptr, nullptr, &uavDesc, handle);
 					if(debugDataBase)
 					{
 						debugDataBase[i].subType_ = DescriptorHeapSubType::UAV;
@@ -698,16 +702,7 @@ namespace GPU
 				}
 				case DescriptorHeapSubType::SAMPLER:
 				{
-					D3D12_SAMPLER_DESC desc = {};
-					// Setup easy to spot when debugging, but valid default.
-					desc.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-					desc.AddressV = D3D12_TEXTURE_ADDRESS_MODE_MIRROR;
-					desc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
-					desc.BorderColor[0] = 1.0f;
-					desc.BorderColor[1] = 2.0f;
-					desc.BorderColor[2] = 3.0f;
-					desc.BorderColor[3] = 4.0f;
-					d3dDevice->CreateSampler(&desc, handle);
+					d3dDevice->CreateSampler(&samplerDesc, handle);
 					if(debugDataBase)
 					{
 						debugDataBase[i].subType_ = DescriptorHeapSubType::SAMPLER;

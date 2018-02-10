@@ -110,10 +110,18 @@ void DrawUIJobProfiler(
 		}
 
 		Core::Array<ImColor, 12> colors = {
-		    ImColor(0.8f, 0.0f, 0.0f, 1.0f), ImColor(0.0f, 0.8f, 0.0f, 1.0f), ImColor(0.0f, 0.0f, 0.8f, 1.0f),
-		    ImColor(0.0f, 0.8f, 0.8f, 1.0f), ImColor(0.8f, 0.0f, 0.8f, 1.0f), ImColor(0.8f, 0.8f, 0.0f, 1.0f),
-		    ImColor(0.4f, 0.0f, 0.0f, 1.0f), ImColor(0.0f, 0.4f, 0.0f, 1.0f), ImColor(0.0f, 0.0f, 0.4f, 1.0f),
-		    ImColor(0.0f, 0.4f, 0.4f, 1.0f), ImColor(0.4f, 0.0f, 0.4f, 1.0f), ImColor(0.4f, 0.4f, 0.0f, 1.0f),
+		    ImColor(0.8f, 0.0f, 0.0f, 1.0f),
+		    ImColor(0.0f, 0.8f, 0.0f, 1.0f),
+		    ImColor(0.0f, 0.0f, 0.8f, 1.0f),
+		    ImColor(0.0f, 0.8f, 0.8f, 1.0f),
+		    ImColor(0.8f, 0.0f, 0.8f, 1.0f),
+		    ImColor(0.8f, 0.8f, 0.0f, 1.0f),
+		    ImColor(0.4f, 0.0f, 0.0f, 1.0f),
+		    ImColor(0.0f, 0.4f, 0.0f, 1.0f),
+		    ImColor(0.0f, 0.0f, 0.4f, 1.0f),
+		    ImColor(0.0f, 0.4f, 0.4f, 1.0f),
+		    ImColor(0.4f, 0.0f, 0.4f, 1.0f),
+		    ImColor(0.4f, 0.4f, 0.0f, 1.0f),
 		};
 
 		i32 numJobs = 0;

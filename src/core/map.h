@@ -182,14 +182,16 @@ namespace Core
 
 		void clear()
 		{
-			allocator_.deallocate(keys_, capacity_, sizeof(KEY_TYPE));
-			allocator_.deallocate(values_, capacity_, sizeof(VALUE_TYPE));
-			allocator_.deallocate(hashes_, capacity_, sizeof(u64));
-			keys_ = nullptr;
-			values_ = nullptr;
-			hashes_ = nullptr;
+			for(index_type i = 0; i < capacity_; ++i)
+			{
+				if(ElemHash(i) != 0)
+				{
+					keys_[i].~KEY_TYPE();
+					values_[i].~VALUE_TYPE();
+					hashes_[i] = 0;
+				}
+			}
 			numElements_ = 0;
-			Alloc();
 		}
 
 		VALUE_TYPE* insert(KEY_TYPE key, VALUE_TYPE value)
@@ -412,4 +414,5 @@ namespace Core
 		ALLOCATOR allocator_;
 		HASHER hasher_;
 	};
+
 } // namespace Core

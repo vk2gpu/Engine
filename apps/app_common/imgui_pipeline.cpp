@@ -26,7 +26,7 @@ void ImGuiPipeline::Setup(RenderGraph& renderGraph)
 	    [](RenderGraphResources& res, GPU::CommandList& cmdList, const ImGuiPassData& data) {
 		    auto fbs = res.GetFrameBindingSet();
 		    ImGui::Manager::Render(fbs, cmdList);
-		});
+	    });
 
 	resources_[1] = pass.GetData().outColor_;
 }

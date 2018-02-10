@@ -37,6 +37,8 @@ namespace Graphics
 		bool LoadResource(Resource::IFactoryContext& context, void** inResource, const Core::UUID& type,
 		    const char* name, Core::File& inFile) override
 		{
+			const i64 baseOffset = inFile.Tell();
+
 			Model* model = *reinterpret_cast<Model**>(inResource);
 			i64 readBytes = 0;
 
@@ -133,18 +135,6 @@ namespace Graphics
 				return false;
 			}
 
-			// Create materials for mesh nodes.
-			// Only load them one by one.
-			// TODO: We need a better heuristic to control
-			// the wait policy for certain resource types.
-			impl->materials_.reserve(impl->meshNodes_.size());
-			for(const auto& meshNode : impl->meshNodes_)
-			{
-				impl->materials_.emplace_back(meshNode.material_);
-				impl->materials_.back().WaitUntilReady();
-				DBG_ASSERT(impl->materials_.back());
-			}
-
 			// Now load in and create vertex + index buffers.
 			if(GPU::Manager::IsInitialized())
 			{
@@ -160,9 +150,11 @@ namespace Graphics
 				impl->ibs_.reserve(impl->modelMeshes_.size());
 
 				// Map data.
-				if(auto mapped = Core::MappedFile(inFile, inFile.Tell(), totalDataSize))
+				const i64 dataOffset = inFile.Tell();
+				totalDataSize += dataOffset - baseOffset;
+				if(auto mapped = Core::MappedFile(inFile, baseOffset, totalDataSize))
 				{
-					const u8* data = reinterpret_cast<const u8*>(mapped.GetAddress());
+					const u8* data = reinterpret_cast<const u8*>(mapped.GetAddress()) + dataOffset;
 					i32 vbIdx = 0;
 					for(const auto& mesh : impl->modelMeshes_)
 					{
@@ -198,6 +190,18 @@ namespace Graphics
 					DBG_ASSERT_MSG(false, "FATAL: Unable to map model data for \"%s\"\n", inFile.GetPath());
 					delete impl;
 					return false;
+				}
+
+				// Create materials for mesh nodes.
+				// Only load them one by one.
+				// TODO: We need a better heuristic to control
+				// the wait policy for certain resource types.
+				impl->materials_.reserve(impl->meshNodes_.size());
+				for(const auto& meshNode : impl->meshNodes_)
+				{
+					impl->materials_.emplace_back(meshNode.material_);
+					impl->materials_.back().WaitUntilReady();
+					DBG_ASSERT(impl->materials_.back());
 				}
 
 				// Create draw binding sets.

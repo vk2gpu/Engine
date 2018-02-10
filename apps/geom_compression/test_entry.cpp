@@ -51,7 +51,11 @@ public:
 		models_.emplace_back(std::move(model));
 	}
 
-	void Shutdown() override { models_.clear(); }
+	void Shutdown() override
+	{
+		shaderTechniques_.clear();
+		models_.clear();
+	}
 
 	void Update(const Client::IInputProvider& input, const Client::Window& window, f32 tick) override
 	{

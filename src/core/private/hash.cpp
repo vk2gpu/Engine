@@ -486,7 +486,7 @@ namespace Core
 
 	namespace
 	{
-// clang-format off
+	// clang-format off
 		/*
 		 * hash_64 - 64 bit Fowler/Noll/Vo-0 FNV-1a hash code
 		 *

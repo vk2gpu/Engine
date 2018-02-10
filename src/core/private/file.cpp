@@ -727,9 +727,7 @@ namespace Core
 			else
 			{
 				auto error = ::GetLastError();
-
-				++error;
-				(void)error;
+				DBG_LOG("Error creating file \"%s\", GetLastError() = %x\n", path, error);
 			}
 
 #if !defined(_RELEASE)
@@ -874,7 +872,7 @@ namespace Core
 			const DWORD sizeHi = newSize >> 32ull;
 			const DWORD sizeLo = newSize & 0xffffffffull;
 			mappingHandle_ =
-			    ::CreateFileMapping(fileImpl_->fileHandle_, nullptr, protect, sizeHi, sizeLo, fileImpl_->path_.c_str());
+			    ::CreateFileMapping(fileImpl_->fileHandle_, nullptr, protect, sizeHi, sizeLo, fileImpl_->GetPath());
 			if(mappingHandle_ == INVALID_HANDLE_VALUE)
 				return;
 
@@ -890,7 +888,7 @@ namespace Core
 			else
 			{
 				auto error = ::GetLastError();
-				++error;
+				DBG_LOG("Error mapping file \"%s\", GetLastError() = %x\n", fileImpl_->GetPath(), error);
 				return;
 			}
 		}

@@ -268,7 +268,7 @@ namespace Graphics
 
 					attributeNodes_.clear();
 				}
-				else if(structTypes_.find(token_.value_) != structTypes_.end())
+				else if(structTypes_.find(token_.value_) != nullptr)
 				{
 					auto* structNode = ParseStruct();
 					if(structNode)
@@ -399,7 +399,7 @@ namespace Graphics
 		CHECK_TOKEN(AST::TokenType::IDENTIFIER, "");
 
 		// Check it's not a reserved keyword.
-		if(reserved_.find(token_.value_) != reserved_.end())
+		if(reserved_.find(token_.value_) != nullptr)
 		{
 			Error(node, ErrorType::RESERVED_KEYWORD,
 			    Core::String().Printf("\'%s\': is a reserved keyword. Type expected.", token_.value_.c_str()));
@@ -457,7 +457,7 @@ namespace Graphics
 		CHECK_TOKEN(AST::TokenType::IDENTIFIER, "");
 		auto typeName = token_.value_;
 
-		if(structTypes_.find(token_.value_) == structTypes_.end())
+		if(structTypes_.find(token_.value_) == nullptr)
 		{
 			Error(node, ErrorType::INTERNAL_ERROR, Core::String().Printf("%s:%u: Internal error.", __FILE__, __LINE__));
 			return node;
@@ -477,7 +477,7 @@ namespace Graphics
 		}
 
 		// Check if token is a reserved keyword.
-		if(reserved_.find(token_.value_) != reserved_.end())
+		if(reserved_.find(token_.value_) != nullptr)
 		{
 			Error(node, ErrorType::RESERVED_KEYWORD,
 			    Core::String().Printf("\'%s\': is a reserved keyword. Type expected.", token_.value_.c_str()));
@@ -549,7 +549,7 @@ namespace Graphics
 		CHECK_TOKEN(AST::TokenType::IDENTIFIER, "");
 
 		// Check if identifier is a reserved keyword.
-		if(reserved_.find(token_.value_) != reserved_.end())
+		if(reserved_.find(token_.value_) != nullptr)
 		{
 			Error(node, ErrorType::RESERVED_KEYWORD,
 			    Core::String().Printf("\'%s\': is a reserved keyword.", token_.value_.c_str()));
@@ -658,7 +658,7 @@ namespace Graphics
 				}
 
 				// Check if identifier is a reserved keyword.
-				if(reserved_.find(token_.value_) != reserved_.end())
+				if(reserved_.find(token_.value_) != nullptr)
 				{
 					Error(node, ErrorType::RESERVED_KEYWORD,
 					    Core::String().Printf(

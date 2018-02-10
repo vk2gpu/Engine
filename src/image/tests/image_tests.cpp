@@ -44,7 +44,7 @@ namespace
 				    const f32 xf = (f32)(x << l) / (f32)(TEST_SIZE - 1);
 				    const f32 yf = (f32)(y << l) / (f32)(TEST_SIZE - 1);
 				    return Image::ToSRGBA(Image::RGBAColor(xf, yf, 0.0f, 1.0f));
-				},
+			    },
 			    [](i32 x, i32 y, i32 l, Image::RGBAColor color) -> u32 {
 				    const f32 xf = (f32)(x << l) / (f32)(TEST_SIZE - 1);
 				    const f32 yf = (f32)(y << l) / (f32)(TEST_SIZE - 1);
@@ -52,7 +52,7 @@ namespace
 				    auto rgba = Image::ToRGB(hsv) * color;
 				    auto srgb = Image::ToSRGBA(rgba);
 				    return srgb;
-				}};
+			    }};
 
 			auto patternFn = patternFns[(i32)patternType];
 			i32 w = image.GetWidth();

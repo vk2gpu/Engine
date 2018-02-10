@@ -100,9 +100,8 @@ void MeshRenderPacket::DrawPackets(
 		{
 			if(numInstances > 0)
 			{
-				objectBindings.Set("inObject",
-				    GPU::Binding::Buffer(
-				        drawCtx.objectSBHandle_, GPU::Format::INVALID, baseInstanceIdx, numInstances, objectDataSize));
+				objectBindings.Set("inObject", GPU::Binding::Buffer(drawCtx.objectSBHandle_, GPU::Format::INVALID,
+				                                   baseInstanceIdx, numInstances, objectDataSize));
 				if(auto objectBind = drawCtx.shaderCtx_.BeginBindingScope(objectBindings))
 				{
 					if(auto event = drawCtx.cmdList_.Eventf(0x0, "Material: %s", meshPacket->material_->GetName()))

@@ -577,7 +577,15 @@ TEST_CASE("gpu-tests-create-draw-binding-set")
 	GPU::Manager::ScopedDebugCapture capture(testName.c_str());
 
 	float vertices[] = {
-	    0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f,
+	    0.0f,
+	    0.0f,
+	    0.0f,
+	    1.0f,
+	    0.0f,
+	    0.0f,
+	    0.0f,
+	    1.0f,
+	    0.0f,
 	};
 
 	GPU::BufferDesc vbDesc;
@@ -1214,7 +1222,7 @@ TEST_CASE("gpu-tests-mt-create-buffers")
 			    GPU::Manager::DestroyResource(handle);
 			    Core::AtomicInc(&(locals.sync_));
 			    return 0;
-			},
+		    },
 		    &locals));
 	}
 

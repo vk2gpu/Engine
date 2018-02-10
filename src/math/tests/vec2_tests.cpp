@@ -7,6 +7,4 @@ namespace
 {
 }
 
-TEST_CASE("vec2-tests-")
-{
-}
+TEST_CASE("vec2-tests-") {}

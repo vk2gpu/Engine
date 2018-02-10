@@ -476,8 +476,8 @@ namespace Image
 			return true;
 		}
 
-		auto PadData = [](
-		    Core::Vector<u32>& paddedData, const u32* levelData, i32 levelW, i32 levelH, i32 paddedW, i32 paddedH) {
+		auto PadData = [](Core::Vector<u32>& paddedData, const u32* levelData, i32 levelW, i32 levelH, i32 paddedW,
+		                   i32 paddedH) {
 			// Always going largest to smallest, so only need to allocate once and reuse the memory
 			// for subsequent levels.
 			if(paddedData.empty())

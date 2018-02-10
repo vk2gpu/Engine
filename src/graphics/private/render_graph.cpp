@@ -123,7 +123,7 @@ namespace Graphics
 			for(auto it = outRenderPasses.begin(); it != outRenderPasses.end();)
 			{
 				RenderPassEntry* entry = *it;
-				if(exists.find(entry->idx_) != exists.end())
+				if(exists.find(entry->idx_) != nullptr)
 				{
 					it = outRenderPasses.erase(it);
 				}
@@ -157,7 +157,7 @@ namespace Graphics
 						    }
 					    }
 					    return false;
-					});
+				    });
 
 				if(foundIt == transientResources_.end())
 				{

@@ -116,8 +116,8 @@ namespace Graphics
 		Write("// functions");
 		NextLine();
 
-#if 0 // WIP.
-		// Determine if a function is referenced. This is a bit overkill, as it's just a text search.
+#if 0 // WIP.                                                                                                          \
+      // Determine if a function is referenced. This is a bit overkill, as it's just a text search.
 		auto IsFunctionReferenced = [this](AST::NodeDeclaration* fn)
 		{
 			for(auto* refFunc : refFunctions_)
@@ -164,7 +164,7 @@ namespace Graphics
 
 	bool ShaderBackendHLSL::VisitEnter(AST::NodeAttribute* node)
 	{
-		if(hlslAttributes_.find(node->name_) != hlslAttributes_.end())
+		if(hlslAttributes_.find(node->name_) != nullptr)
 		{
 			if(node->parameters_.size() == 0)
 			{

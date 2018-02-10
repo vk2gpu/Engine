@@ -23,15 +23,19 @@ namespace Graphics
 		parseFns_["MagFilter"] = [](ShaderSamplerStateInfo& data, AST::NodeValue* node) {
 			Core::EnumFromString(data.state_.magFilter_, node->data_.c_str());
 		};
-		parseFns_["MipLODBias"] = [](
-		    ShaderSamplerStateInfo& data, AST::NodeValue* node) { data.state_.mipLODBias_ = node->dataFloat_; };
-		parseFns_["MaxAnisotropy"] = [](
-		    ShaderSamplerStateInfo& data, AST::NodeValue* node) { data.state_.maxAnisotropy_ = (u32)node->dataInt_; };
+		parseFns_["MipLODBias"] = [](ShaderSamplerStateInfo& data, AST::NodeValue* node) {
+			data.state_.mipLODBias_ = node->dataFloat_;
+		};
+		parseFns_["MaxAnisotropy"] = [](ShaderSamplerStateInfo& data, AST::NodeValue* node) {
+			data.state_.maxAnisotropy_ = (u32)node->dataInt_;
+		};
 		parseFns_["BorderColor"] = [](ShaderSamplerStateInfo& data, AST::NodeValue* node) { DBG_ASSERT(false); };
-		parseFns_["MinLOD"] = [](
-		    ShaderSamplerStateInfo& data, AST::NodeValue* node) { data.state_.minLOD_ = node->dataFloat_; };
-		parseFns_["MaxLOD"] = [](
-		    ShaderSamplerStateInfo& data, AST::NodeValue* node) { data.state_.maxLOD_ = node->dataFloat_; };
+		parseFns_["MinLOD"] = [](ShaderSamplerStateInfo& data, AST::NodeValue* node) {
+			data.state_.minLOD_ = node->dataFloat_;
+		};
+		parseFns_["MaxLOD"] = [](ShaderSamplerStateInfo& data, AST::NodeValue* node) {
+			data.state_.maxLOD_ = node->dataFloat_;
+		};
 	}
 
 
@@ -39,8 +43,9 @@ namespace Graphics
 	    ShaderBlendStateInfo& blend, AST::NodeShaderFile* file, ShaderBackendMetadata& backend)
 	    : BaseEval(blend, file, backend)
 	{
-		parseFns_["Enable"] = [](
-		    ShaderBlendStateInfo& data, AST::NodeValue* node) { data.state_.enable_ = (u32)node->dataInt_; };
+		parseFns_["Enable"] = [](ShaderBlendStateInfo& data, AST::NodeValue* node) {
+			data.state_.enable_ = (u32)node->dataInt_;
+		};
 		parseFns_["SrcBlend"] = [](ShaderBlendStateInfo& data, AST::NodeValue* node) {
 			Core::EnumFromString(data.state_.srcBlend_, node->data_.c_str());
 		};
@@ -59,8 +64,9 @@ namespace Graphics
 		parseFns_["BlendOpAlpha"] = [](ShaderBlendStateInfo& data, AST::NodeValue* node) {
 			Core::EnumFromString(data.state_.blendOpAlpha_, node->data_.c_str());
 		};
-		parseFns_["WriteMask"] = [](
-		    ShaderBlendStateInfo& data, AST::NodeValue* node) { data.state_.writeMask_ = (u8)node->dataInt_; };
+		parseFns_["WriteMask"] = [](ShaderBlendStateInfo& data, AST::NodeValue* node) {
+			data.state_.writeMask_ = (u8)node->dataInt_;
+		};
 	}
 
 	ShaderBackendMetadata::StencilFaceStateEval::StencilFaceStateEval(
@@ -86,38 +92,46 @@ namespace Graphics
 	    ShaderRenderStateInfo& rend, AST::NodeShaderFile* file, ShaderBackendMetadata& backend)
 	    : BaseEval(rend, file, backend)
 	{
-		parseFns_["DepthEnable"] = [](
-		    ShaderRenderStateInfo& data, AST::NodeValue* node) { data.state_.depthEnable_ = (u32)node->dataInt_; };
-		parseFns_["DepthWriteMask"] = [](
-		    ShaderRenderStateInfo& data, AST::NodeValue* node) { data.state_.depthWriteMask_ = (u32)node->dataInt_; };
+		parseFns_["DepthEnable"] = [](ShaderRenderStateInfo& data, AST::NodeValue* node) {
+			data.state_.depthEnable_ = (u32)node->dataInt_;
+		};
+		parseFns_["DepthWriteMask"] = [](ShaderRenderStateInfo& data, AST::NodeValue* node) {
+			data.state_.depthWriteMask_ = (u32)node->dataInt_;
+		};
 		parseFns_["DepthFunc"] = [](ShaderRenderStateInfo& data, AST::NodeValue* node) {
 			Core::EnumFromString(data.state_.depthFunc_, node->data_.c_str());
 		};
-		parseFns_["StencilEnable"] = [](
-		    ShaderRenderStateInfo& data, AST::NodeValue* node) { data.state_.stencilEnable_ = (u32)node->dataInt_; };
-		parseFns_["StencilRef"] = [](
-		    ShaderRenderStateInfo& data, AST::NodeValue* node) { data.state_.stencilRef_ = (u32)node->dataInt_; };
-		parseFns_["StencilRead"] = [](
-		    ShaderRenderStateInfo& data, AST::NodeValue* node) { data.state_.stencilRead_ = (u8)node->dataInt_; };
-		parseFns_["StencilWrite"] = [](
-		    ShaderRenderStateInfo& data, AST::NodeValue* node) { data.state_.stencilWrite_ = (u8)node->dataInt_; };
+		parseFns_["StencilEnable"] = [](ShaderRenderStateInfo& data, AST::NodeValue* node) {
+			data.state_.stencilEnable_ = (u32)node->dataInt_;
+		};
+		parseFns_["StencilRef"] = [](ShaderRenderStateInfo& data, AST::NodeValue* node) {
+			data.state_.stencilRef_ = (u32)node->dataInt_;
+		};
+		parseFns_["StencilRead"] = [](ShaderRenderStateInfo& data, AST::NodeValue* node) {
+			data.state_.stencilRead_ = (u8)node->dataInt_;
+		};
+		parseFns_["StencilWrite"] = [](ShaderRenderStateInfo& data, AST::NodeValue* node) {
+			data.state_.stencilWrite_ = (u8)node->dataInt_;
+		};
 		parseFns_["FillMode"] = [](ShaderRenderStateInfo& data, AST::NodeValue* node) {
 			Core::EnumFromString(data.state_.fillMode_, node->data_.c_str());
 		};
 		parseFns_["CullMode"] = [](ShaderRenderStateInfo& data, AST::NodeValue* node) {
 			Core::EnumFromString(data.state_.cullMode_, node->data_.c_str());
 		};
-		parseFns_["DepthBias"] = [](
-		    ShaderRenderStateInfo& data, AST::NodeValue* node) { data.state_.depthBias_ = node->dataFloat_; };
-		parseFns_["SlopeScaledDepthBias"] = [](
-		    ShaderRenderStateInfo& data, AST::NodeValue* node) { data.state_.depthBias_ = node->dataFloat_; };
+		parseFns_["DepthBias"] = [](ShaderRenderStateInfo& data, AST::NodeValue* node) {
+			data.state_.depthBias_ = node->dataFloat_;
+		};
+		parseFns_["SlopeScaledDepthBias"] = [](ShaderRenderStateInfo& data, AST::NodeValue* node) {
+			data.state_.depthBias_ = node->dataFloat_;
+		};
 		parseFns_["AntialiasedLineEnable"] = [](ShaderRenderStateInfo& data, AST::NodeValue* node) {
 			data.state_.antialiasedLineEnable_ = (u32)node->dataInt_;
 		};
 
 
 		descendFns_["BlendStates"] = [](ShaderRenderStateInfo& data, AST::NodeShaderFile* file,
-		    ShaderBackendMetadata& backend, AST::NodeValue* node) {
+		                                 ShaderBackendMetadata& backend, AST::NodeValue* node) {
 			if(node->type_ == AST::ValueType::IDENTIFIER)
 			{
 				for(const auto& blend : backend.blendStates_)
@@ -139,7 +153,7 @@ namespace Graphics
 		};
 
 		descendFns_["StencilFront"] = [](ShaderRenderStateInfo& data, AST::NodeShaderFile* file,
-		    ShaderBackendMetadata& backend, AST::NodeValue* node) {
+		                                  ShaderBackendMetadata& backend, AST::NodeValue* node) {
 			if(node->type_ == AST::ValueType::IDENTIFIER)
 			{
 				for(const auto& sten : backend.stencilFaceStates_)
@@ -160,7 +174,7 @@ namespace Graphics
 		};
 
 		descendFns_["StencilBack"] = [](ShaderRenderStateInfo& data, AST::NodeShaderFile* file,
-		    ShaderBackendMetadata& backend, AST::NodeValue* node) {
+		                                 ShaderBackendMetadata& backend, AST::NodeValue* node) {
 			if(node->type_ == AST::ValueType::IDENTIFIER)
 			{
 				for(const auto& sten : backend.stencilFaceStates_)
@@ -193,7 +207,7 @@ namespace Graphics
 		parseFns_["ComputeShader"] = [](ShaderTechniqueInfo& data, AST::NodeValue* node) { data.cs_ = node->data_; };
 
 		descendFns_["RenderState"] = [](ShaderTechniqueInfo& data, AST::NodeShaderFile* file,
-		    ShaderBackendMetadata& backend, AST::NodeValue* node) {
+		                                 ShaderBackendMetadata& backend, AST::NodeValue* node) {
 			if(node->type_ == AST::ValueType::IDENTIFIER)
 			{
 				for(const auto& rend : backend.renderStates_)

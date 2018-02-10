@@ -37,9 +37,8 @@ namespace
 		bool SupportsFileType(const char* fileExt, const Core::UUID& type) const override
 		{
 			return (type == Graphics::Texture::GetTypeUUID()) ||
-			       (fileExt &&
-			           (strcmp(fileExt, "png") == 0 || strcmp(fileExt, "jpg") == 0 || strcmp(fileExt, "tga") == 0 ||
-			               strcmp(fileExt, "dds") == 0));
+			       (fileExt && (strcmp(fileExt, "png") == 0 || strcmp(fileExt, "jpg") == 0 ||
+			                       strcmp(fileExt, "tga") == 0 || strcmp(fileExt, "dds") == 0));
 		}
 
 		bool Convert(Resource::IConverterContext& context, const char* sourceFile, const char* destPath) override
