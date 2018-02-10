@@ -14,12 +14,26 @@ namespace Job
 	typedef void (*JobFunc)(i32, void*);
 
 	/**
+	 * Job priority.
+	 */
+	enum class Priority
+	{
+		HIGH = 0,
+		NORMAL,
+		LOW,
+
+		MAX
+	};
+
+	/**
 	 * Job descriptor.
 	 */
 	struct JobDesc final
 	{
 		/// Function to call to execute job.
 		JobFunc func_ = nullptr;
+		/// Priority.
+		Priority prio_ = Priority::NORMAL;
 		/// Paramaeter to be passed to job.
 		i32 param_ = 0;
 		/// Data to be passed to job.

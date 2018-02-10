@@ -116,7 +116,7 @@ namespace GPU
 	}
 
 	D3D12Device::~D3D12Device()
-	{   //
+	{ //
 		// Check for device removed if shutting down, and log the error.
 		HRESULT drReason = d3dDevice_->GetDeviceRemovedReason();
 		if(drReason != S_OK)

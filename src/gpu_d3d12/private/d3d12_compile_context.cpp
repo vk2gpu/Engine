@@ -457,7 +457,6 @@ namespace GPU
 				    D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 			}
 		}
-
 		for(i32 i = 0; i < pbs.uavTransitions_.size(); ++i)
 		{
 			if(pbs.uavTransitions_[i])

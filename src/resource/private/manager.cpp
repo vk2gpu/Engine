@@ -491,7 +491,7 @@ namespace Resource
 									convertJob->loadJob_ = new ResourceLoadJob(
 									    factory, entry, entry->type_, entry->sourceFile_.c_str(), Core::File());
 
-									convertJob->RunSingle(0);
+									convertJob->RunSingle(Job::Priority::LOW, 0);
 								}
 							}
 
@@ -615,7 +615,7 @@ namespace Resource
 		// If conversion was a failure, we need to try again.
 		if(!success_)
 		{
-			RunSingle(0);
+			RunSingle(Job::Priority::LOW, 0);
 			return;
 		}
 
@@ -626,7 +626,7 @@ namespace Resource
 			DBG_ASSERT_MSG(loadJob_->file_, "Can't load converted file \"%s\"", convertedPath_.data());
 
 			Job::Counter* counter = nullptr;
-			loadJob_->RunSingle(0, &counter);
+			loadJob_->RunSingle(Job::Priority::LOW, 0, &counter);
 			Job::Manager::WaitForCounter(counter, 0);
 		}
 		delete this;
@@ -745,14 +745,14 @@ namespace Resource
 						// Setup load job to chain.
 						convertJob->loadJob_ = new ResourceLoadJob(factory, entry, type, fileName.data(), Core::File());
 
-						convertJob->RunSingle(0);
+						convertJob->RunSingle(Job::Priority::LOW, 0);
 					}
 					else
 					{
 						auto* jobData = new ResourceLoadJob(factory, entry, type, fileName.data(),
 						    Core::File(convertedPath.data(), Core::FileFlags::DEFAULT_READ));
 
-						jobData->RunSingle(0);
+						jobData->RunSingle(Job::Priority::LOW, 0);
 					}
 				}
 			}

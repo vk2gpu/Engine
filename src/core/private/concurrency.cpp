@@ -17,9 +17,49 @@ namespace Core
 {
 	i32 GetNumLogicalCores()
 	{
-		SYSTEM_INFO sysInfo;
+		SYSTEM_INFO sysInfo = {};
 		::GetSystemInfo(&sysInfo);
 		return sysInfo.dwNumberOfProcessors;
+	}
+
+	i32 GetNumPhysicalCores()
+	{
+		Core::Array<SYSTEM_LOGICAL_PROCESSOR_INFORMATION, 256> info = {};
+		const i32 size = sizeof(SYSTEM_LOGICAL_PROCESSOR_INFORMATION);
+		DWORD len = info.size() * size;
+		::GetLogicalProcessorInformation(info.data(), &len);
+		const i32 numInfos = len / size;
+		i32 numCores = 0;
+		for(i32 idx = 0; idx < numInfos; ++idx)
+		{
+			if(info[idx].Relationship == RelationProcessorCore)
+			{
+				++numCores;
+			}
+		}
+		return numCores;
+	}
+
+	u64 GetPhysicalCoreAffinityMask(i32 core)
+	{
+		Core::Array<SYSTEM_LOGICAL_PROCESSOR_INFORMATION, 256> info = {};
+		const i32 size = sizeof(SYSTEM_LOGICAL_PROCESSOR_INFORMATION);
+		DWORD len = info.size() * size;
+		::GetLogicalProcessorInformation(info.data(), &len);
+		const i32 numInfos = len / size;
+		i32 numCores = 0;
+		for(i32 idx = 0; idx < numInfos; ++idx)
+		{
+			if(info[idx].Relationship == RelationProcessorCore)
+			{
+				if(numCores == core)
+				{
+					return info[idx].ProcessorMask;
+				}
+				++numCores;
+			}
+		}
+		return 0;
 	}
 
 	struct ThreadImpl

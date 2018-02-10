@@ -1089,7 +1089,7 @@ CompressedModel::CompressedModel(const char* sourceFile)
 		Job::FunctionJob importJob("cluster_model_import",
 		    [&scene, &meshes](i32 param) { meshes[param]->ImportAssimpMesh(scene->mMeshes[param]); });
 		Job::Counter* counter = nullptr;
-		importJob.RunMultiple(0, meshes.size() - 1, &counter);
+		importJob.RunMultiple(Job::Priority::LOW, 0, meshes.size() - 1, &counter);
 		Job::Manager::WaitForCounter(counter, 0);
 
 #if 0

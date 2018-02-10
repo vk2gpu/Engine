@@ -21,19 +21,21 @@ namespace Job
 
 		/**
 		 * Run single job.
+		 * @param prio priority to run job at.
 		 * @param param To pass to the OnWork function.
 		 * @param counter Counter for how many jobs are currently pending completion.
 		 */
-		void RunSingle(i32 param, Counter** counter = nullptr);
+		void RunSingle(Priority prio, i32 param, Counter** counter = nullptr);
 
 		/**
 		 * Run multiple jobs.
 		 * Will run jobs starting with the value @a paramMin, to @a paramMin inclusively.
+		 * @param prio priority to run jobs at.
 		 * @param paramMin Minimum parameter value.
 		 * @param paramMax Maximum parameter value.
 		 * @param counter Counter for how many jobs are currently pending completion.
 		 */
-		void RunMultiple(i32 paramMin, i32 paramMax, Counter** counter = nullptr);
+		void RunMultiple(Priority prio, i32 paramMin, i32 paramMax, Counter** counter = nullptr);
 
 	private:
 		Job::JobDesc baseJobDesc_;

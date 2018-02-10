@@ -92,7 +92,10 @@ namespace Core
 	CORE_DLL_INLINE void SwitchThread();
 	/// Get number of logical cores.
 	CORE_DLL i32 GetNumLogicalCores();
-
+	/// Get number of physical cores.
+	CORE_DLL i32 GetNumPhysicalCores();
+	/// Get physical core affinity mask.
+	CORE_DLL u64 GetPhysicalCoreAffinityMask(i32 core);
 	/**
 	 * Thread.
 	 */
@@ -119,7 +122,7 @@ namespace Core
 		Thread& operator=(Thread&&);
 
 		/**
-		 * Set affinity.
+		 * Set logical affinity.
 		 * Controls which cores the thread is allowed to run on.
 		 * @return Old mask.
 		 */

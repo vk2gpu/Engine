@@ -33,15 +33,16 @@ namespace Job
 		}
 	}
 
-	void FunctionJob::RunSingle(i32 param, Counter** counter)
+	void FunctionJob::RunSingle(Priority prio, i32 param, Counter** counter)
 	{
 		JobDesc jobDesc = baseJobDesc_;
+		jobDesc.prio_ = prio;
 		jobDesc.param_ = param;
 		Core::AtomicInc(&running_);
 		Job::Manager::RunJobs(&jobDesc, 1, counter);
 	}
 
-	void FunctionJob::RunMultiple(i32 paramMin, i32 paramMax, Counter** counter)
+	void FunctionJob::RunMultiple(Priority prio, i32 paramMin, i32 paramMax, Counter** counter)
 	{
 		DBG_ASSERT(paramMax >= paramMin);
 		Core::Vector<JobDesc> jobDescs;
@@ -50,6 +51,7 @@ namespace Job
 		for(auto& jobDesc : jobDescs)
 		{
 			jobDesc = baseJobDesc_;
+			jobDesc.prio_ = prio;
 			jobDesc.param_ = param++;
 		}
 		Core::AtomicAdd(&running_, jobDescs.size());

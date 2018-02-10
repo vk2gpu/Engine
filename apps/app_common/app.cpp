@@ -556,7 +556,7 @@ void RunApp(const Core::CommandLine& cmdLine, IApp& app)
 			// Schedule frame submit job.
 			{
 				rmt_ScopedCPUSample(FrameSubmit, RMTSF_None);
-				frameSubmitJob.RunSingle(0, &frameSubmitCounter);
+				frameSubmitJob.RunSingle(Job::Priority::HIGH, 0, &frameSubmitCounter);
 				Job::Manager::WaitForCounter(frameSubmitCounter, 0);
 			}
 		}

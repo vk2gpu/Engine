@@ -41,9 +41,9 @@ namespace Job
 		/// Free fibers.
 		Core::MPMCBoundedQueue<class Fiber*> freeFibers_;
 		/// Waiting fibers.
-		Core::MPMCBoundedQueue<class Fiber*> waitingFibers_;
+		Core::Array<Core::MPMCBoundedQueue<class Fiber*>, (i32)Priority::MAX> waitingFibers_;
 		/// Jobs.
-		Core::MPMCBoundedQueue<JobDesc> pendingJobs_;
+		Core::Array<Core::MPMCBoundedQueue<JobDesc>, (i32)Priority::MAX> pendingJobs_;
 		/// Out of fibers counter.
 		volatile i32 outOfFibers_ = 0;
 #ifdef DEBUG
@@ -170,7 +170,8 @@ namespace Job
 			// Create thread.
 			auto debugName = Core::String().Printf("Job Worker Thread %i", idx);
 			thread_ = Core::Thread(ThreadEntryPoint, this, Core::Thread::DEFAULT_STACK_SIZE, debugName.c_str());
-			thread_.SetAffinity(1LL << (u64)idx);
+			if(u64 mask = Core::GetPhysicalCoreAffinityMask(idx))
+				thread_.SetAffinity(mask);
 		}
 
 		~Worker()
@@ -267,85 +268,87 @@ namespace Job
 		Fiber* fiber = nullptr;
 		*outFiber = nullptr;
 
-		// Check pending jobs.
-		JobDesc job;
-		if(pendingJobs_.Dequeue(job))
+		for(i32 prio = 0; prio < (i32)Priority::MAX; ++prio)
 		{
-#ifdef DEBUG
-			Core::AtomicDec(&numPendingJobs_);
-#endif
-
-			DBG_ASSERT(job.func_);
-
-#if VERBOSE_LOGGING >= 1
-			double startTime = Core::Timer::GetAbsoluteTime();
-			const double LOG_TIME_THRESHOLD = 100.0f / 1000000.0; // 100us.
-			const double LOG_TIME_REPEAT = 1000.0f / 1000.0;      // 1000ms.
-			double nextLogTime = startTime + LOG_TIME_THRESHOLD;
-#endif
-			i32 spinCount = 0;
-			i32 spinCountMax = 100;
-			while(!freeFibers_.Dequeue(fiber))
+			JobDesc job;
+			if(pendingJobs_[prio].Dequeue(job))
 			{
-				++spinCount;
-				if(spinCount > spinCountMax)
-				{
-					Core::AtomicInc(&outOfFibers_);
-				}
-#if VERBOSE_LOGGING >= 1
-				double time = Core::Timer::GetAbsoluteTime();
-				if((time - startTime) > LOG_TIME_THRESHOLD)
-				{
-					if(time > nextLogTime)
-					{
-						Core::Log("Unable to get free fiber. Increase numFibers. (Total time waiting: %f ms)\n",
-						    (time - startTime) * 1000.0);
-						nextLogTime = time + LOG_TIME_REPEAT;
-					}
-				}
+#ifdef DEBUG
+				Core::AtomicDec(&numPendingJobs_);
 #endif
-				Core::SwitchThread();
 
-				// If all threads have spun this loop for too long simultaneously,
-				// we probably have a deadlock due to exhausting the fiber pool.
-				if(spinCount > spinCountMax)
+				DBG_ASSERT(job.func_);
+
+#if VERBOSE_LOGGING >= 1
+				double startTime = Core::Timer::GetAbsoluteTime();
+				const double LOG_TIME_THRESHOLD = 100.0f / 1000000.0; // 100us.
+				const double LOG_TIME_REPEAT = 1000.0f / 1000.0;      // 1000ms.
+				double nextLogTime = startTime + LOG_TIME_THRESHOLD;
+#endif
+				i32 spinCount = 0;
+				i32 spinCountMax = 100;
+				while(!freeFibers_.Dequeue(fiber))
 				{
-					if((Core::AtomicDec(&outOfFibers_) + 1) == workers_.size())
+					++spinCount;
+					if(spinCount > spinCountMax)
 					{
-						static bool breakHere = true;
-						if(breakHere)
+						Core::AtomicInc(&outOfFibers_);
+					}
+#if VERBOSE_LOGGING >= 1
+					double time = Core::Timer::GetAbsoluteTime();
+					if((time - startTime) > LOG_TIME_THRESHOLD)
+					{
+						if(time > nextLogTime)
 						{
-							DBG_BREAK;
-							breakHere = false;
+							Core::Log("Unable to get free fiber. Increase numFibers. (Total time waiting: %f ms)\n",
+							    (time - startTime) * 1000.0);
+							nextLogTime = time + LOG_TIME_REPEAT;
+						}
+					}
+#endif
+					Core::SwitchThread();
+
+					// If all threads have spun this loop for too long simultaneously,
+					// we probably have a deadlock due to exhausting the fiber pool.
+					if(spinCount > spinCountMax)
+					{
+						if((Core::AtomicDec(&outOfFibers_) + 1) == workers_.size())
+						{
+							static bool breakHere = true;
+							if(breakHere)
+							{
+								DBG_BREAK;
+								breakHere = false;
+							}
 						}
 					}
 				}
+
+#ifdef DEBUG
+				Core::AtomicDec(&numFreeFibers_);
+#endif
+
+				*outFiber = fiber;
+				fiber->SetJob(job);
+#if VERBOSE_LOGGING >= 3
+				Core::Log("Pending job \"%s\" (%u) being scheduled.\n", fiber->job_.name_, fiber->job_.param_);
+#endif
+				return true;
 			}
 
+			// Check for waiting fibers that need ran.
+			if(waitingFibers_[prio].Dequeue(fiber))
+			{
 #ifdef DEBUG
-			Core::AtomicDec(&numFreeFibers_);
+				Core::AtomicInc(&numWaitingFibers_);
 #endif
-
-			*outFiber = fiber;
-			fiber->SetJob(job);
+				*outFiber = fiber;
+				DBG_ASSERT(fiber->job_.func_);
 #if VERBOSE_LOGGING >= 3
-			Core::Log("Pending job \"%s\" (%u) being scheduled.\n", fiber->job_.name_, fiber->job_.param_);
+				Core::Log("Waiting job \"%s\" (%u) being rescheduled.\n", fiber->job_.name_, fiber->job_.param_);
 #endif
-			return true;
-		}
-
-		// First check for waiting fibers.
-		if(waitingFibers_.Dequeue(fiber))
-		{
-#ifdef DEBUG
-			Core::AtomicInc(&numWaitingFibers_);
-#endif
-			*outFiber = fiber;
-			DBG_ASSERT(fiber->job_.func_);
-#if VERBOSE_LOGGING >= 3
-			Core::Log("Waiting job \"%s\" (%u) being rescheduled.\n", fiber->job_.name_, fiber->job_.param_);
-#endif
-			return true;
+				return true;
+			}
 		}
 
 		return !exiting_;
@@ -371,7 +374,8 @@ namespace Job
 		}
 		else
 		{
-			while(!waitingFibers_.Enqueue(fiber))
+			const i32 prio = (i32)fiber->job_.prio_;
+			while(!waitingFibers_[prio].Enqueue(fiber))
 			{
 #if VERBOSE_LOGGING >= 1
 				Core::Log("Unable to enqueue waiting fiber.\n");
@@ -395,8 +399,10 @@ namespace Job
 		impl_ = new ManagerImpl();
 		impl_->workers_.reserve(numWorkers);
 		impl_->freeFibers_ = Core::MPMCBoundedQueue<class Fiber*>(numFibers);
-		impl_->waitingFibers_ = Core::MPMCBoundedQueue<class Fiber*>(numFibers);
-		impl_->pendingJobs_ = Core::MPMCBoundedQueue<JobDesc>(numFibers);
+		for(auto& waitingFibers : impl_->waitingFibers_)
+			waitingFibers = Core::MPMCBoundedQueue<class Fiber*>(numFibers);
+		for(auto& pendingJobs : impl_->pendingJobs_)
+			pendingJobs = Core::MPMCBoundedQueue<JobDesc>(numFibers);
 		impl_->fiberStackSize_ = fiberStackSize;
 #if ENABLE_JOB_PROFILER
 		impl_->profilerEntries_.resize(65536);
@@ -433,7 +439,8 @@ namespace Job
 				Core::SwitchThread();
 
 			Fiber* fiber = nullptr;
-			DBG_ASSERT(!impl_->waitingFibers_.Dequeue(fiber));
+			for(auto& waitingFibers : impl_->waitingFibers_)
+				DBG_ASSERT(!waitingFibers.Dequeue(fiber));
 
 			// Ensure all fibers exit.
 			while(impl_->freeFibers_.Dequeue(fiber))
@@ -490,8 +497,10 @@ namespace Job
 			if(impl_->profilerRunning_)
 				jobDescs[i].idx_ = Core::AtomicInc(&impl_->profilerJobIdx_) - 1;
 #endif
+			const auto& jobDesc = jobDescs[i];
+			auto& pendingJobs = impl_->pendingJobs_[(i32)jobDesc.prio_];
 
-			while(!impl_->pendingJobs_.Enqueue(jobDescs[i]))
+			while(!pendingJobs.Enqueue(jobDescs[i]))
 			{
 #if VERBOSE_LOGGING >= 1
 				double time = Core::Timer::GetAbsoluteTime();

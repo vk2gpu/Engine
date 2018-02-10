@@ -302,7 +302,7 @@ TEST_CASE("job-tests-3-jobs")
 
 
 		Job::Counter* counter = nullptr;
-		task1_2.RunMultiple(0, 1, &counter);
+		task1_2.RunMultiple(Job::Priority::NORMAL, 0, 1, &counter);
 
 		Job::Manager::WaitForCounter(counter, 0);
 
@@ -313,7 +313,7 @@ TEST_CASE("job-tests-3-jobs")
 	// will wait until completion as no counter has been specified.
 	Job::Counter* counter = nullptr;
 
-	task3.RunSingle(0, &counter);
+	task3.RunSingle(Job::Priority::NORMAL, 0, &counter);
 	Job::Manager::WaitForCounter(counter, 0);
 
 	REQUIRE(result == (VALUE1 + VALUE2));
