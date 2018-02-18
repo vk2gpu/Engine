@@ -1,4 +1,5 @@
 #define REQUIRE_TEXCOORD0
+#define ALPHATEST
 //#define REQUIRE_TANGENT
 
 #include "base_geometry.esh"

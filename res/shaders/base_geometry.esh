@@ -152,7 +152,7 @@ VS_OUT vs_position(
 #if !defined(MANUAL_VERTEX_FETCH)
 	in float3 _in : POSITION,
 #endif
-#ifdef REQUIRE_TEXCOORD0
+#if defined(REQUIRE_TEXCOORD0) && defined(ALPHATEST)
 	float2 texcoord0 : TEXCOORD0,
 #endif
 	uint _id : SV_INSTANCEID, uint _vtx : SV_VERTEXID)
@@ -169,7 +169,7 @@ VS_OUT vs_position(
 	vtxData.positionCS = GetPositionCS(viewParams, vtxData.positionWS.xyz);
 #endif
 
-#ifdef REQUIRE_TEXCOORD0
+#if defined(REQUIRE_TEXCOORD0) && defined(ALPHATEST)
 	vtxData.texcoord0 = texcoord0;
 #endif
 
@@ -182,7 +182,7 @@ VS_OUT vs_position(
 
 	VS_OUT outVtx = (VS_OUT)0;
 	outVtx.position = vtxData.positionCS;
-#ifdef REQUIRE_TEXCOORD0
+#if defined(REQUIRE_TEXCOORD0) && defined(ALPHATEST)
 	outVtx.texcoord0 = vtxData.texcoord0;
 #endif
 	outVtx.v_position = vtxData.positionVS.xyz;
