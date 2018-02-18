@@ -110,18 +110,10 @@ void DrawUIJobProfiler(
 		}
 
 		Core::Array<ImColor, 12> colors = {
-		    ImColor(0.8f, 0.0f, 0.0f, 1.0f),
-		    ImColor(0.0f, 0.8f, 0.0f, 1.0f),
-		    ImColor(0.0f, 0.0f, 0.8f, 1.0f),
-		    ImColor(0.0f, 0.8f, 0.8f, 1.0f),
-		    ImColor(0.8f, 0.0f, 0.8f, 1.0f),
-		    ImColor(0.8f, 0.8f, 0.0f, 1.0f),
-		    ImColor(0.4f, 0.0f, 0.0f, 1.0f),
-		    ImColor(0.0f, 0.4f, 0.0f, 1.0f),
-		    ImColor(0.0f, 0.0f, 0.4f, 1.0f),
-		    ImColor(0.0f, 0.4f, 0.4f, 1.0f),
-		    ImColor(0.4f, 0.0f, 0.4f, 1.0f),
-		    ImColor(0.4f, 0.4f, 0.0f, 1.0f),
+		    ImColor(0.8f, 0.0f, 0.0f, 1.0f), ImColor(0.0f, 0.8f, 0.0f, 1.0f), ImColor(0.0f, 0.0f, 0.8f, 1.0f),
+		    ImColor(0.0f, 0.8f, 0.8f, 1.0f), ImColor(0.8f, 0.0f, 0.8f, 1.0f), ImColor(0.8f, 0.8f, 0.0f, 1.0f),
+		    ImColor(0.4f, 0.0f, 0.0f, 1.0f), ImColor(0.0f, 0.4f, 0.0f, 1.0f), ImColor(0.0f, 0.0f, 0.4f, 1.0f),
+		    ImColor(0.0f, 0.4f, 0.4f, 1.0f), ImColor(0.4f, 0.0f, 0.4f, 1.0f), ImColor(0.4f, 0.4f, 0.0f, 1.0f),
 		};
 
 		i32 numJobs = 0;
@@ -464,6 +456,13 @@ void RunApp(const Core::CommandLine& cmdLine, IApp& app)
 				ImGui::Text("Process deletions: %f ms", times_.processDeletions_ * 1000.0);
 				ImGui::Text("Frame Time: %f ms", times_.frame_ * 1000.0, 1.0f / times_.frame_);
 				ImGui::Text("Tick Time: %f ms (%.2f FPS)", times_.tick_ * 1000.0, 1.0f / times_.tick_);
+
+				auto genAllocStats = Core::GeneralAllocator().GetStats();
+				auto virAllocStats = Core::VirtualAllocator().GetStats();
+				ImGui::Text("General Usage (Peak): %.2f kb (%.2f kb)", (f32)genAllocStats.usage_ / 1024.0f,
+				    (f32)genAllocStats.peakUsage_ / 1024.0f);
+				ImGui::Text("Virtual Usage (Peak): %.2f kb (%.2f kb)", (f32)virAllocStats.usage_ / 1024.0f,
+				    (f32)virAllocStats.peakUsage_ / 1024.0f);
 			}
 			ImGui::End();
 

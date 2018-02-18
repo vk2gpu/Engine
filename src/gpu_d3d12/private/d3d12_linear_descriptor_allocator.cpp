@@ -32,7 +32,7 @@ namespace GPU
 			retVal.size_ = num;
 			retVal.allocId_ &= 0xffff0000;
 
-#if 0
+#if 1
 			if(subType != DescriptorHeapSubType::INVALID)
 				ClearDescriptorRange(retVal.GetDescriptorHeap(), subType, retVal.GetCPUHandle(0), retVal.size_,
 				    retVal.GetDebugDataRange(0, retVal.size_));

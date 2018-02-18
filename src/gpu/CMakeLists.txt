@@ -18,6 +18,7 @@ SET(SOURCES_PUBLIC
 SET(SOURCES_PRIVATE 
 	"private/command_list.cpp"
 	"private/command_list.inl"
+	"private/dll.cpp"
 	"private/enum.cpp"
 	"private/manager.cpp"
 	"private/resources.cpp"

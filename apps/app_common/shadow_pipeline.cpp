@@ -91,7 +91,7 @@ static ShadowData AddShadowPass(DrawFn drawFn, RenderGraph& renderGraph, ShadowS
 
 		    // Setup frame buffer.
 		    data.outShadowMap_ = builder.SetDSV(settings.outShadowMap_);
-	    },
+		},
 
 	    [](RenderGraphResources& res, GPU::CommandList& cmdList, const ShadowPassData& data) {
 
@@ -110,7 +110,7 @@ static ShadowData AddShadowPass(DrawFn drawFn, RenderGraph& renderGraph, ShadowS
 						data.drawFn_(cmdList, "RenderPassShadow", data.drawState_, fbs, res.GetBuffer(data.viewCB_),
 			    res.GetBuffer(data.outObjectSB_), nullptr);
 #endif
-	    });
+		});
 
 	ShadowData output;
 	output.outShadowMap_ = renderPassShadowMap.GetData().outShadowMap_;
@@ -280,10 +280,10 @@ void ShadowPipeline::Setup(RenderGraph& renderGraph)
 		        builder.Write(builder.Create("View Constants", objectSBDesc), GPU::BindFlags::CONSTANT_BUFFER);
 		    data.cbs_.objectSB_ =
 		        builder.Write(builder.Create("Object Constants", objectSBDesc), GPU::BindFlags::SHADER_RESOURCE);
-	    },
+		},
 	    [](RenderGraphResources& res, GPU::CommandList& cmdList, const ViewConstantData& data) {
 		    cmdList.UpdateBuffer(res.GetBuffer(data.cbs_.viewCB_), 0, sizeof(data.view_), cmdList.Push(&data.view_));
-	    });
+		});
 
 	auto cbs = renderPassCommonBuffers.GetData().cbs_;
 

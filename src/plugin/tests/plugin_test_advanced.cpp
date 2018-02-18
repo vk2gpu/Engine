@@ -1,6 +1,9 @@
 #define PLUGIN_PRIVATE public
 #include "plugin_test_advanced.h"
 #include "core/debug.h"
+#include "core/allocator_overrides.h"
+
+DECLARE_MODULE_ALLOCATOR("General/" MODULE_NAME);
 
 static PluginTestAdvancedVtbl vtbl_;
 

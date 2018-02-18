@@ -11,6 +11,7 @@ SET(SOURCES_PUBLIC
 )
 
 SET(SOURCES_PRIVATE 
+	"private/dll.cpp"
 	"private/manager_impl.h"
 	"private/manager.cpp"
 	"private/window.cpp"

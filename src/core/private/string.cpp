@@ -13,6 +13,8 @@
 
 namespace Core
 {
+	IAllocator& StringAllocator::allocator_ = Core::CreateAllocationTracker(GeneralAllocator(), "General/String");
+
 	bool StringConvertUTF16toUTF8(const wchar* src, i32 srcLength, char* dst, i32 dstLength)
 	{
 		DBG_ASSERT(src);

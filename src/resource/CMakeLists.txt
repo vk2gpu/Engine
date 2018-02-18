@@ -12,6 +12,7 @@ SET(SOURCES_PRIVATE
 	"private/converter_context.cpp"
 	"private/database.h"
 	"private/database.cpp"
+	"private/dll.cpp"
 	"private/factory_context.h"
 	"private/factory_context.cpp"
 	"private/jobs_fileio.h"

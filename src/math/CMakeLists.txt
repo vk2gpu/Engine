@@ -14,6 +14,7 @@ SET(SOURCES_PUBLIC
 
 SET(SOURCES_PRIVATE 
 	"private/aabb.cpp"
+	"private/dll.cpp"
 	"private/mat33.cpp"
 	"private/mat44.cpp"
 	"private/plane.cpp"

@@ -4,6 +4,7 @@ SET(SOURCES_PUBLIC
 )
 
 SET(SOURCES_PRIVATE 
+	"private/dll.cpp"
 	"private/manager.cpp"
 )
 

@@ -48,6 +48,11 @@ namespace Core
 		CANCEL = 2,
 	};
 
+	struct SymbolInfo
+	{
+		char name_[256] = {};
+	};
+
 	/**
 	 * Open a message box.
 	 */
@@ -59,6 +64,12 @@ namespace Core
 	 * @return Number of addresses.
 	 */
 	CORE_DLL i32 GetCallstack(i32 skipFrames, void** addresses, i32 maxAddresses, i32* stackHash = nullptr);
+
+	/**
+	 * Get symbol info.
+	 * @return Symbol info for a given @a address.
+	 */
+	SymbolInfo GetSymbolInfo(void* address);
 
 	/**
 	 * Set break on assertion.

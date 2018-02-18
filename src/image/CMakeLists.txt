@@ -11,6 +11,7 @@ SET(SOURCES_PUBLIC
 SET(SOURCES_PRIVATE 
 	"private/dds.cpp"
 	"private/dds.h"
+	"private/dll.cpp"
 	"private/color.cpp"
 	"private/image.cpp"
 	"private/load.cpp"

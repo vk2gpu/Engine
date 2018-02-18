@@ -1,5 +1,10 @@
 SET(SOURCES_PUBLIC 
 	"allocator.h"
+	"allocator_tlsf.h"
+	"allocator_overrides.h"
+	"allocator_proxy_thread_safe.h"
+	"allocator_proxy_tracker.h"
+	"allocator_virtual.h"
 	"array.h"
 	"array_view.h"
 	"command_line.h"
@@ -37,10 +42,16 @@ SET(SOURCES_ISPC
 )
 
 SET(SOURCES_PRIVATE 
+	"private/allocator.cpp"
+	"private/allocator_proxy_thread_safe.cpp"
+	"private/allocator_proxy_tracker.cpp"
+	"private/allocator_tlsf.cpp"
+	"private/allocator_virtual.cpp"
 	"private/command_line.cpp"
 	"private/concurrency.cpp"
 	"private/concurrency.inl"
 	"private/debug.cpp"
+	"private/dll.cpp"
 	"private/enum.cpp"
 	"private/external_allocator.cpp"
 	"private/external_allocator.inl"
@@ -81,6 +92,6 @@ INCLUDE_DIRECTORIES(
 )
 
 ADD_ENGINE_LIBRARY(core ${SOURCES_PUBLIC} ${SOURCES_ISPC} ${SOURCES_PRIVATE} ${SOURCES_TESTS})
-TARGET_LINK_LIBRARIES(core Remotery etlsf tlsf)
+TARGET_LINK_LIBRARIES(core Remotery etlsf tlsf dbghelp)
 
 

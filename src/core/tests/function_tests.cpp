@@ -6,24 +6,30 @@
 
 namespace
 {
-	struct AllocatorTest : public Core::Allocator
+	struct AllocatorTest : public Core::ContainerAllocator
 	{
-		static i32 numBytes_;
+		static i64 numBytes_;
 
-		void* allocate(index_type count, index_type size)
+		void* Allocate(i64 bytes, i64 align)
 		{
-			numBytes_ += count * size;
-			return Core::Allocator::allocate(count, size);
+			numBytes_ += bytes;
+			u64* header = (u64*)Core::ContainerAllocator::Allocate(bytes + sizeof(u64), align);
+			*header = bytes;
+			return header + 1;
 		}
 
-		void deallocate(void* mem, index_type count, index_type size)
+		void Deallocate(void* mem)
 		{
-			numBytes_ -= count * size;
-			Core::Allocator::deallocate(mem, count, size);
+			if(mem)
+			{
+				u64* header = (u64*)mem - 1;
+				numBytes_ -= *header;
+				Core::ContainerAllocator::Deallocate(header);
+			}
 		}
 	};
 
-	i32 AllocatorTest::numBytes_ = 0;
+	i64 AllocatorTest::numBytes_ = 0;
 }
 
 TEST_CASE("function-tests-basic")
@@ -128,11 +134,11 @@ TEST_CASE("function-tests-alloc")
 		vec.push_back(idx);
 	}
 
-	i32 size0 = AllocatorTest::numBytes_;
+	i64 size0 = AllocatorTest::numBytes_;
 
 	func = [vec](i32 idx) { return vec[idx]; };
 
-	i32 size1 = AllocatorTest::numBytes_;
+	i64 size1 = AllocatorTest::numBytes_;
 	REQUIRE(size1 > size0);
 
 	for(i32 idx = 0; idx < 32; ++idx)
@@ -143,12 +149,12 @@ TEST_CASE("function-tests-alloc")
 
 	vec.resize(0);
 
-	i32 size2 = AllocatorTest::numBytes_;
+	i64 size2 = AllocatorTest::numBytes_;
 	REQUIRE(size2 == size0);
 
 	func = nullptr;
 
-	i32 size3 = AllocatorTest::numBytes_;
+	i64 size3 = AllocatorTest::numBytes_;
 	REQUIRE(size3 == 0);
 }
 

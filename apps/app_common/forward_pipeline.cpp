@@ -152,14 +152,14 @@ static LightCullingData AddLightCullingPasses(DrawFn drawFn, RenderGraph& render
 		                builder.Write(builder.Create("LC LightCB", RenderGraphBufferDesc(sizeof(LightConstants))));
 		            data.outLightSB_ = builder.Write(builder.Create(
 		                "LC LightSB", RenderGraphBufferDesc(sizeof(Light) * Core::Max(1, light.numLights_))));
-	            },
+		        },
 	            [](RenderGraphResources& res, GPU::CommandList& cmdList, const UpdateLightsPassData& data) {
 		            cmdList.UpdateBuffer(res.GetBuffer(data.outLightCB_), 0, sizeof(data.light_), &data.light_);
 		            if(data.light_.numLights_ > 0)
 			            cmdList.UpdateBuffer(
 			                res.GetBuffer(data.outLightSB_), 0, sizeof(Light) * data.light_.numLights_, data.lights_);
 
-	            })
+		        })
 	        .GetData();
 
 	auto& computeTileInfoPassData =
@@ -181,16 +181,16 @@ static LightCullingData AddLightCullingPasses(DrawFn drawFn, RenderGraph& render
 
 		            data.viewBindings_ = shader->CreateBindingSet("ViewBindings");
 		            data.tileInfoBindings_ = shader->CreateBindingSet("TileInfoBindings");
-	            },
+		        },
 	            [](RenderGraphResources& res, GPU::CommandList& cmdList, const ComputeTileInfoPassData& data) {
 		            ShaderContext shaderCtx(cmdList);
 
 		            data.viewBindings_.Set("viewParams", res.CBuffer(data.inViewCB_, 0, sizeof(ViewConstants)));
 		            data.viewBindings_.Set("lightParams", res.CBuffer(data.inLightCB_, 0, sizeof(LightConstants)));
 
-		            data.tileInfoBindings_.Set(
-		                "outTileInfo", res.RWBuffer(data.outTileInfoSB_, GPU::Format::INVALID, 0,
-		                                   data.light_.numTilesX_ * data.light_.numTilesY_, sizeof(TileInfo)));
+		            data.tileInfoBindings_.Set("outTileInfo",
+		                res.RWBuffer(data.outTileInfoSB_, GPU::Format::INVALID, 0,
+		                    data.light_.numTilesX_ * data.light_.numTilesY_, sizeof(TileInfo)));
 
 		            /**
 						* TODO: Support taking multiple bindings as parameters?
@@ -210,7 +210,7 @@ static LightCullingData AddLightCullingPasses(DrawFn drawFn, RenderGraph& render
 					            cmdList.Dispatch(ps, pb, data.light_.numTilesX_, data.light_.numTilesY_, 1);
 			            }
 		            }
-	            })
+		        })
 	        .GetData();
 
 	auto& computeLightListsPassData =
@@ -231,9 +231,9 @@ static LightCullingData AddLightCullingPasses(DrawFn drawFn, RenderGraph& render
 		            data.outLightIndex_ =
 		                builder.Write(builder.Create("LC Light Link Index SB", RenderGraphBufferDesc(sizeof(u32))),
 		                    GPU::BindFlags::UNORDERED_ACCESS);
-		            data.outLightTex_ = builder.Write(
-		                builder.Create("LC Light Tex", RenderGraphTextureDesc(GPU::TextureType::TEX2D, lightTexFormat,
-		                                                   light.numTilesX_, light.numTilesY_)),
+		            data.outLightTex_ = builder.Write(builder.Create("LC Light Tex",
+		                                                  RenderGraphTextureDesc(GPU::TextureType::TEX2D,
+		                                                      lightTexFormat, light.numTilesX_, light.numTilesY_)),
 		                GPU::BindFlags::UNORDERED_ACCESS);
 		            data.outLightIndicesSB_ = builder.Write(
 		                builder.Create("LC Light Indices SB", RenderGraphBufferDesc(sizeof(i32) * LIGHT_BUFFER_SIZE)),
@@ -244,7 +244,7 @@ static LightCullingData AddLightCullingPasses(DrawFn drawFn, RenderGraph& render
 		            data.viewBindings_ = shader->CreateBindingSet("ViewBindings");
 		            data.lightBindings_ = shader->CreateBindingSet("LightBindings");
 		            data.lightListBindings_ = shader->CreateBindingSet("LightListBindings");
-	            },
+		        },
 	            [lightTexFormat](
 	                RenderGraphResources& res, GPU::CommandList& cmdList, const ComputeLightListsPassData& data) {
 		            ShaderContext shaderCtx(cmdList);
@@ -259,9 +259,9 @@ static LightCullingData AddLightCullingPasses(DrawFn drawFn, RenderGraph& render
 		            data.lightBindings_.Set("inLights",
 		                res.Buffer(data.inLightSB_, GPU::Format::INVALID, 0, data.light_.numLights_, sizeof(Light)));
 
-		            data.lightListBindings_.Set(
-		                "inTileInfo", res.Buffer(data.inTileInfoSB_, GPU::Format::INVALID, 0,
-		                                  data.light_.numTilesX_ * data.light_.numTilesY_, sizeof(TileInfo)));
+		            data.lightListBindings_.Set("inTileInfo",
+		                res.Buffer(data.inTileInfoSB_, GPU::Format::INVALID, 0,
+		                    data.light_.numTilesX_ * data.light_.numTilesY_, sizeof(TileInfo)));
 		            data.lightListBindings_.Set(
 		                "lightIndex", res.RWBuffer(data.outLightIndex_, GPU::Format::R32_TYPELESS, 0, sizeof(u32), 0));
 		            data.lightListBindings_.Set("outLightTex", res.RWTexture2D(data.outLightTex_, lightTexFormat));
@@ -282,7 +282,7 @@ static LightCullingData AddLightCullingPasses(DrawFn drawFn, RenderGraph& render
 				            }
 			            }
 		            }
-	            })
+		        })
 	        .GetData();
 
 	auto& debugOutputPassData =
@@ -313,7 +313,7 @@ static LightCullingData AddLightCullingPasses(DrawFn drawFn, RenderGraph& render
 		            data.viewBindings_ = shader->CreateBindingSet("ViewBindings");
 		            data.lightListBindings_ = shader->CreateBindingSet("LightListBindings");
 		            data.debugBindings_ = shader->CreateBindingSet("DebugBindings");
-	            },
+		        },
 	            [lightTexFormat](
 	                RenderGraphResources& res, GPU::CommandList& cmdList, const DebugOutputPassData& data) {
 		            ShaderContext shaderCtx(cmdList);
@@ -321,9 +321,9 @@ static LightCullingData AddLightCullingPasses(DrawFn drawFn, RenderGraph& render
 		            data.viewBindings_.Set("viewParams", res.CBuffer(data.inViewCB_, 0, sizeof(ViewConstants)));
 		            data.viewBindings_.Set("lightParams", res.CBuffer(data.inLightCB_, 0, sizeof(LightConstants)));
 
-		            data.lightListBindings_.Set(
-		                "inTileInfo", res.Buffer(data.inTileInfoSB_, GPU::Format::INVALID, 0,
-		                                  data.light_.numTilesX_ * data.light_.numTilesY_, sizeof(TileInfo)));
+		            data.lightListBindings_.Set("inTileInfo",
+		                res.Buffer(data.inTileInfoSB_, GPU::Format::INVALID, 0,
+		                    data.light_.numTilesX_ * data.light_.numTilesY_, sizeof(TileInfo)));
 		            data.lightListBindings_.Set("inLights",
 		                res.Buffer(data.inLightSB_, GPU::Format::INVALID, 0, data.light_.numLights_, sizeof(Light)));
 		            data.lightListBindings_.Set("inLightTex", res.Texture2D(data.inLightTex_, lightTexFormat, 0, 1));
@@ -346,7 +346,7 @@ static LightCullingData AddLightCullingPasses(DrawFn drawFn, RenderGraph& render
 				            }
 			            }
 		            }
-	            })
+		        })
 	        .GetData();
 
 	// Setup output.
@@ -423,7 +423,7 @@ static DepthData AddDepthPasses(DrawFn drawFn, RenderGraph& renderGraph, const C
 		    data.outDepth_ = builder.SetDSV(depth);
 
 		    data.viewBindings_ = Shader::CreateSharedBindingSet("ViewBindings");
-	    },
+		},
 
 	    [](RenderGraphResources& res, GPU::CommandList& cmdList, const DepthPassData& data) {
 
@@ -447,7 +447,7 @@ static DepthData AddDepthPasses(DrawFn drawFn, RenderGraph& renderGraph, const C
 
 			    data.drawFn_(drawCtx);
 		    }
-	    });
+		});
 
 	auto& hizPass = renderGraph.AddCallbackRenderPass<HiZPassData>("Hi-Z Pass",
 	    [&](RenderGraphBuilder& builder, HiZPassData& data) {
@@ -477,7 +477,7 @@ static DepthData AddDepthPasses(DrawFn drawFn, RenderGraph& renderGraph, const C
 		    data.techMip_ = shader->CreateTechnique("TECH_COMPUTE_HIZ_MIP", ShaderTechniqueDesc());
 
 		    data.hizBindings_ = shader->CreateBindingSet("HiZBindings");
-	    },
+		},
 
 	    [](RenderGraphResources& res, GPU::CommandList& cmdList, const HiZPassData& data) {
 		    ShaderContext shaderCtx(cmdList);
@@ -513,7 +513,7 @@ static DepthData AddDepthPasses(DrawFn drawFn, RenderGraph& renderGraph, const C
 					    cmdList.Dispatch(ps, pb, GetGroups(w), GetGroups(h), 1);
 			    }
 		    }
-	    });
+		});
 
 	DepthData output;
 	output.outDepth_ = depthPass.GetData().outDepth_;
@@ -593,7 +593,7 @@ static ForwardData AddForwardPasses(DrawFn drawFn, RenderGraph& renderGraph, con
 		    // Setup frame buffer.
 		    data.outColor_ = builder.SetRTV(0, color);
 		    data.outDepth_ = builder.SetDSV(depth);
-	    },
+		},
 	    [](RenderGraphResources& res, GPU::CommandList& cmdList, const ForwardPassData& data) {
 		    auto fbs = res.GetFrameBindingSet();
 
@@ -630,7 +630,7 @@ static ForwardData AddForwardPasses(DrawFn drawFn, RenderGraph& renderGraph, con
 				    }
 			    }
 		    }
-	    });
+		});
 
 	ForwardData output;
 	output.outColor_ = pass.GetData().outColor_;
@@ -683,7 +683,7 @@ static FullscreenData AddFullscreenPass(DrawFn drawFn, RenderGraph& renderGraph,
 		    // Setup frame buffer.
 		    data.outColor_ = builder.SetRTV(0, color);
 
-	    },
+		},
 
 	    [](RenderGraphResources& res, GPU::CommandList& cmdList, const FullscreenPassData& data) {
 		    GPU::FrameBindingSetDesc fbsDesc;
@@ -704,7 +704,7 @@ static FullscreenData AddFullscreenPass(DrawFn drawFn, RenderGraph& renderGraph,
 				    cmdList.Draw(ps, pb, GPU::Handle(), fbs, data.drawState_, GPU::PrimitiveTopology::TRIANGLE_LIST, 0,
 				        0, 3, 0, 1);
 		    }
-	    });
+		});
 
 	FullscreenData output;
 	output.outColor_ = pass.GetData().outColor_;
@@ -795,10 +795,10 @@ void ForwardPipeline::Setup(RenderGraph& renderGraph)
 		        builder.Write(builder.Create("View Constants", viewCBDesc), GPU::BindFlags::CONSTANT_BUFFER);
 		    data.cbs_.objectSB_ =
 		        builder.Write(builder.Create("Object Constants", objectSBDesc), GPU::BindFlags::SHADER_RESOURCE);
-	    },
+		},
 	    [](RenderGraphResources& res, GPU::CommandList& cmdList, const ViewConstantData& data) {
 		    cmdList.UpdateBuffer(res.GetBuffer(data.cbs_.viewCB_), 0, sizeof(data.view_), cmdList.Push(&data.view_));
-	    });
+		});
 
 	auto cbs = renderPassCommonBuffers.GetData().cbs_;
 

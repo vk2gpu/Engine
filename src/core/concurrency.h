@@ -78,6 +78,13 @@ namespace Core
 	CORE_DLL_INLINE i64 AtomicCmpExchgAcq(volatile i64* dest, i64 exchg, i64 comp);
 	CORE_DLL_INLINE i64 AtomicCmpExchgRel(volatile i64* dest, i64 exchg, i64 comp);
 
+	/// @return Original value of dest, and if original value matches @a comp, set @dest to @exchg.
+	template<typename TYPE>
+	TYPE* AtomicCmpExchgPtr(TYPE** dest, TYPE* exchg, TYPE* comp)
+	{
+		return (TYPE*)AtomicCmpExchg((volatile i64*)dest, (i64)exchg, (i64)comp);
+	}
+
 	/**
 	 * Utility.
 	 */
@@ -244,7 +251,9 @@ namespace Core
 	private:
 		Semaphore(const Semaphore&) = delete;
 
-		struct SemaphoreImpl* impl_;
+		struct SemaphoreImpl* Get();
+		u8 implData_[32];
+
 #if !defined(_RELEASE)
 		const char* debugName_ = nullptr;
 #endif
@@ -317,7 +326,8 @@ namespace Core
 
 	private:
 		Mutex(const Mutex&) = delete;
-		struct MutexImpl* impl_ = nullptr;
+		struct MutexImpl* Get();
+		u8 implData_[60];
 	};
 
 	/**
@@ -355,12 +365,12 @@ namespace Core
 		/**
 		 * Begin read.
 		 */
-		void BeginRead();
+		void BeginRead() const;
 
 		/**
 		 * End read.
 		 */
-		void EndRead();
+		void EndRead() const;
 
 		/**
 		 * Begin write.
@@ -375,7 +385,9 @@ namespace Core
 	private:
 		RWLock(const RWLock&) = delete;
 
-		struct RWLockImpl* impl_ = nullptr;
+		struct RWLockImpl* Get();
+		struct RWLockImpl* Get() const;
+		mutable u8 implData_[8];
 	};
 
 	/**
@@ -385,7 +397,7 @@ namespace Core
 	{
 	public:
 		ScopedReadLock(ScopedReadLock&&) = default;
-		ScopedReadLock(RWLock& lock)
+		ScopedReadLock(const RWLock& lock)
 		    : lock_(&lock)
 		{
 			DBG_ASSERT(lock_);
@@ -403,7 +415,7 @@ namespace Core
 	private:
 		ScopedReadLock(const ScopedReadLock&) = delete;
 
-		RWLock* lock_ = nullptr;
+		const RWLock* lock_ = nullptr;
 	};
 
 	/**
@@ -460,14 +472,14 @@ namespace Core
 		/**
 		 * @return Is valid?
 		 */
-		explicit operator bool() { return impl_ != nullptr; }
+		explicit operator bool() { return handle_ >= 0; }
 
 	private:
 		TLS(TLS&&) = delete;
 		TLS& operator=(TLS&&) = delete;
 		TLS(const TLS&) = delete;
 
-		struct TLSImpl* impl_ = nullptr;
+		i32 handle_ = -1;
 	};
 
 	/**
@@ -496,14 +508,14 @@ namespace Core
 		/**
 		 * @return Is valid?
 		 */
-		explicit operator bool() { return impl_ != nullptr; }
+		explicit operator bool() { return handle_ >= 0; }
 
 	private:
 		FLS(FLS&&) = delete;
 		FLS& operator=(FLS&&) = delete;
 		FLS(const FLS&) = delete;
 
-		struct FLSImpl* impl_ = nullptr;
+		i32 handle_ = -1;
 	};
 
 } // namespace Core

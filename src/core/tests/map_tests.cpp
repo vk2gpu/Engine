@@ -319,6 +319,78 @@ TEST_CASE("map-tests-iterate")
 	REQUIRE(total == NUM_VALUES);
 }
 
+TEST_CASE("map-tests-erase")
+{
+	Core::Map<u32, i32> map;
+	const i32 NUM_VALUES = 4096;
+	const i32 HALF_NUM_VALUES = NUM_VALUES / 2;
+
+	for(i32 i = 0; i < NUM_VALUES; ++i)
+	{
+		map.insert(i, NUM_VALUES - i);
+	}
+
+	for(i32 i = 0; i < NUM_VALUES; ++i)
+	{
+		auto* found = map.find(i);
+		REQUIRE(found);
+		REQUIRE(*found == (NUM_VALUES - i));
+	}
+
+	for(i32 i = 0; i < NUM_VALUES; i += 4)
+	{
+		map.erase(i);
+		REQUIRE(!map.find(i));
+	}
+
+	for(i32 i = 0; i < NUM_VALUES; i += 4)
+	{
+		REQUIRE(!map.find(i));
+		map.insert(i, NUM_VALUES - i);
+
+		auto* found = map.find(i);
+		REQUIRE(found);
+		REQUIRE(*found == (NUM_VALUES - i));
+	}
+}
+
+TEST_CASE("map-tests-bad-hash")
+{
+	struct BadHasher
+	{
+		u64 operator()(u64 input, u32 data) const { return 7; };
+	};
+
+	Core::Map<u32, u32, BadHasher> map;
+
+	for(u32 i = 0; i < 11; ++i)
+	{
+		map.insert(i, i);
+	}
+
+	for(u32 i = 0; i < 11; ++i)
+	{
+		REQUIRE(map.find(i));
+		REQUIRE(*map.find(i) == i);
+	}
+
+	for(u32 i = 0; i < 11; i += 3)
+	{
+		map.erase(i);
+	}
+
+	for(u32 i = 0; i < 11; ++i)
+	{
+		map.insert(i, i);
+	}
+
+	for(u32 i = 0; i < 11; ++i)
+	{
+		REQUIRE(map.find(i));
+		REQUIRE(*map.find(i) == i);
+	}
+}
+
 TEST_CASE("map-tests-bench")
 {
 	const i32 NUM_ITERATIONS = 32;

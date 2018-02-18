@@ -310,31 +310,33 @@ namespace Core
 #endif
 	};
 
+	struct SemaphoreImpl* Semaphore::Get() { return reinterpret_cast<SemaphoreImpl*>(&implData_[0]); }
+
 	Semaphore::Semaphore(i32 initialCount, i32 maximumCount, const char* debugName)
 	{
 		DBG_ASSERT(initialCount >= 0);
 		DBG_ASSERT(maximumCount >= 0);
 
-		impl_ = new SemaphoreImpl();
+		new(implData_) SemaphoreImpl();
 
 		// NOTE: Don't set debug name on semaphore. If 2 names are the same, they'll reference the same event.
-		impl_->handle_ = ::CreateSemaphore(nullptr, initialCount, maximumCount, nullptr);
+		Get()->handle_ = ::CreateSemaphore(nullptr, initialCount, maximumCount, nullptr);
 #if !defined(_RELEASE)
-		impl_->debugName_ = debugName;
-		debugName_ = impl_->debugName_.c_str();
+		Get()->debugName_ = debugName;
+		debugName_ = Get()->debugName_.c_str();
 #endif
 	}
 
 	Semaphore::~Semaphore()
 	{
-		::CloseHandle(impl_->handle_);
-		delete impl_;
+		::CloseHandle(Get()->handle_);
+		Get()->~SemaphoreImpl();
 	}
 
 	Semaphore::Semaphore(Semaphore&& other)
 	{
 		using std::swap;
-		swap(impl_, other.impl_);
+		swap(implData_, other.implData_);
 #if !defined(_RELEASE)
 		swap(debugName_, other.debugName_);
 #endif
@@ -342,14 +344,14 @@ namespace Core
 
 	bool Semaphore::Wait(i32 timeout)
 	{
-		DBG_ASSERT(impl_);
-		return (::WaitForSingleObject(impl_->handle_, timeout) == WAIT_OBJECT_0);
+		DBG_ASSERT(Get());
+		return (::WaitForSingleObject(Get()->handle_, timeout) == WAIT_OBJECT_0);
 	}
 
 	bool Semaphore::Signal(i32 count)
 	{
-		DBG_ASSERT(impl_);
-		return !!::ReleaseSemaphore(impl_->handle_, count, nullptr);
+		DBG_ASSERT(Get());
+		return !!::ReleaseSemaphore(Get()->handle_, count, nullptr);
 	}
 
 	SpinLock::SpinLock() {}
@@ -379,46 +381,53 @@ namespace Core
 		volatile i32 lockCount_ = 0;
 	};
 
+	struct MutexImpl* Mutex::Get() { return reinterpret_cast<MutexImpl*>(&implData_[0]); }
+
 	Mutex::Mutex()
 	{
-		impl_ = new MutexImpl();
-		::InitializeCriticalSection(&impl_->critSec_);
+		static_assert(sizeof(MutexImpl) <= sizeof(implData_), "implData_ too small for MutexImpl!");
+		new(implData_) MutexImpl();
+		::InitializeCriticalSection(&Get()->critSec_);
 	}
 
 	Mutex::~Mutex()
 	{
-		::DeleteCriticalSection(&impl_->critSec_);
-		delete impl_;
+		::DeleteCriticalSection(&Get()->critSec_);
+		Get()->~MutexImpl();
 	}
 
 	Mutex::Mutex(Mutex&& other)
 	{
 		using std::swap;
-		std::swap(impl_, other.impl_);
+		other.Lock();
+		std::swap(implData_, other.implData_);
+		Unlock();
 	}
 
 	Mutex& Mutex::operator=(Mutex&& other)
 	{
 		using std::swap;
-		std::swap(impl_, other.impl_);
+		other.Lock();
+		std::swap(implData_, other.implData_);
+		Unlock();
 		return *this;
 	}
 
 	void Mutex::Lock()
 	{
-		DBG_ASSERT(impl_);
-		::EnterCriticalSection(&impl_->critSec_);
-		if(AtomicInc(&impl_->lockCount_) == 1)
-			impl_->lockThread_ = ::GetCurrentThread();
+		DBG_ASSERT(Get());
+		::EnterCriticalSection(&Get()->critSec_);
+		if(AtomicInc(&Get()->lockCount_) == 1)
+			Get()->lockThread_ = ::GetCurrentThread();
 	}
 
 	bool Mutex::TryLock()
 	{
-		DBG_ASSERT(impl_);
-		if(!!::TryEnterCriticalSection(&impl_->critSec_))
+		DBG_ASSERT(Get());
+		if(!!::TryEnterCriticalSection(&Get()->critSec_))
 		{
-			if(AtomicInc(&impl_->lockCount_) == 1)
-				impl_->lockThread_ = ::GetCurrentThread();
+			if(AtomicInc(&Get()->lockCount_) == 1)
+				Get()->lockThread_ = ::GetCurrentThread();
 			return true;
 		}
 		return false;
@@ -426,11 +435,11 @@ namespace Core
 
 	void Mutex::Unlock()
 	{
-		DBG_ASSERT(impl_);
-		DBG_ASSERT(impl_->lockThread_ == ::GetCurrentThread());
-		if(AtomicDec(&impl_->lockCount_) == 0)
-			impl_->lockThread_ = nullptr;
-		::LeaveCriticalSection(&impl_->critSec_);
+		DBG_ASSERT(Get());
+		DBG_ASSERT(Get()->lockThread_ == ::GetCurrentThread());
+		if(AtomicDec(&Get()->lockCount_) == 0)
+			Get()->lockThread_ = nullptr;
+		::LeaveCriticalSection(&Get()->critSec_);
 	}
 
 	struct RWLockImpl
@@ -438,94 +447,81 @@ namespace Core
 		SRWLOCK srwLock_ = SRWLOCK_INIT;
 	};
 
-	RWLock::RWLock() { impl_ = new RWLockImpl; }
+	struct RWLockImpl* RWLock::Get() { return reinterpret_cast<RWLockImpl*>(&implData_[0]); }
+	struct RWLockImpl* RWLock::Get() const { return reinterpret_cast<RWLockImpl*>(&implData_[0]); }
+
+	RWLock::RWLock()
+	{
+		static_assert(sizeof(RWLockImpl) <= sizeof(implData_), "implData_ too small for RWLockImpl!");
+		new(implData_) RWLockImpl;
+	}
 
 	RWLock::~RWLock()
 	{
 #if !defined(_RELEASE)
-		if(!::TryAcquireSRWLockExclusive(&impl_->srwLock_))
+		if(!::TryAcquireSRWLockExclusive(&(Get()->srwLock_)))
 			DBG_ASSERT(false);
 #endif
+		Get()->~RWLockImpl();
 	}
 
 	RWLock::RWLock(RWLock&& other)
 	{
 		using std::swap;
-		std::swap(impl_, other.impl_);
+		std::swap(implData_, other.implData_);
 	}
 
 	RWLock& RWLock::operator=(RWLock&& other)
 	{
 		using std::swap;
-		std::swap(impl_, other.impl_);
+		std::swap(implData_, other.implData_);
 		return *this;
 	}
 
-	void RWLock::BeginRead() { ::AcquireSRWLockShared(&impl_->srwLock_); }
+	void RWLock::BeginRead() const { ::AcquireSRWLockShared(&Get()->srwLock_); }
 
-	void RWLock::EndRead() { ::ReleaseSRWLockShared(&impl_->srwLock_); }
+	void RWLock::EndRead() const { ::ReleaseSRWLockShared(&Get()->srwLock_); }
 
-	void RWLock::BeginWrite() { ::AcquireSRWLockExclusive(&impl_->srwLock_); }
+	void RWLock::BeginWrite() { ::AcquireSRWLockExclusive(&Get()->srwLock_); }
 
-	void RWLock::EndWrite() { ::ReleaseSRWLockExclusive(&impl_->srwLock_); }
+	void RWLock::EndWrite() { ::ReleaseSRWLockExclusive(&Get()->srwLock_); }
 
 	struct TLSImpl
 	{
 		DWORD handle_ = 0;
 	};
 
-	TLS::TLS()
-	{
-		impl_ = new TLSImpl();
-		impl_->handle_ = TlsAlloc();
-	}
+	TLS::TLS() { handle_ = TlsAlloc(); }
 
-	TLS::~TLS()
-	{
-		::TlsFree(impl_->handle_);
-		delete impl_;
-	}
+	TLS::~TLS() { ::TlsFree(handle_); }
 
 	bool TLS::Set(void* data)
 	{
-		DBG_ASSERT(impl_);
-		return !!::TlsSetValue(impl_->handle_, data);
+		DBG_ASSERT(handle_ >= 0);
+		return !!::TlsSetValue(handle_, data);
 	}
 
 	void* TLS::Get() const
 	{
-		DBG_ASSERT(impl_);
-		return ::TlsGetValue(impl_->handle_);
+		DBG_ASSERT(handle_ >= 0);
+		return ::TlsGetValue(handle_);
 	}
 
 
-	struct FLSImpl
-	{
-		DWORD handle_ = 0;
-	};
+	FLS::FLS() { handle_ = FlsAlloc(nullptr); }
 
-	FLS::FLS()
-	{
-		impl_ = new FLSImpl();
-		impl_->handle_ = FlsAlloc(nullptr);
-	}
-
-	FLS::~FLS()
-	{
-		::FlsFree(impl_->handle_);
-		delete impl_;
-	}
+	FLS::~FLS() { ::FlsFree(handle_); }
 
 	bool FLS::Set(void* data)
 	{
-		DBG_ASSERT(impl_);
-		return !!::FlsSetValue(impl_->handle_, data);
+		DBG_ASSERT(handle_ >= 0);
+		return !!::FlsSetValue(handle_, data);
 	}
 
 	void* FLS::Get() const
 	{
-		DBG_ASSERT(impl_);
-		return ::FlsGetValue(impl_->handle_);
+		DBG_ASSERT(handle_ >= 0);
+		return ::FlsGetValue(handle_);
 	}
 
 } // namespace Core

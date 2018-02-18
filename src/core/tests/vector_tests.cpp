@@ -45,24 +45,30 @@ namespace
 
 	i32 CtorDtorTest::numAllocs_ = 0;
 
-	struct AllocatorTest : public Core::Allocator
+	struct AllocatorTest : public Core::ContainerAllocator
 	{
-		static i32 numBytes_;
+		static i64 numBytes_;
 
-		void* allocate(index_type count, index_type size)
+		void* Allocate(i64 bytes, i64 align)
 		{
-			numBytes_ += count * size;
-			return Core::Allocator::allocate(count, size);
+			numBytes_ += bytes;
+			u64* header = (u64*)Core::ContainerAllocator::Allocate(bytes + sizeof(u64), align);
+			*header = bytes;
+			return header + 1;
 		}
 
-		void deallocate(void* mem, index_type count, index_type size)
+		void Deallocate(void* mem)
 		{
-			numBytes_ -= count * size;
-			Core::Allocator::deallocate(mem, count, size);
+			if(mem)
+			{
+				u64* header = (u64*)mem - 1;
+				numBytes_ -= *header;
+				Core::ContainerAllocator::Deallocate(header);
+			}
 		}
 	};
 
-	i32 AllocatorTest::numBytes_ = 0;
+	i64 AllocatorTest::numBytes_ = 0;
 
 
 	typedef i32 index_type;
@@ -725,7 +731,7 @@ TEST_CASE("vector-tests-allocator-test")
 			for(i32 i = 0; i < 1; ++i)
 			{
 				vec.push_back(i);
-				REQUIRE(AllocatorTest::numBytes_ >= sizeof(i32) * (i + 1));
+				REQUIRE(AllocatorTest::numBytes_ >= (i64)sizeof(i32) * (i + 1));
 			}
 		}
 		REQUIRE(AllocatorTest::numBytes_ == 0);
@@ -735,7 +741,7 @@ TEST_CASE("vector-tests-allocator-test")
 			for(i32 i = 0; i < 100; ++i)
 			{
 				vec.push_back(i);
-				REQUIRE(AllocatorTest::numBytes_ >= sizeof(i32) * (i + 1));
+				REQUIRE(AllocatorTest::numBytes_ >= (i64)sizeof(i32) * (i + 1));
 			}
 		}
 		REQUIRE(AllocatorTest::numBytes_ == 0);
@@ -745,7 +751,7 @@ TEST_CASE("vector-tests-allocator-test")
 			for(i32 i = 0; i < 200; ++i)
 			{
 				vec.push_back(i);
-				REQUIRE(AllocatorTest::numBytes_ >= sizeof(i32) * (i + 1));
+				REQUIRE(AllocatorTest::numBytes_ >= (i64)sizeof(i32) * (i + 1));
 			}
 		}
 		REQUIRE(AllocatorTest::numBytes_ == 0);
@@ -758,7 +764,7 @@ TEST_CASE("vector-tests-allocator-test")
 			for(i32 i = 0; i < 1; ++i)
 			{
 				vec.emplace_back(i);
-				REQUIRE(AllocatorTest::numBytes_ >= sizeof(i32) * (i + 1));
+				REQUIRE(AllocatorTest::numBytes_ >= (i64)sizeof(i32) * (i + 1));
 			}
 		}
 		REQUIRE(AllocatorTest::numBytes_ == 0);
@@ -768,7 +774,7 @@ TEST_CASE("vector-tests-allocator-test")
 			for(i32 i = 0; i < 100; ++i)
 			{
 				vec.emplace_back(i);
-				REQUIRE(AllocatorTest::numBytes_ >= sizeof(i32) * (i + 1));
+				REQUIRE(AllocatorTest::numBytes_ >= (i64)sizeof(i32) * (i + 1));
 			}
 		}
 		REQUIRE(AllocatorTest::numBytes_ == 0);
@@ -778,7 +784,7 @@ TEST_CASE("vector-tests-allocator-test")
 			for(i32 i = 0; i < 200; ++i)
 			{
 				vec.emplace_back(i);
-				REQUIRE(AllocatorTest::numBytes_ >= sizeof(i32) * (i + 1));
+				REQUIRE(AllocatorTest::numBytes_ >= (i64)sizeof(i32) * (i + 1));
 			}
 		}
 		REQUIRE(AllocatorTest::numBytes_ == 0);

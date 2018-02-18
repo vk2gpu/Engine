@@ -8,6 +8,11 @@
 
 #include <cstdio>
 
+#if PLATFORM_WINDOWS
+#include <DbgHelp.h>
+#include <Psapi.h>
+#endif
+
 namespace Core
 {
 	namespace
@@ -15,27 +20,12 @@ namespace Core
 		struct LogContext
 		{
 			static const int BUFFER_SIZE = 64 * 1024;
-			LogContext()
-			    : buffer_(BUFFER_SIZE)
-			{
-			}
-
-			~LogContext() {}
-
-			Core::Vector<char> buffer_;
+			Core::Array<char, BUFFER_SIZE> buffer_ = {};
 		};
 
-		LogContext* GetLogContext()
-		{
-			static TLS tls;
-			if(tls.Get() == nullptr)
-			{
-				auto* context = new LogContext;
-				tls.Set(context);
-			}
+		thread_local LogContext logContext_;
 
-			return (LogContext*)tls.Get();
-		}
+		LogContext* GetLogContext() { return &logContext_; }
 
 		bool enableBreakOnAssertion_ = true;
 	}
@@ -178,6 +168,68 @@ namespace Core
 #else
 		return 0;
 #endif
+	}
+
+	SymbolInfo GetSymbolInfo(void* address)
+	{
+		SymbolInfo info = {};
+
+#if PLATFORM_WINDOWS
+		static const HANDLE process =
+		    ::OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, ::GetCurrentProcessId());
+		static const bool isInit = []() {
+			if(!::SymInitialize(process, nullptr, FALSE))
+			{
+				DWORD error = GetLastError();
+				Core::Log("Error: SymInitialize returned error : %d\n", error);
+				return false;
+			}
+
+			HMODULE modules_[1024];
+			DWORD cbRequired = 0;
+			if(::EnumProcessModules(process, modules_, sizeof(modules_), &cbRequired))
+			{
+				for(i32 i = 0; i < (cbRequired / sizeof(HMODULE)); ++i)
+				{
+					char moduleName[MAX_PATH];
+					if(::GetModuleFileNameEx(process, modules_[i], moduleName, sizeof(moduleName)))
+					{
+						MODULEINFO moduleInfo;
+						::GetModuleInformation(process, modules_[i], &moduleInfo, sizeof(moduleInfo));
+
+						if(!::SymLoadModuleEx(process, nullptr, moduleName, nullptr, (DWORD64)moduleInfo.lpBaseOfDll,
+						       moduleInfo.SizeOfImage, nullptr, 0))
+						{
+							DWORD error = GetLastError();
+							Core::Log(
+							    "Warning: Failed to load symbols for \"%s\", returned error : %d\n", moduleName, error);
+							return false;
+						}
+					}
+				}
+			}
+			return true;
+		}();
+
+		if(isInit)
+		{
+			char buffer[sizeof(SYMBOL_INFO) + MAX_SYM_NAME * sizeof(TCHAR)];
+			PSYMBOL_INFO sym = (PSYMBOL_INFO)buffer;
+			sym->SizeOfStruct = sizeof(SYMBOL_INFO);
+			sym->MaxNameLen = MAX_SYM_NAME;
+
+			DWORD64 displacement = 0;
+			if(::SymFromAddr(process, (DWORD64)address, &displacement, sym))
+			{
+				if(sym->NameLen < sizeof(info.name_) - 1)
+					memcpy(info.name_, sym->Name, sym->NameLen);
+				else
+					memcpy(info.name_, sym->Name, sizeof(info.name_) - 1);
+			}
+		}
+#endif // PLATFORM_WINDOWS
+
+		return info;
 	}
 
 	void SetBreakOnAssertion(bool enableBreak) { enableBreakOnAssertion_ = enableBreak; }

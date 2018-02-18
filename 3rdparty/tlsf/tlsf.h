@@ -44,6 +44,59 @@
 extern "C" {
 #endif
 
+/*
+** Constants.
+*/
+
+/* Public constants: may be modified. */
+enum tlsf_public
+{
+	/* log2 of number of linear subdivisions of block sizes. Larger
+	** values require more memory in the control structure. Values of
+	** 4 or 5 are typical.
+	*/
+	SL_INDEX_COUNT_LOG2 = 5,
+};
+
+/* Private constants: do not modify. */
+enum tlsf_private
+{
+#if defined (TLSF_64BIT)
+	/* All allocation sizes and addresses are aligned to 8 bytes. */
+	ALIGN_SIZE_LOG2 = 3,
+#else
+	/* All allocation sizes and addresses are aligned to 4 bytes. */
+	ALIGN_SIZE_LOG2 = 2,
+#endif
+	ALIGN_SIZE = (1 << ALIGN_SIZE_LOG2),
+
+	/*
+	** We support allocations of sizes up to (1 << FL_INDEX_MAX) bits.
+	** However, because we linearly subdivide the second-level lists, and
+	** our minimum size granularity is 4 bytes, it doesn't make sense to
+	** create first-level lists for sizes smaller than SL_INDEX_COUNT * 4,
+	** or (1 << (SL_INDEX_COUNT_LOG2 + 2)) bytes, as there we will be
+	** trying to split size ranges into more slots than we have available.
+	** Instead, we calculate the minimum threshold size, and place all
+	** blocks below that size into the 0th first-level list.
+	*/
+
+#if defined (TLSF_64BIT)
+	/*
+	** TODO: We can increase this to support larger sizes, at the expense
+	** of more overhead in the TLSF structure.
+	*/
+	FL_INDEX_MAX = 32,
+#else
+	FL_INDEX_MAX = 30,
+#endif
+	SL_INDEX_COUNT = (1 << SL_INDEX_COUNT_LOG2),
+	FL_INDEX_SHIFT = (SL_INDEX_COUNT_LOG2 + ALIGN_SIZE_LOG2),
+	FL_INDEX_COUNT = (FL_INDEX_MAX - FL_INDEX_SHIFT + 1),
+
+	SMALL_BLOCK_SIZE = (1 << FL_INDEX_SHIFT),
+};
+
 /* tlsf_t: a TLSF structure. Can contain 1 to N pools. */
 /* pool_t: a block of memory that TLSF can manage. */
 typedef void* tlsf_t;

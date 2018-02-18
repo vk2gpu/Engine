@@ -1,5 +1,8 @@
 #include "client/manager.h"
 #include "core/debug.h"
+#include "core/allocator_overrides.h"
+
+DECLARE_MODULE_ALLOCATOR("General/" MODULE_NAME);
 
 #define CATCH_CONFIG_RUNNER
 #include <catch.hpp>

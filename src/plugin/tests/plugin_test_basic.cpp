@@ -1,5 +1,8 @@
 #include "plugin_test_basic.h"
 #include "core/debug.h"
+#include "core/allocator_overrides.h"
+
+DECLARE_MODULE_ALLOCATOR("General/" MODULE_NAME);
 
 namespace
 {

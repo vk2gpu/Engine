@@ -38,12 +38,28 @@ namespace Core
 	CORE_DLL bool StringConvertUTF8toUTF16(const char* src, i32 srcLength, wchar* dst, i32 dstLength);
 
 	/**
+	 * Allocator for use with strings.
+	 */
+	class CORE_DLL StringAllocator
+	{
+	public:
+		StringAllocator() = default;
+		StringAllocator(const StringAllocator&) = default;
+		~StringAllocator() = default;
+
+		void* Allocate(i64 size, i64 align) { return allocator_.Allocate(size, align); }
+		void Deallocate(void* mem) { allocator_.Deallocate(mem); }
+
+		static IAllocator& allocator_;
+	};
+
+	/**
 	 * String class.
 	 */
 	class CORE_DLL String
 	{
 	public:
-		using storage_type = Core::Vector<char>;
+		using storage_type = Core::Vector<char, StringAllocator>;
 		using index_type = storage_type::index_type;
 		using iterator = storage_type::iterator;
 		using const_iterator = storage_type::const_iterator;

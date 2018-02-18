@@ -2,7 +2,9 @@
 #include "core/misc.h"
 #include "client/key_input.h"
 
-Camera::Camera() {}
+Camera::Camera()
+{
+}
 
 void Camera::Update(const Client::IInputProvider& input, f32 tick)
 {

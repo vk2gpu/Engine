@@ -12,18 +12,18 @@ namespace Core
 	 * Hash map.
 	 * https://www.sebastiansylvan.com/post/robin-hood-hashing-should-be-your-default-hash-table-implementation/
 	 */
-	template<typename KEY_TYPE, typename VALUE_TYPE, typename HASHER = Hasher<KEY_TYPE>, typename ALLOCATOR = Allocator>
+	template<typename KEY_TYPE, typename VALUE_TYPE, typename HASHER = Hasher<KEY_TYPE>,
+	    typename ALLOCATOR = ContainerAllocator>
 	class Map
 	{
 	public:
 		using index_type = i32;
 		using this_type = Map<KEY_TYPE, VALUE_TYPE, HASHER, ALLOCATOR>;
 
-		static const index_type INITIAL_SIZE = 256;
+		static const index_type INITIAL_SIZE = 16;
 		static const index_type LOAD_FACTOR_PERCENT = 75;
-		static const index_type INVALID_INDEX = (index_type)-1;
-		static const u64 HASH_MSB_MASK = 0x7fffffffffffffffULL;
-		static const u64 HASH_MSB = 0x8000000000000000ULL;
+		static const u32 HASH_MSB_MASK = 0x7fffffff;
+		static const u32 HASH_MSB = 0x80000000;
 
 		struct key_value_pair
 		{
@@ -94,25 +94,37 @@ namespace Core
 		};
 
 
+		Map(ALLOCATOR& allocator)
+		    : allocator_(allocator)
+		{
+			Alloc();
+		}
 		Map() { Alloc(); }
 
-		Map(const Map& other) { copy(other); }
+		Map(const Map& other)
+		    : allocator_(other.allocator_)
+		{
+			copy(other);
+		}
 
 		Map(Map&& other) { swap(other); }
 		~Map()
 		{
-			for(index_type i = 0; i < capacity_; ++i)
+			if(hashes_)
 			{
-				if(ElemHash(i) != 0)
+				for(index_type i = 0; i < capacity_; ++i)
 				{
-					keys_[i].~KEY_TYPE();
-					values_[i].~VALUE_TYPE();
+					if(hashes_[i] != 0)
+					{
+						keys_[i].~KEY_TYPE();
+						values_[i].~VALUE_TYPE();
+					}
 				}
 			}
 
-			allocator_.deallocate(keys_, capacity_, sizeof(KEY_TYPE));
-			allocator_.deallocate(values_, capacity_, sizeof(VALUE_TYPE));
-			allocator_.deallocate(hashes_, capacity_, sizeof(u64));
+			allocator_.Deallocate(keys_);
+			allocator_.Deallocate(values_);
+			allocator_.Deallocate(hashes_);
 		}
 
 		Map& operator=(const Map& other)
@@ -129,6 +141,7 @@ namespace Core
 
 		void swap(Map& other)
 		{
+			std::swap(allocator_, other.allocator_);
 			std::swap(keys_, other.keys_);
 			std::swap(values_, other.values_);
 			std::swap(hashes_, other.hashes_);
@@ -140,9 +153,10 @@ namespace Core
 
 		void copy(const Map& other)
 		{
-			allocator_.deallocate(keys_, capacity_, sizeof(KEY_TYPE));
-			allocator_.deallocate(values_, capacity_, sizeof(VALUE_TYPE));
-			allocator_.deallocate(hashes_, capacity_, sizeof(u64));
+			allocator_.Deallocate(keys_);
+			allocator_.Deallocate(values_);
+			allocator_.Deallocate(hashes_);
+			allocator_ = other.allocator_;
 			keys_ = nullptr;
 			values_ = nullptr;
 			hashes_ = nullptr;
@@ -154,11 +168,9 @@ namespace Core
 			{
 				auto& k = other.keys_[i];
 				auto& v = other.values_[i];
-				u64 h = other.hashes_[i];
+				u32 h = other.hashes_[i];
 				if(h != 0 && !IsDeleted(h))
-				{
 					InsertHelper(h, std::move(KEY_TYPE(k)), std::move(VALUE_TYPE(v)));
-				}
 			}
 		}
 
@@ -184,7 +196,7 @@ namespace Core
 		{
 			for(index_type i = 0; i < capacity_; ++i)
 			{
-				if(ElemHash(i) != 0)
+				if(hashes_[i] != 0)
 				{
 					keys_[i].~KEY_TYPE();
 					values_[i].~VALUE_TYPE();
@@ -203,9 +215,7 @@ namespace Core
 			}
 
 			if(++numElements_ >= resizeThreshold_)
-			{
 				Grow();
-			}
 			return InsertHelper(HashKey(key), std::move(key), std::move(value));
 		}
 
@@ -216,10 +226,9 @@ namespace Core
 
 			if(i == -1)
 				return false;
-
 			keys_[i].~KEY_TYPE();
 			values_[i].~VALUE_TYPE();
-			ElemHash(i) |= HASH_MSB;
+			hashes_[i] |= HASH_MSB;
 			--numElements_;
 			return true;
 		}
@@ -244,7 +253,7 @@ namespace Core
 			f32 probeTotal = 0.0f;
 			for(index_type i = 0; i < capacity_; ++i)
 			{
-				u64 hash = ElemHash(i);
+				u32 hash = hashes_[i];
 				if(hash != 0 && !IsDeleted(hash))
 				{
 					probeTotal += ProbeDistance(hash, i);
@@ -262,11 +271,12 @@ namespace Core
 		void Alloc()
 		{
 			DBG_ASSERT(keys_ == nullptr && values_ == nullptr && hashes_ == nullptr);
-			keys_ = reinterpret_cast<KEY_TYPE*>(allocator_.allocate(capacity_, sizeof(KEY_TYPE)));
-			values_ = reinterpret_cast<VALUE_TYPE*>(allocator_.allocate(capacity_, sizeof(VALUE_TYPE)));
-			hashes_ = reinterpret_cast<u64*>(allocator_.allocate(capacity_, sizeof(u64)));
+			keys_ = reinterpret_cast<KEY_TYPE*>(allocator_.Allocate(capacity_ * sizeof(KEY_TYPE), alignof(KEY_TYPE)));
+			values_ =
+			    reinterpret_cast<VALUE_TYPE*>(allocator_.Allocate(capacity_ * sizeof(VALUE_TYPE), alignof(VALUE_TYPE)));
+			hashes_ = reinterpret_cast<u32*>(allocator_.Allocate(capacity_ * sizeof(u32), alignof(u32)));
 			for(index_type i = 0; i < capacity_; ++i)
-				ElemHash(i) = 0;
+				hashes_[i] = 0;
 			resizeThreshold_ = (capacity_ * LOAD_FACTOR_PERCENT) / 100;
 			mask_ = capacity_ - 1;
 		}
@@ -288,53 +298,45 @@ namespace Core
 			{
 				auto& k = oldKeys[i];
 				auto& v = oldValues[i];
-				u64 h = oldHashes[i];
+				u32 h = oldHashes[i];
 				if(h != 0 && !IsDeleted(h))
-				{
 					InsertHelper(h, std::move(k), std::move(v));
-					k.~KEY_TYPE();
-					v.~VALUE_TYPE();
-				}
 			}
 
-			allocator_.deallocate(oldKeys, oldCapacity, sizeof(KEY_TYPE));
-			allocator_.deallocate(oldValues, oldCapacity, sizeof(VALUE_TYPE));
-			allocator_.deallocate(oldHashes, oldCapacity, sizeof(u64));
+			allocator_.Deallocate(oldKeys);
+			allocator_.Deallocate(oldValues);
+			allocator_.Deallocate(oldHashes);
 		}
 
-		u64 HashKey(const KEY_TYPE& key) const
+		u32 HashKey(const KEY_TYPE& key) const
 		{
 			u64 h = hasher_(0, key);
 			h &= HASH_MSB_MASK;
 			h |= h == 0;
-			return h;
+			return (u32)h;
 		}
 
-		bool IsDeleted(u64 h) const { return (h & HASH_MSB) != 0; }
+		bool IsDeleted(u32 h) const { return (h & HASH_MSB) != 0; }
 
-		index_type DesiredPos(u64 h) const { return h & mask_; }
+		index_type DesiredPos(u32 h) const { return h & mask_; }
 
-		index_type ProbeDistance(u64 h, index_type idx) const { return (idx + capacity_ - DesiredPos(h)) & mask_; }
+		index_type ProbeDistance(u32 h, index_type idx) const { return (idx + capacity_ - DesiredPos(h)) & mask_; }
 
-		u64& ElemHash(index_type idx) { return hashes_[idx]; }
-
-		u64 ElemHash(index_type idx) const { return hashes_[idx]; }
-
-		void Construct(index_type i, u64 hash, KEY_TYPE&& key, VALUE_TYPE&& val)
+		void Construct(index_type i, u32 hash, KEY_TYPE&& key, VALUE_TYPE&& val)
 		{
 			new(&keys_[i]) KEY_TYPE(std::move(key));
 			new(&values_[i]) VALUE_TYPE(std::move(val));
-			ElemHash(i) = hash;
+			hashes_[i] = hash;
 		}
 
-		VALUE_TYPE* InsertHelper(u64 hash, KEY_TYPE&& key, VALUE_TYPE&& val)
+		VALUE_TYPE* InsertHelper(u32 hash, KEY_TYPE&& key, VALUE_TYPE&& val)
 		{
 			index_type pos = DesiredPos(hash);
 			index_type dist = 0;
 			VALUE_TYPE* retVal = nullptr;
 			for(;;)
 			{
-				if(ElemHash(pos) == 0)
+				if(hashes_[pos] == 0 || IsDeleted(hashes_[pos]))
 				{
 					Construct(pos, hash, std::move(key), std::move(val));
 					if(retVal == nullptr)
@@ -344,18 +346,10 @@ namespace Core
 
 				// If the existing elem has probed less than us, then swap places with existing
 				// elem, and keep going to find another slot for that elem.
-				index_type existingElemProbeDist = ProbeDistance(ElemHash(pos), pos);
+				index_type existingElemProbeDist = ProbeDistance(hashes_[pos], pos);
 				if(existingElemProbeDist < dist)
 				{
-					if(IsDeleted(ElemHash(pos)))
-					{
-						Construct(pos, hash, std::move(key), std::move(val));
-						if(retVal == nullptr)
-							retVal = &values_[pos];
-						return retVal;
-					}
-
-					std::swap(hash, ElemHash(pos));
+					std::swap(hash, hashes_[pos]);
 					std::swap(key, keys_[pos]);
 					std::swap(val, values_[pos]);
 					dist = existingElemProbeDist;
@@ -371,16 +365,16 @@ namespace Core
 
 		index_type LookupIndexByKey(const KEY_TYPE& key) const
 		{
-			const u64 hash = HashKey(key);
+			const u32 hash = HashKey(key);
 			index_type pos = DesiredPos(hash);
 			index_type dist = 0;
 			for(;;)
 			{
-				if(ElemHash(pos) == 0)
+				if(hashes_[pos] == 0)
 					return -1;
-				else if(dist > ProbeDistance(ElemHash(pos), pos))
+				else if(dist > capacity_)
 					return -1;
-				else if(ElemHash(pos) == hash && keys_[pos] == key)
+				else if(hashes_[pos] == hash && keys_[pos] == key)
 					return pos;
 
 				pos = (pos + 1) & mask_;
@@ -392,7 +386,7 @@ namespace Core
 		{
 			while(i < capacity_)
 			{
-				u64 h = hashes_[i];
+				u32 h = hashes_[i];
 				if(h != 0 && !IsDeleted(h))
 				{
 					return i;
@@ -404,12 +398,12 @@ namespace Core
 
 		KEY_TYPE* keys_ = nullptr;
 		VALUE_TYPE* values_ = nullptr;
-		u64* hashes_ = nullptr;
+		u32* hashes_ = nullptr;
 
 		index_type numElements_ = 0;
 		index_type resizeThreshold_ = 0;
-		index_type capacity_ = 0x8;
-		index_type mask_ = 0;
+		index_type capacity_ = INITIAL_SIZE;
+		u32 mask_ = 0;
 
 		ALLOCATOR allocator_;
 		HASHER hasher_;

@@ -12,7 +12,7 @@ namespace Core
 	/**
 	 * Vector of elements.
 	 */
-	template<typename TYPE, typename ALLOCATOR = Allocator>
+	template<typename TYPE, typename ALLOCATOR = ContainerAllocator>
 	class Vector
 	{
 	public:
@@ -24,7 +24,13 @@ namespace Core
 
 		Vector() = default;
 
+		Vector(ALLOCATOR& allocator)
+		    : allocator_(allocator)
+		{
+		}
+
 		Vector(const Vector& other)
+		    : allocator_(other.allocator_)
 		{
 			internalResize(other.size_);
 			size_ = other.size_;
@@ -39,6 +45,7 @@ namespace Core
 
 		Vector& operator=(const Vector& other)
 		{
+			allocator_ = other.allocator_;
 			if(other.size_ != size_)
 				internalResize(other.size_);
 
@@ -60,6 +67,7 @@ namespace Core
 
 		void swap(Vector& other)
 		{
+			std::swap(allocator_, other.allocator_);
 			std::swap(data_, other.data_);
 			std::swap(size_, other.size_);
 			std::swap(capacity_, other.capacity_);
@@ -244,7 +252,7 @@ namespace Core
 			TYPE* newData = nullptr;
 			if(newCapacity > 0)
 			{
-				newData = static_cast<TYPE*>(allocator_.allocate(newCapacity, sizeof(TYPE)));
+				newData = static_cast<TYPE*>(allocator_.Allocate(newCapacity * sizeof(TYPE), alignof(TYPE)));
 				DBG_ASSERT_MSG(newData, "Unable to allocate for resize.");
 				uninitialized_move(data_, data_ + copySize, newData);
 				destruct(data_, data_ + copySize);
@@ -254,7 +262,7 @@ namespace Core
 			if(copySize < size_)
 				destruct(data_ + copySize, data_ + size());
 
-			allocator_.deallocate(data_, capacity_, sizeof(TYPE));
+			allocator_.Deallocate(data_);
 
 			data_ = newData;
 			size_ = copySize;

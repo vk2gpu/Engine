@@ -14,6 +14,7 @@ SET(SOURCES_ISPC
 )
 
 SET(SOURCES_PRIVATE 
+	"private/dll.cpp"
 	"private/model.cpp"
 	"private/model_impl.h"
 	"private/material.cpp"

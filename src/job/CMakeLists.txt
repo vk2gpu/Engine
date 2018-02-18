@@ -10,6 +10,7 @@ SET(SOURCES_PUBLIC
 SET(SOURCES_PRIVATE 
 	"private/basic_job.cpp"
 	"private/concurrency.cpp"
+	"private/dll.cpp"
 	"private/function_job.cpp"
 	"private/manager.cpp"
 )

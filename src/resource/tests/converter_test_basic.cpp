@@ -1,6 +1,9 @@
 #include "resource/converter.h"
 #include "core/debug.h"
 #include "core/file.h"
+#include "core/allocator_overrides.h"
+
+DECLARE_MODULE_ALLOCATOR("General/" MODULE_NAME);
 
 #include <cstring>
 
