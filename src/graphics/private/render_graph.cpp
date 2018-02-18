@@ -40,17 +40,17 @@ namespace Graphics
 
 	struct RenderPassEntry
 	{
-		i32 idx_ = 0;
-		Core::String name_;
 		RenderPass* renderPass_ = nullptr;
+		i32 idx_ = 0;
+		Core::Array<char, 64> name_;
 	};
 
 	struct ResourceDesc
 	{
-		i32 id_ = 0;
-		Core::String name_;
-		GPU::ResourceType resType_ = GPU::ResourceType::INVALID;
 		GPU::Handle handle_;
+		i32 id_ = 0;
+		Core::Array<char, 64> name_;
+		GPU::ResourceType resType_ = GPU::ResourceType::INVALID;
 		RenderGraphBufferDesc bufferDesc_;
 		RenderGraphTextureDesc textureDesc_;
 		i32 inUse_ = 0;
@@ -166,12 +166,12 @@ namespace Graphics
 						if(resDesc.resType_ == GPU::ResourceType::BUFFER)
 						{
 							resDesc.handle_ =
-							    GPU::Manager::CreateBuffer(resDesc.bufferDesc_, nullptr, resDesc.name_.c_str());
+							    GPU::Manager::CreateBuffer(resDesc.bufferDesc_, nullptr, resDesc.name_.data());
 						}
 						else if(resDesc.resType_ == GPU::ResourceType::TEXTURE)
 						{
 							resDesc.handle_ =
-							    GPU::Manager::CreateTexture(resDesc.textureDesc_, nullptr, resDesc.name_.c_str());
+							    GPU::Manager::CreateTexture(resDesc.textureDesc_, nullptr, resDesc.name_.data());
 						}
 
 						resDesc.inUse_ = 1;
@@ -217,7 +217,7 @@ namespace Graphics
 							renderPass->fbsDesc_.rtvs_[idx].resource_ = GetTexture(rtvRes, nullptr);
 					}
 
-					renderPass->fbs_ = GPU::Manager::CreateFrameBindingSet(renderPass->fbsDesc_, entry.name_.c_str());
+					renderPass->fbs_ = GPU::Manager::CreateFrameBindingSet(renderPass->fbsDesc_, entry.name_.data());
 				}
 			}
 		}
@@ -261,7 +261,7 @@ namespace Graphics
 	{
 		ResourceDesc resDesc;
 		resDesc.id_ = impl_->resourceDescs_.size();
-		resDesc.name_ = name;
+		strcpy_s(resDesc.name_.data(), resDesc.name_.size(), name);
 		resDesc.resType_ = GPU::ResourceType::BUFFER;
 		resDesc.bufferDesc_ = desc;
 		impl_->resourceDescs_.push_back(resDesc);
@@ -273,7 +273,7 @@ namespace Graphics
 		ResourceDesc resDesc;
 		const char* renderPassName = "TODO_RENDER_PASS_NAME";
 		resDesc.id_ = impl_->resourceDescs_.size();
-		resDesc.name_.Printf("%s/%s", renderPassName, name);
+		sprintf_s(resDesc.name_.data(), resDesc.name_.size(), "%s/%s", renderPassName, name);
 		resDesc.resType_ = GPU::ResourceType::TEXTURE;
 		resDesc.textureDesc_ = desc;
 		impl_->resourceDescs_.push_back(resDesc);
@@ -579,7 +579,7 @@ namespace Graphics
 	{
 		ResourceDesc resDesc;
 		resDesc.id_ = impl_->resourceDescs_.size();
-		resDesc.name_ = name;
+		strcpy_s(resDesc.name_.data(), resDesc.name_.size(), name);
 		resDesc.resType_ = handle.GetType();
 		resDesc.handle_ = handle;
 		resDesc.bufferDesc_ = desc;
@@ -592,7 +592,7 @@ namespace Graphics
 	{
 		ResourceDesc resDesc;
 		resDesc.id_ = impl_->resourceDescs_.size();
-		resDesc.name_ = name;
+		strcpy_s(resDesc.name_.data(), resDesc.name_.size(), name);
 		resDesc.resType_ = handle.GetType();
 		resDesc.handle_ = handle;
 		resDesc.textureDesc_ = desc;
@@ -703,7 +703,7 @@ namespace Graphics
 			if(useSingleCommandList == false)
 			{
 				cmdList.Reset();
-				if(auto event = cmdList.Event(0, entry->name_.c_str()))
+				if(auto event = cmdList.Event(0, entry->name_.data()))
 				{
 					entry->renderPass_->Execute(resources, cmdList);
 					if(cmdList.NumCommands() > 0)
@@ -712,7 +712,7 @@ namespace Graphics
 			}
 			else
 			{
-				if(auto event = singleCmdList.Event(0, entry->name_.c_str()))
+				if(auto event = singleCmdList.Event(0, entry->name_.data()))
 				{
 					entry->renderPass_->Execute(resources, singleCmdList);
 				}
@@ -740,7 +740,7 @@ namespace Graphics
 				RenderGraphResources resources(impl, entry->renderPass_->impl_);
 
 				cmdList.Reset();
-				if(auto event = cmdList.Event(0x00000000, entry->name_.c_str()))
+				if(auto event = cmdList.Event(0x00000000, entry->name_.data()))
 					entry->renderPass_->Execute(resources, cmdList);
 
 				if(cmdList.GetType() != GPU::CommandQueueType::NONE)
@@ -749,14 +749,14 @@ namespace Graphics
 					{
 						Core::AtomicInc(&impl->compilationFailures_);
 						DBG_ASSERT_MSG(
-						    false, "Failed to compile command list for render pass \"%s\"", entry->name_.c_str());
+						    false, "Failed to compile command list for render pass \"%s\"", entry->name_.data());
 					}
 				}
 			};
 
 			jobDesc.param_ = idx;
 			jobDesc.data_ = impl_;
-			jobDesc.name_ = impl_->executeRenderPasses_[idx]->name_.c_str();
+			jobDesc.name_ = impl_->executeRenderPasses_[idx]->name_.data();
 		}
 
 		// Wait for all render pass execution to complete.
@@ -782,7 +782,7 @@ namespace Graphics
 				if(!GPU::Manager::SubmitCommandLists(cmdHandle))
 				{
 					DBG_ASSERT_MSG(
-					    false, "Failed to submit command list for render pass \"%s\".", entry->name_.c_str());
+					    false, "Failed to submit command list for render pass \"%s\".", entry->name_.data());
 					return false;
 				}
 			}
@@ -817,7 +817,7 @@ namespace Graphics
 			if(renderPasses)
 				renderPasses[idx] = entry->renderPass_;
 			if(renderPassNames)
-				renderPassNames[idx] = entry->name_.c_str();
+				renderPassNames[idx] = entry->name_.data();
 			++idx;
 		}
 	}
@@ -825,14 +825,14 @@ namespace Graphics
 	void RenderGraph::GetResourceName(RenderGraphResource res, const char** name) const
 	{
 		if(name)
-			*name = impl_->resourceDescs_[res.idx_].name_.c_str();
+			*name = impl_->resourceDescs_[res.idx_].name_.data();
 	}
 
 	void RenderGraph::InternalAddRenderPass(const char* name, RenderPass* renderPass)
 	{
 		RenderPassEntry entry;
 		entry.idx_ = impl_->renderPassEntries_.size();
-		entry.name_ = name;
+		strcpy_s(entry.name_.data(), entry.name_.size(), name);
 		entry.renderPass_ = renderPass;
 		impl_->renderPassEntries_.push_back(entry);
 	}
