@@ -781,8 +781,7 @@ namespace Graphics
 				auto cmdHandle = impl_->cmdHandles_[idx];
 				if(!GPU::Manager::SubmitCommandLists(cmdHandle))
 				{
-					DBG_ASSERT_MSG(
-					    false, "Failed to submit command list for render pass \"%s\".", entry->name_.data());
+					DBG_ASSERT_MSG(false, "Failed to submit command list for render pass \"%s\".", entry->name_.data());
 					return false;
 				}
 			}

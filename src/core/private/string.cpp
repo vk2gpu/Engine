@@ -14,12 +14,11 @@
 
 namespace Core
 {
-	IAllocator& StringAllocator::allocator_ = *[]()
-	{
+	IAllocator& StringAllocator::allocator_ = *[]() {
 		static AllocatorTLSF alloc(GeneralAllocator(), 1024 * 1024);
 		return &Core::CreateAllocationTracker(alloc, "General/String");
 	}();
-		
+
 	bool StringConvertUTF16toUTF8(const wchar* src, i32 srcLength, char* dst, i32 dstLength)
 	{
 		DBG_ASSERT(src);
