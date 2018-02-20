@@ -39,7 +39,7 @@ namespace
 
 	i32 GetNumJobWorkers(const Core::CommandLine& cmdLine)
 	{
-		i32 numWorkers = Core::GetNumPhysicalCores();
+		i32 numWorkers = Core::GetNumLogicalCores();
 		Core::String val;
 		if(cmdLine.GetArg(0, "jobworkers", val))
 			numWorkers = atoi(val.c_str());

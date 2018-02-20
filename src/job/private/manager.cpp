@@ -170,7 +170,10 @@ namespace Job
 			// Create thread.
 			auto debugName = Core::String().Printf("Job Worker Thread %i", idx);
 			thread_ = Core::Thread(ThreadEntryPoint, this, Core::Thread::DEFAULT_STACK_SIZE, debugName.c_str());
-			if(u64 mask = Core::GetPhysicalCoreAffinityMask(idx))
+
+			// Set thread affinity to physical cores.
+			const i32 numPhysCores = Core::GetNumPhysicalCores();
+			if(u64 mask = Core::GetPhysicalCoreAffinityMask(idx) % numPhysCores)
 				thread_.SetAffinity(mask);
 		}
 
