@@ -51,6 +51,16 @@ namespace GPU
 {
 	D3D12Backend::D3D12Backend(const SetupParams& setupParams)
 	    : setupParams_(setupParams)
+	    , swapchainResources_("D3D12SwapChain")
+	    , bufferResources_("D3D12Buffer")
+	    , textureResources_("D3D12Texture")
+	    , shaders_("D3D12Shader")
+	    , graphicsPipelineStates_("D3D12GraphicsPipelineState")
+	    , computePipelineStates_("D3D12ComputePipelineState")
+	    , pipelineBindingSets_("D3D12PipelineBindingSet")
+	    , drawBindingSets_("D3D12DrawBindingSet")
+	    , frameBindingSets_("D3D12FrameBindingSet")
+	    , commandLists_("D3D12CommandList")
 	{
 		auto retVal = LoadLibraries();
 		DBG_ASSERT(retVal == ErrorCode::OK);
@@ -190,60 +200,52 @@ namespace GPU
 
 	ErrorCode D3D12Backend::CreateSwapChain(Handle handle, const SwapChainDesc& desc, const char* debugName)
 	{
-		D3D12SwapChain swapChain;
-		ErrorCode retVal = device_->CreateSwapChain(swapChain, desc, debugName);
+		auto swapChain = swapchainResources_.Write(handle);
+		ErrorCode retVal = device_->CreateSwapChain(*swapChain, desc, debugName);
 		if(retVal != ErrorCode::OK)
 			return retVal;
 
-		Core::ScopedWriteLock lock(resLock_);
-		swapchainResources_[handle.GetIndex()] = swapChain;
 		return ErrorCode::OK;
 	}
 
 	ErrorCode D3D12Backend::CreateBuffer(
 	    Handle handle, const BufferDesc& desc, const void* initialData, const char* debugName)
 	{
-		D3D12Buffer buffer;
-		buffer.desc_ = desc;
-		ErrorCode retVal = device_->CreateBuffer(buffer, desc, initialData, debugName);
+		auto buffer = bufferResources_.Write(handle);
+		buffer->desc_ = desc;
+		ErrorCode retVal = device_->CreateBuffer(*buffer, desc, initialData, debugName);
 		if(retVal != ErrorCode::OK)
 			return retVal;
 
-		Core::ScopedWriteLock lock(resLock_);
-		bufferResources_[handle.GetIndex()] = buffer;
 		return ErrorCode::OK;
 	}
 
 	ErrorCode D3D12Backend::CreateTexture(
 	    Handle handle, const TextureDesc& desc, const TextureSubResourceData* initialData, const char* debugName)
 	{
-		D3D12Texture texture;
-		texture.desc_ = desc;
-		ErrorCode retVal = device_->CreateTexture(texture, desc, initialData, debugName);
+		auto texture = textureResources_.Write(handle);
+		texture->desc_ = desc;
+		ErrorCode retVal = device_->CreateTexture(*texture, desc, initialData, debugName);
 		if(retVal != ErrorCode::OK)
 			return retVal;
 
-		Core::ScopedWriteLock lock(resLock_);
-		textureResources_[handle.GetIndex()] = texture;
 		return ErrorCode::OK;
 	}
 
 	ErrorCode D3D12Backend::CreateShader(Handle handle, const ShaderDesc& desc, const char* debugName)
 	{
-		D3D12Shader shader;
-		shader.byteCode_ = new u8[desc.dataSize_];
-		shader.byteCodeSize_ = desc.dataSize_;
-		memcpy(shader.byteCode_, desc.data_, desc.dataSize_);
+		auto shader = shaders_.Write(handle);
+		shader->byteCode_ = new u8[desc.dataSize_];
+		shader->byteCodeSize_ = desc.dataSize_;
+		memcpy(shader->byteCode_, desc.data_, desc.dataSize_);
 
-		Core::ScopedWriteLock lock(resLock_);
-		shaders_[handle.GetIndex()] = shader;
 		return ErrorCode::OK;
 	}
 
 	ErrorCode D3D12Backend::CreateGraphicsPipelineState(
 	    Handle handle, const GraphicsPipelineStateDesc& desc, const char* debugName)
 	{
-		D3D12GraphicsPipelineState gps;
+		auto gps = graphicsPipelineStates_.Write(handle);
 		D3D12_GRAPHICS_PIPELINE_STATE_DESC gpsDesc = {};
 
 		auto GetShaderBytecode = [&](ShaderType shaderType) {
@@ -251,9 +253,9 @@ namespace GPU
 			auto shaderHandle = desc.shaders_[(i32)shaderType];
 			if(shaderHandle)
 			{
-				const auto& shader = shaders_[shaderHandle.GetIndex()];
-				byteCode.pShaderBytecode = shader.byteCode_;
-				byteCode.BytecodeLength = shader.byteCodeSize_;
+				auto shader = shaders_.Read(shaderHandle);
+				byteCode.pShaderBytecode = shader->byteCode_;
+				byteCode.BytecodeLength = shader->byteCodeSize_;
 			}
 			return byteCode;
 		};
@@ -485,7 +487,6 @@ namespace GPU
 		};
 
 		{
-			Core::ScopedReadLock lock(resLock_);
 			gpsDesc.VS = GetShaderBytecode(ShaderType::VS);
 			gpsDesc.HS = GetShaderBytecode(ShaderType::HS);
 			gpsDesc.DS = GetShaderBytecode(ShaderType::DS);
@@ -528,80 +529,74 @@ namespace GPU
 			elementDesc[i].InputSlotClass = D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA; // TODO: expose outside of here.
 			elementDesc[i].InstanceDataStepRate = 0;                                    // TODO: expose outside of here.
 		}
-		gps.stencilRef_ = desc.renderState_.stencilRef_;
+		gps->stencilRef_ = desc.renderState_.stencilRef_;
 
-		ErrorCode retVal = device_->CreateGraphicsPipelineState(gps, gpsDesc, debugName);
+		ErrorCode retVal = device_->CreateGraphicsPipelineState(*gps, gpsDesc, debugName);
 		if(retVal != ErrorCode::OK)
 			return retVal;
 
-		Core::ScopedWriteLock lock(resLock_);
-		graphicsPipelineStates_[handle.GetIndex()] = gps;
 		return ErrorCode::OK;
 	}
 
 	ErrorCode D3D12Backend::CreateComputePipelineState(
 	    Handle handle, const ComputePipelineStateDesc& desc, const char* debugName)
 	{
-		D3D12ComputePipelineState cps;
+		auto cps = computePipelineStates_.Write(handle);
+
 		D3D12_COMPUTE_PIPELINE_STATE_DESC cpsDesc = {};
 
 		{
-			Core::ScopedReadLock lock(resLock_);
-			const auto& shader = shaders_[desc.shader_.GetIndex()];
-			cpsDesc.CS.BytecodeLength = shader.byteCodeSize_;
-			cpsDesc.CS.pShaderBytecode = shader.byteCode_;
+			auto shader = shaders_.Read(desc.shader_);
+			cpsDesc.CS.BytecodeLength = shader->byteCodeSize_;
+			cpsDesc.CS.pShaderBytecode = shader->byteCode_;
 			cpsDesc.NodeMask = 0x0;
 		}
 
-		ErrorCode retVal = device_->CreateComputePipelineState(cps, cpsDesc, debugName);
+		ErrorCode retVal = device_->CreateComputePipelineState(*cps, cpsDesc, debugName);
 		if(retVal != ErrorCode::OK)
 			return retVal;
 
-		Core::ScopedWriteLock lock(resLock_);
-		computePipelineStates_[handle.GetIndex()] = cps;
 		return ErrorCode::OK;
 	}
 
 	ErrorCode D3D12Backend::CreatePipelineBindingSet(
 	    Handle handle, const PipelineBindingSetDesc& desc, const char* debugName)
 	{
-		D3D12PipelineBindingSet pbs;
+		auto pbs = pipelineBindingSets_.Write(handle);
 
 		ErrorCode retVal = ErrorCode::FAIL;
-		RETURN_ON_ERROR(retVal = device_->CreatePipelineBindingSet(pbs, desc, debugName));
+		RETURN_ON_ERROR(retVal = device_->CreatePipelineBindingSet(*pbs, desc, debugName));
 
-		Core::ScopedWriteLock lock(resLock_);
-		pipelineBindingSets_[handle.GetIndex()] = pbs;
 		return ErrorCode::OK;
 	}
 
 	ErrorCode D3D12Backend::CreateDrawBindingSet(Handle handle, const DrawBindingSetDesc& desc, const char* debugName)
 	{
-		D3D12DrawBindingSet dbs;
-		memset(&dbs.ib_, 0, sizeof(dbs.ib_));
-		memset(dbs.vbs_.data(), 0, sizeof(dbs.vbs_));
+		auto dbs = drawBindingSets_.Write(handle);
 
-		dbs.desc_ = desc;
+		memset(&dbs->ib_, 0, sizeof(dbs->ib_));
+		memset(dbs->vbs_.data(), 0, sizeof(dbs->vbs_));
+
+		dbs->desc_ = desc;
 
 		{
-			Core::ScopedReadLock lock(resLock_);
 			if(desc.ib_.resource_)
 			{
-				D3D12Buffer* buffer = GetD3D12Buffer(desc.ib_.resource_);
+				auto buffer = GetD3D12Buffer(desc.ib_.resource_);
 				DBG_ASSERT(buffer);
 
 				DBG_ASSERT(Core::ContainsAllFlags(buffer->supportedStates_, D3D12_RESOURCE_STATE_INDEX_BUFFER));
-				dbs.ibResource_ = buffer;
+				dbs->ibResource_ = &(*buffer);
 
-				dbs.ib_.BufferLocation = buffer->resource_->GetGPUVirtualAddress() + desc.ib_.offset_;
-				dbs.ib_.SizeInBytes = Core::PotRoundUp(desc.ib_.size_, D3D12_TEXTURE_DATA_PITCH_ALIGNMENT);
+				dbs->ib_.BufferLocation = buffer->resource_->GetGPUVirtualAddress() + desc.ib_.offset_;
+				dbs->ib_.SizeInBytes = Core::PotRoundUp(desc.ib_.size_, D3D12_TEXTURE_DATA_PITCH_ALIGNMENT);
 				switch(desc.ib_.stride_)
 				{
 				case 2:
-					dbs.ib_.Format = DXGI_FORMAT_R16_UINT;
+					dbs->ib_.Format = DXGI_FORMAT_R16_UINT;
 					break;
 				case 4:
-					dbs.ib_.Format = DXGI_FORMAT_R32_UINT;
+					dbs->ib_.Format = DXGI_FORMAT_R32_UINT;
 					break;
 				default:
 					return ErrorCode::FAIL;
@@ -614,33 +609,29 @@ namespace GPU
 			{
 				if(vb.resource_)
 				{
-					D3D12Buffer* buffer = GetD3D12Buffer(vb.resource_);
+					auto buffer = GetD3D12Buffer(vb.resource_);
 					DBG_ASSERT(buffer);
 					DBG_ASSERT(Core::ContainsAllFlags(
 					    buffer->supportedStates_, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER));
-					dbs.vbResources_[idx] = buffer;
+					dbs->vbResources_[idx] = &(*buffer);
 
-					dbs.vbs_[idx].BufferLocation = buffer->resource_->GetGPUVirtualAddress() + vb.offset_;
-					dbs.vbs_[idx].SizeInBytes = vb.size_;
-					dbs.vbs_[idx].StrideInBytes = vb.stride_;
+					dbs->vbs_[idx].BufferLocation = buffer->resource_->GetGPUVirtualAddress() + vb.offset_;
+					dbs->vbs_[idx].SizeInBytes = vb.size_;
+					dbs->vbs_[idx].StrideInBytes = vb.stride_;
 				}
 				++idx;
 			}
 		}
 
-		//
-		Core::ScopedWriteLock lock(resLock_);
-		drawBindingSets_[handle.GetIndex()] = dbs;
 		return ErrorCode::OK;
 	}
 
 	ErrorCode D3D12Backend::CreateFrameBindingSet(Handle handle, const FrameBindingSetDesc& desc, const char* debugName)
 	{
-		D3D12FrameBindingSet fbs;
+		auto fbs = frameBindingSets_.Write(handle);
 
-		fbs.desc_ = desc;
+		fbs->desc_ = desc;
 		{
-			Core::ScopedReadLock lock(resLock_);
 			Core::Vector<D3D12_RENDER_TARGET_VIEW_DESC> rtvDescs;
 			D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc;
 
@@ -650,41 +641,41 @@ namespace GPU
 				Handle resource = rtv.resource_;
 				if(resource.GetType() == ResourceType::SWAP_CHAIN)
 				{
-					auto& swapChain = swapchainResources_[resource.GetIndex()];
-					fbs.numBuffers_ = swapChain.textures_.size();
-					fbs.swapChain_ = &swapChain;
+					auto swapChain = swapchainResources_.Read(resource);
+					fbs->numBuffers_ = swapChain->textures_.size();
+					fbs->swapChain_ = &(*swapChain);
 				}
 			}
 
 			// Resize to support number of buffers.
-			rtvDescs.resize(MAX_BOUND_RTVS * fbs.numBuffers_);
+			rtvDescs.resize(MAX_BOUND_RTVS * fbs->numBuffers_);
 			memset(rtvDescs.data(), 0, sizeof(D3D12_RENDER_TARGET_VIEW_DESC) * rtvDescs.size());
 			memset(&dsvDesc, 0, sizeof(D3D12_DEPTH_STENCIL_VIEW_DESC));
-			fbs.rtvResources_.resize(MAX_BOUND_RTVS * fbs.numBuffers_);
+			fbs->rtvResources_.resize(MAX_BOUND_RTVS * fbs->numBuffers_);
 
-			for(i32 bufferIdx = 0; bufferIdx < fbs.numBuffers_; ++bufferIdx)
+			for(i32 bufferIdx = 0; bufferIdx < fbs->numBuffers_; ++bufferIdx)
 			{
 				for(i32 rtvIdx = 0; rtvIdx < MAX_BOUND_RTVS; ++rtvIdx)
 				{
 					auto& rtvDesc = rtvDescs[rtvIdx + bufferIdx * MAX_BOUND_RTVS];
-					D3D12SubresourceRange& rtvResource = fbs.rtvResources_[rtvIdx + bufferIdx * MAX_BOUND_RTVS];
+					D3D12SubresourceRange& rtvResource = fbs->rtvResources_[rtvIdx + bufferIdx * MAX_BOUND_RTVS];
 					const auto& rtv = desc.rtvs_[rtvIdx];
 					Handle resource = rtv.resource_;
 					if(resource)
 					{
 						// Only first element can be a swap chain, and only one RTV can be set if using a swap chain.
 						DBG_ASSERT(rtvIdx == 0 || resource.GetType() == ResourceType::TEXTURE);
-						DBG_ASSERT(rtvIdx == 0 || !fbs.swapChain_);
+						DBG_ASSERT(rtvIdx == 0 || !fbs->swapChain_);
 
 						// No holes allowed.
 						if(bufferIdx == 0)
-							if(rtvIdx != fbs.numRTs_++)
+							if(rtvIdx != fbs->numRTs_++)
 								return ErrorCode::FAIL;
 
-						D3D12Texture* texture = GetD3D12Texture(resource, bufferIdx);
+						auto texture = GetD3D12Texture(resource, bufferIdx);
 						DBG_ASSERT(
 						    Core::ContainsAllFlags(texture->supportedStates_, D3D12_RESOURCE_STATE_RENDER_TARGET));
-						rtvResource.resource_ = texture;
+						rtvResource.resource_ = &(*texture);
 						rtvResource.firstSubRsc_ = 0;
 						rtvResource.numSubRsc_ = texture->numSubResources_;
 
@@ -732,12 +723,12 @@ namespace GPU
 				Handle resource = dsv.resource_;
 				if(resource)
 				{
-					D3D12SubresourceRange& dsvResource = fbs.dsvResource_;
+					D3D12SubresourceRange& dsvResource = fbs->dsvResource_;
 					DBG_ASSERT(resource.GetType() == ResourceType::TEXTURE);
-					D3D12Texture* texture = GetD3D12Texture(resource);
+					auto texture = GetD3D12Texture(resource);
 					DBG_ASSERT(Core::ContainsAnyFlags(
 					    texture->supportedStates_, D3D12_RESOURCE_STATE_DEPTH_WRITE | D3D12_RESOURCE_STATE_DEPTH_READ));
-					dsvResource.resource_ = texture;
+					dsvResource.resource_ = &(*texture);
 					dsvResource.firstSubRsc_ = 0;
 					dsvResource.numSubRsc_ = texture->numSubResources_;
 
@@ -773,21 +764,19 @@ namespace GPU
 			}
 
 			ErrorCode retVal;
-			RETURN_ON_ERROR(retVal = device_->CreateFrameBindingSet(fbs, fbs.desc_, debugName));
-			RETURN_ON_ERROR(retVal = device_->UpdateFrameBindingSet(fbs, rtvDescs.data(), &dsvDesc));
+			RETURN_ON_ERROR(retVal = device_->CreateFrameBindingSet(*fbs, fbs->desc_, debugName));
+			RETURN_ON_ERROR(retVal = device_->UpdateFrameBindingSet(*fbs, rtvDescs.data(), &dsvDesc));
 		}
 
-		//
-		Core::ScopedWriteLock lock(resLock_);
-		frameBindingSets_[handle.GetIndex()] = fbs;
 		return ErrorCode::OK;
 	}
 
 	ErrorCode D3D12Backend::CreateCommandList(Handle handle, const char* debugName)
 	{
-		D3D12CommandList* commandList = new D3D12CommandList(*device_, 0x0, D3D12_COMMAND_LIST_TYPE_DIRECT, debugName);
-		Core::ScopedWriteLock lock(resLock_);
-		commandLists_[handle.GetIndex()] = commandList;
+		auto commandList = commandLists_.Write(handle);
+
+		*commandList = new D3D12CommandList(*device_, 0x0, D3D12_COMMAND_LIST_TYPE_DIRECT, debugName);
+
 		return ErrorCode::OK;
 	}
 
@@ -799,42 +788,53 @@ namespace GPU
 
 	ErrorCode D3D12Backend::DestroyResource(Handle handle)
 	{
-		Core::ScopedWriteLock lock(resLock_);
 		switch(handle.GetType())
 		{
 		case ResourceType::SWAP_CHAIN:
-			swapchainResources_[handle.GetIndex()] = D3D12SwapChain();
+			*swapchainResources_.Write(handle) = D3D12SwapChain();
 			break;
 		case ResourceType::BUFFER:
-			bufferResources_[handle.GetIndex()] = D3D12Buffer();
+			*bufferResources_.Write(handle) = D3D12Buffer();
 			break;
 		case ResourceType::TEXTURE:
-			textureResources_[handle.GetIndex()] = D3D12Texture();
+			*textureResources_.Write(handle) = D3D12Texture();
 			break;
 		case ResourceType::SHADER:
-			delete[] shaders_[handle.GetIndex()].byteCode_;
-			shaders_[handle.GetIndex()] = D3D12Shader();
+			if(auto shader = shaders_.Write(handle))
+			{
+				delete[] shader->byteCode_;
+				*shader = D3D12Shader();
+			}
 			break;
 		case ResourceType::GRAPHICS_PIPELINE_STATE:
-			graphicsPipelineStates_[handle.GetIndex()] = D3D12GraphicsPipelineState();
+			*graphicsPipelineStates_.Write(handle) = D3D12GraphicsPipelineState();
 			break;
 		case ResourceType::COMPUTE_PIPELINE_STATE:
-			computePipelineStates_[handle.GetIndex()] = D3D12ComputePipelineState();
+			*computePipelineStates_.Write(handle) = D3D12ComputePipelineState();
 			break;
 		case ResourceType::PIPELINE_BINDING_SET:
-			device_->DestroyPipelineBindingSet(pipelineBindingSets_[handle.GetIndex()]);
-			pipelineBindingSets_[handle.GetIndex()] = D3D12PipelineBindingSet();
+			if(auto pbs = pipelineBindingSets_.Write(handle))
+			{
+				device_->DestroyPipelineBindingSet(*pbs);
+				*pbs = D3D12PipelineBindingSet();
+			}
 			break;
 		case ResourceType::DRAW_BINDING_SET:
-			drawBindingSets_[handle.GetIndex()] = D3D12DrawBindingSet();
+			*drawBindingSets_.Write(handle) = D3D12DrawBindingSet();
 			break;
 		case ResourceType::FRAME_BINDING_SET:
-			device_->DestroyFrameBindingSet(frameBindingSets_[handle.GetIndex()]);
-			frameBindingSets_[handle.GetIndex()] = D3D12FrameBindingSet();
+			if(auto fbs = frameBindingSets_.Write(handle))
+			{
+				device_->DestroyFrameBindingSet(*fbs);
+				*fbs = D3D12FrameBindingSet();
+			}
 			break;
 		case ResourceType::COMMAND_LIST:
-			delete commandLists_[handle.GetIndex()];
-			commandLists_[handle.GetIndex()] = nullptr;
+			if(auto commandList = commandLists_.Write(handle))
+			{
+				delete *commandList;
+				*commandList = nullptr;
+			}
 			break;
 		default:
 			return ErrorCode::UNIMPLEMENTED;
@@ -845,13 +845,7 @@ namespace GPU
 
 	ErrorCode D3D12Backend::AllocTemporaryPipelineBindingSet(Handle handle, const PipelineBindingSetDesc& desc)
 	{
-		D3D12PipelineBindingSet pbs;
-
-		if(handle.GetIndex() == 61 || handle.GetIndex() == 62)
-		{
-			int a = 0;
-			++a;
-		}
+		auto pbs = pipelineBindingSets_.Write(handle);
 
 		// Setup descriptors.
 		auto& samplerAllocator = device_->GetSamplerDescriptorAllocator();
@@ -859,32 +853,29 @@ namespace GPU
 		auto& srvSubAllocator = device_->GetSRVSubAllocator();
 		auto& uavSubAllocator = device_->GetUAVSubAllocator();
 
-		pbs.samplers_ = samplerAllocator.Alloc(desc.numSamplers_, GPU::DescriptorHeapSubType::SAMPLER);
-		pbs.cbvs_ = cbvSubAllocator.Alloc(desc.numCBVs_, MAX_CBV_BINDINGS);
-		pbs.srvs_ = srvSubAllocator.Alloc(desc.numSRVs_, MAX_SRV_BINDINGS);
-		pbs.uavs_ = uavSubAllocator.Alloc(desc.numUAVs_, MAX_UAV_BINDINGS);
+		pbs->samplers_ = samplerAllocator.Alloc(desc.numSamplers_, GPU::DescriptorHeapSubType::SAMPLER);
+		pbs->cbvs_ = cbvSubAllocator.Alloc(desc.numCBVs_, MAX_CBV_BINDINGS);
+		pbs->srvs_ = srvSubAllocator.Alloc(desc.numSRVs_, MAX_SRV_BINDINGS);
+		pbs->uavs_ = uavSubAllocator.Alloc(desc.numUAVs_, MAX_UAV_BINDINGS);
 
-		pbs.temporary_ = true;
-		pbs.shaderVisible_ = true;
+		pbs->temporary_ = true;
+		pbs->shaderVisible_ = true;
 
-		DBG_ASSERT(pbs.samplers_.size_ >= desc.numSamplers_);
-		DBG_ASSERT(pbs.cbvs_.size_ >= desc.numCBVs_);
-		DBG_ASSERT(pbs.srvs_.size_ >= desc.numSRVs_);
-		DBG_ASSERT(pbs.uavs_.size_ >= desc.numUAVs_);
+		DBG_ASSERT(pbs->samplers_.size_ >= desc.numSamplers_);
+		DBG_ASSERT(pbs->cbvs_.size_ >= desc.numCBVs_);
+		DBG_ASSERT(pbs->srvs_.size_ >= desc.numSRVs_);
+		DBG_ASSERT(pbs->uavs_.size_ >= desc.numUAVs_);
 
-		pbs.cbvTransitions_.resize(desc.numCBVs_);
-		pbs.srvTransitions_.resize(desc.numSRVs_);
-		pbs.uavTransitions_.resize(desc.numUAVs_);
+		pbs->cbvTransitions_.resize(desc.numCBVs_);
+		pbs->srvTransitions_.resize(desc.numSRVs_);
+		pbs->uavTransitions_.resize(desc.numUAVs_);
 
-		Core::ScopedWriteLock lock(resLock_);
-		pipelineBindingSets_[handle.GetIndex()] = pbs;
 		return ErrorCode::OK;
 	}
 
 	ErrorCode D3D12Backend::UpdatePipelineBindings(Handle handle, i32 base, Core::ArrayView<const BindingCBV> descs)
 	{
-		Core::ScopedWriteLock lock(resLock_);
-		auto& pbs = pipelineBindingSets_[handle.GetIndex()];
+		auto pbs = pipelineBindingSets_.Write(handle);
 
 		Core::Array<D3D12_CONSTANT_BUFFER_VIEW_DESC, MAX_CBV_BINDINGS> cbvDescs = {};
 
@@ -895,29 +886,29 @@ namespace GPU
 			DBG_ASSERT(cbvHandle.IsValid());
 			DBG_ASSERT(cbvHandle.GetType() == ResourceType::BUFFER);
 
-			D3D12Resource* resource = GetD3D12Resource(cbvHandle);
+			auto resource = GetD3D12Resource(cbvHandle);
 			DBG_ASSERT(resource);
 
 			// Setup transition info.
-			pbs.cbvTransitions_[bindingIdx].resource_ = resource;
-			pbs.cbvTransitions_[bindingIdx].firstSubRsc_ = 0;
-			pbs.cbvTransitions_[bindingIdx].numSubRsc_ = 1;
+			pbs->cbvTransitions_[bindingIdx].resource_ = &(*resource);
+			pbs->cbvTransitions_[bindingIdx].firstSubRsc_ = 0;
+			pbs->cbvTransitions_[bindingIdx].numSubRsc_ = 1;
 
 			// Setup the D3D12 descriptor.
 			const auto& cbv = descs[i];
 			auto& cbvDesc = cbvDescs[bindingIdx];
-			cbvDesc.BufferLocation =
-			    bufferResources_[cbvHandle.GetIndex()].resource_->GetGPUVirtualAddress() + cbv.offset_;
+			auto buf = bufferResources_.Read(cbvHandle);
+			cbvDesc.BufferLocation = buf->resource_->GetGPUVirtualAddress() + cbv.offset_;
 			cbvDesc.SizeInBytes = Core::PotRoundUp(cbv.size_, D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT);
 		}
 
-		return device_->UpdateCBVs(pbs, base, descs.size(), pbs.cbvTransitions_.data() + base, cbvDescs.data() + base);
+		return device_->UpdateCBVs(
+		    *pbs, base, descs.size(), pbs->cbvTransitions_.data() + base, cbvDescs.data() + base);
 	}
 
 	ErrorCode D3D12Backend::UpdatePipelineBindings(Handle handle, i32 base, Core::ArrayView<const BindingSRV> descs)
 	{
-		Core::ScopedWriteLock lock(resLock_);
-		auto& pbs = pipelineBindingSets_[handle.GetIndex()];
+		auto pbs = pipelineBindingSets_.Write(handle);
 
 		Core::Array<D3D12_SHADER_RESOURCE_VIEW_DESC, MAX_SRV_BINDINGS> srvDescs = {};
 
@@ -928,12 +919,12 @@ namespace GPU
 			DBG_ASSERT(srvHandle.IsValid());
 			DBG_ASSERT(srvHandle.GetType() == ResourceType::BUFFER || srvHandle.GetType() == ResourceType::TEXTURE);
 
-			const D3D12Buffer* bufferRes = nullptr;
-			const D3D12Texture* textureRes = nullptr;
+			ResourceRead<D3D12Buffer> buffer;
+			ResourceRead<D3D12Texture> texture;
 			if(srvHandle.GetType() == ResourceType::BUFFER)
-				bufferRes = &bufferResources_[srvHandle.GetIndex()];
+				buffer = bufferResources_.Read(srvHandle);
 			else
-				textureRes = &textureResources_[srvHandle.GetIndex()];
+				texture = textureResources_.Read(srvHandle);
 
 			i32 firstSubRsc = 0;
 			i32 numSubRsc = 0;
@@ -941,10 +932,10 @@ namespace GPU
 			const auto& srv = descs[i];
 
 			i32 mipLevels = srv.mipLevels_NumElements_;
-			if(textureRes)
+			if(texture)
 			{
 				if(mipLevels == -1)
-					mipLevels = textureRes->desc_.levels_;
+					mipLevels = texture->desc_.levels_;
 				DBG_ASSERT(mipLevels > 0);
 			}
 
@@ -983,7 +974,7 @@ namespace GPU
 				srvDesc.Texture1DArray.ArraySize = srv.arraySize_;
 				srvDesc.Texture1DArray.FirstArraySlice = srv.firstArraySlice_;
 				srvDesc.Texture1DArray.ResourceMinLODClamp = srv.resourceMinLODClamp_;
-				firstSubRsc = srv.mostDetailedMip_FirstElement_ + (srv.firstArraySlice_ * textureRes->desc_.levels_);
+				firstSubRsc = srv.mostDetailedMip_FirstElement_ + (srv.firstArraySlice_ * texture->desc_.levels_);
 				numSubRsc = mipLevels;
 				break;
 			case ViewDimension::TEX2D:
@@ -1001,7 +992,7 @@ namespace GPU
 				srvDesc.Texture2DArray.FirstArraySlice = srv.firstArraySlice_;
 				srvDesc.Texture2DArray.PlaneSlice = srv.planeSlice_;
 				srvDesc.Texture2DArray.ResourceMinLODClamp = srv.resourceMinLODClamp_;
-				firstSubRsc = srv.mostDetailedMip_FirstElement_ + (srv.firstArraySlice_ * textureRes->desc_.levels_);
+				firstSubRsc = srv.mostDetailedMip_FirstElement_ + (srv.firstArraySlice_ * texture->desc_.levels_);
 				numSubRsc = mipLevels;
 				break;
 			case ViewDimension::TEX3D:
@@ -1016,7 +1007,7 @@ namespace GPU
 				srvDesc.TextureCube.MipLevels = mipLevels;
 				srvDesc.TextureCube.ResourceMinLODClamp = srv.resourceMinLODClamp_;
 				firstSubRsc = 0;
-				numSubRsc = textureRes->desc_.levels_ * 6;
+				numSubRsc = texture->desc_.levels_ * 6;
 				break;
 			case ViewDimension::TEXCUBE_ARRAY:
 				srvDesc.TextureCubeArray.MostDetailedMip = srv.mostDetailedMip_FirstElement_;
@@ -1025,7 +1016,7 @@ namespace GPU
 				srvDesc.TextureCubeArray.First2DArrayFace = srv.firstArraySlice_;
 				srvDesc.TextureCubeArray.ResourceMinLODClamp = srv.resourceMinLODClamp_;
 				firstSubRsc = srv.firstArraySlice_ * 6;
-				numSubRsc = (textureRes->desc_.levels_ * 6) * srv.arraySize_;
+				numSubRsc = (texture->desc_.levels_ * 6) * srv.arraySize_;
 				break;
 			default:
 				DBG_ASSERT(false);
@@ -1033,20 +1024,20 @@ namespace GPU
 				break;
 			}
 
-			D3D12Resource* resource = GetD3D12Resource(srvHandle);
+			auto resource = GetD3D12Resource(srvHandle);
 			DBG_ASSERT(resource);
-			pbs.srvTransitions_[bindingIdx].resource_ = resource;
-			pbs.srvTransitions_[bindingIdx].firstSubRsc_ = firstSubRsc;
-			pbs.srvTransitions_[bindingIdx].numSubRsc_ = numSubRsc;
+			pbs->srvTransitions_[bindingIdx].resource_ = &(*resource);
+			pbs->srvTransitions_[bindingIdx].firstSubRsc_ = firstSubRsc;
+			pbs->srvTransitions_[bindingIdx].numSubRsc_ = numSubRsc;
 		}
 
-		return device_->UpdateSRVs(pbs, base, descs.size(), pbs.srvTransitions_.data() + base, srvDescs.data() + base);
+		return device_->UpdateSRVs(
+		    *pbs, base, descs.size(), pbs->srvTransitions_.data() + base, srvDescs.data() + base);
 	}
 
 	ErrorCode D3D12Backend::UpdatePipelineBindings(Handle handle, i32 base, Core::ArrayView<const BindingUAV> descs)
 	{
-		Core::ScopedWriteLock lock(resLock_);
-		auto& pbs = pipelineBindingSets_[handle.GetIndex()];
+		auto pbs = pipelineBindingSets_.Write(handle);
 
 		Core::Array<D3D12_UNORDERED_ACCESS_VIEW_DESC, MAX_UAV_BINDINGS> uavDescs = {};
 
@@ -1057,12 +1048,12 @@ namespace GPU
 			DBG_ASSERT(uavHandle.IsValid());
 			DBG_ASSERT(uavHandle.GetType() == ResourceType::BUFFER || uavHandle.GetType() == ResourceType::TEXTURE);
 
-			const D3D12Buffer* bufferRes = nullptr;
-			const D3D12Texture* textureRes = nullptr;
+			ResourceRead<D3D12Buffer> buffer;
+			ResourceRead<D3D12Texture> texture;
 			if(uavHandle.GetType() == ResourceType::BUFFER)
-				bufferRes = &bufferResources_[uavHandle.GetIndex()];
+				buffer = bufferResources_.Read(uavHandle);
 			else
-				textureRes = &textureResources_[uavHandle.GetIndex()];
+				texture = textureResources_.Read(uavHandle);
 
 			const auto& uav = descs[i];
 
@@ -1095,7 +1086,7 @@ namespace GPU
 				uavDesc.Texture1DArray.ArraySize = uav.arraySize_WSize_;
 				uavDesc.Texture1DArray.FirstArraySlice = uav.firstArraySlice_FirstWSlice_NumElements_;
 				firstSubRsc = uav.mipSlice_FirstElement_ +
-				              (uav.firstArraySlice_FirstWSlice_NumElements_ * textureRes->desc_.levels_);
+				              (uav.firstArraySlice_FirstWSlice_NumElements_ * texture->desc_.levels_);
 				numSubRsc = uav.arraySize_WSize_;
 				break;
 			case ViewDimension::TEX2D:
@@ -1110,8 +1101,8 @@ namespace GPU
 				uavDesc.Texture2DArray.FirstArraySlice = uav.firstArraySlice_FirstWSlice_NumElements_;
 				uavDesc.Texture2DArray.PlaneSlice = uav.planeSlice_;
 				firstSubRsc = uav.mipSlice_FirstElement_ +
-				              (uav.firstArraySlice_FirstWSlice_NumElements_ * textureRes->desc_.levels_);
-				numSubRsc = textureRes->desc_.levels_ * uav.arraySize_WSize_;
+				              (uav.firstArraySlice_FirstWSlice_NumElements_ * texture->desc_.levels_);
+				numSubRsc = texture->desc_.levels_ * uav.arraySize_WSize_;
 				break;
 			case ViewDimension::TEX3D:
 				uavDesc.Texture3D.MipSlice = uav.mipSlice_FirstElement_;
@@ -1126,20 +1117,20 @@ namespace GPU
 				break;
 			}
 
-			D3D12Resource* resource = GetD3D12Resource(uavHandle);
+			auto resource = GetD3D12Resource(uavHandle);
 			DBG_ASSERT(resource);
-			pbs.uavTransitions_[bindingIdx].resource_ = resource;
-			pbs.uavTransitions_[bindingIdx].firstSubRsc_ = firstSubRsc;
-			pbs.uavTransitions_[bindingIdx].numSubRsc_ = numSubRsc;
+			pbs->uavTransitions_[bindingIdx].resource_ = &(*resource);
+			pbs->uavTransitions_[bindingIdx].firstSubRsc_ = firstSubRsc;
+			pbs->uavTransitions_[bindingIdx].numSubRsc_ = numSubRsc;
 		}
 
-		return device_->UpdateUAVs(pbs, base, descs.size(), pbs.uavTransitions_.data() + base, uavDescs.data() + base);
+		return device_->UpdateUAVs(
+		    *pbs, base, descs.size(), pbs->uavTransitions_.data() + base, uavDescs.data() + base);
 	}
 
 	ErrorCode D3D12Backend::UpdatePipelineBindings(Handle handle, i32 base, Core::ArrayView<const SamplerState> descs)
 	{
-		Core::ScopedReadLock lock(resLock_);
-		auto& pbs = pipelineBindingSets_[handle.GetIndex()];
+		auto pbs = pipelineBindingSets_.Write(handle);
 
 		Core::Array<D3D12_SAMPLER_DESC, MAX_SAMPLER_BINDINGS> samplerDescs;
 
@@ -1149,28 +1140,26 @@ namespace GPU
 			samplerDescs[bindingIdx] = GetSampler(descs[i]);
 		}
 
-		return device_->UpdateSamplers(pbs, base, descs.size(), samplerDescs.data() + base);
+		return device_->UpdateSamplers(*pbs, base, descs.size(), samplerDescs.data() + base);
 	}
 
 	ErrorCode D3D12Backend::CopyPipelineBindings(
 	    Core::ArrayView<const PipelineBinding> dst, Core::ArrayView<const PipelineBinding> src)
 	{
-		Core::ScopedReadLock lock(resLock_);
-
 		auto* d3dDevice = device_->d3dDevice_.Get();
 		i32 viewIncr = d3dDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 		i32 samplerIncr = d3dDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER);
 
 		for(i32 i = 0; i < dst.size(); ++i)
 		{
-			//DBG_LOG("CopyPipelineBindings: %d\n", i);
-			auto& dstPBS = pipelineBindingSets_[dst[i].pbs_.GetIndex()];
-			auto& srcPBS = pipelineBindingSets_[src[i].pbs_.GetIndex()];
+			DBG_ASSERT(dst[i].pbs_ != src[i].pbs_);
+			auto dstPBS = pipelineBindingSets_.Write(dst[i].pbs_);
+			auto srcPBS = pipelineBindingSets_.Read(src[i].pbs_);
 
 			auto CopyRange = [d3dDevice](D3D12DescriptorAllocation& dstAlloc,
-			    Core::Vector<D3D12SubresourceRange>& dstTransitions, i32 dstOffset, D3D12DescriptorAllocation& srcAlloc,
-			    Core::Vector<D3D12SubresourceRange>& srcTransitions, i32 srcOffset, i32 num,
-			    D3D12_DESCRIPTOR_HEAP_TYPE type, i32 incr, DescriptorHeapSubType subType) {
+			    Core::Vector<D3D12SubresourceRange>& dstTransitions, i32 dstOffset,
+			    const D3D12DescriptorAllocation& srcAlloc, const Core::Vector<D3D12SubresourceRange>& srcTransitions,
+			    i32 srcOffset, i32 num, D3D12_DESCRIPTOR_HEAP_TYPE type, i32 incr, DescriptorHeapSubType subType) {
 				D3D12_CPU_DESCRIPTOR_HANDLE dstHandle = dstAlloc.GetCPUHandle(dstOffset);
 				D3D12_CPU_DESCRIPTOR_HANDLE srcHandle = srcAlloc.GetCPUHandle(srcOffset);
 				DBG_ASSERT(dstHandle.ptr);
@@ -1206,21 +1195,21 @@ namespace GPU
 			};
 
 			if(dst[i].cbvs_.num_ > 0)
-				CopyRange(dstPBS.cbvs_, dstPBS.cbvTransitions_, dst[i].cbvs_.dstOffset_, srcPBS.cbvs_,
-				    srcPBS.cbvTransitions_, src[i].cbvs_.srcOffset_, dst[i].cbvs_.num_,
+				CopyRange(dstPBS->cbvs_, dstPBS->cbvTransitions_, dst[i].cbvs_.dstOffset_, srcPBS->cbvs_,
+				    srcPBS->cbvTransitions_, src[i].cbvs_.srcOffset_, dst[i].cbvs_.num_,
 				    D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, viewIncr, DescriptorHeapSubType::CBV);
 			if(dst[i].srvs_.num_ > 0)
-				CopyRange(dstPBS.srvs_, dstPBS.srvTransitions_, dst[i].srvs_.dstOffset_, srcPBS.srvs_,
-				    srcPBS.srvTransitions_, src[i].srvs_.srcOffset_, dst[i].srvs_.num_,
+				CopyRange(dstPBS->srvs_, dstPBS->srvTransitions_, dst[i].srvs_.dstOffset_, srcPBS->srvs_,
+				    srcPBS->srvTransitions_, src[i].srvs_.srcOffset_, dst[i].srvs_.num_,
 				    D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, viewIncr, DescriptorHeapSubType::SRV);
 			if(dst[i].uavs_.num_ > 0)
-				CopyRange(dstPBS.uavs_, dstPBS.uavTransitions_, dst[i].uavs_.dstOffset_, srcPBS.uavs_,
-				    srcPBS.uavTransitions_, src[i].uavs_.srcOffset_, dst[i].uavs_.num_,
+				CopyRange(dstPBS->uavs_, dstPBS->uavTransitions_, dst[i].uavs_.dstOffset_, srcPBS->uavs_,
+				    srcPBS->uavTransitions_, src[i].uavs_.srcOffset_, dst[i].uavs_.num_,
 				    D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, viewIncr, DescriptorHeapSubType::UAV);
 
 			static Core::Vector<D3D12SubresourceRange> emptyTransitions;
 			if(dst[i].samplers_.num_ > 0)
-				CopyRange(dstPBS.samplers_, emptyTransitions, dst[i].samplers_.dstOffset_, srcPBS.samplers_,
+				CopyRange(dstPBS->samplers_, emptyTransitions, dst[i].samplers_.dstOffset_, srcPBS->samplers_,
 				    emptyTransitions, src[i].samplers_.dstOffset_, dst[i].samplers_.num_,
 				    D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, samplerIncr, DescriptorHeapSubType::SAMPLER);
 		}
@@ -1305,12 +1294,9 @@ namespace GPU
 	{
 		DBG_ASSERT(handle.GetIndex() < commandLists_.size());
 
-		// Lock resources during command list compilation.
-		Core::ScopedReadLock lock(resLock_);
-
-		D3D12CommandList* outCommandList = commandLists_[handle.GetIndex()];
+		auto outCommandList = commandLists_.Write(handle);
 		D3D12CompileContext context(*this);
-		return context.CompileCommandList(*outCommandList, commandList);
+		return context.CompileCommandList(**outCommandList, commandList);
 	}
 
 	ErrorCode D3D12Backend::SubmitCommandLists(Core::ArrayView<Handle> handles)
@@ -1323,7 +1309,7 @@ namespace GPU
 			const i32 numHandles = Core::Min(COMMAND_LIST_BATCH_SIZE, handles.size() - baseHandle);
 			for(i32 i = 0; i < numHandles; ++i)
 			{
-				commandLists[i] = commandLists_[handles[i].GetIndex()];
+				commandLists[i] = *commandLists_.Read(handles[i]);
 				DBG_ASSERT(commandLists[i]);
 			}
 
@@ -1337,28 +1323,24 @@ namespace GPU
 
 	ErrorCode D3D12Backend::PresentSwapChain(Handle handle)
 	{
-		Core::ScopedWriteLock lock(resLock_);
-		DBG_ASSERT(handle.GetIndex() < swapchainResources_.size());
-		D3D12SwapChain& swapChain = swapchainResources_[handle.GetIndex()];
+		auto swapChain = swapchainResources_.Write(handle);
 
 		HRESULT retVal = S_OK;
-		CHECK_D3D(retVal = swapChain.swapChain_->Present(0, 0));
+		CHECK_D3D(retVal = swapChain->swapChain_->Present(0, 0));
 		if(FAILED(retVal))
 			return ErrorCode::FAIL;
-		swapChain.bbIdx_ = swapChain.swapChain_->GetCurrentBackBufferIndex();
+		swapChain->bbIdx_ = swapChain->swapChain_->GetCurrentBackBufferIndex();
 		return ErrorCode::OK;
 	}
 
 	ErrorCode D3D12Backend::ResizeSwapChain(Handle handle, i32 width, i32 height)
 	{
-		Core::ScopedWriteLock lock(resLock_);
-		DBG_ASSERT(handle.GetIndex() < swapchainResources_.size());
-		D3D12SwapChain& swapChain = swapchainResources_[handle.GetIndex()];
+		auto swapChain = swapchainResources_.Write(handle);
 
-		ErrorCode retVal = device_->ResizeSwapChain(swapChain, width, height);
+		ErrorCode retVal = device_->ResizeSwapChain(*swapChain, width, height);
 		if(retVal != ErrorCode::OK)
 			return retVal;
-		swapChain.bbIdx_ = swapChain.swapChain_->GetCurrentBackBufferIndex();
+		swapChain->bbIdx_ = swapChain->swapChain_->GetCurrentBackBufferIndex();
 		return ErrorCode::OK;
 	}
 
@@ -1368,55 +1350,47 @@ namespace GPU
 			device_->NextFrame();
 	}
 
-	D3D12Resource* D3D12Backend::GetD3D12Resource(Handle handle)
+	ResourceRead<D3D12Resource> D3D12Backend::GetD3D12Resource(Handle handle)
 	{
 		if(handle.GetType() == ResourceType::BUFFER)
 		{
-			if(handle.GetIndex() >= bufferResources_.size())
-				return nullptr;
-			return &bufferResources_[handle.GetIndex()];
+			auto buffer = bufferResources_.Read(handle);
+			return ResourceRead<D3D12Resource>(std::move(buffer), *buffer);
 		}
 		else if(handle.GetType() == ResourceType::TEXTURE)
 		{
-			if(handle.GetIndex() >= textureResources_.size())
-				return nullptr;
-			return &textureResources_[handle.GetIndex()];
+			auto texture = textureResources_.Read(handle);
+			return ResourceRead<D3D12Resource>(std::move(texture), *texture);
 		}
 		else if(handle.GetType() == ResourceType::SWAP_CHAIN)
 		{
-			if(handle.GetIndex() >= swapchainResources_.size())
-				return nullptr;
-			D3D12SwapChain& swapChain = swapchainResources_[handle.GetIndex()];
-			return &swapChain.textures_[swapChain.bbIdx_];
+			auto swapChain = swapchainResources_.Read(handle);
+			return ResourceRead<D3D12Resource>(std::move(swapChain), swapChain->textures_[swapChain->bbIdx_]);
 		}
-		return nullptr;
+		return ResourceRead<D3D12Resource>();
 	}
 
-	D3D12Buffer* D3D12Backend::GetD3D12Buffer(Handle handle)
+	ResourceRead<D3D12Buffer> D3D12Backend::GetD3D12Buffer(Handle handle)
 	{
 		if(handle.GetType() != ResourceType::BUFFER)
-			return nullptr;
+			return ResourceRead<D3D12Buffer>();
 		if(handle.GetIndex() >= bufferResources_.size())
-			return nullptr;
-		return &bufferResources_[handle.GetIndex()];
+			return ResourceRead<D3D12Buffer>();
+		return bufferResources_.Read(handle);
 	}
 
-	D3D12Texture* D3D12Backend::GetD3D12Texture(Handle handle, i32 bufferIdx)
+	ResourceRead<D3D12Texture> D3D12Backend::GetD3D12Texture(Handle handle, i32 bufferIdx)
 	{
 		if(handle.GetType() == ResourceType::TEXTURE)
 		{
-			if(handle.GetIndex() >= textureResources_.size())
-				return nullptr;
-			return &textureResources_[handle.GetIndex()];
+			return textureResources_.Read(handle);
 		}
 		else if(handle.GetType() == ResourceType::SWAP_CHAIN)
 		{
-			if(handle.GetIndex() >= swapchainResources_.size())
-				return nullptr;
-			D3D12SwapChain& swapChain = swapchainResources_[handle.GetIndex()];
-			return &swapChain.textures_[bufferIdx >= 0 ? bufferIdx : swapChain.bbIdx_];
+			auto swapChain = swapchainResources_.Read(handle);
+			return ResourceRead<D3D12Texture>(std::move(swapChain), swapChain->textures_[swapChain->bbIdx_]);
 		}
-		return nullptr;
+		return ResourceRead<D3D12Texture>();
 	}
 
 } // namespace GPU

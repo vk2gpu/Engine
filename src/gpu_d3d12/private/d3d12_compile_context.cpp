@@ -107,12 +107,12 @@ namespace GPU
 
 		if(command->drawBinding_ != GPU::Handle())
 		{
-			const auto& dbs = backend_.drawBindingSets_[command->drawBinding_.GetIndex()];
+			auto dbs = backend_.drawBindingSets_.Read(command->drawBinding_);
 
 			SetDrawBinding(command->drawBinding_, command->primitive_);
 
 			FlushTransitions();
-			if(dbs.ib_.BufferLocation == 0)
+			if(dbs->ib_.BufferLocation == 0)
 			{
 				d3dCommandList_->DrawInstanced(
 				    command->noofVertices_, command->noofInstances_, command->vertexOffset_, command->firstInstance_);
@@ -136,34 +136,35 @@ namespace GPU
 
 	ErrorCode D3D12CompileContext::CompileCommand(const CommandDrawIndirect* command)
 	{
-		const auto& indirectBuffer = backend_.bufferResources_[command->indirectBuffer_.GetIndex()];
-		const auto* countBuffer =
-		    (command->countBuffer_) ? &backend_.bufferResources_[command->countBuffer_.GetIndex()] : nullptr;
+		auto indirectBuffer = backend_.bufferResources_.Read(command->indirectBuffer_);
+		ResourceRead<D3D12Buffer> countBuffer;
+		if(command->countBuffer_)
+			countBuffer = backend_.bufferResources_.Read(command->countBuffer_);
 
 		SetPipeline(command->pipelineState_, command->pipelineBindings_);
 		SetFrameBinding(command->frameBinding_);
 		SetDrawState(command->drawState_);
-		AddTransition(&indirectBuffer, 0, 1, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
+		AddTransition(&(*indirectBuffer), 0, 1, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
 		if(countBuffer)
-			AddTransition(countBuffer, 0, 1, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
+			AddTransition(&(*countBuffer), 0, 1, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
 
 		if(command->drawBinding_ != GPU::Handle())
 		{
-			const auto& dbs = backend_.drawBindingSets_[command->drawBinding_.GetIndex()];
+			auto dbs = backend_.drawBindingSets_.Read(command->drawBinding_);
 
 			SetDrawBinding(command->drawBinding_, command->primitive_);
 
 			FlushTransitions();
-			if(dbs.ib_.BufferLocation == 0)
+			if(dbs->ib_.BufferLocation == 0)
 			{
 				d3dCommandList_->ExecuteIndirect(backend_.device_->d3dDrawCmdSig_.Get(), command->maxCommands_,
-				    indirectBuffer.resource_.Get(), command->argByteOffset_, countBuffer->resource_.Get(),
+				    indirectBuffer->resource_.Get(), command->argByteOffset_, countBuffer->resource_.Get(),
 				    command->countByteOffset_);
 			}
 			else
 			{
 				d3dCommandList_->ExecuteIndirect(backend_.device_->d3dDrawIndexedCmdSig_.Get(), command->maxCommands_,
-				    indirectBuffer.resource_.Get(), command->argByteOffset_, countBuffer->resource_.Get(),
+				    indirectBuffer->resource_.Get(), command->argByteOffset_, countBuffer->resource_.Get(),
 				    command->countByteOffset_);
 			}
 		}
@@ -173,7 +174,7 @@ namespace GPU
 
 			FlushTransitions();
 			d3dCommandList_->ExecuteIndirect(backend_.device_->d3dDrawCmdSig_.Get(), command->maxCommands_,
-			    indirectBuffer.resource_.Get(), command->argByteOffset_, countBuffer->resource_.Get(),
+			    indirectBuffer->resource_.Get(), command->argByteOffset_, countBuffer->resource_.Get(),
 			    command->countByteOffset_);
 		}
 		return ErrorCode::OK;
@@ -190,33 +191,34 @@ namespace GPU
 
 	ErrorCode D3D12CompileContext::CompileCommand(const CommandDispatchIndirect* command)
 	{
-		const auto& indirectBuffer = backend_.bufferResources_[command->indirectBuffer_.GetIndex()];
-		const auto* countBuffer =
-		    (command->countBuffer_) ? &backend_.bufferResources_[command->countBuffer_.GetIndex()] : nullptr;
+		auto indirectBuffer = backend_.bufferResources_.Read(command->indirectBuffer_);
+		ResourceRead<D3D12Buffer> countBuffer;
+		if(command->countBuffer_)
+			countBuffer = backend_.bufferResources_.Read(command->countBuffer_);
 
 		SetPipeline(command->pipelineState_, command->pipelineBindings_);
-		AddTransition(&indirectBuffer, 0, 1, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
+		AddTransition(&(*indirectBuffer), 0, 1, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
 		if(countBuffer)
-			AddTransition(countBuffer, 0, 1, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
+			AddTransition(&(*countBuffer), 0, 1, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
 
 		FlushTransitions();
 		d3dCommandList_->ExecuteIndirect(backend_.device_->d3dDispatchCmdSig_.Get(), command->maxCommands_,
-		    indirectBuffer.resource_.Get(), command->argByteOffset_, countBuffer->resource_.Get(),
+		    indirectBuffer->resource_.Get(), command->argByteOffset_, countBuffer->resource_.Get(),
 		    command->countByteOffset_);
 		return ErrorCode::OK;
 	}
 
 	ErrorCode D3D12CompileContext::CompileCommand(const CommandClearRTV* command)
 	{
-		const auto& fbs = backend_.frameBindingSets_[command->frameBinding_.GetIndex()];
-		DBG_ASSERT(command->rtvIdx_ < fbs.numRTs_);
+		auto fbs = backend_.frameBindingSets_.Read(command->frameBinding_);
+		DBG_ASSERT(command->rtvIdx_ < fbs->numRTs_);
 
 		i32 rtvIdx =
-		    fbs.swapChain_ == nullptr ? command->rtvIdx_ : command->rtvIdx_ + fbs.swapChain_->bbIdx_ * MAX_BOUND_RTVS;
+		    fbs->swapChain_ == nullptr ? command->rtvIdx_ : command->rtvIdx_ + fbs->swapChain_->bbIdx_ * MAX_BOUND_RTVS;
 
-		D3D12_CPU_DESCRIPTOR_HANDLE handle = fbs.rtvs_.GetCPUHandle(rtvIdx);
+		D3D12_CPU_DESCRIPTOR_HANDLE handle = fbs->rtvs_.GetCPUHandle(rtvIdx);
 
-		auto& subRsc = fbs.rtvResources_[rtvIdx];
+		auto& subRsc = fbs->rtvResources_[rtvIdx];
 		AddTransition(subRsc, D3D12_RESOURCE_STATE_RENDER_TARGET);
 		FlushTransitions();
 
@@ -227,12 +229,12 @@ namespace GPU
 
 	ErrorCode D3D12CompileContext::CompileCommand(const CommandClearDSV* command)
 	{
-		const auto& fbs = backend_.frameBindingSets_[command->frameBinding_.GetIndex()];
-		DBG_ASSERT(fbs.desc_.dsv_.resource_);
+		auto fbs = backend_.frameBindingSets_.Read(command->frameBinding_);
+		DBG_ASSERT(fbs->desc_.dsv_.resource_);
 
-		D3D12_CPU_DESCRIPTOR_HANDLE handle = fbs.dsv_.GetCPUHandle(0);
+		D3D12_CPU_DESCRIPTOR_HANDLE handle = fbs->dsv_.GetCPUHandle(0);
 
-		auto& subRsc = fbs.dsvResource_;
+		auto& subRsc = fbs->dsvResource_;
 		AddTransition(subRsc, D3D12_RESOURCE_STATE_DEPTH_WRITE);
 		FlushTransitions();
 
@@ -244,12 +246,12 @@ namespace GPU
 
 	ErrorCode D3D12CompileContext::CompileCommand(const CommandClearUAV* command)
 	{
-		const auto& pbs = backend_.pipelineBindingSets_[command->pipelineBinding_.GetIndex()];
+		auto pbs = backend_.pipelineBindingSets_.Read(command->pipelineBinding_);
 
-		D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle = pbs.uavs_.GetGPUHandle(command->uavIdx_);
-		D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle = pbs.uavs_.GetCPUHandle(command->uavIdx_);
+		D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle = pbs->uavs_.GetGPUHandle(command->uavIdx_);
+		D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle = pbs->uavs_.GetCPUHandle(command->uavIdx_);
 
-		auto& subRsc = pbs.uavTransitions_[command->uavIdx_];
+		auto& subRsc = pbs->uavTransitions_[command->uavIdx_];
 		AddTransition(subRsc, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 		FlushTransitions();
 
@@ -261,13 +263,13 @@ namespace GPU
 
 	ErrorCode D3D12CompileContext::CompileCommand(const CommandUpdateBuffer* command)
 	{
-		const auto* buf = backend_.GetD3D12Buffer(command->buffer_);
+		auto buf = backend_.GetD3D12Buffer(command->buffer_);
 		DBG_ASSERT(buf && buf->resource_);
 
 		auto uploadAlloc = backend_.device_->GetUploadAllocator().Alloc(command->size_);
 		memcpy(uploadAlloc.address_, command->data_, command->size_);
 
-		AddTransition(buf, 0, 1, D3D12_RESOURCE_STATE_COPY_DEST);
+		AddTransition(&(*buf), 0, 1, D3D12_RESOURCE_STATE_COPY_DEST);
 		FlushTransitions();
 
 		d3dCommandList_->CopyBufferRegion(buf->resource_.Get(), command->offset_, uploadAlloc.baseResource_.Get(),
@@ -278,7 +280,7 @@ namespace GPU
 
 	ErrorCode D3D12CompileContext::CompileCommand(const CommandUpdateTextureSubResource* command)
 	{
-		const auto* tex = backend_.GetD3D12Texture(command->texture_);
+		auto tex = backend_.GetD3D12Texture(command->texture_);
 		DBG_ASSERT(tex && tex->resource_);
 
 		auto srcLayout = command->data_;
@@ -317,7 +319,7 @@ namespace GPU
 		src.PlacedFootprint = dstLayout;
 		src.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
 
-		AddTransition(tex, command->subResourceIdx_, 1, D3D12_RESOURCE_STATE_COPY_DEST);
+		AddTransition(&(*tex), command->subResourceIdx_, 1, D3D12_RESOURCE_STATE_COPY_DEST);
 		FlushTransitions();
 		d3dCommandList_->CopyTextureRegion(&dst, 0, 0, 0, &src, nullptr);
 
@@ -326,13 +328,13 @@ namespace GPU
 
 	ErrorCode D3D12CompileContext::CompileCommand(const CommandCopyBuffer* command)
 	{
-		const auto* dstBuf = backend_.GetD3D12Buffer(command->dstBuffer_);
-		const auto* srcBuf = backend_.GetD3D12Buffer(command->srcBuffer_);
+		auto dstBuf = backend_.GetD3D12Buffer(command->dstBuffer_);
+		auto srcBuf = backend_.GetD3D12Buffer(command->srcBuffer_);
 		DBG_ASSERT(dstBuf && dstBuf->resource_);
 		DBG_ASSERT(srcBuf && srcBuf->resource_);
 
-		AddTransition(dstBuf, 0, 1, D3D12_RESOURCE_STATE_COPY_DEST);
-		AddTransition(srcBuf, 0, 1, D3D12_RESOURCE_STATE_COPY_SOURCE);
+		AddTransition(&(*dstBuf), 0, 1, D3D12_RESOURCE_STATE_COPY_DEST);
+		AddTransition(&(*srcBuf), 0, 1, D3D12_RESOURCE_STATE_COPY_SOURCE);
 		FlushTransitions();
 
 		d3dCommandList_->CopyBufferRegion(dstBuf->resource_.Get(), command->dstOffset_, srcBuf->resource_.Get(),
@@ -343,8 +345,8 @@ namespace GPU
 
 	ErrorCode D3D12CompileContext::CompileCommand(const CommandCopyTextureSubResource* command)
 	{
-		const auto* dstTex = backend_.GetD3D12Texture(command->dstTexture_);
-		const auto* srcTex = backend_.GetD3D12Texture(command->srcTexture_);
+		auto dstTex = backend_.GetD3D12Texture(command->dstTexture_);
+		auto srcTex = backend_.GetD3D12Texture(command->srcTexture_);
 		DBG_ASSERT(dstTex && dstTex->resource_);
 		DBG_ASSERT(srcTex && srcTex->resource_);
 
@@ -358,8 +360,8 @@ namespace GPU
 		src.SubresourceIndex = command->srcSubResourceIdx_;
 		src.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
 
-		AddTransition(dstTex, dst.SubresourceIndex, 1, D3D12_RESOURCE_STATE_COPY_DEST);
-		AddTransition(srcTex, src.SubresourceIndex, 1, D3D12_RESOURCE_STATE_COPY_SOURCE);
+		AddTransition(&(*dstTex), dst.SubresourceIndex, 1, D3D12_RESOURCE_STATE_COPY_DEST);
+		AddTransition(&(*srcTex), src.SubresourceIndex, 1, D3D12_RESOURCE_STATE_COPY_SOURCE);
 		FlushTransitions();
 
 		D3D12_BOX box;
@@ -381,20 +383,20 @@ namespace GPU
 		{
 			dbsBound_ = dbsHandle;
 
-			const auto& dbs = backend_.drawBindingSets_[dbsHandle.GetIndex()];
+			auto dbs = backend_.drawBindingSets_.Read(dbsHandle);
 
 			// Setup draw binding.
-			if(dbs.ibResource_)
+			if(dbs->ibResource_)
 			{
-				AddTransition(dbs.ibResource_, 0, 1, D3D12_RESOURCE_STATE_INDEX_BUFFER);
-				d3dCommandList_->IASetIndexBuffer(&dbs.ib_);
+				AddTransition(dbs->ibResource_, 0, 1, D3D12_RESOURCE_STATE_INDEX_BUFFER);
+				d3dCommandList_->IASetIndexBuffer(&dbs->ib_);
 			}
 
 			for(i32 i = 0; i < MAX_VERTEX_STREAMS; ++i)
-				if(dbs.vbResources_[i])
-					AddTransition(dbs.vbResources_[i], 0, 1, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
+				if(dbs->vbResources_[i])
+					AddTransition(dbs->vbResources_[i], 0, 1, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
 
-			d3dCommandList_->IASetVertexBuffers(0, MAX_VERTEX_STREAMS, dbs.vbs_.data());
+			d3dCommandList_->IASetVertexBuffers(0, MAX_VERTEX_STREAMS, dbs->vbs_.data());
 		}
 
 		if(primitiveBound_ != primitive)
@@ -409,8 +411,8 @@ namespace GPU
 	{
 		DBG_ASSERT(pb.size() == 1);
 		DBG_ASSERT(pb[0].pbs_.IsValid());
-		const auto& pbs = backend_.pipelineBindingSets_[pb[0].pbs_.GetIndex()];
-		DBG_ASSERT(pbs.shaderVisible_);
+		auto pbs = backend_.pipelineBindingSets_.Read(pb[0].pbs_);
+		DBG_ASSERT(pbs->shaderVisible_);
 
 #if !defined(_RELEASE)
 		backend_.ValidatePipelineBindings(pb);
@@ -426,43 +428,43 @@ namespace GPU
 		ID3D12DescriptorHeap* viewHeap = nullptr;
 
 		// Validate heaps.
-		samplerHeap = pbs.samplers_.GetDescriptorHeap();
+		samplerHeap = pbs->samplers_.GetDescriptorHeap();
 		DBG_ASSERT(samplerHeap);
 		DBG_ASSERT(Core::ContainsAllFlags(samplerHeap->GetDesc().Flags, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE));
 
-		viewHeap = pbs.cbvs_.GetDescriptorHeap();
+		viewHeap = pbs->cbvs_.GetDescriptorHeap();
 		DBG_ASSERT(viewHeap);
-		DBG_ASSERT(viewHeap == pbs.srvs_.GetDescriptorHeap());
-		DBG_ASSERT(viewHeap == pbs.uavs_.GetDescriptorHeap());
+		DBG_ASSERT(viewHeap == pbs->srvs_.GetDescriptorHeap());
+		DBG_ASSERT(viewHeap == pbs->uavs_.GetDescriptorHeap());
 		DBG_ASSERT(Core::ContainsAllFlags(viewHeap->GetDesc().Flags, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE));
 
 		// Lazily setup transitions.
 		// TODO: Some better transition management here.
 		// Not all resources nessisarily need transitions.
-		for(i32 i = 0; i < pbs.cbvTransitions_.size(); ++i)
+		for(i32 i = 0; i < pbs->cbvTransitions_.size(); ++i)
 		{
-			if(pbs.cbvTransitions_[i])
+			if(pbs->cbvTransitions_[i])
 			{
-				DBG_ASSERT(pbs.cbvTransitions_[i])
-				AddTransition(pbs.cbvTransitions_[i], D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
+				DBG_ASSERT(pbs->cbvTransitions_[i])
+				AddTransition(pbs->cbvTransitions_[i], D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
 			}
 		}
 
-		for(i32 i = 0; i < pbs.srvTransitions_.size(); ++i)
+		for(i32 i = 0; i < pbs->srvTransitions_.size(); ++i)
 		{
-			if(pbs.srvTransitions_[i])
+			if(pbs->srvTransitions_[i])
 			{
-				DBG_ASSERT(pbs.srvTransitions_[i]);
-				AddTransition(pbs.srvTransitions_[i],
+				DBG_ASSERT(pbs->srvTransitions_[i]);
+				AddTransition(pbs->srvTransitions_[i],
 				    D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 			}
 		}
-		for(i32 i = 0; i < pbs.uavTransitions_.size(); ++i)
+		for(i32 i = 0; i < pbs->uavTransitions_.size(); ++i)
 		{
-			if(pbs.uavTransitions_[i])
+			if(pbs->uavTransitions_[i])
 			{
-				DBG_ASSERT(pbs.uavTransitions_[i]);
-				AddUAVBarrier(pbs.uavTransitions_[i]);
+				DBG_ASSERT(pbs->uavTransitions_[i]);
+				AddUAVBarrier(pbs->uavTransitions_[i]);
 			}
 		}
 
@@ -478,12 +480,12 @@ namespace GPU
 		RootSignatureType rootSig = RootSignatureType::INVALID;
 		if(ps.GetType() == ResourceType::COMPUTE_PIPELINE_STATE)
 		{
-			d3d12PipelineState = backend_.computePipelineStates_[ps.GetIndex()].pipelineState_.Get();
+			d3d12PipelineState = backend_.computePipelineStates_.Read(ps)->pipelineState_.Get();
 			rootSig = RootSignatureType::COMPUTE;
 		}
 		if(ps.GetType() == ResourceType::GRAPHICS_PIPELINE_STATE)
 		{
-			d3d12PipelineState = backend_.graphicsPipelineStates_[ps.GetIndex()].pipelineState_.Get();
+			d3d12PipelineState = backend_.graphicsPipelineStates_.Read(ps)->pipelineState_.Get();
 			rootSig = RootSignatureType::GRAPHICS;
 		}
 
@@ -504,29 +506,29 @@ namespace GPU
 				rootSigChanged = true;
 			}
 
-			if(rootSigChanged || gfxDescHandlesBound_[0].ptr != pbs.samplers_.GetGPUHandle(0).ptr)
+			if(rootSigChanged || gfxDescHandlesBound_[0].ptr != pbs->samplers_.GetGPUHandle(0).ptr)
 			{
-				d3dCommandList_->SetGraphicsRootDescriptorTable(0, pbs.samplers_.GetGPUHandle(0));
-				gfxDescHandlesBound_[0] = pbs.samplers_.GetGPUHandle(0);
+				d3dCommandList_->SetGraphicsRootDescriptorTable(0, pbs->samplers_.GetGPUHandle(0));
+				gfxDescHandlesBound_[0] = pbs->samplers_.GetGPUHandle(0);
 			}
 
-			if(rootSigChanged || gfxDescHandlesBound_[1].ptr != pbs.cbvs_.GetGPUHandle(0).ptr)
+			if(rootSigChanged || gfxDescHandlesBound_[1].ptr != pbs->cbvs_.GetGPUHandle(0).ptr)
 			{
-				d3dCommandList_->SetGraphicsRootDescriptorTable(1, pbs.cbvs_.GetGPUHandle(0));
-				gfxDescHandlesBound_[1] = pbs.cbvs_.GetGPUHandle(0);
+				d3dCommandList_->SetGraphicsRootDescriptorTable(1, pbs->cbvs_.GetGPUHandle(0));
+				gfxDescHandlesBound_[1] = pbs->cbvs_.GetGPUHandle(0);
 			}
 
-			if(rootSigChanged || gfxDescHandlesBound_[2].ptr != pbs.srvs_.GetGPUHandle(0).ptr)
+			if(rootSigChanged || gfxDescHandlesBound_[2].ptr != pbs->srvs_.GetGPUHandle(0).ptr)
 			{
-				d3dCommandList_->SetGraphicsRootDescriptorTable(2, pbs.srvs_.GetGPUHandle(0));
-				gfxDescHandlesBound_[2] = pbs.srvs_.GetGPUHandle(0);
+				d3dCommandList_->SetGraphicsRootDescriptorTable(2, pbs->srvs_.GetGPUHandle(0));
+				gfxDescHandlesBound_[2] = pbs->srvs_.GetGPUHandle(0);
 			}
 
-			if(rootSigChanged || gfxDescHandlesBound_[3].ptr != pbs.uavs_.GetGPUHandle(0).ptr)
+			if(rootSigChanged || gfxDescHandlesBound_[3].ptr != pbs->uavs_.GetGPUHandle(0).ptr)
 			{
 
-				d3dCommandList_->SetGraphicsRootDescriptorTable(3, pbs.uavs_.GetGPUHandle(0));
-				gfxDescHandlesBound_[3] = pbs.uavs_.GetGPUHandle(0);
+				d3dCommandList_->SetGraphicsRootDescriptorTable(3, pbs->uavs_.GetGPUHandle(0));
+				gfxDescHandlesBound_[3] = pbs->uavs_.GetGPUHandle(0);
 			}
 
 			break;
@@ -538,28 +540,28 @@ namespace GPU
 				rootSigChanged = true;
 			}
 
-			if(rootSigChanged || compDescHandlesBound_[0].ptr != pbs.samplers_.GetGPUHandle(0).ptr)
+			if(rootSigChanged || compDescHandlesBound_[0].ptr != pbs->samplers_.GetGPUHandle(0).ptr)
 			{
-				d3dCommandList_->SetComputeRootDescriptorTable(0, pbs.samplers_.GetGPUHandle(0));
-				compDescHandlesBound_[0] = pbs.samplers_.GetGPUHandle(0);
+				d3dCommandList_->SetComputeRootDescriptorTable(0, pbs->samplers_.GetGPUHandle(0));
+				compDescHandlesBound_[0] = pbs->samplers_.GetGPUHandle(0);
 			}
 
-			if(rootSigChanged || compDescHandlesBound_[1].ptr != pbs.cbvs_.GetGPUHandle(0).ptr)
+			if(rootSigChanged || compDescHandlesBound_[1].ptr != pbs->cbvs_.GetGPUHandle(0).ptr)
 			{
-				d3dCommandList_->SetComputeRootDescriptorTable(1, pbs.cbvs_.GetGPUHandle(0));
-				compDescHandlesBound_[1] = pbs.cbvs_.GetGPUHandle(0);
+				d3dCommandList_->SetComputeRootDescriptorTable(1, pbs->cbvs_.GetGPUHandle(0));
+				compDescHandlesBound_[1] = pbs->cbvs_.GetGPUHandle(0);
 			}
 
-			if(rootSigChanged || compDescHandlesBound_[2].ptr != pbs.srvs_.GetGPUHandle(0).ptr)
+			if(rootSigChanged || compDescHandlesBound_[2].ptr != pbs->srvs_.GetGPUHandle(0).ptr)
 			{
-				d3dCommandList_->SetComputeRootDescriptorTable(2, pbs.srvs_.GetGPUHandle(0));
-				compDescHandlesBound_[2] = pbs.srvs_.GetGPUHandle(0);
+				d3dCommandList_->SetComputeRootDescriptorTable(2, pbs->srvs_.GetGPUHandle(0));
+				compDescHandlesBound_[2] = pbs->srvs_.GetGPUHandle(0);
 			}
 
-			if(rootSigChanged || compDescHandlesBound_[3].ptr != pbs.uavs_.GetGPUHandle(0).ptr)
+			if(rootSigChanged || compDescHandlesBound_[3].ptr != pbs->uavs_.GetGPUHandle(0).ptr)
 			{
-				d3dCommandList_->SetComputeRootDescriptorTable(3, pbs.uavs_.GetGPUHandle(0));
-				compDescHandlesBound_[3] = pbs.uavs_.GetGPUHandle(0);
+				d3dCommandList_->SetComputeRootDescriptorTable(3, pbs->uavs_.GetGPUHandle(0));
+				compDescHandlesBound_[3] = pbs->uavs_.GetGPUHandle(0);
 			}
 			break;
 		default:
@@ -576,41 +578,41 @@ namespace GPU
 			return ErrorCode::OK;
 
 		fbsBound_ = fbsHandle;
-		const auto& fbs = backend_.frameBindingSets_[fbsHandle.GetIndex()];
+		auto fbs = backend_.frameBindingSets_.Read(fbsHandle);
 
 		D3D12_CPU_DESCRIPTOR_HANDLE rtvDescLocal;
 		D3D12_CPU_DESCRIPTOR_HANDLE dsvDescLocal;
 		D3D12_CPU_DESCRIPTOR_HANDLE* rtvDesc = nullptr;
 		D3D12_CPU_DESCRIPTOR_HANDLE* dsvDesc = nullptr;
 
-		const i32 rtvBaseIdx = fbs.swapChain_ == nullptr ? 0 : fbs.swapChain_->bbIdx_ * MAX_BOUND_RTVS;
+		const i32 rtvBaseIdx = fbs->swapChain_ == nullptr ? 0 : fbs->swapChain_->bbIdx_ * MAX_BOUND_RTVS;
 
-		if(fbs.numRTs_)
+		if(fbs->numRTs_)
 		{
 			rtvDesc = &rtvDescLocal;
-			rtvDescLocal = fbs.rtvs_.GetCPUHandle(rtvBaseIdx);
+			rtvDescLocal = fbs->rtvs_.GetCPUHandle(rtvBaseIdx);
 
-			for(i32 i = 0; i < fbs.numRTs_; ++i)
+			for(i32 i = 0; i < fbs->numRTs_; ++i)
 			{
-				AddTransition(fbs.rtvResources_[rtvBaseIdx + i], D3D12_RESOURCE_STATE_RENDER_TARGET);
+				AddTransition(fbs->rtvResources_[rtvBaseIdx + i], D3D12_RESOURCE_STATE_RENDER_TARGET);
 			}
 		}
-		if(fbs.desc_.dsv_.resource_)
+		if(fbs->desc_.dsv_.resource_)
 		{
 			dsvDesc = &dsvDescLocal;
-			dsvDescLocal = fbs.dsv_.GetCPUHandle(0);
+			dsvDescLocal = fbs->dsv_.GetCPUHandle(0);
 
-			if(Core::ContainsAllFlags(fbs.desc_.dsv_.flags_, DSVFlags::READ_ONLY_DEPTH))
+			if(Core::ContainsAllFlags(fbs->desc_.dsv_.flags_, DSVFlags::READ_ONLY_DEPTH))
 			{
-				AddTransition(fbs.dsvResource_, D3D12_RESOURCE_STATE_DEPTH_READ);
+				AddTransition(fbs->dsvResource_, D3D12_RESOURCE_STATE_DEPTH_READ);
 			}
 			else
 			{
-				AddTransition(fbs.dsvResource_, D3D12_RESOURCE_STATE_DEPTH_WRITE);
+				AddTransition(fbs->dsvResource_, D3D12_RESOURCE_STATE_DEPTH_WRITE);
 			}
 		}
 
-		d3dCommandList_->OMSetRenderTargets(fbs.numRTs_, rtvDesc, TRUE, dsvDesc);
+		d3dCommandList_->OMSetRenderTargets(fbs->numRTs_, rtvDesc, TRUE, dsvDesc);
 
 		return ErrorCode::OK;
 	}

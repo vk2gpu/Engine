@@ -116,7 +116,7 @@ namespace GPU
 	struct D3D12DescriptorDebugData
 	{
 		DescriptorHeapSubType subType_ = DescriptorHeapSubType::INVALID;
-		struct D3D12Resource* resource_ = nullptr;
+		const struct D3D12Resource* resource_ = nullptr;
 		Core::Array<char, 32> name_ = {};
 	};
 

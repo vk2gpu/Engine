@@ -7,9 +7,109 @@
 #include "core/misc.h"
 #include "core/vector.h"
 #include <utility>
+#include <cstdalign>
 
 namespace GPU
 {
+	/**
+	 * Resource read wrapper.
+	 * This is used to synchronize CPU access to the resource object.
+	 * by managing a lightweight rw lock.
+	 */
+	template<typename TYPE>
+	struct ResourceRead final
+	{
+		ResourceRead() = default;
+
+		ResourceRead(const Core::RWLock& lock, const TYPE& res)
+		    : lock_(&lock)
+		    , res_(&res)
+		{
+			lock_->BeginRead();
+		}
+
+		~ResourceRead()
+		{
+			if(lock_)
+				lock_->EndRead();
+		}
+
+		template<typename TYPE2>
+		ResourceRead(ResourceRead<TYPE2>&& other, const TYPE& res)
+		    : lock_(nullptr)
+		    , res_(&res)
+		{
+			std::swap(lock_, other.lock_);
+		}
+
+		ResourceRead& operator=(ResourceRead&& other)
+		{
+			std::swap(lock_, other.lock_);
+			std::swap(res_, other.res_);
+			return *this;
+		}
+
+		ResourceRead(const ResourceRead&) = delete;
+		ResourceRead(ResourceRead&&) = default;
+
+		const TYPE& operator*() const { return *res_; }
+		const TYPE* operator->() const { return res_; }
+		explicit operator bool() const { return !!res_; }
+
+	private:
+		template<typename>
+		friend struct ResourceRead;
+
+		const Core::RWLock* lock_ = nullptr;
+		const TYPE* res_ = nullptr;
+	};
+
+	/**
+	 * Resource write wrapper.
+	 * This is used to synchronize CPU access to the resource object
+	 * by managing a lightweight rw lock.
+	 */
+	template<typename TYPE>
+	struct ResourceWrite final
+	{
+		ResourceWrite() = default;
+
+		ResourceWrite(Core::RWLock& lock, TYPE& res)
+		    : lock_(&lock)
+		    , res_(&res)
+		{
+			lock_->BeginWrite();
+		}
+
+		~ResourceWrite()
+		{
+			if(lock_)
+				lock_->EndWrite();
+		}
+
+		template<typename TYPE2>
+		ResourceWrite(ResourceWrite<TYPE2>&& other, TYPE& res)
+		    : lock_(nullptr)
+		    , res_(&res)
+		{
+			std::swap(lock_, other.lock_);
+		}
+
+		ResourceWrite(const ResourceWrite&) = delete;
+		ResourceWrite(ResourceWrite&&) = default;
+
+		TYPE& operator*() { return *res_; }
+		TYPE* operator->() { return res_; }
+		explicit operator bool() const { return !!res_; }
+
+	private:
+		template<typename>
+		friend struct ResourceWrite;
+
+		Core::RWLock* lock_ = nullptr;
+		TYPE* res_ = nullptr;
+	};
+
 	/**
 	 * Resource pool.
 	 */
@@ -17,44 +117,69 @@ namespace GPU
 	class ResourcePool
 	{
 	public:
-		static const i32 INDEX_BITS = 5;
+		// 256 resources per block.
+		static const i32 INDEX_BITS = 8;
 		static const i32 BLOCK_SIZE = 1 << INDEX_BITS;
-		ResourcePool() = default;
+
+		ResourcePool(const char* name)
+		    : name_(name)
+		{
+			DBG_LOG("GPU::ResourcePool<%s>: Size: %lld, Stored Size: %lld\n", name_, sizeof(TYPE), sizeof(Resource));
+		}
+
 		~ResourcePool()
 		{
-			for(auto& block : blocks_)
-				delete block;
-			blocks_.clear();
+			for(auto& rb : rbs_)
+				Core::GeneralAllocator().Delete(rb);
 		}
 
-		TYPE& operator[](i32 idx)
+		ResourceRead<TYPE> Read(Handle handle) const
 		{
-			DBG_ASSERT(idx < Handle::MAX_INDEX);
+			Core::ScopedReadLock lock(blockLock_);
+			const i32 idx = handle.GetIndex();
 			const i32 blockIdx = idx >> INDEX_BITS;
 			const i32 resourceIdx = idx & (BLOCK_SIZE - 1);
-			while(blockIdx >= blocks_.size())
-				blocks_.push_back(new Block);
-			return blocks_[blockIdx]->resources_[resourceIdx];
+
+			auto& res = rbs_[blockIdx]->resources_[resourceIdx];
+
+			return ResourceRead<TYPE>(res.lock_, res.res_);
 		}
 
-		const TYPE& operator[](i32 idx) const
+		ResourceWrite<TYPE> Write(Handle handle)
 		{
-			DBG_ASSERT(idx < Handle::MAX_INDEX);
+			Core::ScopedWriteLock lock(blockLock_);
+			const i32 idx = handle.GetIndex();
 			const i32 blockIdx = idx >> INDEX_BITS;
 			const i32 resourceIdx = idx & (BLOCK_SIZE - 1);
-			return blocks_[blockIdx]->resources_[resourceIdx];
+
+			// TODO: Change this code to use virtual memory and just commit as required.
+			while(blockIdx >= rbs_.size())
+			{
+				rbs_.push_back(Core::GeneralAllocator().New<Resources>());
+			}
+
+			auto& res = rbs_[blockIdx]->resources_[resourceIdx];
+
+			return ResourceWrite<TYPE>(res.lock_, res.res_);
 		}
 
-		i32 size() const { return blocks_.size() * BLOCK_SIZE; }
-		void clear() { storage_.clear(); }
+		i32 size() const { return rbs_.size() * BLOCK_SIZE; }
 
 	private:
-		struct Block
+		struct Resource
 		{
-			Core::Array<TYPE, BLOCK_SIZE> resources_;
+			Core::RWLock lock_;
+			TYPE res_;
 		};
 
-		Core::Vector<Block*> blocks_;
+		struct Resources
+		{
+			Core::Array<Resource, BLOCK_SIZE> resources_;
+		};
+
+		Core::RWLock blockLock_;
+		Core::Vector<Resources*> rbs_;
+		const char* name_ = nullptr;
 	};
 
 	class D3D12ScopedResourceBarrier
@@ -83,7 +208,6 @@ namespace GPU
 		ID3D12GraphicsCommandList* commandList_ = nullptr;
 		D3D12_RESOURCE_BARRIER barrier_;
 	};
-
 
 	struct D3D12Resource
 	{
@@ -118,7 +242,7 @@ namespace GPU
 
 	struct D3D12SubresourceRange
 	{
-		D3D12Resource* resource_ = nullptr;
+		const D3D12Resource* resource_ = nullptr;
 		i32 firstSubRsc_ = 0;
 		i32 numSubRsc_ = 0;
 
@@ -156,8 +280,8 @@ namespace GPU
 	struct D3D12DrawBindingSet
 	{
 		DrawBindingSetDesc desc_;
-		Core::Array<D3D12Resource*, MAX_VERTEX_STREAMS> vbResources_ = {};
-		D3D12Resource* ibResource_ = nullptr;
+		Core::Array<const D3D12Resource*, MAX_VERTEX_STREAMS> vbResources_ = {};
+		const D3D12Resource* ibResource_ = nullptr;
 		Core::Array<D3D12_VERTEX_BUFFER_VIEW, MAX_VERTEX_STREAMS> vbs_ = {};
 		D3D12_INDEX_BUFFER_VIEW ib_;
 	};
@@ -170,7 +294,7 @@ namespace GPU
 		Core::Vector<D3D12SubresourceRange> rtvResources_;
 		D3D12SubresourceRange dsvResource_;
 		FrameBindingSetDesc desc_;
-		D3D12SwapChain* swapChain_ = nullptr;
+		const D3D12SwapChain* swapChain_ = nullptr;
 		i32 numRTs_ = 0;
 		i32 numBuffers_ = 1;
 	};
