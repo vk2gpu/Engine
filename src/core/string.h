@@ -47,10 +47,8 @@ namespace Core
 		StringAllocator(const StringAllocator&) = default;
 		~StringAllocator() = default;
 
-		void* Allocate(i64 size, i64 align) { return allocator_.Allocate(size, align); }
-		void Deallocate(void* mem) { allocator_.Deallocate(mem); }
-
-		static IAllocator& allocator_;
+		void* Allocate(i64 size, i64 align);
+		void Deallocate(void* mem);
 	};
 
 	/**

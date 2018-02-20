@@ -94,12 +94,17 @@ namespace Core
 		};
 
 
-		Map(ALLOCATOR& allocator)
+		Map(ALLOCATOR& allocator, i32 initialSize = INITIAL_SIZE)
 		    : allocator_(allocator)
 		{
+			capacity_ = initialSize;
 			Alloc();
 		}
-		Map() { Alloc(); }
+		Map(i32 initialSize = INITIAL_SIZE)
+		{
+			capacity_ = initialSize;
+			Alloc(); 
+		}
 
 		Map(const Map& other)
 		    : allocator_(other.allocator_)

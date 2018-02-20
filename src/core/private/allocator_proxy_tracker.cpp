@@ -24,7 +24,7 @@ namespace Core
 	{
 		AllocatorProxyTrackerImpl(IAllocator& allocator)
 		    : allocator_(allocator)
-		    , allocInfos_(UntrackedVirtualAllocator())
+		    , allocInfos_(UntrackedVirtualAllocator(), 4096)
 		{
 		}
 

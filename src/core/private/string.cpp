@@ -1,5 +1,6 @@
 #include "core/string.h"
 #include "core/allocator_tlsf.h"
+#include "core/allocator_proxy_thread_safe.h"
 #include "core/debug.h"
 #include "core/hash.h"
 #include "core/misc.h"
@@ -14,10 +15,21 @@
 
 namespace Core
 {
-	IAllocator& StringAllocator::allocator_ = *[]() {
+	static IAllocator& stringAllocator_ = *[]() {
 		static AllocatorTLSF alloc(GeneralAllocator(), 1024 * 1024);
-		return &Core::CreateAllocationTracker(alloc, "General/String");
+		static AllocatorProxyThreadSafe tsProxy(alloc);
+		return &Core::CreateAllocationTracker(tsProxy, "General/String");
 	}();
+
+	void* StringAllocator::Allocate(i64 size, i64 align)
+	{
+		return stringAllocator_.Allocate(size, align); 
+	}
+
+	void StringAllocator::Deallocate(void* mem)
+	{ 
+		stringAllocator_.Deallocate(mem); 
+	}
 
 	bool StringConvertUTF16toUTF8(const wchar* src, i32 srcLength, char* dst, i32 dstLength)
 	{
@@ -214,9 +226,9 @@ namespace Core
 	u64 Hash(u64 input, const String& str)
 	{
 		if(str.size() > 0)
-			return Hash(input, str.c_str());
+			return HashFNV1a(input, str.c_str(), str.size());
 		else
-			return Hash(input, "");
+			return HashFNV1a(input, "", 0);
 	}
 
 	u64 Hash(u64 input, const StringView& str)
@@ -224,7 +236,7 @@ namespace Core
 		if(str.size() > 0)
 			return HashFNV1a(input, str.begin(), str.size());
 		else
-			return Hash(input, "");
+			return HashFNV1a(input, "", 0);
 	}
 
 } // end namespace
