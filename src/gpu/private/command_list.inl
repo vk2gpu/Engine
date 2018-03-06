@@ -276,7 +276,7 @@ namespace GPU
 	}
 
 	INLINE CommandUpdateTextureSubResource* CommandList::UpdateTextureSubResource(
-	    Handle texture, i32 subResourceIdx, const TextureSubResourceData& data)
+	    Handle texture, i32 subResourceIdx, const ConstTextureSubResourceData& data)
 	{
 		DBG_ASSERT(handleAllocator_.IsValid(texture));
 		DBG_ASSERT(texture.GetType() == ResourceType::TEXTURE);

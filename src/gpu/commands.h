@@ -274,7 +274,7 @@ namespace GPU
 		/// Subresource index.
 		i16 subResourceIdx_ = 0;
 		/// Subresource data.
-		TextureSubResourceData data_;
+		ConstTextureSubResourceData data_;
 	};
 
 	/**

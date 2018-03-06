@@ -203,7 +203,7 @@ namespace GPU
 		 * @return Update command. nullptr if failure.
 		 */
 		GPU_DLL CommandUpdateTextureSubResource* UpdateTextureSubResource(
-		    Handle texture, i32 subResourceIdx, const TextureSubResourceData& data);
+		    Handle texture, i32 subResourceIdx, const ConstTextureSubResourceData& data);
 
 		/**
 		 * See @a CommandCopyBuffer.

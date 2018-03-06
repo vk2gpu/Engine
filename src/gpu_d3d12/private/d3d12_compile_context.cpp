@@ -7,6 +7,7 @@
 #include "gpu/command_list.h"
 #include "gpu/commands.h"
 #include "gpu/manager.h"
+#include "gpu/utils.h"
 
 #include <pix_win.h>
 
@@ -283,31 +284,26 @@ namespace GPU
 		auto tex = backend_.GetD3D12Texture(command->texture_);
 		DBG_ASSERT(tex && tex->resource_);
 
-		auto srcLayout = command->data_;
-		D3D12_PLACED_SUBRESOURCE_FOOTPRINT dstLayout;
-		i32 numRows = 0;
-		i64 rowSizeInBytes = 0;
-		i64 totalBytes = 0;
+		auto srcData = command->data_;
+		D3D12_PLACED_SUBRESOURCE_FOOTPRINT dstFootprint;
+		UINT numRows = 0;
+		UINT64 rowSizeBytes = 0;
+		UINT64 totalBytes = 0;
 		D3D12_RESOURCE_DESC resDesc = GetResourceDesc(tex->desc_);
 
-		backend_.device_->d3dDevice_->GetCopyableFootprints(&resDesc, command->subResourceIdx_, 1, 0, &dstLayout,
-		    (u32*)&numRows, (u64*)&rowSizeInBytes, (u64*)&totalBytes);
+		backend_.device_->d3dDevice_->GetCopyableFootprints(
+		    &resDesc, command->subResourceIdx_, 1, 0, &dstFootprint, &numRows, &rowSizeBytes, &totalBytes);
+
+		TextureLayoutInfo dstLayout = {
+		    (i32)dstFootprint.Footprint.RowPitch, (i32)numRows * (i32)dstFootprint.Footprint.RowPitch};
+		TextureLayoutInfo srcLayout = {command->data_.rowPitch_, command->data_.slicePitch_};
 
 		auto resAlloc = backend_.device_->GetUploadAllocator().Alloc(totalBytes);
-		DBG_ASSERT(srcLayout.rowPitch_ <= rowSizeInBytes);
-		const u8* srcData = (const u8*)command->data_.data_;
-		u8* dstData = (u8*)resAlloc.address_ + dstLayout.Offset;
-		for(i32 slice = 0; slice < tex->desc_.depth_; ++slice)
-		{
-			const u8* rowSrcData = srcData;
-			for(i32 row = 0; row < numRows; ++row)
-			{
-				memcpy(dstData, srcData, srcLayout.rowPitch_);
-				dstData += rowSizeInBytes;
-				rowSrcData += srcLayout.rowPitch_;
-			}
-			rowSrcData += srcLayout.slicePitch_;
-		}
+		DBG_ASSERT(srcData.rowPitch_ <= rowSizeBytes);
+		u8* dstData = (u8*)resAlloc.address_ + dstFootprint.Offset;
+
+		GPU::CopyTextureData(dstData, dstLayout, command->data_.data_, srcLayout, numRows, tex->desc_.depth_);
+
 
 		D3D12_TEXTURE_COPY_LOCATION dst;
 		dst.pResource = tex->resource_.Get();
@@ -316,7 +312,7 @@ namespace GPU
 
 		D3D12_TEXTURE_COPY_LOCATION src;
 		src.pResource = resAlloc.baseResource_.Get();
-		src.PlacedFootprint = dstLayout;
+		src.PlacedFootprint = dstFootprint;
 		src.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
 
 		AddTransition(&(*tex), command->subResourceIdx_, 1, D3D12_RESOURCE_STATE_COPY_DEST);
@@ -350,29 +346,72 @@ namespace GPU
 		DBG_ASSERT(dstTex && dstTex->resource_);
 		DBG_ASSERT(srcTex && srcTex->resource_);
 
-		D3D12_TEXTURE_COPY_LOCATION dst;
-		dst.pResource = dstTex->resource_.Get();
-		dst.SubresourceIndex = command->dstSubResourceIdx_;
-		dst.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+		if(dstTex->desc_.bindFlags_ != GPU::BindFlags::NONE)
+		{
+			D3D12_TEXTURE_COPY_LOCATION dst;
+			dst.pResource = dstTex->resource_.Get();
+			dst.SubresourceIndex = command->dstSubResourceIdx_;
+			dst.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
 
-		D3D12_TEXTURE_COPY_LOCATION src;
-		src.pResource = srcTex->resource_.Get();
-		src.SubresourceIndex = command->srcSubResourceIdx_;
-		src.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+			D3D12_TEXTURE_COPY_LOCATION src;
+			src.pResource = srcTex->resource_.Get();
+			src.SubresourceIndex = command->srcSubResourceIdx_;
+			src.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
 
-		AddTransition(&(*dstTex), dst.SubresourceIndex, 1, D3D12_RESOURCE_STATE_COPY_DEST);
-		AddTransition(&(*srcTex), src.SubresourceIndex, 1, D3D12_RESOURCE_STATE_COPY_SOURCE);
-		FlushTransitions();
+			AddTransition(&(*dstTex), dst.SubresourceIndex, 1, D3D12_RESOURCE_STATE_COPY_DEST);
+			AddTransition(&(*srcTex), src.SubresourceIndex, 1, D3D12_RESOURCE_STATE_COPY_SOURCE);
+			FlushTransitions();
 
-		D3D12_BOX box;
-		box.left = command->srcBox_.x_;
-		box.top = command->srcBox_.y_;
-		box.front = command->srcBox_.z_;
-		box.right = command->srcBox_.x_ + command->srcBox_.w_;
-		box.bottom = command->srcBox_.y_ + command->srcBox_.h_;
-		box.back = command->srcBox_.z_ + command->srcBox_.d_;
-		d3dCommandList_->CopyTextureRegion(
-		    &dst, command->dstPoint_.x_, command->dstPoint_.y_, command->dstPoint_.z_, &src, &box);
+			D3D12_BOX box;
+			box.left = command->srcBox_.x_;
+			box.top = command->srcBox_.y_;
+			box.front = command->srcBox_.z_;
+			box.right = command->srcBox_.x_ + command->srcBox_.w_;
+			box.bottom = command->srcBox_.y_ + command->srcBox_.h_;
+			box.back = command->srcBox_.z_ + command->srcBox_.d_;
+			d3dCommandList_->CopyTextureRegion(
+			    &dst, command->dstPoint_.x_, command->dstPoint_.y_, command->dstPoint_.z_, &src, &box);
+		}
+		else
+		{
+			auto d3dDevice = backend_.device_->d3dDevice_;
+
+			D3D12_TEXTURE_COPY_LOCATION dst = {};
+			dst.pResource = dstTex->resource_.Get();
+			dst.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
+
+			// Calculate offset into destination.
+			D3D12_RESOURCE_DESC resourceDesc = GetResourceDesc(dstTex->desc_);
+			UINT64 dstOffset = 0;
+			if(command->dstSubResourceIdx_ > 0)
+			{
+				d3dDevice->GetCopyableFootprints(
+				    &resourceDesc, 0, command->dstSubResourceIdx_, 0, nullptr, nullptr, nullptr, &dstOffset);
+			}
+
+			d3dDevice->GetCopyableFootprints(&resourceDesc, command->dstSubResourceIdx_, 1, dstOffset,
+			    &dst.PlacedFootprint, nullptr, nullptr, nullptr);
+
+			D3D12_TEXTURE_COPY_LOCATION src = {};
+			src.pResource = srcTex->resource_.Get();
+			src.SubresourceIndex = command->srcSubResourceIdx_;
+			src.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+
+
+			AddTransition(&(*dstTex), dst.SubresourceIndex, 1, D3D12_RESOURCE_STATE_COPY_DEST);
+			AddTransition(&(*srcTex), src.SubresourceIndex, 1, D3D12_RESOURCE_STATE_COPY_SOURCE);
+			FlushTransitions();
+
+			D3D12_BOX box;
+			box.left = command->srcBox_.x_;
+			box.top = command->srcBox_.y_;
+			box.front = command->srcBox_.z_;
+			box.right = command->srcBox_.x_ + command->srcBox_.w_;
+			box.bottom = command->srcBox_.y_ + command->srcBox_.h_;
+			box.back = command->srcBox_.z_ + command->srcBox_.d_;
+			d3dCommandList_->CopyTextureRegion(
+			    &dst, command->dstPoint_.x_, command->dstPoint_.y_, command->dstPoint_.z_, &src, &box);
+		}
 
 		return ErrorCode::OK;
 	}

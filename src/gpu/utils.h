@@ -75,6 +75,12 @@ namespace GPU
 	GPU_DLL i64 GetTextureSize(Format format, i32 width, i32 height, i32 depth, i32 levels, i32 elements);
 
 	/**
+	 * Copy texture data.
+	 */
+	GPU_DLL void CopyTextureData(void* dstData, const TextureLayoutInfo& dstLayout, const void* srcData,
+	    const TextureLayoutInfo& srcLayout, i32 rows, i32 slices);
+
+	/**
 	 * Get view dimension from texture type.
 	 */
 	GPU_DLL ViewDimension GetViewDimension(TextureType type);

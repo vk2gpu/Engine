@@ -240,7 +240,7 @@ TEST_CASE("gpu-tests-create-texture")
 		Core::Vector<u8> data;
 		data.resize((i32)size);
 
-		GPU::TextureSubResourceData subResData;
+		GPU::ConstTextureSubResourceData subResData;
 		subResData.data_ = data.data();
 		subResData.rowPitch_ = layoutInfo.pitch_;
 		subResData.slicePitch_ = layoutInfo.slicePitch_;
@@ -265,7 +265,7 @@ TEST_CASE("gpu-tests-create-texture")
 		Core::Vector<u8> data;
 		data.resize((i32)size);
 
-		GPU::TextureSubResourceData subResData;
+		GPU::ConstTextureSubResourceData subResData;
 		subResData.data_ = data.data();
 		subResData.rowPitch_ = layoutInfo.pitch_;
 		subResData.slicePitch_ = layoutInfo.slicePitch_;
@@ -291,7 +291,7 @@ TEST_CASE("gpu-tests-create-texture")
 		Core::Vector<u8> data;
 		data.resize((i32)size);
 
-		GPU::TextureSubResourceData subResData;
+		GPU::ConstTextureSubResourceData subResData;
 		subResData.data_ = data.data();
 		subResData.rowPitch_ = layoutInfo.pitch_;
 		subResData.slicePitch_ = layoutInfo.slicePitch_;
@@ -315,7 +315,7 @@ TEST_CASE("gpu-tests-create-texture")
 		Core::Vector<u8> data;
 		data.resize((i32)size);
 
-		Core::Array<GPU::TextureSubResourceData, 6> subResDatas;
+		Core::Array<GPU::ConstTextureSubResourceData, 6> subResDatas;
 		i64 offset = 0;
 		for(i32 i = 0; i < 6; ++i)
 		{
@@ -807,11 +807,15 @@ TEST_CASE("gpu-tests-compile-draw")
 	drawState.scissorRect_.w_ = rtDesc.width_;
 	drawState.scissorRect_.h_ = rtDesc.height_;
 
+	GPU::PipelineBindingSetDesc pbDesc = {};
+	GPU::PipelineBinding pb = {};
+	pb.pbs_ = GPU::Manager::AllocTemporaryPipelineBindingSet(pbDesc);
+
 	f32 color[4] = {0.2f, 0.2f, 0.2f, 1.0f};
 	REQUIRE(cmdList.ClearRTV(fbsHandle, 0, color));
 	REQUIRE(cmdList.ClearDSV(fbsHandle, 0.0f, 0));
 	REQUIRE(cmdList.Draw(
-	    pipelineHandle, {}, dbsHandle, fbsHandle, drawState, GPU::PrimitiveTopology::TRIANGLE_LIST, 0, 1, 3, 0, 1));
+	    pipelineHandle, pb, dbsHandle, fbsHandle, drawState, GPU::PrimitiveTopology::TRIANGLE_LIST, 0, 1, 3, 0, 1));
 	REQUIRE(GPU::Manager::CompileCommandList(cmdHandle, cmdList));
 	REQUIRE(GPU::Manager::SubmitCommandList(cmdHandle));
 
@@ -1008,7 +1012,7 @@ TEST_CASE("gpu-tests-compile-update-texture")
 	GPU::CommandList cmdList;
 
 	u32 data[8] = {0xff00ff00, 0xffff0000, 0x0000ffff, 0x00ff00ff, 0xff00ff00, 0xffff0000, 0x0000ffff, 0x00ff00ff};
-	GPU::TextureSubResourceData texSubRscData;
+	GPU::ConstTextureSubResourceData texSubRscData;
 	texSubRscData.data_ = data;
 	texSubRscData.rowPitch_ = sizeof(data);
 	texSubRscData.slicePitch_ = sizeof(data);
@@ -1070,7 +1074,7 @@ TEST_CASE("gpu-tests-compile-copy-texture")
 	GPU::Manager::ScopedDebugCapture capture(testName.c_str());
 
 	u32 data[8] = {0xff00ff00, 0xffff0000, 0x0000ffff, 0x00ff00ff, 0xff00ff00, 0xffff0000, 0x0000ffff, 0x00ff00ff};
-	GPU::TextureSubResourceData texSubRscData;
+	GPU::ConstTextureSubResourceData texSubRscData;
 	texSubRscData.data_ = data;
 	texSubRscData.rowPitch_ = sizeof(data);
 	texSubRscData.slicePitch_ = sizeof(data);

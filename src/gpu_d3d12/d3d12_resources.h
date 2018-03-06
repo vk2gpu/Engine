@@ -298,4 +298,10 @@ namespace GPU
 		i32 numRTs_ = 0;
 		i32 numBuffers_ = 1;
 	};
+
+	struct D3D12Fence
+	{
+		ComPtr<ID3D12Fence> fence_;
+		HANDLE event_;
+	};
 }

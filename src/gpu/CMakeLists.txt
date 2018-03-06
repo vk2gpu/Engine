@@ -30,6 +30,7 @@ SET(SOURCES_TESTS
 	"tests/test_entry.cpp"
 	"tests/command_list_tests.cpp"
 	"tests/gpu_tests.cpp"
+	"tests/transfer_tests.cpp"
 )
 
 ADD_ENGINE_LIBRARY(gpu ${SOURCES_PUBLIC} ${SOURCES_PRIVATE} ${SOURCES_TESTS})

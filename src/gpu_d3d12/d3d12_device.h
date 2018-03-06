@@ -30,7 +30,7 @@ namespace GPU
 		ErrorCode CreateBuffer(
 		    D3D12Resource& outResource, const BufferDesc& desc, const void* initialData, const char* debugName);
 		ErrorCode CreateTexture(D3D12Resource& outResource, const TextureDesc& desc,
-		    const TextureSubResourceData* initialData, const char* debugName);
+		    const ConstTextureSubResourceData* initialData, const char* debugName);
 
 		ErrorCode CreateGraphicsPipelineState(
 		    D3D12GraphicsPipelineState& outGps, D3D12_GRAPHICS_PIPELINE_STATE_DESC desc, const char* debugName);

@@ -31,7 +31,7 @@ namespace GPU
 		ErrorCode CreateSwapChain(Handle handle, const SwapChainDesc& desc, const char* debugName) override;
 		ErrorCode CreateBuffer(
 		    Handle handle, const BufferDesc& desc, const void* initialData, const char* debugName) override;
-		ErrorCode CreateTexture(Handle handle, const TextureDesc& desc, const TextureSubResourceData* initialData,
+		ErrorCode CreateTexture(Handle handle, const TextureDesc& desc, const ConstTextureSubResourceData* initialData,
 		    const char* debugName) override;
 		ErrorCode CreateShader(Handle handle, const ShaderDesc& desc, const char* debugName) override;
 		ErrorCode CreateGraphicsPipelineState(
@@ -43,7 +43,7 @@ namespace GPU
 		ErrorCode CreateDrawBindingSet(Handle handle, const DrawBindingSetDesc& desc, const char* debugName) override;
 		ErrorCode CreateFrameBindingSet(Handle handle, const FrameBindingSetDesc& desc, const char* debugName) override;
 		ErrorCode CreateCommandList(Handle handle, const char* debugName) override;
-		ErrorCode CreateFence(Handle handle, const char* debugName) override;
+		ErrorCode CreateFence(Handle handle, i64 initialValue, const char* debugName) override;
 		ErrorCode DestroyResource(Handle handle) override;
 
 		ErrorCode AllocTemporaryPipelineBindingSet(Handle handle, const PipelineBindingSetDesc& desc) override;
@@ -57,6 +57,12 @@ namespace GPU
 
 		ErrorCode CompileCommandList(Handle handle, const CommandList& commandList) override;
 		ErrorCode SubmitCommandLists(Core::ArrayView<Handle> handles) override;
+
+		ErrorCode SubmitFence(Handle handle, i64 value) override;
+		ErrorCode WaitOnFence(Handle handle, i64 value) override;
+
+		ErrorCode ReadbackBuffer(Handle handle, i64 offset, i64 size, void* dest) override;
+		ErrorCode ReadbackTextureSubresource(Handle handle, i32 subResourceIdx, TextureSubResourceData data) override;
 
 		ErrorCode PresentSwapChain(Handle handle) override;
 		ErrorCode ResizeSwapChain(Handle handle, i32 width, i32 height) override;
@@ -108,6 +114,7 @@ namespace GPU
 		ResourcePool<D3D12DrawBindingSet> drawBindingSets_;
 		ResourcePool<D3D12FrameBindingSet> frameBindingSets_;
 		ResourcePool<D3D12CommandList*> commandLists_;
+		ResourcePool<D3D12Fence> fences_;
 
 
 		/// Vendor specific extensions.

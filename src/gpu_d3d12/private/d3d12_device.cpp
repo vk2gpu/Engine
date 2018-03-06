@@ -109,7 +109,7 @@ namespace GPU
 
 		// Frame fence.
 		d3dDevice_->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_ID3D12Fence, (void**)d3dFrameFence_.GetAddressOf());
-		frameFenceEvent_ = ::CreateEvent(nullptr, FALSE, FALSE, "Frame fence");
+		frameFenceEvent_ = ::CreateEvent(nullptr, FALSE, FALSE, nullptr);
 	}
 
 	D3D12Device::~D3D12Device()
@@ -403,7 +403,7 @@ namespace GPU
 		uploadCommandList_ = new D3D12CommandList(*this, 0, D3D12_COMMAND_LIST_TYPE_DIRECT, "Upload Comamnd List");
 
 		d3dDevice_->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_ID3D12Fence, (void**)d3dUploadFence_.GetAddressOf());
-		uploadFenceEvent_ = ::CreateEvent(nullptr, FALSE, FALSE, "Upload fence");
+		uploadFenceEvent_ = ::CreateEvent(nullptr, FALSE, FALSE, nullptr);
 	}
 
 	void D3D12Device::CreateDescriptorAllocators()
@@ -576,8 +576,9 @@ namespace GPU
 		outResource.supportedStates_ = GetResourceStates(desc.bindFlags_);
 		outResource.defaultState_ = GetDefaultResourceState(desc.bindFlags_);
 
+		D3D12_RESOURCE_STATES creationState = D3D12_RESOURCE_STATE_COMMON;
 
-		D3D12_HEAP_PROPERTIES heapProperties;
+		D3D12_HEAP_PROPERTIES heapProperties = {};
 		heapProperties.Type = D3D12_HEAP_TYPE_DEFAULT;
 		heapProperties.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
 		heapProperties.MemoryPoolPreference = D3D12_MEMORY_POOL::D3D12_MEMORY_POOL_UNKNOWN;
@@ -592,17 +593,17 @@ namespace GPU
 		}
 		else
 		{
-			outResource.supportedStates_ |= D3D12_RESOURCE_STATE_COPY_DEST;
-
+			outResource.defaultState_ = D3D12_RESOURCE_STATE_COPY_DEST;
+			outResource.supportedStates_ = D3D12_RESOURCE_STATE_COPY_DEST;
+			creationState = D3D12_RESOURCE_STATE_COPY_DEST;
 			heapProperties.Type = D3D12_HEAP_TYPE_READBACK;
-			heapProperties.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_WRITE_BACK;
 		}
 
 		D3D12_RESOURCE_DESC resourceDesc = GetResourceDesc(desc);
 		ComPtr<ID3D12Resource> d3dResource;
 		HRESULT hr = S_OK;
 		CHECK_D3D(hr = d3dDevice_->CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE, &resourceDesc,
-		              D3D12_RESOURCE_STATE_COMMON, nullptr, IID_PPV_ARGS(d3dResource.GetAddressOf())));
+		              creationState, nullptr, IID_PPV_ARGS(d3dResource.GetAddressOf())));
 		if(FAILED(hr))
 			return ErrorCode::FAIL;
 
@@ -643,7 +644,7 @@ namespace GPU
 				DBG_ASSERT(false);
 			}
 		}
-		else
+		else if(creationState == D3D12_RESOURCE_STATE_COMMON)
 		{
 			// Add barrier for default state.
 			if(errorCode == ErrorCode::OK && outResource.defaultState_ != D3D12_RESOURCE_STATE_COMMON)
@@ -668,11 +669,13 @@ namespace GPU
 	}
 
 	ErrorCode D3D12Device::CreateTexture(D3D12Resource& outResource, const TextureDesc& desc,
-	    const TextureSubResourceData* initialData, const char* debugName)
+	    const ConstTextureSubResourceData* initialData, const char* debugName)
 	{
 		ErrorCode errorCode = ErrorCode::OK;
 		outResource.supportedStates_ = GetResourceStates(desc.bindFlags_);
 		outResource.defaultState_ = GetDefaultResourceState(desc.bindFlags_);
+
+		D3D12_RESOURCE_STATES creationState = D3D12_RESOURCE_STATE_COMMON;
 
 		D3D12_HEAP_PROPERTIES heapProperties;
 		heapProperties.Type = D3D12_HEAP_TYPE_DEFAULT;
@@ -680,6 +683,8 @@ namespace GPU
 		heapProperties.MemoryPoolPreference = D3D12_MEMORY_POOL::D3D12_MEMORY_POOL_UNKNOWN;
 		heapProperties.CreationNodeMask = 0x0;
 		heapProperties.VisibleNodeMask = 0x0;
+
+		D3D12_RESOURCE_DESC resourceDesc = GetResourceDesc(desc);
 
 		// If we have any bind flags, infer copy source & dest flags, otherwise infer copy dest & readback.
 		if(desc.bindFlags_ != BindFlags::NONE)
@@ -689,13 +694,24 @@ namespace GPU
 		}
 		else
 		{
-			outResource.supportedStates_ |= D3D12_RESOURCE_STATE_COPY_DEST;
-
+			outResource.defaultState_ = D3D12_RESOURCE_STATE_COPY_DEST;
+			outResource.supportedStates_ = D3D12_RESOURCE_STATE_COPY_DEST;
+			creationState = D3D12_RESOURCE_STATE_COPY_DEST;
 			heapProperties.Type = D3D12_HEAP_TYPE_READBACK;
-			heapProperties.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_WRITE_BACK;
-		}
 
-		D3D12_RESOURCE_DESC resourceDesc = GetResourceDesc(desc);
+			i32 numSubRsc = desc.levels_ * desc.elements_;
+			if(desc.type_ == TextureType::TEXCUBE)
+			{
+				numSubRsc *= 6;
+			}
+
+			UINT64 totalBytes = 0;
+			d3dDevice_->GetCopyableFootprints(&resourceDesc, 0, numSubRsc, 0, nullptr, nullptr, nullptr, &totalBytes);
+
+			GPU::BufferDesc bufferDesc = {};
+			bufferDesc.size_ = (i64)totalBytes;
+			resourceDesc = GetResourceDesc(bufferDesc);
+		}
 
 		// Set default clear.
 		D3D12_CLEAR_VALUE clearValue;
@@ -723,7 +739,7 @@ namespace GPU
 		ComPtr<ID3D12Resource> d3dResource;
 		HRESULT hr = S_OK;
 		CHECK_D3D(hr = d3dDevice_->CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE, &resourceDesc,
-		              D3D12_RESOURCE_STATE_COMMON, setClearValue, IID_PPV_ARGS(d3dResource.GetAddressOf())));
+		              creationState, setClearValue, IID_PPV_ARGS(d3dResource.GetAddressOf())));
 		if(FAILED(hr))
 			return ErrorCode::FAIL;
 
@@ -795,12 +811,12 @@ namespace GPU
 
 				for(i32 i = 0; i < numSubRsc; ++i)
 				{
-					D3D12_TEXTURE_COPY_LOCATION dst;
+					D3D12_TEXTURE_COPY_LOCATION dst = {};
 					dst.pResource = d3dResource.Get();
 					dst.SubresourceIndex = i;
 					dst.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
 
-					D3D12_TEXTURE_COPY_LOCATION src;
+					D3D12_TEXTURE_COPY_LOCATION src = {};
 					src.pResource = resAlloc.baseResource_.Get();
 					src.PlacedFootprint = layouts[i];
 					src.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
@@ -819,7 +835,7 @@ namespace GPU
 				DBG_ASSERT(false);
 			}
 		}
-		else
+		else if(creationState == D3D12_RESOURCE_STATE_COMMON)
 		{
 			// Add barrier for default state.
 			if(errorCode == ErrorCode::OK && outResource.defaultState_ != D3D12_RESOURCE_STATE_COMMON)

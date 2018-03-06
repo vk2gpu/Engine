@@ -95,9 +95,20 @@ namespace GPU
 	 * Texture data.
 	 * Defines a single subresource of a texture.
 	 */
-	struct GPU_DLL TextureSubResourceData
+	struct GPU_DLL ConstTextureSubResourceData
 	{
 		const void* data_ = nullptr;
+		i32 rowPitch_ = 0;
+		i32 slicePitch_ = 0;
+	};
+
+	/**
+	 * Texture data.
+	 * Defines a single subresource of a texture.
+	 */
+	struct GPU_DLL TextureSubResourceData
+	{
+		void* data_ = nullptr;
 		i32 rowPitch_ = 0;
 		i32 slicePitch_ = 0;
 	};

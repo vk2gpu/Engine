@@ -2,6 +2,7 @@
 #include "gpu_d3d12/d3d12_device.h"
 #include "gpu_d3d12/d3d12_linear_heap_allocator.h"
 #include "gpu_d3d12/d3d12_linear_descriptor_allocator.h"
+#include "gpu/utils.h"
 #include "core/debug.h"
 #include "core/string.h"
 
@@ -61,6 +62,7 @@ namespace GPU
 	    , drawBindingSets_("D3D12DrawBindingSet")
 	    , frameBindingSets_("D3D12FrameBindingSet")
 	    , commandLists_("D3D12CommandList")
+	    , fences_("D3D12Fence")
 	{
 		auto retVal = LoadLibraries();
 		DBG_ASSERT(retVal == ErrorCode::OK);
@@ -221,7 +223,7 @@ namespace GPU
 	}
 
 	ErrorCode D3D12Backend::CreateTexture(
-	    Handle handle, const TextureDesc& desc, const TextureSubResourceData* initialData, const char* debugName)
+	    Handle handle, const TextureDesc& desc, const ConstTextureSubResourceData* initialData, const char* debugName)
 	{
 		auto texture = textureResources_.Write(handle);
 		texture->desc_ = desc;
@@ -780,10 +782,16 @@ namespace GPU
 		return ErrorCode::OK;
 	}
 
-	ErrorCode D3D12Backend::CreateFence(Handle handle, const char* debugName)
+	ErrorCode D3D12Backend::CreateFence(Handle handle, i64 initialValue, const char* debugName)
 	{
-		//
-		return ErrorCode::UNIMPLEMENTED;
+		auto fence = fences_.Write(handle);
+
+		// TODO: move into D3D12Device...
+		device_->d3dDevice_->CreateFence(
+		    (UINT64)initialValue, D3D12_FENCE_FLAG_NONE, IID_ID3D12Fence, (void**)fence->fence_.GetAddressOf());
+		fence->event_ = ::CreateEvent(nullptr, FALSE, FALSE, nullptr);
+
+		return ErrorCode::OK;
 	}
 
 	ErrorCode D3D12Backend::DestroyResource(Handle handle)
@@ -834,6 +842,13 @@ namespace GPU
 			{
 				delete *commandList;
 				*commandList = nullptr;
+			}
+			break;
+		case ResourceType::FENCE:
+			if(auto fence = fences_.Write(handle))
+			{
+				::CloseHandle(fence->event_);
+				*fence = D3D12Fence();
 			}
 			break;
 		default:
@@ -1319,6 +1334,93 @@ namespace GPU
 				return retVal;
 		}
 		return ErrorCode::OK;
+	}
+
+	ErrorCode D3D12Backend::SubmitFence(Handle handle, i64 value)
+	{
+		auto fence = fences_.Read(handle);
+
+		device_->d3dDirectQueue_->Signal(fence->fence_.Get(), (UINT64)value);
+
+		return ErrorCode::OK;
+	}
+
+	ErrorCode D3D12Backend::WaitOnFence(Handle handle, i64 value)
+	{
+		auto fence = fences_.Read(handle);
+
+		if((i64)fence->fence_->GetCompletedValue() < value)
+		{
+			fence->fence_->SetEventOnCompletion((UINT64)value, fence->event_);
+			::WaitForSingleObject(fence->event_, INFINITE);
+		}
+
+		return ErrorCode::OK;
+	}
+
+	ErrorCode D3D12Backend::ReadbackBuffer(Handle handle, i64 offset, i64 size, void* dest)
+	{
+		auto buffer = bufferResources_.Read(handle);
+
+		D3D12_RANGE range;
+		range.Begin = offset;
+		range.End = offset + size;
+		void* mapped = nullptr;
+		if(SUCCEEDED(buffer->resource_->Map(0, &range, &mapped)))
+		{
+			memcpy(dest, mapped, size);
+			buffer->resource_->Unmap(0, nullptr);
+			return ErrorCode::OK;
+		}
+		return ErrorCode::FAIL;
+	}
+
+	ErrorCode D3D12Backend::ReadbackTextureSubresource(Handle handle, i32 subResourceIdx, TextureSubResourceData data)
+	{
+		auto texture = textureResources_.Read(handle);
+		const auto& desc = texture->desc_;
+		const i32 mipIndex = subResourceIdx % desc.levels_;
+
+		D3D12_BOX box;
+		box.left = 0;
+		box.top = 0;
+		box.front = 0;
+		box.right = Core::Max(1, desc.width_ >> mipIndex);
+		box.bottom = Core::Max(1, desc.height_ >> mipIndex);
+		box.back = Core::Max(1, desc.depth_ >> mipIndex);
+
+		// Calculate offset into destination.
+		D3D12_RESOURCE_DESC resourceDesc = GetResourceDesc(texture->desc_);
+		UINT64 srcOffset = 0;
+		if(subResourceIdx > 0)
+		{
+			device_->d3dDevice_->GetCopyableFootprints(
+			    &resourceDesc, 0, subResourceIdx, 0, nullptr, nullptr, nullptr, &srcOffset);
+		}
+
+		UINT64 totalSize = 0;
+		D3D12_PLACED_SUBRESOURCE_FOOTPRINT placedFootprint;
+		device_->d3dDevice_->GetCopyableFootprints(
+		    &resourceDesc, subResourceIdx, 1, srcOffset, &placedFootprint, nullptr, nullptr, &totalSize);
+
+		D3D12_RANGE range;
+		range.Begin = placedFootprint.Offset;
+		range.End = range.Begin + totalSize;
+
+		void* mapped = nullptr;
+		if(SUCCEEDED(texture->resource_->Map(0, &range, &mapped)))
+		{
+			TextureLayoutInfo dstLayout = {data.rowPitch_, data.slicePitch_};
+			TextureLayoutInfo srcLayout = {(i32)placedFootprint.Footprint.RowPitch,
+			    (i32)placedFootprint.Footprint.RowPitch * (i32)placedFootprint.Footprint.Height};
+
+			GPU::CopyTextureData(data.data_, dstLayout, (u8*)mapped, srcLayout, (i32)placedFootprint.Footprint.Height,
+			    (i32)placedFootprint.Footprint.Depth);
+
+			texture->resource_->Unmap(0, nullptr);
+			return ErrorCode::OK;
+		}
+		return ErrorCode::FAIL;
 	}
 
 	ErrorCode D3D12Backend::PresentSwapChain(Handle handle)

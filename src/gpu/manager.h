@@ -72,7 +72,7 @@ namespace GPU
 		 * @pre initialData == nullptr, or has enough for (levels * elements).
 		 */
 		static Handle CreateTexture(
-		    const TextureDesc& desc, const TextureSubResourceData* initialData, const char* debugFmt, ...);
+		    const TextureDesc& desc, const ConstTextureSubResourceData* initialData, const char* debugFmt, ...);
 
 		/**
 		 * Create shader.
@@ -115,7 +115,7 @@ namespace GPU
 		 * Create fence.
 		 * Used for synchronisation in and around queues.
 		 */
-		static Handle CreateFence(const char* debugFmt, ...);
+		static Handle CreateFence(i64 initialValue, const char* debugFmt, ...);
 
 		/**
 		 * Destroy resource.
@@ -176,6 +176,39 @@ namespace GPU
 		 * @return Success.
 		 */
 		static bool SubmitCommandLists(Core::ArrayView<Handle> handles);
+
+		/**
+		 * Submit fence.
+		 * @param handle Handle to fence.
+		 * @param value Value to signal.
+		 * @return Success.
+		 */
+		static bool SubmitFence(Handle handle, i64 value);
+
+		/**
+		 * Wait on fence value.
+		 * Will wait until fence @a handle is greater than or equal to @a i64 value.
+		 * @param handle Handle to fence.
+		 * @return Success.
+		 */
+		static bool WaitOnFence(Handle handle, i64 value);
+
+		/**
+		 * Readback buffer.
+		 * @param handle Handle to buffer.
+		 * @param offset Offset in buffer in bytes.
+		 * @param size Size of buffer in bytes.
+		 * @param dest Destination memory.
+		 */
+		static bool ReadbackBuffer(Handle handle, i64 offset, i64 size, void* dest);
+
+		/**
+		 * Readback texture subresource.
+		 * @param handle Handle to texture.
+		 * @param subResourceIdx Subresource index.
+		 * @param data Output structure that will be filled out.
+		 */
+		static bool ReadbackTextureSubresource(Handle handle, i32 subResourceIdx, TextureSubResourceData data);
 
 		/**
 		 * Present swapchain.

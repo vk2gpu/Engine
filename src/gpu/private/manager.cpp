@@ -408,7 +408,7 @@ namespace GPU
 	}
 
 	Handle Manager::CreateTexture(
-	    const TextureDesc& desc, const TextureSubResourceData* initialData, const char* debugFmt, ...)
+	    const TextureDesc& desc, const ConstTextureSubResourceData* initialData, const char* debugFmt, ...)
 	{
 		DBG_ASSERT(IsInitialized());
 		DBG_ASSERT(desc.width_ > 0);
@@ -496,13 +496,13 @@ namespace GPU
 		return handle;
 	}
 
-	Handle Manager::CreateFence(const char* debugFmt, ...)
+	Handle Manager::CreateFence(i64 initialValue, const char* debugFmt, ...)
 	{
 		DBG_ASSERT(IsInitialized());
 		rmt_ScopedCPUSample(GPU_CreateFence, RMTSF_None);
 		Handle handle = impl_->AllocHandle(ResourceType::FENCE);
 		SET_DEBUG_INFO();
-		impl_->HandleErrorCode(handle, impl_->backend_->CreateFence(handle, fullDebugName));
+		impl_->HandleErrorCode(handle, impl_->backend_->CreateFence(handle, initialValue, fullDebugName));
 		return handle;
 	}
 
@@ -623,6 +623,38 @@ namespace GPU
 #endif
 		rmt_ScopedCPUSample(GPU_SubmitCommandLists, RMTSF_None);
 		return impl_->HandleErrorCode(impl_->backend_->SubmitCommandLists(handles));
+	}
+
+	bool Manager::SubmitFence(Handle handle, i64 value)
+	{
+		DBG_ASSERT(IsInitialized());
+		DBG_ASSERT(handle.GetType() == ResourceType::FENCE);
+		rmt_ScopedCPUSample(GPU_SubmitFence, RMTSF_None);
+		return impl_->HandleErrorCode(impl_->backend_->SubmitFence(handle, value));
+	}
+
+	bool Manager::WaitOnFence(Handle handle, i64 value)
+	{
+		DBG_ASSERT(IsInitialized());
+		DBG_ASSERT(handle.GetType() == ResourceType::FENCE);
+		rmt_ScopedCPUSample(GPU_WaitOnFence, RMTSF_None);
+		return impl_->HandleErrorCode(impl_->backend_->WaitOnFence(handle, value));
+	}
+
+	bool Manager::ReadbackBuffer(Handle handle, i64 offset, i64 size, void* dest)
+	{
+		DBG_ASSERT(IsInitialized());
+		DBG_ASSERT(handle.GetType() == ResourceType::BUFFER);
+		rmt_ScopedCPUSample(GPU_ReadbackBuffer, RMTSF_None);
+		return impl_->HandleErrorCode(impl_->backend_->ReadbackBuffer(handle, offset, size, dest));
+	}
+
+	bool Manager::ReadbackTextureSubresource(Handle handle, i32 subResourceIdx, TextureSubResourceData data)
+	{
+		DBG_ASSERT(IsInitialized());
+		DBG_ASSERT(handle.GetType() == ResourceType::TEXTURE);
+		rmt_ScopedCPUSample(GPU_ReadbackTextureSubresource, RMTSF_None);
+		return impl_->HandleErrorCode(impl_->backend_->ReadbackTextureSubresource(handle, subResourceIdx, data));
 	}
 
 	bool Manager::PresentSwapChain(Handle handle)

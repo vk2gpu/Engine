@@ -2,6 +2,8 @@
 #include "core/debug.h"
 #include "core/misc.h"
 
+#include <memory>
+
 namespace GPU
 {
 	FormatInfo GetFormatInfo(Format format)
@@ -479,6 +481,32 @@ namespace GPU
 		size *= elements;
 		return size;
 	}
+
+	GPU_DLL void CopyTextureData(void* dstData, const TextureLayoutInfo& dstLayout, const void* srcData,
+	    const TextureLayoutInfo& srcLayout, i32 rows, i32 slices)
+	{
+		u8* dstBytes = (u8*)dstData;
+		const u8* srcBytes = (u8*)srcData;
+
+		const i32 minRowPitch = Core::Min(dstLayout.pitch_, srcLayout.pitch_);
+
+		for(i32 slice = 0; slice < slices; ++slice)
+		{
+			u8* dstRowBytes = (u8*)dstBytes;
+			const u8* srcRowBytes = (u8*)srcBytes;
+
+			for(i32 row = 0; row < rows; ++row)
+			{
+				memcpy(dstRowBytes, srcRowBytes, minRowPitch);
+				dstRowBytes += dstLayout.pitch_;
+				srcRowBytes += srcLayout.pitch_;
+			}
+
+			dstBytes += dstLayout.slicePitch_;
+			srcBytes += srcLayout.slicePitch_;
+		}
+	}
+
 
 	GPU_DLL ViewDimension GetViewDimension(TextureType type)
 	{

@@ -35,7 +35,7 @@ namespace GPU
 		CHECK_D3D(hr = device.d3dDevice_->CreateFence(
 		              0, D3D12_FENCE_FLAG_NONE, IID_ID3D12Fence, (void**)d3dFence_.GetAddressOf()));
 
-		fenceEvent_ = ::CreateEvent(nullptr, FALSE, FALSE, "D3D12CommandList");
+		fenceEvent_ = ::CreateEvent(nullptr, FALSE, FALSE, nullptr);
 	}
 
 	D3D12CommandList::~D3D12CommandList()

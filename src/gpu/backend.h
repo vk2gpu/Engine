@@ -30,7 +30,7 @@ namespace GPU
 		virtual ErrorCode CreateBuffer(
 		    Handle handle, const BufferDesc& desc, const void* initialData, const char* debugName) = 0;
 		virtual ErrorCode CreateTexture(Handle handle, const TextureDesc& desc,
-		    const TextureSubResourceData* initialData, const char* debugName) = 0;
+		    const ConstTextureSubResourceData* initialData, const char* debugName) = 0;
 		virtual ErrorCode CreateShader(Handle handle, const ShaderDesc& desc, const char* debugName) = 0;
 		virtual ErrorCode CreateGraphicsPipelineState(
 		    Handle handle, const GraphicsPipelineStateDesc& desc, const char* debugName) = 0;
@@ -43,7 +43,7 @@ namespace GPU
 		virtual ErrorCode CreateFrameBindingSet(
 		    Handle handle, const FrameBindingSetDesc& desc, const char* debugName) = 0;
 		virtual ErrorCode CreateCommandList(Handle handle, const char* debugName) = 0;
-		virtual ErrorCode CreateFence(Handle handle, const char* debugName) = 0;
+		virtual ErrorCode CreateFence(Handle handle, i64 initialValue, const char* debugName) = 0;
 		virtual ErrorCode DestroyResource(Handle handle) = 0;
 
 		/**
@@ -64,6 +64,19 @@ namespace GPU
 		 */
 		virtual ErrorCode CompileCommandList(Handle handle, const CommandList& commandList) = 0;
 		virtual ErrorCode SubmitCommandLists(Core::ArrayView<Handle> handles) = 0;
+
+		/**
+		 * Fencing.
+		 */
+		virtual ErrorCode SubmitFence(Handle handle, i64 value) = 0;
+		virtual ErrorCode WaitOnFence(Handle handle, i64 value) = 0;
+
+		/**
+		 * Readbacks.
+		 */
+		virtual ErrorCode ReadbackBuffer(Handle handle, i64 offset, i64 size, void* dest) = 0;
+		virtual ErrorCode ReadbackTextureSubresource(
+		    Handle texture, i32 subResourceIdx, TextureSubResourceData data) = 0;
 
 		/**
 		 * Swapchain management.

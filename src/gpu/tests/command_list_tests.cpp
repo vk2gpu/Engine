@@ -3,10 +3,6 @@
 #include "catch.hpp"
 
 
-namespace
-{
-}
-
 TEST_CASE("commandlist-tests-alloc")
 {
 	Core::HandleAllocator handleAllocator = Core::HandleAllocator(GPU::ResourceType::MAX);
@@ -41,7 +37,7 @@ TEST_CASE("commandlist-tests-commands")
 	GPU::CommandList commandList(GPU::CommandList::DEFAULT_BUFFER_SIZE, handleAllocator);
 	float f[4] = {0.0f, 0.0f, 0.0f, 0.0f};
 	u32 u[4] = {0, 0, 0, 0};
-	GPU::TextureSubResourceData texSubRsc;
+	GPU::ConstTextureSubResourceData texSubRsc;
 	texSubRsc.data_ = u;
 	texSubRsc.rowPitch_ = 4;
 	texSubRsc.slicePitch_ = 16;
@@ -63,6 +59,7 @@ TEST_CASE("commandlist-tests-commands")
 
 	GPU::DrawState drawState;
 	GPU::PipelineBinding pb;
+	pb.pbs_ = pipelineBindingHandle;
 
 	// Draws.
 	REQUIRE(commandList.Draw(graphicsPipelineStateHandle, pb, drawBindingHandle, frameBindingHandle, drawState,
