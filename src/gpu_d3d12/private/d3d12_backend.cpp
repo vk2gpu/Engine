@@ -1368,7 +1368,7 @@ namespace GPU
 		void* mapped = nullptr;
 		if(SUCCEEDED(buffer->resource_->Map(0, &range, &mapped)))
 		{
-			memcpy(dest, mapped, size);
+			memcpy(dest, (u8*)mapped + offset, size);
 			buffer->resource_->Unmap(0, nullptr);
 			return ErrorCode::OK;
 		}
@@ -1396,6 +1396,7 @@ namespace GPU
 		{
 			device_->d3dDevice_->GetCopyableFootprints(
 			    &resourceDesc, 0, subResourceIdx, 0, nullptr, nullptr, nullptr, &srcOffset);
+			srcOffset = Core::PotRoundUp(srcOffset, D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT);
 		}
 
 		UINT64 totalSize = 0;
@@ -1414,8 +1415,8 @@ namespace GPU
 			TextureLayoutInfo srcLayout = {(i32)placedFootprint.Footprint.RowPitch,
 			    (i32)placedFootprint.Footprint.RowPitch * (i32)placedFootprint.Footprint.Height};
 
-			GPU::CopyTextureData(data.data_, dstLayout, (u8*)mapped, srcLayout, (i32)placedFootprint.Footprint.Height,
-			    (i32)placedFootprint.Footprint.Depth);
+			GPU::CopyTextureData(data.data_, dstLayout, (u8*)mapped + placedFootprint.Offset, srcLayout,
+			    (i32)placedFootprint.Footprint.Height, (i32)placedFootprint.Footprint.Depth);
 
 			texture->resource_->Unmap(0, nullptr);
 			return ErrorCode::OK;

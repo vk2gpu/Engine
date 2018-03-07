@@ -103,7 +103,7 @@ namespace Core
 		Map(i32 initialSize = INITIAL_SIZE)
 		{
 			capacity_ = initialSize;
-			Alloc(); 
+			Alloc();
 		}
 
 		Map(const Map& other)

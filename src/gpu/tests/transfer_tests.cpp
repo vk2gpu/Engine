@@ -20,6 +20,92 @@ namespace
 	}
 }
 
+TEST_CASE("transfer-tests-readback-buffer")
+{
+	auto testName = Catch::getResultCapture().getCurrentTestName();
+
+	Plugin::Manager::Scoped pluginManager;
+	Client::Window window(testName.c_str(), 0, 0, 640, 480, false);
+	GPU::Manager::Scoped gpuManager(GetDefaultSetupParams());
+
+	i32 numAdapters = GPU::Manager::EnumerateAdapters(nullptr, 0);
+	REQUIRE(numAdapters > 0);
+
+	REQUIRE(GPU::Manager::CreateAdapter(0) == GPU::ErrorCode::OK);
+
+	Core::Vector<u8> initialData(1024 * 1024);
+	for(i32 idx = 0; idx < initialData.size(); ++idx)
+	{
+		initialData[idx] = (u8)(idx % 255);
+	}
+
+	GPU::BufferDesc bufferDesc;
+	bufferDesc.bindFlags_ = GPU::BindFlags::SHADER_RESOURCE;
+	bufferDesc.size_ = initialData.size();
+	GPU::Handle bufferHandle = GPU::Manager::CreateBuffer(bufferDesc, initialData.data(), testName.c_str());
+
+	GPU::BufferDesc readbackDesc = bufferDesc;
+	readbackDesc.bindFlags_ = GPU::BindFlags::NONE;
+	GPU::Handle readbackHandle = GPU::Manager::CreateBuffer(readbackDesc, nullptr, testName.c_str());
+
+	GPU::Handle fenceHandle = GPU::Manager::CreateFence(0, testName.c_str());
+
+	GPU::Manager::ScopedDebugCapture capture(testName.c_str());
+
+	auto commandListHandle = GPU::Manager::CreateCommandList(testName.c_str());
+
+	SECTION("copy all - readback all")
+	{
+		GPU::CommandList commandList(GPU::CommandList::DEFAULT_BUFFER_SIZE);
+
+		REQUIRE(commandList.CopyBuffer(readbackHandle, 0, bufferHandle, 0, (i32)readbackDesc.size_));
+
+		REQUIRE(GPU::Manager::CompileCommandList(commandListHandle, commandList));
+
+		REQUIRE(GPU::Manager::SubmitCommandList(commandListHandle));
+
+		REQUIRE(GPU::Manager::SubmitFence(fenceHandle, 1));
+		REQUIRE(GPU::Manager::WaitOnFence(fenceHandle, 1));
+
+		Core::Vector<u8> readbackData(initialData.size());
+
+		REQUIRE(GPU::Manager::ReadbackBuffer(readbackHandle, 0, readbackData.size(), readbackData.data()));
+
+		REQUIRE(memcmp(initialData.data(), readbackData.data(), readbackData.size()) == 0);
+	}
+
+	SECTION("copy all - readback half")
+	{
+		GPU::CommandList commandList(GPU::CommandList::DEFAULT_BUFFER_SIZE);
+
+		REQUIRE(commandList.CopyBuffer(readbackHandle, 0, bufferHandle, 0, (i32)readbackDesc.size_));
+
+		REQUIRE(GPU::Manager::CompileCommandList(commandListHandle, commandList));
+
+		REQUIRE(GPU::Manager::SubmitCommandList(commandListHandle));
+
+		REQUIRE(GPU::Manager::SubmitFence(fenceHandle, 1));
+		REQUIRE(GPU::Manager::WaitOnFence(fenceHandle, 1));
+
+		Core::Vector<u8> readbackData(initialData.size());
+
+		REQUIRE(GPU::Manager::ReadbackBuffer(readbackHandle, 0, readbackData.size() / 2, readbackData.data()));
+		REQUIRE(memcmp(initialData.data(), readbackData.data(), readbackData.size() / 2) == 0);
+
+		REQUIRE(GPU::Manager::ReadbackBuffer(
+		    readbackHandle, readbackData.size() / 2, readbackData.size() / 2, readbackData.data()));
+		REQUIRE(
+		    memcmp(initialData.data() + readbackData.size() / 2, readbackData.data(), readbackData.size() / 2) == 0);
+	}
+
+
+	GPU::Manager::DestroyResource(commandListHandle);
+	GPU::Manager::DestroyResource(fenceHandle);
+	GPU::Manager::DestroyResource(readbackHandle);
+	GPU::Manager::DestroyResource(bufferHandle);
+}
+
+
 TEST_CASE("transfer-tests-update-copy-readback-buffer")
 {
 	auto testName = Catch::getResultCapture().getCurrentTestName();
@@ -76,6 +162,111 @@ TEST_CASE("transfer-tests-update-copy-readback-buffer")
 	GPU::Manager::DestroyResource(fenceHandle);
 	GPU::Manager::DestroyResource(readbackHandle);
 	GPU::Manager::DestroyResource(bufferHandle);
+}
+
+TEST_CASE("transfer-tests-readback-texture")
+{
+	auto testName = Catch::getResultCapture().getCurrentTestName();
+
+	Plugin::Manager::Scoped pluginManager;
+	Client::Window window(testName.c_str(), 0, 0, 640, 480, false);
+	GPU::Manager::Scoped gpuManager(GetDefaultSetupParams());
+
+	i32 numAdapters = GPU::Manager::EnumerateAdapters(nullptr, 0);
+	REQUIRE(numAdapters > 0);
+
+	REQUIRE(GPU::Manager::CreateAdapter(0) == GPU::ErrorCode::OK);
+
+	static const i32 width = 128;
+	static const i32 height = 128;
+	static const i32 levels = 2;
+	static const i64 totalBytes = GPU::GetTextureSize(GPU::Format::R8_UINT, width, height, 1, levels, 1);
+
+	Core::Vector<u8> initialData((i32)totalBytes);
+	for(i32 idx = 0; idx < initialData.size(); ++idx)
+	{
+		initialData[idx] = (u8)(idx % 255);
+	}
+
+	GPU::ConstTextureSubResourceData initialDataSubRsc[] = {{initialData.data(), width, width * height},
+	    {initialData.data() + (width * height), width / 2, (width / 2) * (height / 2)}};
+
+	GPU::TextureDesc textureDesc;
+	textureDesc.type_ = GPU::TextureType::TEX2D;
+	textureDesc.bindFlags_ = GPU::BindFlags::SHADER_RESOURCE;
+	textureDesc.width_ = width;
+	textureDesc.height_ = height;
+	textureDesc.levels_ = levels;
+	textureDesc.format_ = GPU::Format::R8_UINT;
+	GPU::Handle textureHandle = GPU::Manager::CreateTexture(textureDesc, initialDataSubRsc, testName.c_str());
+
+	GPU::TextureDesc readbackDesc;
+	readbackDesc.type_ = GPU::TextureType::TEX2D;
+	readbackDesc.bindFlags_ = GPU::BindFlags::NONE;
+	readbackDesc.width_ = width;
+	readbackDesc.height_ = height;
+	readbackDesc.levels_ = levels;
+	readbackDesc.format_ = GPU::Format::R8_UINT;
+	GPU::Handle readbackHandle = GPU::Manager::CreateTexture(readbackDesc, nullptr, testName.c_str());
+
+	GPU::Handle fenceHandle = GPU::Manager::CreateFence(0, testName.c_str());
+
+	GPU::Manager::ScopedDebugCapture capture(testName.c_str());
+
+	auto commandListHandle = GPU::Manager::CreateCommandList(testName.c_str());
+
+	SECTION("copy all - readback all")
+	{
+		GPU::CommandList commandList(GPU::CommandList::DEFAULT_BUFFER_SIZE);
+
+		GPU::Point destPoint = {};
+		destPoint.x_ = 0;
+		destPoint.y_ = 0;
+		destPoint.z_ = 0;
+
+		GPU::Box srcBox = {};
+		srcBox.x_ = 0;
+		srcBox.y_ = 0;
+		srcBox.z_ = 0;
+		srcBox.w_ = width;
+		srcBox.h_ = height;
+		srcBox.d_ = 1;
+
+		REQUIRE(commandList.CopyTextureSubResource(readbackHandle, 0, destPoint, textureHandle, 0, srcBox));
+
+		srcBox.w_ = width / 2;
+		srcBox.h_ = height / 2;
+		srcBox.d_ = 1;
+		REQUIRE(commandList.CopyTextureSubResource(readbackHandle, 1, destPoint, textureHandle, 1, srcBox));
+
+		REQUIRE(GPU::Manager::CompileCommandList(commandListHandle, commandList));
+
+		REQUIRE(GPU::Manager::SubmitCommandList(commandListHandle));
+
+		REQUIRE(GPU::Manager::SubmitFence(fenceHandle, 1));
+		REQUIRE(GPU::Manager::WaitOnFence(fenceHandle, 1));
+
+		Core::Vector<u8> readbackData((i32)totalBytes);
+		GPU::TextureSubResourceData readbackDataSubRsc = {};
+		readbackDataSubRsc.data_ = readbackData.data();
+		readbackDataSubRsc.rowPitch_ = width;
+		readbackDataSubRsc.slicePitch_ = width * height;
+		REQUIRE(GPU::Manager::ReadbackTextureSubresource(readbackHandle, 0, readbackDataSubRsc));
+
+		REQUIRE(memcmp(initialData.data(), readbackData.data(), readbackDataSubRsc.slicePitch_) == 0);
+
+		readbackDataSubRsc.data_ = readbackData.data() + readbackDataSubRsc.slicePitch_;
+		readbackDataSubRsc.rowPitch_ = width / 2;
+		readbackDataSubRsc.slicePitch_ = (width / 2) * (height / 2);
+		REQUIRE(GPU::Manager::ReadbackTextureSubresource(readbackHandle, 1, readbackDataSubRsc));
+
+		REQUIRE(memcmp(initialData.data(), readbackData.data(), totalBytes) == 0);
+	}
+
+	GPU::Manager::DestroyResource(commandListHandle);
+	GPU::Manager::DestroyResource(fenceHandle);
+	GPU::Manager::DestroyResource(readbackHandle);
+	GPU::Manager::DestroyResource(textureHandle);
 }
 
 TEST_CASE("transfer-tests-update-copy-readback-texture")

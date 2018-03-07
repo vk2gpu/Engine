@@ -387,6 +387,7 @@ namespace GPU
 			{
 				d3dDevice->GetCopyableFootprints(
 				    &resourceDesc, 0, command->dstSubResourceIdx_, 0, nullptr, nullptr, nullptr, &dstOffset);
+				dstOffset = Core::PotRoundUp(dstOffset, D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT);
 			}
 
 			d3dDevice->GetCopyableFootprints(&resourceDesc, command->dstSubResourceIdx_, 1, dstOffset,

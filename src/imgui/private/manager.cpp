@@ -101,7 +101,7 @@ namespace ImGui
 		fontDesc.width_ = width;
 		fontDesc.height_ = height;
 		fontDesc.format_ = GPU::Format::R8G8B8A8_UNORM;
-		GPU::TextureSubResourceData texSubRscData;
+		GPU::ConstTextureSubResourceData texSubRscData;
 		texSubRscData.data_ = pixels;
 		texSubRscData.rowPitch_ = width * sizeof(u32);
 		texSubRscData.slicePitch_ = 0;

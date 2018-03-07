@@ -21,15 +21,9 @@ namespace Core
 		return &Core::CreateAllocationTracker(tsProxy, "General/String");
 	}();
 
-	void* StringAllocator::Allocate(i64 size, i64 align)
-	{
-		return stringAllocator_.Allocate(size, align); 
-	}
+	void* StringAllocator::Allocate(i64 size, i64 align) { return stringAllocator_.Allocate(size, align); }
 
-	void StringAllocator::Deallocate(void* mem)
-	{ 
-		stringAllocator_.Deallocate(mem); 
-	}
+	void StringAllocator::Deallocate(void* mem) { stringAllocator_.Deallocate(mem); }
 
 	bool StringConvertUTF16toUTF8(const wchar* src, i32 srcLength, char* dst, i32 dstLength)
 	{

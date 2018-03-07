@@ -23,7 +23,7 @@ namespace Image
 		 * @param data Pointer to data.
 		 * @param freeDataFn Function to call to free data, can be nullptr.
 		 */
-		Image(GPU::TextureType type, GPU::Format format, i32 width, i32 height, i32 depth, i32 levels, u8* data,
+		Image(ImageType type, ImageFormat format, i32 width, i32 height, i32 depth, i32 levels, u8* data,
 		    FreeDataFn freeDataFn);
 
 		Image(Image&& other);
