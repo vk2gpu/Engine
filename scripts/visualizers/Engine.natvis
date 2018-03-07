@@ -13,7 +13,7 @@
     <Expand>
       <ArrayItems>
         <Size>($T2)</Size>
-        <ValuePointer>($T1*)Data_</ValuePointer>
+        <ValuePointer>($T1*)data_</ValuePointer>
       </ArrayItems>
     </Expand>
   </Type>
@@ -45,9 +45,9 @@
 
   <Type Name="GPU::Handle">
     <DisplayString Condition="magic_ == 0">nullptr</DisplayString>
-    <DisplayString Condition="magic_ != 0">{(GPU::ResourceType)type_} {&amp;gpu.dll!GPU::resourceDebugInfo_[type_][index_].name_.Data_[0]}</DisplayString>
+    <DisplayString Condition="magic_ != 0">{(GPU::ResourceType)type_} {&amp;gpu.dll!GPU::resourceDebugInfo_[type_][index_].name_.data_[0]}</DisplayString>
     <Expand>
-      <Item Name="Debug Name" ExcludeView="simple">&amp;gpu.dll!GPU::resourceDebugInfo_[type_][index_].name_.Data_[0]</Item>
+      <Item Name="Debug Name" ExcludeView="simple">&amp;gpu.dll!GPU::resourceDebugInfo_[type_][index_].name_.data_[0]</Item>
       <Item Name="Creation Callstack" ExcludeView="simple">gpu.dll!GPU::resourceDebugInfo_[type_][index_].creationCallstack_</Item>
       <Item Name="[index]" ExcludeView="simple">index_</Item>
       <Item Name="[magic]" ExcludeView="simple">magic_</Item>
