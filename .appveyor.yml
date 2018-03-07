@@ -14,9 +14,9 @@ init:
 install:
   - cmd: mkdir c:\projects\deps
   - cmd: cd c:\projects\deps 
-  - cmd: curl -L -o ispc-v1.9.1-windows-vs2015.zip https://downloads.sourceforge.net/project/ispcmirror/v1.9.1/ispc-v1.9.1-windows-vs2015.zip
-  - cmd: 7z x ispc-v1.9.1-windows-vs2015.zip
-  - cmd: set PATH=C:\projects\deps\ispc-v1.9.1-windows-vs2015;%PATH%
+  - cmd: curl -L -o ispc-v1.9.2-windows.zip https://downloads.sourceforge.net/project/ispcmirror/v1.9.2/ispc-v1.9.2-windows.zip
+  - cmd: 7z x ispc-v1.9.2-windows.zip
+  - cmd: set PATH=C:\projects\deps\ispc-v1.9.2-windows;%PATH%
   - cmd: ispc --version
 
 before_build:
