@@ -56,6 +56,8 @@ namespace Core
 	namespace
 	{
 #if PLATFORM_WINDOWS
+		static const i32 LONG_MAX_PATH = 4096;
+
 		FileTimestamp GetTimestamp(FILETIME fileTime)
 		{
 			FileTimestamp timestamp;
@@ -202,6 +204,8 @@ namespace Core
 #if PLATFORM_LINUX || PLATFORM_OSX || PLATFORM_WINDOWS
 		Array<char, 256> tempPath;
 
+		bool parsedDrive = false;
+
 		// Copy into temp path.
 		strcpy_s(tempPath.data(), tempPath.size(), path);
 		char* foundSeparator = nullptr;
@@ -224,7 +228,7 @@ namespace Core
 			}
 
 			// Attempt to create the path if it doesn't exist.
-			if(FileExists(tempPath.data()) == false)
+			if(parsedDrive && FileExists(tempPath.data()) == false)
 			{
 #if PLATFORM_WINDOWS
 				int retVal = _mkdir(tempPath.data());
@@ -236,6 +240,8 @@ namespace Core
 					return false;
 				}
 			}
+
+			parsedDrive = true;
 
 			// Put separator back.
 			if(separatorChar)
@@ -717,7 +723,10 @@ namespace Core
 			if(ContainsAnyFlags(flags, FileFlags::CACHE_RANDOM_ACCESS))
 				fileFlags |= FILE_FLAG_RANDOM_ACCESS;
 
-			fileHandle_ = ::CreateFile(path, desiredAccess, shareMode, nullptr, createFlags, fileFlags, 0);
+			wchar pathW[LONG_MAX_PATH] = {};
+			DBG_VERIFY(Core::StringConvertUTF8toUTF16(path, (i32)strlen(path), pathW, LONG_MAX_PATH));
+			
+			fileHandle_ = ::CreateFileW(pathW, desiredAccess, shareMode, nullptr, createFlags, fileFlags, 0);
 			if(fileHandle_ != INVALID_HANDLE_VALUE)
 			{
 				DWORD sizeHi = 0;

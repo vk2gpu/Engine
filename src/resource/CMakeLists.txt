@@ -1,8 +1,9 @@
 SET(SOURCES_PUBLIC 
 	"dll.h"
-	"manager.h"
 	"converter.h"
+	"data_cache.h"
 	"factory.h"
+	"manager.h"
 	"ref.h"
 	"resource.h"
 )
@@ -10,6 +11,7 @@ SET(SOURCES_PUBLIC
 SET(SOURCES_PRIVATE 
 	"private/converter_context.h"
 	"private/converter_context.cpp"
+	"private/data_cache.cpp"
 	"private/database.h"
 	"private/database.cpp"
 	"private/dll.cpp"
@@ -24,13 +26,19 @@ SET(SOURCES_PRIVATE
 )
 
 SET(SOURCES_TESTS
+	"tests/data_cache_tests.cpp"
 	"tests/manager_tests.cpp"
 	"tests/test_entry.cpp"
 	"tests/resource_tests.cpp"
 )
 
+
+INCLUDE_DIRECTORIES(
+	"${ENGINE_3RDPARTY_PATH}/curl/include"
+)
+
 ADD_ENGINE_LIBRARY(resource ${SOURCES_PUBLIC} ${SOURCES_PRIVATE} ${SOURCES_TESTS})
-TARGET_LINK_LIBRARIES(resource core job plugin serialization)
+TARGET_LINK_LIBRARIES(resource core job plugin serialization libcurl)
 
 # Plugins
 SET(SOURCES_TEST_BASIC
