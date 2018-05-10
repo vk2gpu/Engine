@@ -55,6 +55,12 @@ namespace Graphics
 		    GPU::ShaderType type, const char* target);
 
 	private:
+		ShaderCompileOutput CompileLegacy(const char* shaderName, const char* shaderSource, const char* entryPoint,
+		    GPU::ShaderType type, const char* target);
+
+		ShaderCompileOutput CompileDXIL(const char* shaderName, const char* shaderSource, const char* entryPoint,
+		    GPU::ShaderType type, const char* target);
+
 		struct ShaderCompilerHLSLImpl* impl_ = nullptr;
 	};
 } // namespace Graphics

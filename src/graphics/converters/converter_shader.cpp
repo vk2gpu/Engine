@@ -198,8 +198,8 @@ namespace
 #endif
 
 					auto GetTarget = [](GPU::ShaderType type, i32 major, i32 minor) {
-						DBG_ASSERT(major >= 4 && major <= 5);
-						DBG_ASSERT(minor >= 0 && minor <= 1);
+						DBG_ASSERT(major >= 4 && major <= 6);
+						DBG_ASSERT(minor >= 0 && minor <= 3);
 						switch(type)
 						{
 						case GPU::ShaderType::VS:
