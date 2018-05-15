@@ -215,7 +215,7 @@ namespace Core
 		{
 			if(auto* found = find(key))
 			{
-				*found = value;
+				std::swap(*found, value);
 				return found;
 			}
 

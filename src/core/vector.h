@@ -38,6 +38,22 @@ namespace Core
 				new(data_ + idx) TYPE(other.data_[idx]);
 		}
 
+		Vector(const ArrayView<TYPE>& other) { insert(other.begin(), other.end()); }
+
+		Vector(const ArrayView<TYPE>& other, ALLOCATOR& allocator)
+		    : allocator_(allocator)
+		{
+			insert(other.begin(), other.end());
+		}
+
+		Vector(const ArrayView<const TYPE>& other) { insert(other.begin(), other.end()); }
+
+		Vector(const ArrayView<const TYPE>& other, ALLOCATOR& allocator)
+		    : allocator_(allocator)
+		{
+			insert(other.begin(), other.end());
+		}
+
 		Vector(Vector&& other) { swap(other); }
 		Vector(index_type size, const TYPE& default = TYPE()) { resize(size, default); }
 
