@@ -48,6 +48,15 @@ struct ViewConstants
 	}
 };
 
+struct VTParams
+{
+	Math::Vec2 tileSize_ = Math::Vec2(128, 128);
+	Math::Vec2 vtSize_ = Math::Vec2(256 * 1024, 256 * 1024);
+	Math::Vec2 cacheSize_ = Math::Vec2(12, 12) * Math::Vec2(128, 128);
+	i32 feedbackDivisor_ = 4;
+};
+
+
 struct Light
 {
 	Math::Vec3 position_ = Math::Vec3(0.0f, 0.0f, 0.0f);

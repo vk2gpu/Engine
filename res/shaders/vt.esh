@@ -1,0 +1,64 @@
+#ifndef VT_ESH
+#define VT_ESH
+
+#include "stdlib.esh"
+#include "common_bindings.esh"
+
+uint QuantizeU16(float val)
+{
+	return (uint)(saturate(val) * 65535.0);
+}
+
+float DequantizeU16(uint val)
+{
+	return ((float)val / 65535.0);
+}
+
+float GetMipLevel(float2 uv, float2 size)
+{
+	float2 scaledUV = uv * size;
+	float2 dx = ddx(scaledUV);
+	float2 dy = ddy(scaledUV);
+	float delta = max(dot(dx, dx), dot(dy, dy));
+	return max(0.5 * log2(delta), 0.0);
+}
+
+void WriteVTFeedback(uint texId, float2 uv, uint2 rtCoord)
+{
+	uint2 feedbackDivisor = vtParams.feedbackDivisor_;
+	uint2 rtCoordMod = rtCoord % feedbackDivisor;
+	if(rtCoordMod.x == 0 && rtCoordMod.y == 0)
+	{
+		/// Encoding:
+		/// r16g16b16a16(texId, uv.x, uv.y, mipLevel)
+		outVTFeedback[rtCoord / feedbackDivisor] = uint4(texId, 
+			QuantizeU16(uv.x),
+			QuantizeU16(uv.y),
+			GetMipLevel(uv, vtParams.vtSize_));
+	}
+}
+
+float2 VTUV(float2 baseUV, float4 texParam)
+{
+	// Calculate virtual texture UV.
+	float2 vtUV = (baseUV * texParam.zw) + texParam.xy;
+
+	uint level = 0;
+
+	// Sample from indirection texture to get page UVs.
+	float2 vtPages = vtParams.vtSize_ / vtParams.tileSize_;
+	float2 pageUV = vtUV * vtPages;
+	uint2 pageIdx = uint2(pageUV);
+	uint4 ind = inVTIndirection.Load(int3(pageIdx >> level, level));
+
+	pageUV /= exp2(ind.z);
+
+	float2 pageFrac = frac(pageUV);
+
+	float2 cachePages = vtParams.cacheSize_ / vtParams.tileSize_;
+
+	return (float2(ind.xy) + pageFrac) / cachePages;
+}
+
+
+#endif // VT_ESH

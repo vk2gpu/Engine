@@ -67,6 +67,8 @@ struct PixelData
 {
 	VS_OUT input;
 
+	uint2 rtCoord;
+
 	float3 normal;
 
 	float4 color;
@@ -261,10 +263,11 @@ void ps_shadow(in VS_OUT _in)
 }
 
 [earlydepthstencil]
-float4 ps_forward(in VS_OUT _in) : SV_TARGET0
+float4 ps_forward(in VS_OUT _in, float4 _rtCoord : SV_POSITION) : SV_TARGET0
 {
 	PixelData pixData = (PixelData)0;
 	pixData.input = _in;
+	pixData.rtCoord = (uint2)(_rtCoord.xy);
 	pixData.normal = normalize(pixData.input.v_normal.xyz);
 	uint pixMask = ShadePixel(PASS_FORWARD, pixData);
 

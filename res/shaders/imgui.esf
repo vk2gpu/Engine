@@ -1,0 +1,135 @@
+#include "stdlib.esh"
+
+[frequency(HIGH)]
+BindingSet ImGuiBindings
+{
+	Texture2D<float4> floatTex;
+	Texture2D<uint4> uintTex;
+};
+
+struct VOut
+{
+	float4 position : SV_Position;
+	float4 color : COLOR0;
+	float2 uv : TEXCOORD0;
+};
+
+VOut vs_main(float2 position : POSITION, float4 color : COLOR0, float2 uv : TEXCOORD0)
+{
+	VOut output;
+	output.position = float4(position, 0.0, 1.0);
+	output.color = color;
+	output.uv = uv;
+	return output;
+}
+
+float4 ps_rgba(VOut vout) : SV_Target0
+{
+	return vout.color * floatTex.Sample(SS_NEAREST_CLAMP, vout.uv);
+}
+
+float4 ps_depth(VOut vout) : SV_Target0
+{
+	float wrap = 1.0 / 1000.0;
+	float d = floatTex.Sample(SS_NEAREST_CLAMP, vout.uv).r;
+	float dw = fmod(d, wrap) / wrap;
+	return float4(dw, dw, dw, 1.0);
+}
+
+float4 ps_stencil(VOut vout) : SV_Target0
+{
+	float d = floatTex.Sample(SS_NEAREST_CLAMP, vout.uv).g;
+	return float4(d, d, d, 1.0);
+}
+
+float4 ps_vt_feedback_id(VOut vout) : SV_Target0
+{
+	float hueScale = 32.0;
+
+	uint w, h, l;
+	uintTex.GetDimensions(0, w, h, l);
+	float d = uintTex[vout.uv * float2(w, h)].r;
+
+	return HSVtoRGB(float3(d / hueScale, 1.0, 1.0));
+}
+
+float4 ps_vt_feedback_uv(VOut vout) : SV_Target0
+{
+	float divisor = 65535.0;
+
+	uint w, h, l;
+	uintTex.GetDimensions(0, w, h, l);
+	float2 d = uintTex[vout.uv * float2(w, h)].gb;
+	d /= divisor;
+
+	return float4(d, 0.0, 1.0);
+}
+
+float4 ps_vt_feedback_mip(VOut vout) : SV_Target0
+{
+	float divisor = 16.0;
+
+	uint w, h, l;
+	uintTex.GetDimensions(0, w, h, l);
+	float d = uintTex[vout.uv * float2(w, h)].a;
+
+	return HSVtoRGB(float3(d / divisor, 1.0, 1.0));
+}
+
+RenderState RS_MAIN =
+{
+	.DepthFunc = EQUAL,
+	.DepthEnable = 1,
+	.DepthWriteMask = 0,
+	.FillMode = SOLID,
+	.CullMode = NONE //CCW,
+};
+
+Technique TECH_RGBA =
+{
+	.VertexShader = vs_main,
+	.PixelShader = ps_rgba,
+	.RenderState = RS_MAIN,
+};
+
+Technique TECH_RGBA =
+{
+	.VertexShader = vs_main,
+	.PixelShader = ps_rgba,
+	.RenderState = RS_MAIN,
+};
+
+Technique TECH_DEPTH =
+{
+	.VertexShader = vs_main,
+	.PixelShader = ps_depth,
+	.RenderState = RS_MAIN,
+};
+
+Technique TECH_STENCIL =
+{
+	.VertexShader = vs_main,
+	.PixelShader = ps_stencil,
+	.RenderState = RS_MAIN,
+};
+
+Technique TECH_VT_FEEDBACK_ID =
+{
+	.VertexShader = vs_main,
+	.PixelShader = ps_vt_feedback_id,
+	.RenderState = RS_MAIN,
+};
+
+Technique TECH_VT_FEEDBACK_UV =
+{
+	.VertexShader = vs_main,
+	.PixelShader = ps_vt_feedback_uv,
+	.RenderState = RS_MAIN,
+};
+
+Technique TECH_VT_FEEDBACK_MIP =
+{
+	.VertexShader = vs_main,
+	.PixelShader = ps_vt_feedback_mip,
+	.RenderState = RS_MAIN,
+};

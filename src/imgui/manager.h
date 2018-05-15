@@ -2,6 +2,8 @@
 
 #include "imgui/dll.h"
 #include "imgui/private/imgui-master/imgui.h"
+#include "gpu/resources.h"
+#include "gpu/types.h"
 
 namespace Client
 {
@@ -17,6 +19,32 @@ namespace GPU
 
 namespace ImGui
 {
+	/**
+	 * Draw call data for passing to callbacks.
+	 */
+	struct DrawCallData
+	{
+		/// Draw binding set that ImGui is using.
+		GPU::Handle dbs_;
+		/// Frame binding set.
+		GPU::Handle fbs_;
+		/// Draw state.
+		GPU::DrawState ds_;
+		/// Index offset for draw.
+		i32 indexOffset_;
+		/// Element count for draw.
+		i32 elemCount_;
+	};
+
+	/**
+	 * Draw callback for user rendering.
+	 */
+	using DrawCallback = void (*)(GPU::CommandList&, const DrawCallData& drawState, void* userData);
+
+	/**
+	 * ImGui manager.
+	 * Encapsulates all update/draw logic.
+	 */
 	class IMGUI_DLL Manager final
 	{
 	public:
@@ -49,6 +77,13 @@ namespace ImGui
 		 * Render ImGui frame.
 		 */
 		static void Render(const GPU::Handle& fbs, GPU::CommandList& cmdList);
+
+		/**
+		 * Setup texture override.
+		 * This will call a user function to perform the draw, since more than
+		 * simply texture state may need to be setup.
+		 */
+		static ImTextureID AddTextureOverride(DrawCallback bc, void* userData);
 
 		/**
 		 * Scoped manager init/fini.

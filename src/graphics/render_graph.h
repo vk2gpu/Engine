@@ -270,14 +270,24 @@ namespace Graphics
 		void GetResourceName(RenderGraphResource res, const char** name) const;
 
 		/**
-		 * @return Buffer desc from render graph.
+		 * Get buffer resource.
+		 * @param res Render graph resource.
+		 * @param outDesc Pointer to buffer descriptor to return.
+		 * @param outHandle Pointer to handle to return. Intended for debug purposes only.
+		 * @return true is success.
 		 */
-		bool GetBuffer(RenderGraphResource res, RenderGraphBufferDesc* outDesc = nullptr) const;
+		bool GetBuffer(
+		    RenderGraphResource res, RenderGraphBufferDesc* outDesc = nullptr, GPU::Handle* outHandle = nullptr) const;
 
 		/**
-		 * @return Texture desc from render graph.
+		 * Get texture resource.
+		 * @param res Render graph resource.
+		 * @param outDesc Pointer to texture descriptor to return.
+		 * @param outHandle Pointer to handle to return. Intended for debug purposes only.
+		 * @return true is success.
 		 */
-		bool GetTexture(RenderGraphResource res, RenderGraphTextureDesc* outDesc = nullptr) const;
+		bool GetTexture(
+		    RenderGraphResource res, RenderGraphTextureDesc* outDesc = nullptr, GPU::Handle* outHandle = nullptr) const;
 
 	private:
 		void InternalPushPass();

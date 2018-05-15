@@ -1,0 +1,22 @@
+{
+   "$internal" : {
+      "dependencies" : [
+         "shaders/vt_test.esf",
+         "shaders/stdlib.esh",
+         "shaders/stdlib/color.esh",
+         "shaders/stdlib/constants.esh",
+         "shaders/stdlib/extensions.esh",
+         "shaders/stdlib/gamma.esh",
+         "shaders/stdlib/indirect.esh",
+         "shaders/stdlib/metadata.esh",
+         "shaders/stdlib/normals.esh",
+         "shaders/stdlib/plane.esh",
+         "shaders/stdlib/samplers.esh",
+         "shaders/stdlib/view.esh",
+         "shaders/vt.esh",
+         "shaders/common_bindings.esh",
+         "shaders/lights.esh"
+      ],
+      "outputs" : [ "../../../../.converter_output/shaders/vt_test.esf.converted" ]
+   }
+}

@@ -1,6 +1,7 @@
 #include "imgui/manager.h"
 #include "client/input_provider.h"
 #include "client/key_input.h"
+#include "core/array.h"
 #include "math/mat44.h"
 
 #include "gpu/manager.h"
@@ -30,6 +31,17 @@ namespace ImGui
 		GPU::Handle pbsHandle_;
 
 		bool isInitialized_ = false;
+
+		static constexpr i32 MAX_DRAW_CALLBACKS = 4096;
+
+		struct DrawCallbackData
+		{
+			DrawCallback cb_ = nullptr;
+			void* userData_ = nullptr;
+		};
+
+		Core::Array<DrawCallbackData, MAX_DRAW_CALLBACKS> drawCallbacks_;
+		i32 numDrawCallbacks_ = 0;
 
 		GPU::GraphicsPipelineStateDesc GetGPSDesc(GPU::Format rtvFormat)
 		{
@@ -281,6 +293,8 @@ namespace ImGui
 			IO.AddInputCharactersUTF8(textBuffer);
 		}
 
+		numDrawCallbacks_ = 0;
+
 		ImGui::NewFrame();
 	}
 
@@ -308,11 +322,13 @@ namespace ImGui
 		Math::Mat44 clipTranform;
 		clipTranform.OrthoProjection(0.0f, IO.DisplaySize.x, IO.DisplaySize.y, 0.0f, -1.0f, 1.0f);
 
-		GPU::DrawState drawState;
-		drawState.viewport_.w_ = IO.DisplaySize.x;
-		drawState.viewport_.h_ = IO.DisplaySize.y;
-		drawState.scissorRect_.w_ = (i32)IO.DisplaySize.x;
-		drawState.scissorRect_.h_ = (i32)IO.DisplaySize.y;
+		DrawCallData drawCallData;
+		drawCallData.ds_.viewport_.w_ = IO.DisplaySize.x;
+		drawCallData.ds_.viewport_.h_ = IO.DisplaySize.y;
+		drawCallData.ds_.scissorRect_.w_ = (i32)IO.DisplaySize.x;
+		drawCallData.ds_.scissorRect_.h_ = (i32)IO.DisplaySize.y;
+		drawCallData.dbs_ = dbsHandle_;
+		drawCallData.fbs_ = fbs;
 
 		// Allocate some vertices + indices from the command list.
 		auto* baseVertices = (ImDrawVert*)cmdList.Alloc(vbUpdateSize * sizeof(ImDrawVert));
@@ -388,24 +404,67 @@ namespace ImGui
 			for(int cmdIdx = 0; cmdIdx < drawList->CmdBuffer.size(); ++cmdIdx)
 			{
 				const ImDrawCmd* cmd = &drawList->CmdBuffer[cmdIdx];
+
+				drawCallData.elemCount_ = cmd->ElemCount;
+				drawCallData.indexOffset_ = indexOffset;
+				drawCallData.ds_.scissorRect_.x_ = (i32)cmd->ClipRect.x;
+				drawCallData.ds_.scissorRect_.y_ = (i32)cmd->ClipRect.y;
+				drawCallData.ds_.scissorRect_.w_ = (i32)(cmd->ClipRect.z - cmd->ClipRect.x);
+				drawCallData.ds_.scissorRect_.h_ = (i32)(cmd->ClipRect.w - cmd->ClipRect.y);
+
+				DBG_ASSERT(cmd->UserCallback == nullptr)
+#if 0
 				if(cmd->UserCallback)
 				{
-					cmd->UserCallback(drawList, cmd);
+					if(cmd->UserCallbackData >= drawCallbacks_.begin() && cmd->UserCallbackData < drawCallbacks_.end())
+					{
+						// If it's a proper draw callback, custom logic applies.
+						auto* drawCbData = (DrawCallbackData*)cmd->UserCallbackData;
+
+						drawCbData->cb_(cmdList, drawCallData, drawCbData->userData_);
+					}
+					else
+					{
+						cmd->UserCallback(drawList, cmd);
+					}
+				}
+				else
+#endif
+				if(cmd->TextureId)
+				{
+					// Get callback data.
+					auto* drawCbData = (DrawCallbackData*)cmd->TextureId;
+					drawCbData->cb_(cmdList, drawCallData, drawCbData->userData_);
 				}
 				else
 				{
-					GPU::ScissorRect scissorRect;
-					drawState.scissorRect_.x_ = (i32)cmd->ClipRect.x;
-					drawState.scissorRect_.y_ = (i32)cmd->ClipRect.y;
-					drawState.scissorRect_.w_ = (i32)(cmd->ClipRect.z - cmd->ClipRect.x);
-					drawState.scissorRect_.h_ = (i32)(cmd->ClipRect.w - cmd->ClipRect.y);
-
-					cmdList.Draw(gpsHandle_, dstPbs, dbsHandle_, fbs, drawState, GPU::PrimitiveTopology::TRIANGLE_LIST,
-					    indexOffset, 0, cmd->ElemCount, 0, 1);
+					cmdList.Draw(gpsHandle_, dstPbs, drawCallData.dbs_, drawCallData.fbs_, drawCallData.ds_,
+					    GPU::PrimitiveTopology::TRIANGLE_LIST, drawCallData.indexOffset_, 0, drawCallData.elemCount_, 0,
+					    1);
 				}
 				indexOffset += cmd->ElemCount;
 			}
 		}
 	}
 
+	ImTextureID Manager::AddTextureOverride(DrawCallback cb, void* userData)
+	{
+		if(numDrawCallbacks_ < drawCallbacks_.size())
+		{
+			auto& drawCallback = drawCallbacks_[numDrawCallbacks_++];
+			drawCallback.cb_ = cb;
+			drawCallback.userData_ = userData;
+
+#if 0
+			constexpr auto userCb = [](const ImDrawList* parent_list, const ImDrawCmd* cmd)
+			{
+				DBG_ASSERT_MSG(false, "Should never be hit. Special logic during draw handles this.");
+			};
+
+			GetWindowDrawList()->AddCallback(userCb, &drawCallback);
+#endif
+			return &drawCallback;
+		}
+		return nullptr;
+	}
 } // namespace ImGui

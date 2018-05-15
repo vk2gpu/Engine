@@ -196,6 +196,11 @@ namespace Graphics
 		ScopedBinding BeginBindingScope(const ShaderBindingSet& bindingSet);
 
 		/**
+		 * Set binding set.
+		 */
+		void SetBindingSet(const ShaderBindingSet& bindingSet);
+
+		/**
 		 * Commit bindings for technique.
 		 */
 		bool CommitBindings(

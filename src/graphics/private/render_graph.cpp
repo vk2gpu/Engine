@@ -323,7 +323,7 @@ namespace Graphics
 			break;
 		case GPU::ResourceType::TEXTURE:
 		case GPU::ResourceType::SWAP_CHAIN:
-			resource.textureDesc_.bindFlags_ |= bindFlags;
+			resource.textureDesc_.bindFlags_ |= bindFlags | GPU::BindFlags::SHADER_RESOURCE;
 			break;
 
 		default:
@@ -838,7 +838,7 @@ namespace Graphics
 
 	void* RenderGraph::InternalAlloc(i32 size) { return impl_->frameAllocator_.Allocate(size); }
 
-	bool RenderGraph::GetBuffer(RenderGraphResource res, RenderGraphBufferDesc* outDesc) const
+	bool RenderGraph::GetBuffer(RenderGraphResource res, RenderGraphBufferDesc* outDesc, GPU::Handle* outHandle) const
 	{
 		if(res.idx_ < impl_->resourceDescs_.size())
 		{
@@ -847,13 +847,15 @@ namespace Graphics
 			{
 				if(outDesc)
 					*outDesc = resDesc.bufferDesc_;
+				if(outHandle)
+					*outHandle = resDesc.handle_;
 				return true;
 			}
 		}
 		return false;
 	}
 
-	bool RenderGraph::GetTexture(RenderGraphResource res, RenderGraphTextureDesc* outDesc) const
+	bool RenderGraph::GetTexture(RenderGraphResource res, RenderGraphTextureDesc* outDesc, GPU::Handle* outHandle) const
 	{
 		if(res.idx_ < impl_->resourceDescs_.size())
 		{
@@ -862,6 +864,8 @@ namespace Graphics
 			{
 				if(outDesc)
 					*outDesc = resDesc.textureDesc_;
+				if(outHandle)
+					*outHandle = resDesc.handle_;
 				return true;
 			}
 		}

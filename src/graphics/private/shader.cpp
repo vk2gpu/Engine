@@ -746,17 +746,27 @@ namespace Graphics
 		if(!bindingSet)
 			return ShaderContext::ScopedBinding(*this, -1);
 
-		i32 idx = bindingSet.impl_->idx_;
+		const i32 idx = bindingSet.impl_->idx_;
 		DBG_ASSERT(impl_->bindingSets_[idx] == nullptr);
+
+		SetBindingSet(bindingSet);
+
+		return ShaderContext::ScopedBinding(*this, idx);
+	}
+
+	void ShaderContext::SetBindingSet(const ShaderBindingSet& bindingSet)
+	{
+		DBG_ASSERT(bindingSet);
+
+		const i32 idx = bindingSet.impl_->idx_;
 		impl_->bindingSets_[idx] = bindingSet.impl_;
 
 #if !defined(_RELEASE)
 		auto& callstack = impl_->bindingCallstacks_[idx];
 		Core::GetCallstack(1, callstack.fns_.data(), callstack.fns_.size(), &callstack.hash_);
 #endif // !defined(_RELEASE)
-
-		return ShaderContext::ScopedBinding(*this, idx);
 	}
+
 
 	bool ShaderContext::CommitBindings(
 	    const ShaderTechnique& tech, GPU::Handle& outPs, Core::ArrayView<GPU::PipelineBinding>& outPb)

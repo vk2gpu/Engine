@@ -117,21 +117,19 @@ bool TextureCompressor::Compress(GPU::CommandList& cmdList, Graphics::Texture* i
 	bindings_.Set("inTexture", GPU::Binding::Texture2D(inTexture->GetHandle(), desc.format_, 0, 1));
 	bindings_.Set("outTexture", GPU::Binding::RWTexture2D(intermediateTexture, uavFormat));
 
-	if(auto bind = shaderCtx.BeginBindingScope(bindings_))
-	{
-		GPU::Box box;
-		box.x_ = 0;
-		box.y_ = 0;
-		box.w_ = outTextureDesc.width_;
-		box.h_ = outTextureDesc.height_;
+	auto bind = shaderCtx.BeginBindingScope(bindings_);
+	GPU::Box box;
+	box.x_ = 0;
+	box.y_ = 0;
+	box.w_ = outTextureDesc.width_;
+	box.h_ = outTextureDesc.height_;
 
-		GPU::Handle ps;
-		Core::ArrayView<GPU::PipelineBinding> pb;
-		if(shaderCtx.CommitBindings(tech, ps, pb))
-		{
-			cmdList.Dispatch(ps, pb, box.w_, box.h_, 1);
-			cmdList.CopyTextureSubResource(outputTexture, 0, point, intermediateTexture, 0, box);
-		}
+	GPU::Handle ps;
+	Core::ArrayView<GPU::PipelineBinding> pb;
+	if(shaderCtx.CommitBindings(tech, ps, pb))
+	{
+		cmdList.Dispatch(ps, pb, box.w_, box.h_, 1);
+		cmdList.CopyTextureSubResource(outputTexture, 0, point, intermediateTexture, 0, box);
 	}
 
 	GPU::Manager::DestroyResource(intermediateTexture);

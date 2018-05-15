@@ -1,0 +1,47 @@
+#define REQUIRE_TEXCOORD0
+//#define REQUIRE_TANGENT
+
+#include "base_geometry.esh"
+#include "material_common.esh"
+#include "vt.esh"
+
+///////////////////////////////////////////////////////////////////////
+// Shaders
+uint ShadeVertex(uniform int passID, in Object obj, inout VertexData vtxData)
+{
+	return VTX_DEFAULT;
+}
+
+uint ShadePixel(uniform int passID, inout PixelData pixData)
+{
+	switch(passID)
+	{
+		case PASS_DEPTH_PREPASS:
+		{
+			return PIX_DEFAULT;
+		}
+
+		case PASS_SHADOW:
+		{
+			return PIX_DEFAULT;
+		}
+
+		case PASS_FORWARD:
+		{
+			const float2 texcoord = pixData.input.texcoord0;
+
+			pixData.normal = DecodeNormal(texNormal.Sample(SS_MIP_WRAP, texcoord)).rgb;
+			pixData.color.rgb = GammaToLinear(texDiffuse.Sample(SS_MIP_WRAP, texcoord).rgb);
+			pixData.color.a = 1.0;
+			pixData.roughness = texRoughness.Sample(SS_MIP_WRAP, texcoord).r;
+			pixData.metallic = texMetallic.Sample(SS_MIP_WRAP, texcoord).r;
+			pixData.specular = DIELECTRIC_F0;
+
+			WriteVTFeedback(0xffff, texcoord, pixData.rtCoord);
+
+			return PIX_LIGHTING;
+		}
+	}
+
+	return PIX_DEFAULT;
+}

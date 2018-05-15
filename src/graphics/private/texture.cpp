@@ -57,7 +57,7 @@ namespace Graphics
 			auto CreateTexture = [&](const u8* texData) {
 				// Setup subresources.
 				i32 numSubRsc = desc.levels_ * desc.elements_;
-				Core::Vector<GPU::TextureSubResourceData> subRscs;
+				Core::Vector<GPU::ConstTextureSubResourceData> subRscs;
 				subRscs.reserve(numSubRsc);
 
 				// Should we skip loading mip levels?
@@ -78,13 +78,13 @@ namespace Graphics
 						const auto height = Core::Max(1, desc.height_ >> level);
 						const auto depth = Core::Max(1, desc.depth_ >> level);
 
-						const auto texLayoutInfo = GPU::GetTextureLayoutInfo(desc.format_, width, height);
+						const auto footprint = GPU::GetTextureFootprint(desc.format_, width, height);
 						const auto subRscSize = GPU::GetTextureSize(desc.format_, width, height, depth, 1, 1);
 
-						GPU::TextureSubResourceData subRsc;
+						GPU::ConstTextureSubResourceData subRsc;
 						subRsc.data_ = texData + texDataOffset;
-						subRsc.rowPitch_ = texLayoutInfo.pitch_;
-						subRsc.slicePitch_ = texLayoutInfo.slicePitch_;
+						subRsc.rowPitch_ = footprint.rowPitch_;
+						subRsc.slicePitch_ = footprint.slicePitch_;
 
 						texDataOffset += subRscSize;
 

@@ -1,0 +1,70 @@
+#include "stdlib.esh"
+#include "vt.esh"
+
+struct TestParams
+{
+	float4 texParams_;
+	uint texID_;
+};
+
+[frequency(LOW)]
+BindingSet VTTestBindings
+{
+	ConstantBuffer<TestParams> testParams;
+	RWTexture2D<float4> outTex;
+};
+
+[numthreads(8,8,1)]
+void cs_indirection(uint3 dispatchID : SV_DispatchThreadID)
+{
+	uint w, h;
+	outTex.GetDimensions(w, h);
+
+	const float2 outSize = float2((float)w, (float)h);
+	float2 baseUV = (float2)dispatchID.xy / outSize;
+
+	// Get UV for virtual texture.
+	float2 vtUV = VTUV(baseUV, testParams.texParams_);
+
+	outTex[dispatchID.xy] = inVTCache.SampleLevel(SS_NEAREST_CLAMP, vtUV.xy, 0.0f);
+}
+
+
+[frequency(HIGH)]
+BindingSet VTPropagateBindings
+{
+	Texture2D<uint4> texSrc;
+	RWTexture2D<uint4> texDst;
+};
+
+bool IsIndirectionValid(uint4 val)
+{
+	return val.x != 0xff;
+}
+
+[numthreads(8,8,1)]
+void cs_propagate(uint3 dispatchID : SV_DispatchThreadID)
+{
+	const uint2 dstIdx = dispatchID.xy;
+	const uint2 srcIdx = dstIdx / 2;
+	const uint4 dstInd = texDst[dstIdx];
+	if(!IsIndirectionValid(dstInd))
+	{
+		const uint4 ind = texSrc[srcIdx];
+		texDst[dstIdx] = texSrc[srcIdx];
+	}
+}
+
+// Test for reading the indirection and sampling from the cache.
+Technique TestIndirection =
+{
+	.ComputeShader = cs_indirection,
+};
+
+// Propagate indirection entries to higher mip levels.
+Technique PropagateIndirection =
+{
+	.ComputeShader = cs_propagate,
+};
+
+#endif // BASE_GEOMETRY_ESH

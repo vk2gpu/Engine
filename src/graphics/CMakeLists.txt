@@ -8,6 +8,7 @@ SET(SOURCES_PUBLIC
 	"render_resources.h"
 	"shader.h"
 	"texture.h"
+	"virtual_texture.h"
 )
 
 SET(SOURCES_ISPC 
@@ -28,6 +29,8 @@ SET(SOURCES_PRIVATE
 	"private/shader_impl.h"
 	"private/texture.cpp"
 	"private/texture_impl.h"
+	"private/virtual_texture.cpp"
+	"private/virtual_texture_impl.h"
 )
 
 SET(SOURCES_TESTS
@@ -38,6 +41,7 @@ SET(SOURCES_TESTS
 	"tests/shader_tests.cpp"
 	"tests/test_entry.cpp"
 	"tests/test_shared.h"
+	"tests/virtual_texture_tests.cpp"
 
 	# Pull in shader parser for test usage.
 	"converters/shader_ast.h"
@@ -55,7 +59,7 @@ SET(SOURCES_TESTS
 )
 
 ADD_ENGINE_LIBRARY(graphics ${SOURCES_PUBLIC} ${SOURCES_ISPC} ${SOURCES_PRIVATE} ${SOURCES_TESTS})
-TARGET_LINK_LIBRARIES(graphics gpu job math resource)
+TARGET_LINK_LIBRARIES(graphics gpu job math resource image)
 TARGET_LINK_LIBRARIES(graphics_test client imgui fcpp)
 
 # Plugins

@@ -10,7 +10,7 @@
 
 #include "common.h"
 
-using CustomBindFn = Core::Function<bool(Graphics::Shader*, Graphics::ShaderTechnique&)>;
+using CustomBindFn = Core::Function<bool(const struct DrawContext&, Graphics::ShaderTechnique&)>;
 
 struct DrawContext
 {

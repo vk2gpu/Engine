@@ -80,6 +80,9 @@ TEST_CASE("graphics-tests-model-draw")
 	REQUIRE(Resource::Manager::RequestResource(model, "model_tests/teapot.obj"));
 	Resource::Manager::WaitForResource(model);
 
+	Graphics::ShaderBindingSet materialBS = shader->CreateBindingSet("MaterialBindings");
+	Graphics::ShaderBindingSet viewBS = Graphics::Shader::CreateSharedBindingSet("ViewBindings");
+	Graphics::ShaderBindingSet objectBS = Graphics::Shader::CreateSharedBindingSet("ObjectBindings");
 	Graphics::ShaderTechniqueDesc techDesc;
 
 	struct DrawStuff
@@ -112,6 +115,9 @@ TEST_CASE("graphics-tests-model-draw")
 		auto& cmdList = window.Begin();
 
 		Graphics::ShaderContext shaderCtx(cmdList);
+		auto viewBindings = shaderCtx.BeginBindingScope(viewBS);
+		auto objectBindings = shaderCtx.BeginBindingScope(objectBS);
+		auto materialBinding = shaderCtx.BeginBindingScope(materialBS);
 		for(auto& drawStuff : drawStuffs)
 		{
 			GPU::Handle ps;

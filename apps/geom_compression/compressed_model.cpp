@@ -766,7 +766,7 @@ namespace MeshTools
 			desc.format_ = format;
 
 			auto size = GPU::GetTextureSize(format, width_, height_, 1, 1, 1);
-			auto layout = GPU::GetTextureLayoutInfo(format, width_, height_);
+			auto footprint = GPU::GetTextureFootprint(format, width_, height_);
 			auto formatInfo = GPU::GetFormatInfo(format);
 
 			Core::Vector<u8> uploadData((i32)size);
@@ -775,10 +775,10 @@ namespace MeshTools
 			outStream.data_ = uploadData.data();
 			Core::Convert(outStream, inStream, texels_.size(), outStream.stride_ / (outStream.numBits_ / 8));
 
-			GPU::TextureSubResourceData subRscData;
+			GPU::ConstTextureSubResourceData subRscData;
 			subRscData.data_ = uploadData.data();
-			subRscData.rowPitch_ = layout.pitch_;
-			subRscData.slicePitch_ = layout.slicePitch_;
+			subRscData.rowPitch_ = footprint.rowPitch_;
+			subRscData.slicePitch_ = footprint.slicePitch_;
 
 			return GPU::Manager::CreateTexture(desc, &subRscData, debugName);
 		}
@@ -804,12 +804,12 @@ namespace MeshTools
 			retVal = Image::Convert(outImage, intImage, format, Image::ConvertQuality::VERY_HIGH);
 			DBG_ASSERT(retVal);
 
-			const auto info = GPU::GetTextureLayoutInfo(format, width_, height_);
+			const auto footprint = GPU::GetTextureFootprint(format, width_, height_);
 
-			GPU::TextureSubResourceData subRscData;
+			GPU::ConstTextureSubResourceData subRscData;
 			subRscData.data_ = outImage.GetMipData<u8>(0);
-			subRscData.rowPitch_ = info.pitch_;
-			subRscData.slicePitch_ = info.slicePitch_;
+			subRscData.rowPitch_ = footprint.rowPitch_;
+			subRscData.slicePitch_ = footprint.slicePitch_;
 
 			return GPU::Manager::CreateTexture(desc, &subRscData, debugName);
 		}
@@ -1474,7 +1474,7 @@ void CompressedModel::DrawClusters(DrawContext& drawCtx, ObjectConstants object)
 					const auto& mesh = meshes_[meshIdx];
 					auto& tech = techs->passTechniques_[*it];
 					if(drawCtx.customBindFn_)
-						drawCtx.customBindFn_(techs->material_->GetShader(), tech);
+						drawCtx.customBindFn_(drawCtx, tech);
 
 					if(geometryBindings_)
 					{
@@ -1488,18 +1488,14 @@ void CompressedModel::DrawClusters(DrawContext& drawCtx, ObjectConstants object)
 
 					objectBindings_.Set("inObject",
 					    GPU::Binding::Buffer(drawCtx.objectSBHandle_, GPU::Format::INVALID, 0, 1, objectDataSize));
-					if(auto geometryBind = drawCtx.shaderCtx_.BeginBindingScope(geometryBindings_))
+					auto geometryBind = drawCtx.shaderCtx_.BeginBindingScope(geometryBindings_);
+					auto objectBind = drawCtx.shaderCtx_.BeginBindingScope(objectBindings_);
+					GPU::Handle ps;
+					Core::ArrayView<GPU::PipelineBinding> pb;
+					if(drawCtx.shaderCtx_.CommitBindings(tech, ps, pb))
 					{
-						if(auto objectBind = drawCtx.shaderCtx_.BeginBindingScope(objectBindings_))
-						{
-							GPU::Handle ps;
-							Core::ArrayView<GPU::PipelineBinding> pb;
-							if(drawCtx.shaderCtx_.CommitBindings(tech, ps, pb))
-							{
-								drawCtx.cmdList_.Draw(ps, pb, dbs_, drawCtx.fbs_, drawCtx.drawState_,
-								    GPU::PrimitiveTopology::TRIANGLE_LIST, 0, 0, mesh.numIndices_, 0, 1);
-							}
-						}
+						drawCtx.cmdList_.Draw(ps, pb, dbs_, drawCtx.fbs_, drawCtx.drawState_,
+						    GPU::PrimitiveTopology::TRIANGLE_LIST, 0, 0, mesh.numIndices_, 0, 1);
 					}
 				}
 			}

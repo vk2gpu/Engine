@@ -24,8 +24,229 @@
 #include "math/mat44.h"
 #include "math/plane.h"
 
+namespace
+{
+	// HACK: dup from ImGui::Manager's GetGPSDesc.
+	// Need either get it from ImGui, or bin it entirely.
+	Graphics::ShaderTechniqueDesc GetShaderTechniqueDesc()
+	{
+		Graphics::ShaderTechniqueDesc desc;
+		desc.numVertexElements_ = 3;
+		desc.vertexElements_[0].usage_ = GPU::VertexUsage::POSITION;
+		desc.vertexElements_[0].usageIdx_ = 0;
+		desc.vertexElements_[0].streamIdx_ = 0;
+		desc.vertexElements_[0].format_ = GPU::Format::R32G32_FLOAT;
+		desc.vertexElements_[0].offset_ = 0;
+		desc.vertexElements_[1].usage_ = GPU::VertexUsage::TEXCOORD;
+		desc.vertexElements_[1].usageIdx_ = 0;
+		desc.vertexElements_[1].streamIdx_ = 0;
+		desc.vertexElements_[1].format_ = GPU::Format::R32G32_FLOAT;
+		desc.vertexElements_[1].offset_ = 8;
+		desc.vertexElements_[2].usage_ = GPU::VertexUsage::COLOR;
+		desc.vertexElements_[2].usageIdx_ = 0;
+		desc.vertexElements_[2].streamIdx_ = 0;
+		desc.vertexElements_[2].format_ = GPU::Format::R8G8B8A8_UNORM;
+		desc.vertexElements_[2].offset_ = 16;
+		desc.topology_ = GPU::TopologyType::TRIANGLE;
+		desc.numRTs_ = 1;
+		desc.rtvFormats_[0] = GPU::Format::R8G8B8A8_UNORM;
+		return desc;
+	}
+}
+
+static constexpr int COLUMN_WIDTH = 256 + 128;
+
+struct ResourceViewUI
+{
+	Graphics::RenderGraphResource res_;
+
+	// Internal.
+	Graphics::ShaderRef shader_;
+	Graphics::ShaderBindingSet bs_;
+
+	enum ViewMode : int
+	{
+		VIEW_RGBA,
+		VIEW_DEPTH,
+		VIEW_STENCIL,
+		VIEW_VT_FEEDBACK_ID,
+		VIEW_VT_FEEDBACK_UV,
+		VIEW_VT_FEEDBACK_MIP,
+		VIEW_MAX,
+	};
+
+	Core::Array<Graphics::ShaderTechnique, VIEW_MAX> techs_;
+	ViewMode viewMode_ = VIEW_RGBA;
+
+	GPU::Handle handle_;
+	Graphics::RenderGraphBufferDesc bufDesc_;
+	Graphics::RenderGraphTextureDesc texDesc_;
+
+	int width = COLUMN_WIDTH;
+
+	bool isOpen_ = true;
+
+	ResourceViewUI()
+	{
+		shader_ = "shaders/imgui.esf";
+		shader_.WaitUntilReady();
+		techs_[VIEW_RGBA] = shader_->CreateTechnique("TECH_RGBA", GetShaderTechniqueDesc());
+		techs_[VIEW_DEPTH] = shader_->CreateTechnique("TECH_DEPTH", GetShaderTechniqueDesc());
+		techs_[VIEW_STENCIL] = shader_->CreateTechnique("TECH_STENCIL", GetShaderTechniqueDesc());
+		techs_[VIEW_VT_FEEDBACK_ID] = shader_->CreateTechnique("TECH_VT_FEEDBACK_ID", GetShaderTechniqueDesc());
+		techs_[VIEW_VT_FEEDBACK_UV] = shader_->CreateTechnique("TECH_VT_FEEDBACK_UV", GetShaderTechniqueDesc());
+		techs_[VIEW_VT_FEEDBACK_MIP] = shader_->CreateTechnique("TECH_VT_FEEDBACK_MIP", GetShaderTechniqueDesc());
+		bs_ = shader_->CreateBindingSet("ImGuiBindings");
+	}
+
+	static void DrawBindFlags(GPU::BindFlags bindFlags)
+	{
+		if(ImGui::TreeNode("bind_flags", "Bind flags: 0x%x", (int)bindFlags))
+		{
+#define APPEND_BIND_FLAG(_flag)                                                                                        \
+	if(Core::ContainsAnyFlags(bindFlags, GPU::BindFlags::_flag))                                                       \
+	ImGui::Text("%s", #_flag)
+
+			APPEND_BIND_FLAG(VERTEX_BUFFER);
+			APPEND_BIND_FLAG(INDEX_BUFFER);
+			APPEND_BIND_FLAG(CONSTANT_BUFFER);
+			APPEND_BIND_FLAG(INDIRECT_BUFFER);
+			APPEND_BIND_FLAG(SHADER_RESOURCE);
+			APPEND_BIND_FLAG(STREAM_OUTPUT);
+			APPEND_BIND_FLAG(RENDER_TARGET);
+			APPEND_BIND_FLAG(DEPTH_STENCIL);
+			APPEND_BIND_FLAG(UNORDERED_ACCESS);
+			APPEND_BIND_FLAG(PRESENT);
+
+#undef APPEND_BIND_FLAG
+			ImGui::TreePop();
+		}
+	}
+
+	void DrawBuffer(const Graphics::RenderGraphBufferDesc& desc, GPU::Handle handle)
+	{
+		handle_ = handle;
+		bufDesc_ = desc;
+
+		ImGui::Text("%u B (%u KiB)", bufDesc_.size_, bufDesc_.size_ / 1024);
+
+		DrawBindFlags(bufDesc_.bindFlags_);
+	}
+
+	void DrawTexture(const Graphics::RenderGraphTextureDesc& desc, GPU::Handle handle)
+	{
+		handle_ = handle;
+		texDesc_ = desc;
+
+		auto texId = ImGui::Manager::AddTextureOverride(
+		    [](GPU::CommandList& cmdList, const ImGui::DrawCallData& drawCallData, void* userData) -> void {
+			    ResourceViewUI& _this = *(ResourceViewUI*)userData;
+
+			    GPU::Format srvFormat = _this.texDesc_.format_;
+			    if(srvFormat == GPU::Format::R24G8_TYPELESS)
+				    srvFormat = GPU::GetSRVFormatDepth(_this.texDesc_.format_);
+
+			    if(srvFormat != GPU::Format::INVALID)
+			    {
+				    _this.bs_.Set(
+				        "floatTex", GPU::Binding::Texture2D(_this.handle_, srvFormat, 0, _this.texDesc_.levels_));
+				    _this.bs_.Set(
+				        "uintTex", GPU::Binding::Texture2D(_this.handle_, srvFormat, 0, _this.texDesc_.levels_));
+
+				    Graphics::ShaderContext shaderCtx(cmdList);
+
+				    shaderCtx.SetBindingSet(_this.bs_);
+
+				    GPU::Handle ps;
+				    Core::ArrayView<GPU::PipelineBinding> pbs;
+
+				    auto& tech = _this.techs_[_this.viewMode_];
+				    if(shaderCtx.CommitBindings(tech, ps, pbs))
+				    {
+					    cmdList.Draw(ps, pbs, drawCallData.dbs_, drawCallData.fbs_, drawCallData.ds_,
+					        GPU::PrimitiveTopology::TRIANGLE_LIST, drawCallData.indexOffset_, 0,
+					        drawCallData.elemCount_, 0, 1);
+				    }
+			    }
+			},
+		    this);
+
+		constexpr char* viewModes[] = {
+		    "RGBA", "Depth", "Stencil", "VT Feedback (ID)", "VT Feedback (UV)", "VT Feedback (Mip)",
+		};
+
+		ImGui::Combo("View Mode", (int*)&viewMode_, viewModes, VIEW_MAX, -1);
+
+		const f32 texW = (f32)texDesc_.width_;
+		const f32 texH = (f32)texDesc_.height_;
+		const f32 aspect = texW / texH;
+		const f32 imgW = (f32)width - 64.0f;
+		const f32 imgH = imgW / aspect;
+
+		ImGui::Text("%.0fx%.0f, %s", texW, texH, Core::EnumToString(texDesc_.format_));
+		ImGui::Text("%i levels, %i elements", texDesc_.levels_, texDesc_.elements_);
+		DrawBindFlags(texDesc_.bindFlags_);
+
+		if(handle_.GetType() == GPU::ResourceType::TEXTURE)
+		{
+			ImVec2 texScreenPos = ImGui::GetCursorScreenPos();
+			ImGui::Image(texId, ImVec2(imgW, imgH));
+			if(ImGui::IsItemHovered())
+			{
+				ImGui::BeginTooltip();
+				float focusSize = 32.0f * (imgW / texW);
+				float focusX = ImGui::GetMousePos().x - texScreenPos.x - focusSize * 0.5f;
+				if(focusX < 0.0f)
+					focusX = 0.0f;
+				else if(focusX > imgW - focusSize)
+					focusX = imgW - focusSize;
+				float focusY = ImGui::GetMousePos().y - texScreenPos.y - focusSize * 0.5f;
+				if(focusY < 0.0f)
+					focusY = 0.0f;
+				else if(focusY > texH - focusSize)
+					focusY = texH - focusSize;
+				ImGui::Text("Min: (%.2f, %.2f)", focusX, focusY);
+				ImGui::Text("Max: (%.2f, %.2f)", focusX + focusSize, focusY + focusSize);
+				ImVec2 uv0 = ImVec2((focusX) / imgW, (focusY) / imgH);
+				ImVec2 uv1 = ImVec2((focusX + focusSize) / imgW, (focusY + focusSize) / imgH);
+				ImGui::Image(
+				    texId, ImVec2(128, 128), uv0, uv1, ImColor(255, 255, 255, 255), ImColor(255, 255, 255, 128));
+				ImGui::EndTooltip();
+			}
+		}
+		else
+		{
+			ImGui::Text("", "No preview available");
+		}
+	}
+
+	bool operator()(Graphics::RenderGraph& renderGraph)
+	{
+		Core::Array<char, 256> dialogName = {};
+		const char* name = nullptr;
+		renderGraph.GetResourceName(res_, &name);
+
+		Graphics::RenderGraphBufferDesc bufDesc;
+		Graphics::RenderGraphTextureDesc texDesc;
+		GPU::Handle handle;
+		if(renderGraph.GetBuffer(res_, &bufDesc, &handle))
+		{
+			DrawBuffer(bufDesc, handle);
+		}
+		else if(renderGraph.GetTexture(res_, &texDesc, &handle))
+		{
+			DrawTexture(texDesc, handle);
+		}
+
+		return isOpen_;
+	}
+};
+
+
 void DrawRenderGraphUI(Graphics::RenderGraph& renderGraph)
 {
+	static Core::Map<Core::String, ResourceViewUI> resourceViews;
+
 	if(i32 numRenderPasses = renderGraph.GetNumExecutedRenderPasses())
 	{
 		if(ImGui::Begin("Render Passes"))
@@ -37,15 +258,13 @@ void DrawRenderGraphUI(Graphics::RenderGraph& renderGraph)
 
 			renderGraph.GetExecutedRenderPasses(renderPasses.data(), renderPassNames.data());
 
+			// Setup all resource views.
 			for(i32 idx = 0; idx < numRenderPasses; ++idx)
 			{
 				const auto* renderPass = renderPasses[idx];
-				const char* renderPassName = renderPassNames[idx];
 
 				auto inputs = renderPass->GetInputs();
 				auto outputs = renderPass->GetOutputs();
-
-				ImGui::Text("Render pass: %s", renderPassName);
 
 				Core::Vector<Core::String> inputNames(inputs.size());
 				Core::Vector<Core::String> outputNames(outputs.size());
@@ -66,23 +285,124 @@ void DrawRenderGraphUI(Graphics::RenderGraph& renderGraph)
 					outputNames[outIdx].Printf("%s (v.%i)", resName, res.version_);
 				}
 
-				auto ResourceGetter = [](void* data, int idx, const char** out_text) -> bool {
-					const auto& items = *(const Core::Vector<Core::String>*)data;
-					if(out_text)
-						*out_text = items[idx].c_str();
-					return true;
-				};
+				for(i32 texIdx = 0; texIdx < inputNames.size(); ++texIdx)
+				{
+					ResourceViewUI resViewUI;
+					const char* name = inputNames[texIdx].c_str();
+					if(auto* found = resourceViews.find(name))
+					{
+						std::swap(resViewUI, *found);
+					}
+					resViewUI.res_ = inputs[texIdx];
+					resourceViews.insert(name, std::move(resViewUI));
+				}
 
-				int selectedIn = -1;
-				int selectedOut = -1;
-				const f32 ioWidth = ImGui::GetWindowWidth() * 0.3f;
-				ImGui::PushID(idx);
-				ImGui::PushItemWidth(ioWidth);
-				ImGui::ListBox("Inputs", &selectedIn, ResourceGetter, &inputNames, inputs.size());
-				ImGui::SameLine();
-				ImGui::ListBox("Outputs", &selectedOut, ResourceGetter, &outputNames, outputs.size());
-				ImGui::PopItemWidth();
+				for(i32 texIdx = 0; texIdx < outputNames.size(); ++texIdx)
+				{
+					ResourceViewUI resViewUI;
+					const char* name = outputNames[texIdx].c_str();
+					if(auto* found = resourceViews.find(name))
+					{
+						std::swap(resViewUI, *found);
+					}
+					resViewUI.res_ = outputs[texIdx];
+					resourceViews.insert(name, std::move(resViewUI));
+				}
+			}
+
+			// Draw UI.
+			for(i32 idx = 0; idx < numRenderPasses; ++idx)
+			{
+				const auto* renderPass = renderPasses[idx];
+				const char* renderPassName = renderPassNames[idx];
+
+				ImGui::PushID(renderPassName);
+
+				if(ImGui::TreeNode("Render pass: %s", renderPassName))
+				{
+					auto inputs = renderPass->GetInputs();
+					auto outputs = renderPass->GetOutputs();
+
+					Core::Vector<Core::String> inputNames(inputs.size());
+					Core::Vector<Core::String> outputNames(outputs.size());
+
+					for(i32 inIdx = 0; inIdx < inputs.size(); ++inIdx)
+					{
+						auto res = inputs[inIdx];
+						const char* resName = nullptr;
+						renderGraph.GetResourceName(res, &resName);
+						inputNames[inIdx].Printf("%s (v.%i)", resName, res.version_);
+					}
+
+					for(i32 outIdx = 0; outIdx < outputs.size(); ++outIdx)
+					{
+						auto res = outputs[outIdx];
+						const char* resName = nullptr;
+						renderGraph.GetResourceName(res, &resName);
+						outputNames[outIdx].Printf("%s (v.%i)", resName, res.version_);
+					}
+
+					auto ResourceGetter = [](void* data, int idx, const char** out_text) -> bool {
+						const auto& items = *(const Core::Vector<Core::String>*)data;
+						if(out_text)
+							*out_text = items[idx].c_str();
+						return true;
+					};
+
+					static int contextSelectedIn = -1;
+					static int contextSelectedOut = -1;
+
+					const f32 ioWidth = ImGui::GetWindowWidth() * 0.3f;
+					ImGui::PushItemWidth(ioWidth);
+					ImVec2 ioSize = ImVec2((f32)COLUMN_WIDTH, (f32)COLUMN_WIDTH);
+					{
+						if(ImGui::BeginChild("Inputs", ioSize, true))
+						{
+							ImGui::LabelText("", "Inputs:");
+							ImGui::Separator();
+							for(i32 texIdx = 0; texIdx < inputNames.size(); ++texIdx)
+							{
+								const char* name = inputNames[texIdx].c_str();
+								if(ImGui::TreeNode(name, name))
+								{
+									auto* ui = resourceViews.find(name);
+									(*ui)(renderGraph);
+									ImGui::TreePop();
+								}
+							}
+						}
+						ImGui::EndChild();
+					}
+
+					{
+						ImGui::SameLine();
+
+						if(ImGui::BeginChild("Outputs", ioSize, true))
+						{
+							ImGui::LabelText("", "Outputs:");
+							ImGui::Separator();
+
+
+							for(i32 texIdx = 0; texIdx < outputNames.size(); ++texIdx)
+							{
+								ResourceViewUI resViewUI;
+								const char* name = outputNames[texIdx].c_str();
+								if(ImGui::TreeNode(name, name))
+								{
+									auto* ui = resourceViews.find(name);
+									(*ui)(renderGraph);
+									ImGui::TreePop();
+								}
+							}
+						}
+						ImGui::EndChild();
+					}
+					ImGui::PopItemWidth();
+
+					ImGui::TreePop();
+				}
 				ImGui::PopID();
+
 
 				ImGui::Separator();
 			}
@@ -340,7 +660,6 @@ void RunApp(const Core::CommandLine& cmdLine, IApp& app)
 	{
 		f64 waitForFrameSubmit_ = 0.0;
 		f64 getProfileData_ = 0.0;
-		f64 profilerUI_ = 0.0;
 		f64 imguiEndFrame_ = 0.0;
 		f64 graphSetup_ = 0.0;
 		f64 shaderTechniqueSetup_ = 0.0;
@@ -438,34 +757,35 @@ void RunApp(const Core::CommandLine& cmdLine, IApp& app)
 
 			ImGui::Manager::BeginFrame(input, w_, h_, (f32)times_.tick_);
 
-			times_.profilerUI_ = Core::Timer::GetAbsoluteTime();
+			auto DrawTimersUI = [&]() {
+				if(ImGui::Begin("Timers"))
+				{
+					ImGui::Text("Wait on frame submit: %f ms", times_.waitForFrameSubmit_ * 1000.0);
+					ImGui::Text("Get profile data: %f ms", times_.getProfileData_ * 1000.0);
+					ImGui::Text("ImGui end frame: %f ms", times_.imguiEndFrame_ * 1000.0);
+					ImGui::Text("Graph Setup: %f ms", times_.graphSetup_ * 1000.0);
+					ImGui::Text("Shader Technique Setup: %f ms", times_.shaderTechniqueSetup_ * 1000.0);
+					ImGui::Text("Graph Execute + Submit: %f ms", times_.graphExecute_ * 1000.0);
+					ImGui::Text("Present Time: %f ms", times_.present_ * 1000.0);
+					ImGui::Text("Process deletions: %f ms", times_.processDeletions_ * 1000.0);
+					ImGui::Text("Frame Time: %f ms", times_.frame_ * 1000.0, 1.0f / times_.frame_);
+					ImGui::Text("Tick Time: %f ms (%.2f FPS)", times_.tick_ * 1000.0, 1.0f / times_.tick_);
+
+					auto genAllocStats = Core::GeneralAllocator().GetStats();
+					auto virAllocStats = Core::VirtualAllocator().GetStats();
+					ImGui::Text("General Usage (Peak): %.2f kb (%.2f kb)", (f32)genAllocStats.usage_ / 1024.0f,
+					    (f32)genAllocStats.peakUsage_ / 1024.0f);
+					ImGui::Text("Virtual Usage (Peak): %.2f kb (%.2f kb)", (f32)virAllocStats.usage_ / 1024.0f,
+					    (f32)virAllocStats.peakUsage_ / 1024.0f);
+				}
+				ImGui::End();
+			};
+
+			ImGui::ShowTestWindow();
+
+			DrawTimersUI();
 			DrawUIGraphicsDebug(forwardPipeline);
 			DrawUIJobProfiler(profilingEnabled, profilerEntries, numProfilerEntries);
-			times_.profilerUI_ = Core::Timer::GetAbsoluteTime() - times_.profilerUI_;
-
-			if(ImGui::Begin("Timers"))
-			{
-				ImGui::Text("Wait on frame submit: %f ms", times_.waitForFrameSubmit_ * 1000.0);
-				ImGui::Text("Get profile data: %f ms", times_.getProfileData_ * 1000.0);
-				ImGui::Text("Profiler UI: %f ms", times_.profilerUI_ * 1000.0);
-				ImGui::Text("ImGui end frame: %f ms", times_.imguiEndFrame_ * 1000.0);
-				ImGui::Text("Graph Setup: %f ms", times_.graphSetup_ * 1000.0);
-				ImGui::Text("Shader Technique Setup: %f ms", times_.shaderTechniqueSetup_ * 1000.0);
-				ImGui::Text("Graph Execute + Submit: %f ms", times_.graphExecute_ * 1000.0);
-				ImGui::Text("Present Time: %f ms", times_.present_ * 1000.0);
-				ImGui::Text("Process deletions: %f ms", times_.processDeletions_ * 1000.0);
-				ImGui::Text("Frame Time: %f ms", times_.frame_ * 1000.0, 1.0f / times_.frame_);
-				ImGui::Text("Tick Time: %f ms (%.2f FPS)", times_.tick_ * 1000.0, 1.0f / times_.tick_);
-
-				auto genAllocStats = Core::GeneralAllocator().GetStats();
-				auto virAllocStats = Core::VirtualAllocator().GetStats();
-				ImGui::Text("General Usage (Peak): %.2f kb (%.2f kb)", (f32)genAllocStats.usage_ / 1024.0f,
-				    (f32)genAllocStats.peakUsage_ / 1024.0f);
-				ImGui::Text("Virtual Usage (Peak): %.2f kb (%.2f kb)", (f32)virAllocStats.usage_ / 1024.0f,
-				    (f32)virAllocStats.peakUsage_ / 1024.0f);
-			}
-			ImGui::End();
-
 			DrawRenderGraphUI(graph);
 
 			app.UpdateGUI();

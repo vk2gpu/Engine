@@ -89,7 +89,7 @@ void MeshRenderPacket::DrawPackets(
 		auto& tech = meshPacket->techs_->passTechniques_[passTechIdx];
 		bool doDraw = true;
 		if(drawCtx.customBindFn_)
-			doDraw = drawCtx.customBindFn_(meshPacket->material_->GetShader(), tech);
+			doDraw = drawCtx.customBindFn_(drawCtx, tech);
 
 		if(doDraw)
 			++numInstances;
@@ -103,20 +103,17 @@ void MeshRenderPacket::DrawPackets(
 				objectBindings.Set("inObject",
 				    GPU::Binding::Buffer(
 				        drawCtx.objectSBHandle_, GPU::Format::INVALID, baseInstanceIdx, numInstances, objectDataSize));
-				if(auto objectBind = drawCtx.shaderCtx_.BeginBindingScope(objectBindings))
+				auto objectBind = drawCtx.shaderCtx_.BeginBindingScope(objectBindings);
+				if(auto event = drawCtx.cmdList_.Eventf(0x0, "Material: %s", meshPacket->material_->GetName()))
 				{
-					if(auto event = drawCtx.cmdList_.Eventf(0x0, "Material: %s", meshPacket->material_->GetName()))
+					auto materialBind = drawCtx.shaderCtx_.BeginBindingScope(meshPacket->material_->GetBindingSet());
+					GPU::Handle ps;
+					Core::ArrayView<GPU::PipelineBinding> pb;
+					if(drawCtx.shaderCtx_.CommitBindings(tech, ps, pb))
 					{
-						auto materialBind =
-						    drawCtx.shaderCtx_.BeginBindingScope(meshPacket->material_->GetBindingSet());
-						GPU::Handle ps;
-						Core::ArrayView<GPU::PipelineBinding> pb;
-						if(drawCtx.shaderCtx_.CommitBindings(tech, ps, pb))
-						{
-							drawCtx.cmdList_.Draw(ps, pb, meshPacket->db_, drawCtx.fbs_, drawCtx.drawState_,
-							    GPU::PrimitiveTopology::TRIANGLE_LIST, meshPacket->draw_.indexOffset_,
-							    meshPacket->draw_.vertexOffset_, meshPacket->draw_.noofIndices_, 0, numInstances);
-						}
+						drawCtx.cmdList_.Draw(ps, pb, meshPacket->db_, drawCtx.fbs_, drawCtx.drawState_,
+						    GPU::PrimitiveTopology::TRIANGLE_LIST, meshPacket->draw_.indexOffset_,
+						    meshPacket->draw_.vertexOffset_, meshPacket->draw_.noofIndices_, 0, numInstances);
 					}
 				}
 			}

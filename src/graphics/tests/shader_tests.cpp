@@ -398,22 +398,17 @@ TEST_CASE("graphics-tests-shader-graphics-binding-sets")
 		auto& cmdList = window.Begin();
 		Graphics::ShaderContext shaderContext(cmdList);
 
-		if(auto viewBind = shaderContext.BeginBindingScope(viewBindingSet))
+		auto viewBind = shaderContext.BeginBindingScope(viewBindingSet);
+		auto materialBind = shaderContext.BeginBindingScope(materialBindingSet);
+		materialBindingSet.Set("tex_diffuse",
+		    GPU::Binding::Texture2D(
+		        drawer.texture_->GetHandle(), GPU::Format::INVALID, 0, drawer.texture_->GetDesc().levels_));
+		materialBindingSet.Set("SS_DEFAULT", GPU::SamplerState());
+
+		if(auto objectScope = shaderContext.BeginBindingScope(objectBindingSet))
 		{
-			if(auto materialBind = shaderContext.BeginBindingScope(materialBindingSet))
-			{
-				materialBindingSet.Set("tex_diffuse",
-				    GPU::Binding::Texture2D(
-				        drawer.texture_->GetHandle(), GPU::Format::INVALID, 0, drawer.texture_->GetDesc().levels_));
-				materialBindingSet.Set("SS_DEFAULT", GPU::SamplerState());
-
-				if(auto objectScope = shaderContext.BeginBindingScope(objectBindingSet))
-				{
-					drawer.Draw(window.fbsHandle_, window.drawState_, shaderContext, techUpdate, cmdList);
-				}
-			}
+			drawer.Draw(window.fbsHandle_, window.drawState_, shaderContext, techUpdate, cmdList);
 		}
-
 
 		window.End();
 

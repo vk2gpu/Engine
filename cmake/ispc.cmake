@@ -136,6 +136,11 @@ MACRO (ISPC_COMPILE)
       ENDFOREACH()
     ENDIF()
 
+    #$<$<CONFIG:Debug>:${ISPC_OPT_FLAGS_DEBUG}>
+    #$<$<CONFIG:Optimized>:${ISPC_OPT_FLAGS_OPTIMIZED}>
+    #$<$<CONFIG:Release>:${ISPC_OPT_FLAGS_RELEASE}>
+
+
     ADD_CUSTOM_COMMAND(
       OUTPUT ${results} ${ISPC_TARGET_DIR}/ispc/${fname}_ispc.h
       COMMAND ${CMAKE_COMMAND} -E make_directory ${outdir}
@@ -143,11 +148,9 @@ MACRO (ISPC_COMPILE)
       -I ${CMAKE_CURRENT_SOURCE_DIR}
       ${ISPC_INCLUDE_DIR_PARMS}
       --arch=${ISPC_ARCHITECTURE}
-      $<$<CONFIG:Debug>:${ISPC_OPT_FLAGS_DEBUG}>
-      $<$<CONFIG:Optimized>:${ISPC_OPT_FLAGS_OPTIMIZED}>
-      $<$<CONFIG:Release>:${ISPC_OPT_FLAGS_RELEASE}>
       --target=${ISPC_TARGET_ARGS}
       --opt=fast-math
+      ${ISPC_OPT_FLAGS_RELEASE}
       ${ISPC_ADDITIONAL_ARGS}
       -h ${ISPC_HEADER_DIR}/ispc/${fname}_ispc.h
       -MMM  ${outdir}/${fname}.dev.idep
@@ -192,6 +195,20 @@ MACRO (ADD_ISPC_LIBRARY name type)
 ENDMACRO()
 
 ELSE (ENABLE_ISPC_SUPPORT)
+
+MACRO (ADD_ISPC_EXECUTABLE name)
+   SET(ISPC_SOURCES "")
+   SET(OTHER_SOURCES "")
+   FOREACH(src ${ARGN})
+    GET_FILENAME_COMPONENT(ext ${src} EXT)
+    IF (ext STREQUAL ".ispc")
+      SET(ISPC_SOURCES ${ISPC_SOURCES} ${src})
+    ELSE ()
+      SET(OTHER_SOURCES ${OTHER_SOURCES} ${src})
+    ENDIF ()
+  ENDFOREACH()
+  ADD_EXECUTABLE(${name} ${OTHER_SOURCES})
+ENDMACRO()
 
 MACRO (ADD_ISPC_LIBRARY name type)
    SET(ISPC_SOURCES "")
