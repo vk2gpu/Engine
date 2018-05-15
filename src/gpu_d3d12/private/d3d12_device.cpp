@@ -199,7 +199,7 @@ namespace GPU
 		}
 
 		// Setup descriptor ranges.
-		D3D12_DESCRIPTOR_RANGE descriptorRanges[4];
+		D3D12_DESCRIPTOR_RANGE descriptorRanges[4] = {};
 		descriptorRanges[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER;
 		descriptorRanges[0].NumDescriptors = MAX_SAMPLER_BINDINGS;
 		descriptorRanges[0].BaseShaderRegister = 0;
@@ -268,7 +268,7 @@ namespace GPU
 			parameters[3].DescriptorTable.pDescriptorRanges = &descriptorRanges[3];
 			parameters[3].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 
-			D3D12_ROOT_SIGNATURE_DESC rootSignatureDesc;
+			D3D12_ROOT_SIGNATURE_DESC rootSignatureDesc = {};
 			rootSignatureDesc.NumParameters = 4;
 			rootSignatureDesc.NumStaticSamplers = staticSamplers.size();
 			rootSignatureDesc.pParameters = parameters;
@@ -289,7 +289,7 @@ namespace GPU
 			parameters[3].DescriptorTable.pDescriptorRanges = &descriptorRanges[3];
 			parameters[3].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 
-			D3D12_ROOT_SIGNATURE_DESC rootSignatureDesc;
+			D3D12_ROOT_SIGNATURE_DESC rootSignatureDesc = {};
 			rootSignatureDesc.NumParameters = 4;
 			rootSignatureDesc.NumStaticSamplers = staticSamplers.size();
 			rootSignatureDesc.pParameters = parameters;

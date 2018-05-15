@@ -6,6 +6,7 @@
 #include "core/os.h"
 #include "gpu/resources.h"
 #include "gpu/types.h"
+#include "gpu/utils.h"
 
 #include <dxgi1_4.h>
 #include <dxgidebug.h>
@@ -78,6 +79,10 @@ namespace GPU
 	D3D12_PRIMITIVE_TOPOLOGY GetPrimitiveTopology(PrimitiveTopology topology);
 	D3D12_RESOURCE_DESC GetResourceDesc(const BufferDesc& desc);
 	D3D12_RESOURCE_DESC GetResourceDesc(const TextureDesc& desc);
+	D3D12_BOX GetBox(i32 w, i32 h, i32 d);
+	D3D12_BOX GetBox(const Box& box);
+	Box GetBox(const D3D12_BOX& box);
+	D3D12_SUBRESOURCE_FOOTPRINT GetFootprint(const Footprint& footprint);
 
 	/**
 	 * Sampler.

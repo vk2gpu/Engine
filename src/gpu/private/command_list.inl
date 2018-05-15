@@ -275,21 +275,32 @@ namespace GPU
 		return command;
 	}
 
-	INLINE CommandUpdateTextureSubResource* CommandList::UpdateTextureSubResource(
-	    Handle texture, i32 subResourceIdx, const ConstTextureSubResourceData& data)
+	INLINE CommandUpdateTextureSubResource* CommandList::UpdateTextureSubResource(Handle texture, i32 subResourceIdx,
+	    const Point& dstPoint, const Box& srcBox, const void* data, const Footprint& footprint)
 	{
 		DBG_ASSERT(handleAllocator_.IsValid(texture));
 		DBG_ASSERT(texture.GetType() == ResourceType::TEXTURE);
 		DBG_ASSERT(subResourceIdx >= 0);
-		DBG_ASSERT(data.data_ != nullptr);
-		DBG_ASSERT(data.rowPitch_ > 0);
-		DBG_ASSERT(data.slicePitch_ > 0);
+		DBG_ASSERT(dstPoint.x_ >= 0);
+		DBG_ASSERT(dstPoint.y_ >= 0);
+		DBG_ASSERT(dstPoint.z_ >= 0);
+		DBG_ASSERT(srcBox.x_ >= 0);
+		DBG_ASSERT(srcBox.y_ >= 0);
+		DBG_ASSERT(srcBox.z_ >= 0);
+		DBG_ASSERT(srcBox.x_ == 0 || srcBox.IsValid());
+		DBG_ASSERT(srcBox.y_ == 0 || srcBox.IsValid());
+		DBG_ASSERT(srcBox.z_ == 0 || srcBox.IsValid());
+		DBG_ASSERT(data != nullptr);
+		DBG_ASSERT(footprint.rowPitch_ > 0);
 
 		queueType_ |= CommandUpdateTextureSubResource::QUEUE_TYPE;
 		auto* command = Alloc<CommandUpdateTextureSubResource>();
 		command->texture_ = texture;
 		command->subResourceIdx_ = (i16)subResourceIdx;
+		command->dstPoint_ = dstPoint;
+		command->srcBox_ = srcBox;
 		command->data_ = data;
+		command->footprint_ = footprint;
 		commands_.push_back(command);
 		return command;
 	}
@@ -325,9 +336,7 @@ namespace GPU
 		DBG_ASSERT(srcBox.x_ >= 0);
 		DBG_ASSERT(srcBox.y_ >= 0);
 		DBG_ASSERT(srcBox.z_ >= 0);
-		DBG_ASSERT(srcBox.w_ > 0);
-		DBG_ASSERT(srcBox.h_ > 0);
-		DBG_ASSERT(srcBox.d_ > 0);
+		DBG_ASSERT(srcBox.IsValid());
 		DBG_ASSERT(dstTexture.GetType() == ResourceType::TEXTURE);
 		DBG_ASSERT(dstSubResourceIdx >= 0);
 		DBG_ASSERT(dstPoint.x_ >= 0);

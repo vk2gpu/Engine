@@ -96,8 +96,7 @@ namespace RenderDoc
 	RENDERDOC_API_1_1_1* renderDocAPI_ = nullptr;
 	void Load()
 	{
-		const char* renderDocPaths[] = {
-		    "renderdoc.dll", "C:\\Dev\\RenderDoc\\renderdoc.dll", "C:\\Program Files\\RenderDoc\\renderdoc.dll"};
+		const char* renderDocPaths[] = {"renderdoc.dll", "C:\\Program Files\\RenderDoc\\renderdoc.dll"};
 
 		// Attempt to load renderdoc from various paths.
 		for(auto renderDocPath : renderDocPaths)

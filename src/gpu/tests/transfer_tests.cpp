@@ -6,6 +6,7 @@
 #include "core/array.h"
 #include "core/concurrency.h"
 #include "core/vector.h"
+#include "image/image.h"
 #include "plugin/manager.h"
 
 #include "catch.hpp"
@@ -15,7 +16,7 @@ namespace
 	GPU::SetupParams GetDefaultSetupParams()
 	{
 		GPU::SetupParams setupParams;
-		setupParams.debugFlags_ = GPU::DebugFlags::NONE;
+		setupParams.debugFlags_ = GPU::DebugFlags::RENDERDOC;
 		return setupParams;
 	}
 }
@@ -276,7 +277,6 @@ TEST_CASE("transfer-tests-update-copy-readback-texture")
 	Plugin::Manager::Scoped pluginManager;
 	Client::Window window(testName.c_str(), 0, 0, 640, 480, false);
 	GPU::Manager::Scoped gpuManager(GetDefaultSetupParams());
-
 	i32 numAdapters = GPU::Manager::EnumerateAdapters(nullptr, 0);
 	REQUIRE(numAdapters > 0);
 
@@ -300,20 +300,16 @@ TEST_CASE("transfer-tests-update-copy-readback-texture")
 
 	GPU::Handle fenceHandle = GPU::Manager::CreateFence(0, testName.c_str());
 
-	GPU::Manager::ScopedDebugCapture capture(testName.c_str());
-
 	auto commandListHandle = GPU::Manager::CreateCommandList(testName.c_str());
 
 	GPU::CommandList commandList(GPU::CommandList::DEFAULT_BUFFER_SIZE);
 
 	float testData[] = {1.0f, 2.0f, 3.0f, 4.0f, 0.1f, 0.2f, 0.3f, 0.4f};
+	GPU::Footprint updateFootprint =
+	    GPU::GetTextureFootprint(readbackDesc.format_, readbackDesc.width_, readbackDesc.height_, readbackDesc.depth_);
 
-	GPU::ConstTextureSubResourceData updateData = {};
-	updateData.data_ = testData;
-	updateData.rowPitch_ = sizeof(float) * 4;
-	updateData.slicePitch_ = sizeof(testData);
-
-	REQUIRE(commandList.UpdateTextureSubResource(textureHandle, 0, updateData));
+	REQUIRE(
+	    commandList.UpdateTextureSubResource(textureHandle, 0, GPU::Point(), GPU::Box(), testData, updateFootprint));
 
 	GPU::Point destPoint = {};
 	destPoint.x_ = 0;
@@ -331,11 +327,8 @@ TEST_CASE("transfer-tests-update-copy-readback-texture")
 	REQUIRE(commandList.CopyTextureSubResource(readbackHandle, 0, destPoint, textureHandle, 0, srcBox));
 
 	REQUIRE(GPU::Manager::CompileCommandList(commandListHandle, commandList));
-
 	REQUIRE(GPU::Manager::SubmitCommandList(commandListHandle));
-
-	REQUIRE(GPU::Manager::SubmitFence(fenceHandle, 1));
-	REQUIRE(GPU::Manager::WaitOnFence(fenceHandle, 1));
+	commandList.Reset();
 
 	float readbackDataBuffer[8] = {};
 	GPU::TextureSubResourceData readbackData = {};
@@ -343,9 +336,53 @@ TEST_CASE("transfer-tests-update-copy-readback-texture")
 	readbackData.rowPitch_ = sizeof(float) * 4;
 	readbackData.slicePitch_ = sizeof(readbackDataBuffer);
 
+
+	REQUIRE(GPU::Manager::SubmitFence(fenceHandle, 1));
+	REQUIRE(GPU::Manager::WaitOnFence(fenceHandle, 1));
 	REQUIRE(GPU::Manager::ReadbackTextureSubresource(readbackHandle, 0, readbackData));
 
 	REQUIRE(memcmp(testData, &readbackDataBuffer[0], sizeof(testData)) == 0);
+
+	float testData2[] = {8.0f, 7.0f, 6.0f, 5.0f, 0.1f, 0.2f, 0.3f, 0.4f};
+
+	GPU::Footprint updateFootprint2 =
+	    GPU::GetTextureFootprint(readbackDesc.format_, readbackDesc.width_, readbackDesc.height_, readbackDesc.depth_);
+
+	SECTION("Sub resource update A")
+	{
+		REQUIRE(commandList.UpdateTextureSubResource(
+		    textureHandle, 0, GPU::Point{0, 0, 0}, GPU::Box{0, 0, 0, 2, 1, 1}, testData2, updateFootprint2));
+		REQUIRE(commandList.CopyTextureSubResource(readbackHandle, 0, destPoint, textureHandle, 0, srcBox));
+		REQUIRE(GPU::Manager::CompileCommandList(commandListHandle, commandList));
+		REQUIRE(GPU::Manager::SubmitCommandList(commandListHandle));
+		commandList.Reset();
+
+		REQUIRE(GPU::Manager::SubmitFence(fenceHandle, 2));
+		REQUIRE(GPU::Manager::WaitOnFence(fenceHandle, 2));
+
+		memset(readbackData.data_, 0, readbackData.slicePitch_);
+		REQUIRE(GPU::Manager::ReadbackTextureSubresource(readbackHandle, 0, readbackData));
+
+		REQUIRE(memcmp(testData2, &readbackDataBuffer[0], sizeof(float) * 2) == 0);
+	}
+
+	SECTION("Sub resource update B")
+	{
+		REQUIRE(commandList.UpdateTextureSubResource(
+		    textureHandle, 0, GPU::Point{0, 1, 0}, GPU::Box{0, 0, 0, 2, 1, 1}, testData2, updateFootprint2));
+		REQUIRE(commandList.CopyTextureSubResource(readbackHandle, 0, destPoint, textureHandle, 0, srcBox));
+		REQUIRE(GPU::Manager::CompileCommandList(commandListHandle, commandList));
+		REQUIRE(GPU::Manager::SubmitCommandList(commandListHandle));
+		commandList.Reset();
+
+		REQUIRE(GPU::Manager::SubmitFence(fenceHandle, 2));
+		REQUIRE(GPU::Manager::WaitOnFence(fenceHandle, 2));
+
+		memset(readbackData.data_, 0, readbackData.slicePitch_);
+		REQUIRE(GPU::Manager::ReadbackTextureSubresource(readbackHandle, 0, readbackData));
+
+		REQUIRE(memcmp(testData2, &readbackDataBuffer[4], sizeof(float) * 2) == 0);
+	}
 
 	GPU::Manager::DestroyResource(commandListHandle);
 	GPU::Manager::DestroyResource(fenceHandle);

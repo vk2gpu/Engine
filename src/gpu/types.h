@@ -479,26 +479,47 @@ namespace GPU
 	};
 
 	/**
-	 * Box.
+	 * Box within a subresource.
 	 */
 	struct GPU_DLL Box
 	{
 		i32 x_ = 0;
 		i32 y_ = 0;
 		i32 z_ = 0;
-		i32 w_ = 1;
-		i32 h_ = 1;
-		i32 d_ = 1;
+		i32 w_ = 0;
+		i32 h_ = 0;
+		i32 d_ = 0;
+
+		bool IsValid() const { return w_ > 0 && h_ > 0 && d_ > 0; }
 	};
 
 	/**
-	 * Point.
+	 * Point within a subresource.
 	 */
 	struct GPU_DLL Point
 	{
 		i32 x_ = 0;
 		i32 y_ = 0;
 		i32 z_ = 0;
+	};
+
+	/**
+	 * Footprint of a subresource.
+	 */
+	struct GPU_DLL Footprint
+	{
+		/// Format of elements.
+		Format format_ = Format::INVALID;
+		/// Width in elements.
+		i32 width_ = 0;
+		/// Height in elements.
+		i32 height_ = 0;
+		/// Depth in elements.
+		i32 depth_ = 0;
+		/// Row pitch in bytes.
+		i32 rowPitch_ = 0;
+		/// Slice pitch in bytes.
+		i32 slicePitch_ = 0;
 	};
 
 	/**

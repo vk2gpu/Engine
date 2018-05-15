@@ -284,40 +284,48 @@ namespace GPU
 		auto tex = backend_.GetD3D12Texture(command->texture_);
 		DBG_ASSERT(tex && tex->resource_);
 
-		auto srcData = command->data_;
-		D3D12_PLACED_SUBRESOURCE_FOOTPRINT dstFootprint;
-		UINT numRows = 0;
-		UINT64 rowSizeBytes = 0;
-		UINT64 totalBytes = 0;
-		D3D12_RESOURCE_DESC resDesc = GetResourceDesc(tex->desc_);
+		D3D12_PLACED_SUBRESOURCE_FOOTPRINT d3dDstFootprint;
+		D3D12_RESOURCE_DESC d3dDstResDesc = GetResourceDesc(tex->desc_);
 
-		backend_.device_->d3dDevice_->GetCopyableFootprints(
-		    &resDesc, command->subResourceIdx_, 1, 0, &dstFootprint, &numRows, &rowSizeBytes, &totalBytes);
+		backend_.device_->d3dDevice_->GetCopyableFootprints(&d3dDstResDesc, command->subResourceIdx_, 1, 0,
+		    &d3dDstFootprint, nullptr, nullptr, nullptr);
 
-		TextureLayoutInfo dstLayout = {
-		    (i32)dstFootprint.Footprint.RowPitch, (i32)numRows * (i32)dstFootprint.Footprint.RowPitch};
-		TextureLayoutInfo srcLayout = {command->data_.rowPitch_, command->data_.slicePitch_};
+		D3D12_BOX srcBox = GetBox(command->footprint_.width_, command->footprint_.height_, command->footprint_.depth_);
+		if(command->srcBox_.IsValid())
+			srcBox = GetBox(command->srcBox_);
 
-		auto resAlloc = backend_.device_->GetUploadAllocator().Alloc(totalBytes);
-		DBG_ASSERT(srcData.rowPitch_ <= rowSizeBytes);
-		u8* dstData = (u8*)resAlloc.address_ + dstFootprint.Offset;
+		// Need to make sure the texture data we're uploading conforms to D3D12's alignment requirements.
+		const Footprint dstFootprint = GetTextureFootprint(command->footprint_.format_, command->footprint_.width_,
+		    command->footprint_.height_, command->footprint_.depth_,
+		    Core::PotRoundUp(command->footprint_.rowPitch_, D3D12_TEXTURE_DATA_PITCH_ALIGNMENT));
 
-		GPU::CopyTextureData(dstData, dstLayout, command->data_.data_, srcLayout, numRows, tex->desc_.depth_);
+		auto resAlloc = backend_.device_->GetUploadAllocator().Alloc(dstFootprint.slicePitch_ * dstFootprint.depth_);
+		u8* dstData = (u8*)resAlloc.address_ + d3dDstFootprint.Offset;
 
+		const auto formatInfo = GetFormatInfo(dstFootprint.format_);
+		GPU::CopyTextureData(dstData, dstFootprint, command->data_, command->footprint_,
+		    command->footprint_.height_ / formatInfo.blockH_, tex->desc_.depth_);
 
-		D3D12_TEXTURE_COPY_LOCATION dst;
+		D3D12_PLACED_SUBRESOURCE_FOOTPRINT d3dSrcFootprint;
+		d3dSrcFootprint.Offset = resAlloc.offsetInBaseResource_;
+		d3dSrcFootprint.Footprint = GetFootprint(dstFootprint);
+		DBG_ASSERT(d3dSrcFootprint.Footprint.Format == d3dDstFootprint.Footprint.Format);
+
+		// Setup copies.
+		D3D12_TEXTURE_COPY_LOCATION dst = {};
 		dst.pResource = tex->resource_.Get();
 		dst.SubresourceIndex = command->subResourceIdx_;
 		dst.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
 
-		D3D12_TEXTURE_COPY_LOCATION src;
+		D3D12_TEXTURE_COPY_LOCATION src = {};
 		src.pResource = resAlloc.baseResource_.Get();
-		src.PlacedFootprint = dstFootprint;
+		src.PlacedFootprint = d3dSrcFootprint;
 		src.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
 
 		AddTransition(&(*tex), command->subResourceIdx_, 1, D3D12_RESOURCE_STATE_COPY_DEST);
 		FlushTransitions();
-		d3dCommandList_->CopyTextureRegion(&dst, 0, 0, 0, &src, nullptr);
+		d3dCommandList_->CopyTextureRegion(
+		    &dst, command->dstPoint_.x_, command->dstPoint_.y_, command->dstPoint_.z_, &src, &srcBox);
 
 		return ErrorCode::OK;
 	}
@@ -362,13 +370,7 @@ namespace GPU
 			AddTransition(&(*srcTex), src.SubresourceIndex, 1, D3D12_RESOURCE_STATE_COPY_SOURCE);
 			FlushTransitions();
 
-			D3D12_BOX box;
-			box.left = command->srcBox_.x_;
-			box.top = command->srcBox_.y_;
-			box.front = command->srcBox_.z_;
-			box.right = command->srcBox_.x_ + command->srcBox_.w_;
-			box.bottom = command->srcBox_.y_ + command->srcBox_.h_;
-			box.back = command->srcBox_.z_ + command->srcBox_.d_;
+			const D3D12_BOX box = GetBox(command->srcBox_);
 			d3dCommandList_->CopyTextureRegion(
 			    &dst, command->dstPoint_.x_, command->dstPoint_.y_, command->dstPoint_.z_, &src, &box);
 		}
@@ -398,18 +400,11 @@ namespace GPU
 			src.SubresourceIndex = command->srcSubResourceIdx_;
 			src.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
 
-
 			AddTransition(&(*dstTex), dst.SubresourceIndex, 1, D3D12_RESOURCE_STATE_COPY_DEST);
 			AddTransition(&(*srcTex), src.SubresourceIndex, 1, D3D12_RESOURCE_STATE_COPY_SOURCE);
 			FlushTransitions();
 
-			D3D12_BOX box;
-			box.left = command->srcBox_.x_;
-			box.top = command->srcBox_.y_;
-			box.front = command->srcBox_.z_;
-			box.right = command->srcBox_.x_ + command->srcBox_.w_;
-			box.bottom = command->srcBox_.y_ + command->srcBox_.h_;
-			box.back = command->srcBox_.z_ + command->srcBox_.d_;
+			const D3D12_BOX box = GetBox(command->srcBox_);
 			d3dCommandList_->CopyTextureRegion(
 			    &dst, command->dstPoint_.x_, command->dstPoint_.y_, command->dstPoint_.z_, &src, &box);
 		}
@@ -566,7 +561,6 @@ namespace GPU
 
 			if(rootSigChanged || gfxDescHandlesBound_[3].ptr != pbs->uavs_.GetGPUHandle(0).ptr)
 			{
-
 				d3dCommandList_->SetGraphicsRootDescriptorTable(3, pbs->uavs_.GetGPUHandle(0));
 				gfxDescHandlesBound_[3] = pbs->uavs_.GetGPUHandle(0);
 			}

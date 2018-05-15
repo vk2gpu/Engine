@@ -450,17 +450,35 @@ namespace GPU
 		return info;
 	}
 
-	GPU_DLL TextureLayoutInfo GetTextureLayoutInfo(Format format, i32 width, i32 height)
+	GPU_DLL Footprint GetTextureFootprint(Format format, i32 width, i32 height, i32 depth, i32 rowPitch, i32 slicePitch)
 	{
-		TextureLayoutInfo texLayoutInfo;
+		DBG_ASSERT(width >= 0);
+		DBG_ASSERT(height >= 0);
+		DBG_ASSERT(depth >= 0);
+		DBG_ASSERT(rowPitch >= 0);
+		DBG_ASSERT(slicePitch >= 0);
 
+		Footprint footprint;
 		FormatInfo formatInfo = GetFormatInfo(format);
 		i32 widthByBlock = Core::Max(1, width / formatInfo.blockW_);
 		i32 heightByBlock = Core::Max(1, height / formatInfo.blockH_);
-		texLayoutInfo.pitch_ = (widthByBlock * formatInfo.blockBits_) / 8;
-		texLayoutInfo.slicePitch_ = (widthByBlock * heightByBlock * formatInfo.blockBits_) / 8;
-
-		return texLayoutInfo;
+		footprint.format_ = format;
+		footprint.width_ = width;
+		footprint.height_ = height;
+		footprint.depth_ = depth;
+		footprint.rowPitch_ = (widthByBlock * formatInfo.blockBits_) / 8;
+		if(rowPitch > 0)
+		{
+			DBG_ASSERT(rowPitch >= footprint.rowPitch_);
+			footprint.rowPitch_ = rowPitch;
+		}
+		footprint.slicePitch_ = footprint.rowPitch_ * heightByBlock;
+		if(slicePitch > 0)
+		{
+			DBG_ASSERT(slicePitch >= footprint.slicePitch_);
+			footprint.slicePitch_ = slicePitch;
+		}
+		return footprint;
 	}
 
 	GPU_DLL i64 GetTextureSize(Format format, i32 width, i32 height, i32 depth, i32 levels, i32 elements)
@@ -482,13 +500,13 @@ namespace GPU
 		return size;
 	}
 
-	GPU_DLL void CopyTextureData(void* dstData, const TextureLayoutInfo& dstLayout, const void* srcData,
-	    const TextureLayoutInfo& srcLayout, i32 rows, i32 slices)
+	GPU_DLL void CopyTextureData(void* dstData, const Footprint& dstFootprint, const void* srcData,
+	    const Footprint& srcFootprint, i32 rows, i32 slices)
 	{
 		u8* dstBytes = (u8*)dstData;
 		const u8* srcBytes = (u8*)srcData;
 
-		const i32 minRowPitch = Core::Min(dstLayout.pitch_, srcLayout.pitch_);
+		const i32 minRowPitch = Core::Min(dstFootprint.rowPitch_, srcFootprint.rowPitch_);
 
 		for(i32 slice = 0; slice < slices; ++slice)
 		{
@@ -498,15 +516,51 @@ namespace GPU
 			for(i32 row = 0; row < rows; ++row)
 			{
 				memcpy(dstRowBytes, srcRowBytes, minRowPitch);
-				dstRowBytes += dstLayout.pitch_;
-				srcRowBytes += srcLayout.pitch_;
+				dstRowBytes += dstFootprint.rowPitch_;
+				srcRowBytes += srcFootprint.rowPitch_;
 			}
 
-			dstBytes += dstLayout.slicePitch_;
-			srcBytes += srcLayout.slicePitch_;
+			dstBytes += dstFootprint.slicePitch_;
+			srcBytes += srcFootprint.slicePitch_;
 		}
 	}
 
+#if 0
+	GPU_DLL void CopyTextureData(GPU::Format format, void* dstData, const TextureLayoutInfo& dstLayout, const GPU::Point dstPoint, 
+		const void* srcData, const TextureLayoutInfo& srcLayout, const GPU::Box srcBox)
+	{
+		const auto formatInfo = GPU::GetFormatInfo(format);
+		const i32 blockBytes = formatInfo.blockBits_ / 8;
+		DBG_ASSERT(formatInfo.blockW_ == 1 && formatInfo.blockH_ == 1);
+
+		u8* dstBytes = (u8*)dstData;
+		const u8* srcBytes = (u8*)srcData;
+
+		const i32 minRowPitch = Core::Min(dstLayout.pitch_, srcLayout.pitch_);
+
+		for(i32 slice = 0; slice < srcBox.d_; ++slice)
+		{
+			u8* dstRowBytes = (u8*)dstBytes;
+			const u8* srcRowBytes = (u8*)srcBytes;
+
+			const i32 dstSlice = dstPoint.z_ + slice;
+			const i32 srcSlice = srcBox.z_ + slice;
+
+			dstRowBytes += (dstSlice * dstLayout.slicePitch_);
+			srcRowBytes += (srcSlice * srcLayout.slicePitch_);
+
+			dstRowBytes += (dstPoint.y_ * dstLayout.pitch_);
+			srcRowBytes += (srcBox.y_ * srcLayout.pitch_);
+
+			for(i32 row = 0; row < srcBox.h_; ++row)
+			{
+				memcpy(dstRowBytes, srcRowBytes, srcBox.w_ * blockBytes);
+				dstRowBytes += dstLayout.pitch_;
+				srcRowBytes += srcLayout.pitch_;
+			}
+		}
+	}
+#endif
 
 	GPU_DLL ViewDimension GetViewDimension(TextureType type)
 	{

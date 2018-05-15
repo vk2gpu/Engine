@@ -46,23 +46,17 @@ namespace GPU
 	 */
 	GPU_DLL FormatInfo GetFormatInfo(Format format);
 
-
 	/**
-	 * Texture layout info.
-	 */
-	struct GPU_DLL TextureLayoutInfo
-	{
-		i32 pitch_ = 0;
-		i32 slicePitch_ = 0;
-	};
-
-	/**
-	 * Get texture layout info.
+	 * Get texture footprint.
 	 * @pre format != INVALID.
 	 * @pre @a width >= 1.
 	 * @pre @a height >= 1.
+	 * @pre @a depth >= 1.
+	 * @pre @a rowPitch is 0, or at least required size.
+	 * @pre @a slicePitch is 0, or at least required size.
 	 */
-	GPU_DLL TextureLayoutInfo GetTextureLayoutInfo(Format format, i32 width, i32 height);
+	GPU_DLL Footprint GetTextureFootprint(
+	    Format format, i32 width, i32 height = 1, i32 depth = 1, i32 rowPitch = 0, i32 slicePitch = 0);
 
 	/**
 	 * Get texture size.
@@ -77,8 +71,13 @@ namespace GPU
 	/**
 	 * Copy texture data.
 	 */
-	GPU_DLL void CopyTextureData(void* dstData, const TextureLayoutInfo& dstLayout, const void* srcData,
-	    const TextureLayoutInfo& srcLayout, i32 rows, i32 slices);
+	GPU_DLL void CopyTextureData(void* dstData, const Footprint& dstFootprint, const void* srcData,
+	    const Footprint& srcFootprint, i32 rows, i32 slices);
+
+	/*
+	GPU_DLL void CopyTextureData(GPU::Format format, void* dstData, const TextureLayoutInfo& dstLayout, const GPU::Point dstPoint, 
+		const void* srcData, const TextureLayoutInfo& srcLayout, const GPU::Box srcBox);
+	*/
 
 	/**
 	 * Get view dimension from texture type.

@@ -273,8 +273,14 @@ namespace GPU
 		Handle texture_;
 		/// Subresource index.
 		i16 subResourceIdx_ = 0;
-		/// Subresource data.
-		ConstTextureSubResourceData data_;
+		/// Destination point.
+		Point dstPoint_;
+		/// Source box.
+		Box srcBox_;
+		/// Pointer to texture data.
+		const void* data_ = nullptr;
+		/// Footprint of texture data.
+		Footprint footprint_;
 	};
 
 	/**

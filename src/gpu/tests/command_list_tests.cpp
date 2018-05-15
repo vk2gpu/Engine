@@ -76,7 +76,8 @@ TEST_CASE("commandlist-tests-commands")
 	REQUIRE(commandList.ClearUAV(pipelineBindingHandle, 0, u));
 	// Updates.
 	REQUIRE(commandList.UpdateBuffer(buffer0Handle, 0, sizeof(u), u));
-	REQUIRE(commandList.UpdateTextureSubResource(texture0Handle, 0, texSubRsc));
+	REQUIRE(commandList.UpdateTextureSubResource(
+	    texture0Handle, 0, GPU::Point(), GPU::Box(), texSubRsc.data_, GPU::Footprint()));
 	// Copies.
 	REQUIRE(commandList.CopyBuffer(buffer1Handle, 0, buffer0Handle, 0, sizeof(u)));
 	REQUIRE(commandList.CopyTextureSubResource(texture1Handle, 0, point, texture0Handle, 0, box));

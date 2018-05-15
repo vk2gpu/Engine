@@ -1,6 +1,8 @@
 #pragma once
 
 #include "gpu/dll.h"
+#include "gpu/enum.h"
+#include "gpu/resources.h"
 #include "gpu/types.h"
 
 #include "core/array_view.h"
@@ -343,7 +345,9 @@ namespace GPU
 	 */
 	namespace Binding
 	{
+		//DEPRECATED("Use ConstantBuffer")
 		GPU_DLL BindingCBV CBuffer(GPU::Handle res, i32 offset, i32 size);
+		GPU_DLL BindingCBV ConstantBuffer(GPU::Handle res, i32 offset, i32 size);
 
 		GPU_DLL BindingSRV Buffer(GPU::Handle res, GPU::Format format = GPU::Format::INVALID, i32 firstElement = 0,
 		    i32 numElements = 0, i32 structureByteStride = 0);

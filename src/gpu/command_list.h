@@ -199,11 +199,13 @@ namespace GPU
 		 * See @a CommandUpdateTextureSubResource.
 		 * @pre @a texture is valid.
 		 * @pre @a subResourceIdx >= 0.
-		 * @pre @a data is valid.
+		 * @pre @a data != nullptr.
+		 * @pre @a dstPoint is at 0,0,0, or is valid.
+		 * @pre @a dstPoint is within @a dstTexture sub resource bounds.
 		 * @return Update command. nullptr if failure.
 		 */
-		GPU_DLL CommandUpdateTextureSubResource* UpdateTextureSubResource(
-		    Handle texture, i32 subResourceIdx, const ConstTextureSubResourceData& data);
+		GPU_DLL CommandUpdateTextureSubResource* UpdateTextureSubResource(Handle texture, i32 subResourceIdx,
+		    const Point& dstPoint, const Box& srcBox, const void* data, const Footprint& footprint);
 
 		/**
 		 * See @a CommandCopyBuffer.

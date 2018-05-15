@@ -433,6 +433,28 @@ namespace GPU
 		return resourceDesc;
 	}
 
+	D3D12_BOX GetBox(i32 w, i32 h, i32 d) { return {0, 0, 0, (UINT)w, (UINT)h, (UINT)d}; };
+
+	D3D12_BOX GetBox(const Box& box)
+	{
+		return {(UINT)box.x_, (UINT)box.y_, (UINT)box.z_, (UINT)box.x_ + (UINT)box.w_, (UINT)box.y_ + (UINT)box.h_,
+		    (UINT)box.z_ + (UINT)box.d_};
+	}
+
+	Box GetBox(const D3D12_BOX& box)
+	{
+		return {(i32)box.left, (i32)box.top, (i32)box.front, (i32)box.right - (i32)box.left,
+		    (i32)box.bottom - (i32)box.top, (i32)box.back - (i32)box.front};
+	}
+
+	D3D12_SUBRESOURCE_FOOTPRINT GetFootprint(const Footprint& footprint)
+	{
+		return {
+		    GetFormat(footprint.format_), (UINT)footprint.width_, (UINT)footprint.height_, (UINT)footprint.depth_,
+		    (UINT)footprint.rowPitch_,
+		};
+	}
+
 	D3D12_TEXTURE_ADDRESS_MODE GetAddressingMode(AddressingMode addressMode)
 	{
 		switch(addressMode)

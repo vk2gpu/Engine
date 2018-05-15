@@ -1378,16 +1378,13 @@ namespace GPU
 	ErrorCode D3D12Backend::ReadbackTextureSubresource(Handle handle, i32 subResourceIdx, TextureSubResourceData data)
 	{
 		auto texture = textureResources_.Read(handle);
-		const auto& desc = texture->desc_;
-		const i32 mipIndex = subResourceIdx % desc.levels_;
+		auto desc = texture->desc_;
 
-		D3D12_BOX box;
-		box.left = 0;
-		box.top = 0;
-		box.front = 0;
-		box.right = Core::Max(1, desc.width_ >> mipIndex);
-		box.bottom = Core::Max(1, desc.height_ >> mipIndex);
-		box.back = Core::Max(1, desc.depth_ >> mipIndex);
+		// Adjust desc for mip index.
+		const i32 mipIndex = subResourceIdx % desc.levels_;
+		desc.width_ = Core::Min(1, desc.width_ >> mipIndex);
+		desc.height_ = Core::Min(1, desc.height_ >> mipIndex);
+		desc.depth_ = (i16)Core::Min(1, desc.depth_ >> mipIndex);
 
 		// Calculate offset into destination.
 		D3D12_RESOURCE_DESC resourceDesc = GetResourceDesc(texture->desc_);
@@ -1411,12 +1408,17 @@ namespace GPU
 		void* mapped = nullptr;
 		if(SUCCEEDED(texture->resource_->Map(0, &range, &mapped)))
 		{
-			TextureLayoutInfo dstLayout = {data.rowPitch_, data.slicePitch_};
-			TextureLayoutInfo srcLayout = {(i32)placedFootprint.Footprint.RowPitch,
-			    (i32)placedFootprint.Footprint.RowPitch * (i32)placedFootprint.Footprint.Height};
+			const auto formatInfo = GetFormatInfo(desc.format_);
 
-			GPU::CopyTextureData(data.data_, dstLayout, (u8*)mapped + placedFootprint.Offset, srcLayout,
-			    (i32)placedFootprint.Footprint.Height, (i32)placedFootprint.Footprint.Depth);
+			const Footprint dstFootprint = GetTextureFootprint(
+			    desc.format_, desc.width_, desc.height_, desc.depth_, data.rowPitch_, data.slicePitch_);
+
+			const Footprint srcFootprint = GetTextureFootprint(desc.format_, (i32)placedFootprint.Footprint.Width,
+			    (i32)placedFootprint.Footprint.Height, (i32)placedFootprint.Footprint.Depth,
+			    (i32)placedFootprint.Footprint.RowPitch);
+
+			GPU::CopyTextureData(data.data_, dstFootprint, (u8*)mapped + placedFootprint.Offset, srcFootprint,
+			    (i32)placedFootprint.Footprint.Height / formatInfo.blockH_, (i32)placedFootprint.Footprint.Depth);
 
 			texture->resource_->Unmap(0, nullptr);
 			return ErrorCode::OK;

@@ -62,6 +62,16 @@ namespace GPU
 			return binding;
 		}
 
+		BindingCBV ConstantBuffer(GPU::Handle res, i32 offset, i32 size)
+		{
+			DBG_ASSERT(!res || GPU::Manager::GetHandleAllocator().IsValid(res));
+			BindingBuffer binding;
+			binding.resource_ = res;
+			binding.offset_ = offset;
+			binding.size_ = size;
+			return binding;
+		}
+
 		BindingSRV Buffer(
 		    GPU::Handle res, GPU::Format format, i32 firstElement, i32 numElements, i32 structureByteStride)
 		{

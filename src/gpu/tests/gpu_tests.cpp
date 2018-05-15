@@ -24,7 +24,7 @@ namespace
 	GPU::SetupParams GetDefaultSetupParams()
 	{
 		GPU::SetupParams setupParams;
-		setupParams.debugFlags_ = GPU::DebugFlags::NONE;
+		setupParams.debugFlags_ = GPU::DebugFlags::DEBUG_RUNTIME;
 		return setupParams;
 	}
 }
@@ -235,15 +235,15 @@ TEST_CASE("gpu-tests-create-texture")
 		desc.bindFlags_ = GPU::BindFlags::SHADER_RESOURCE;
 		desc.width_ = 256;
 
-		auto layoutInfo = GPU::GetTextureLayoutInfo(desc.format_, desc.width_, 1);
+		auto footprint = GPU::GetTextureFootprint(desc.format_, desc.width_, 1);
 		i64 size = GPU::GetTextureSize(desc.format_, desc.width_, 1, 1, 1, 1);
 		Core::Vector<u8> data;
 		data.resize((i32)size);
 
 		GPU::ConstTextureSubResourceData subResData;
 		subResData.data_ = data.data();
-		subResData.rowPitch_ = layoutInfo.pitch_;
-		subResData.slicePitch_ = layoutInfo.slicePitch_;
+		subResData.rowPitch_ = footprint.rowPitch_;
+		subResData.slicePitch_ = footprint.slicePitch_;
 
 		GPU::Handle handle;
 		handle = GPU::Manager::CreateTexture(desc, &subResData, testName.c_str());
@@ -260,15 +260,15 @@ TEST_CASE("gpu-tests-create-texture")
 		desc.width_ = 256;
 		desc.height_ = 256;
 
-		auto layoutInfo = GPU::GetTextureLayoutInfo(desc.format_, desc.width_, desc.height_);
+		auto footprint = GPU::GetTextureFootprint(desc.format_, desc.width_, desc.height_);
 		i64 size = GPU::GetTextureSize(desc.format_, desc.width_, desc.height_, 1, 1, 1);
 		Core::Vector<u8> data;
 		data.resize((i32)size);
 
 		GPU::ConstTextureSubResourceData subResData;
 		subResData.data_ = data.data();
-		subResData.rowPitch_ = layoutInfo.pitch_;
-		subResData.slicePitch_ = layoutInfo.slicePitch_;
+		subResData.rowPitch_ = footprint.rowPitch_;
+		subResData.slicePitch_ = footprint.slicePitch_;
 
 		GPU::Handle handle;
 		handle = GPU::Manager::CreateTexture(desc, &subResData, testName.c_str());
@@ -286,15 +286,15 @@ TEST_CASE("gpu-tests-create-texture")
 		desc.height_ = 256;
 		desc.depth_ = 256;
 
-		auto layoutInfo = GPU::GetTextureLayoutInfo(desc.format_, desc.width_, desc.height_);
+		auto footprint = GPU::GetTextureFootprint(desc.format_, desc.width_, desc.height_);
 		i64 size = GPU::GetTextureSize(desc.format_, desc.width_, desc.height_, desc.depth_, 1, 1);
 		Core::Vector<u8> data;
 		data.resize((i32)size);
 
 		GPU::ConstTextureSubResourceData subResData;
 		subResData.data_ = data.data();
-		subResData.rowPitch_ = layoutInfo.pitch_;
-		subResData.slicePitch_ = layoutInfo.slicePitch_;
+		subResData.rowPitch_ = footprint.rowPitch_;
+		subResData.slicePitch_ = footprint.slicePitch_;
 
 		GPU::Handle handle;
 		handle = GPU::Manager::CreateTexture(desc, &subResData, testName.c_str());
@@ -310,7 +310,7 @@ TEST_CASE("gpu-tests-create-texture")
 		desc.bindFlags_ = GPU::BindFlags::SHADER_RESOURCE;
 		desc.width_ = 256;
 
-		auto layoutInfo = GPU::GetTextureLayoutInfo(desc.format_, desc.width_, desc.width_);
+		auto footprint = GPU::GetTextureFootprint(desc.format_, desc.width_, desc.width_);
 		i64 size = GPU::GetTextureSize(desc.format_, desc.width_, desc.width_, 1, 1, 6);
 		Core::Vector<u8> data;
 		data.resize((i32)size);
@@ -320,9 +320,9 @@ TEST_CASE("gpu-tests-create-texture")
 		for(i32 i = 0; i < 6; ++i)
 		{
 			subResDatas[i].data_ = data.data() + offset;
-			subResDatas[i].rowPitch_ = layoutInfo.pitch_;
-			subResDatas[i].slicePitch_ = layoutInfo.slicePitch_;
-			offset += layoutInfo.slicePitch_;
+			subResDatas[i].rowPitch_ = footprint.rowPitch_;
+			subResDatas[i].slicePitch_ = footprint.slicePitch_;
+			offset += footprint.slicePitch_;
 		}
 
 		GPU::Handle handle;
@@ -1012,11 +1012,9 @@ TEST_CASE("gpu-tests-compile-update-texture")
 	GPU::CommandList cmdList;
 
 	u32 data[8] = {0xff00ff00, 0xffff0000, 0x0000ffff, 0x00ff00ff, 0xff00ff00, 0xffff0000, 0x0000ffff, 0x00ff00ff};
-	GPU::ConstTextureSubResourceData texSubRscData;
-	texSubRscData.data_ = data;
-	texSubRscData.rowPitch_ = sizeof(data);
-	texSubRscData.slicePitch_ = sizeof(data);
-	REQUIRE(cmdList.UpdateTextureSubResource(texHandle, 0, texSubRscData));
+	auto footprint = GPU::GetTextureFootprint(texDesc.format_, texDesc.width_);
+
+	REQUIRE(cmdList.UpdateTextureSubResource(texHandle, 0, GPU::Point(), GPU::Box(), data, footprint));
 	REQUIRE(GPU::Manager::CompileCommandList(cmdHandle, cmdList));
 	REQUIRE(GPU::Manager::SubmitCommandList(cmdHandle));
 
@@ -1093,6 +1091,9 @@ TEST_CASE("gpu-tests-compile-copy-texture")
 
 	GPU::Point dstPoint;
 	GPU::Box srcBox;
+	srcBox.w_ = texDesc.width_;
+	srcBox.h_ = texDesc.height_;
+	srcBox.d_ = texDesc.depth_;
 	texDesc.width_ = 8;
 
 	REQUIRE(cmdList.CopyTextureSubResource(tex1Handle, 0, dstPoint, tex0Handle, 0, srcBox));
