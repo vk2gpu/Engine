@@ -83,6 +83,10 @@ ADD_3RDPARTY_LIBRARY(etlsf "etlsf")
 ADD_SUBDIRECTORY("tlsf")
 ADD_3RDPARTY_LIBRARY(tlsf "tlsf")
 
+# Setup sc.
+ADD_SUBDIRECTORY("sc")
+ADD_3RDPARTY_LIBRARY(sc "sc")
+
 
 # Restore compiler flags.
 #SET(CMAKE_C_FLAGS_DEBUG "${BACKUP_CMAKE_C_FLAGS_DEBUG}")

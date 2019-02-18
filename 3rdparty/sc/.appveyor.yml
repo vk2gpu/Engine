@@ -1,0 +1,16 @@
+image: Visual Studio 2015
+
+environment:
+    matrix:
+        - TOOLSET: Visual Studio 10
+        - TOOLSET: Visual Studio 11
+        - TOOLSET: Visual Studio 12
+        - TOOLSET: Visual Studio 14
+        - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2017
+          TOOLSET: Visual Studio 15
+
+build_script:
+    - scripts\ci\build-windows.bat Debug
+    - scripts\ci\build-windows.bat Release
+    - if "%TOOLSET%" NEQ "Visual Studio 10" scripts\ci\build-windows.bat Debug Win64
+    - if "%TOOLSET%" NEQ "Visual Studio 10" scripts\ci\build-windows.bat Release Win64

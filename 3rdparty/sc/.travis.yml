@@ -1,0 +1,40 @@
+language: cpp
+
+sudo: required
+dist: trusty
+
+services:
+    - docker
+
+matrix:
+    include:
+        - os: linux
+          env: target=android-arm
+        - os: linux
+          env: target=android-arm64
+        - os: linux
+          env: target=linux-armv6
+        - os: linux
+          env: target=linux-arm64
+        - os: linux
+          env: target=linux-x86
+        - os: linux
+          env: target=linux-x64
+        - os: linux
+          env: target=windows-x86
+        - os: linux
+          env: target=windows-x64
+
+        - os: osx
+          env: target=ios-simulator
+        - os: osx
+          env: target=ios-universal
+        - os: osx
+          env: target=osx-x86
+        - os: osx
+          env: target=osx-x64
+        - os: osx
+          env: target=osx-universal
+
+script:
+    - "scripts/ci/$target.sh"
