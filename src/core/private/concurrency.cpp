@@ -534,18 +534,29 @@ namespace Core
 {
 	i32 GetNumLogicalCores()
 	{
-		return sysconf(_SC_NPROCESSORS_ONLN);
+#ifdef PLATFORM_OSX
+		return std::thread::hardware_concurrency();
+#else
+		return (i32)sysconf(_SC_NPROCESSORS_ONLN);
+#endif
 	}
 
 	i32 GetNumPhysicalCores()
 	{
 		// TODO: Fix this
-		return sysconf(_SC_NPROCESSORS_ONLN) / 2;
+#ifdef PLATFORM_OSX
+		return std::thread::hardware_concurrency() / 2;
+#else
+		return (i32)sysconf(_SC_NPROCESSORS_ONLN) / 2;
+#endif
 	}
 
 	u64 GetPhysicalCoreAffinityMask(i32 core)
 	{
-		return 0;
+		cpu_set_t cpuset;
+		CPU_ZERO(&cpuset);
+		CPU_SET(core, &cpu_mask);
+		return (u64)cpuset;
 	}
 
 	struct ThreadImpl
@@ -564,10 +575,12 @@ namespace Core
 		auto* impl = reinterpret_cast<ThreadImpl*>(threadParameter);
 
 #if !defined(_RELEASE)
+#ifndef PLATFORM_OSX
 		if(IsDebuggerAttached() && impl->debugName_.size() > 0)
 		{
 			pthread_setname_np(impl->threadId_, impl->debugName_.c_str());
 		}
+#endif
 
 		if(impl->debugName_.size() > 0)
 		{
@@ -971,7 +984,7 @@ namespace Core
 
 	struct RWLockImpl
 	{
-		SRWLOCK srwLock_ = SRWLOCK_INIT;
+		pthread_rwlock_t *srwLock;
 	};
 
 	struct RWLockImpl* RWLock::Get() { return reinterpret_cast<RWLockImpl*>(&implData_[0]); }
@@ -981,14 +994,18 @@ namespace Core
 	{
 		static_assert(sizeof(RWLockImpl) <= sizeof(implData_), "implData_ too small for RWLockImpl!");
 		new(implData_) RWLockImpl;
+		i32 ret = pthread_rwlock_init(&(Get()->srwLock_), nullptr);
+		DBG_ASSERT(ret == 0);
 	}
 
 	RWLock::~RWLock()
 	{
 #if !defined(_RELEASE)
-		if(!::TryAcquireSRWLockExclusive(&(Get()->srwLock_)))
+		if(!pthread_rwlock_trywrlock(&(Get()->srwLock_)))
 			DBG_ASSERT(false);
 #endif
+		i32 ret = pthread_rwlock_destroy(&(Get()->srwLock_));
+		DBG_ASSERT(ret == 0);
 		Get()->~RWLockImpl();
 	}
 
@@ -1005,13 +1022,13 @@ namespace Core
 		return *this;
 	}
 
-	void RWLock::BeginRead() const { ::AcquireSRWLockShared(&Get()->srwLock_); }
+	void RWLock::BeginRead() const { pthread_rwlock_rdlock(&Get()->srwLock_); }
 
-	void RWLock::EndRead() const { ::ReleaseSRWLockShared(&Get()->srwLock_); }
+	void RWLock::EndRead() const { pthread_rwlock_unlock(&Get()->srwLock_); }
 
-	void RWLock::BeginWrite() { ::AcquireSRWLockExclusive(&Get()->srwLock_); }
+	void RWLock::BeginWrite() { pthread_rwlock_wrlock(&Get()->srwLock_); }
 
-	void RWLock::EndWrite() { ::ReleaseSRWLockExclusive(&Get()->srwLock_); }
+	void RWLock::EndWrite() { pthread_rwlock_unlock(&Get()->srwLock_); }
 
 	struct TLSImpl
 	{
