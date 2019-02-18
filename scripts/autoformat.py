@@ -26,6 +26,12 @@ def findClangFormat():
 	check = "C:\\Program Files (x86)\\LLVM\\bin\\clang-format.exe"
 	if os.path.exists(check):
 		return check
+	check = os.environ.get("CLANG_PATH","") + "/clang-format"
+	if os.path.exists(check):
+		return check
+	check = "clang-format"
+	if os.path.exists(check):
+		return check
 	return None
 
 def autoformat():
