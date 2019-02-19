@@ -4,6 +4,9 @@
 #include "core/debug.h"
 #include "core/map.h"
 
+#include <memory.h>
+#include <cstring>
+
 namespace Core
 {
 	struct PointerHasher
@@ -101,7 +104,8 @@ namespace Core
 	AllocatorProxyTracker::AllocatorProxyTracker(IAllocator& allocator, const char* name)
 	{
 		impl_ = UntrackedVirtualAllocator().New<AllocatorProxyTrackerImpl>(allocator);
-		strcpy_s(impl_->name_.data(), impl_->name_.size(), name);
+		DBG_ASSERT(strlen(name) < impl_->name_.size());
+		strcpy(impl_->name_.data(), name);
 	}
 
 	AllocatorProxyTracker::~AllocatorProxyTracker()

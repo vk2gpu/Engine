@@ -77,7 +77,7 @@ namespace Core
 			{
 			}
 
-			key_value_pair operator*() { return key_value_pair{parent_->keys_[pos_], parent_->values_[pos_]}; }
+			key_value_pair operator*() { return key_value_pair{iterator_base::parent_->keys_[iterator_base::pos_], iterator_base::parent_->values_[iterator_base::pos_]}; }
 		};
 
 		struct const_iterator : iterator_base
@@ -89,7 +89,7 @@ namespace Core
 
 			const_key_value_pair operator*()
 			{
-				return const_key_value_pair{parent_->keys_[pos_], parent_->values_[pos_]};
+				return const_key_value_pair{iterator_base::parent_->keys_[iterator_base::pos_], iterator_base::parent_->values_[iterator_base::pos_]};
 			}
 		};
 

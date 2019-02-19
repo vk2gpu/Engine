@@ -42,6 +42,10 @@ namespace Core
 #if PLATFORM_WINDOWS
 		auto retVal = ::WideCharToMultiByte(CP_UTF8, 0, src, srcLength, dst, dstLength, nullptr, nullptr);
 		return retVal > 0;
+#elif PLATFORM_LINUX
+		// TODO: iconv implementation.
+		DBG_ASSERT(false);
+		return false;
 #else
 #error "Not implemented for platform."
 #endif
@@ -58,6 +62,10 @@ namespace Core
 #if PLATFORM_WINDOWS
 		auto retVal = ::MultiByteToWideChar(CP_UTF8, 0, src, srcLength, dst, dstLength);
 		return retVal > 0;
+#elif PLATFORM_LINUX
+		// TODO: iconv implementation.
+		DBG_ASSERT(false);
+		return false;
 #else
 #error "Not implemented for platform."
 #endif
@@ -203,6 +211,14 @@ namespace Core
 		outString.append(&data_[lastPos]);
 
 		return outString;
+	}
+
+	StringView::StringView(const char* begin, const char* end)
+	    : begin_(begin)
+	    , end_(end)
+	{
+		if(begin_ && !end_)
+			end_ = begin_ + strlen(begin_);
 	}
 
 	int StringView::internalCompare(const char* begin, const char* end) const

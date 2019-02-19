@@ -64,7 +64,7 @@ namespace Core
 			{
 			}
 
-			const KEY_TYPE& operator*() { return parent_->keys_[pos_]; }
+			const KEY_TYPE& operator*() { return iterator_base::parent_->keys_[iterator_base::pos_]; }
 		};
 
 		Set(ALLOCATOR& allocator)

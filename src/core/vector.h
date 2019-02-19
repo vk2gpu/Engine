@@ -39,7 +39,7 @@ namespace Core
 		}
 
 		Vector(Vector&& other) { swap(other); }
-		Vector(index_type size, const TYPE& default = TYPE()) { resize(size, default); }
+		Vector(index_type size, const TYPE& def = TYPE()) { resize(size, def); }
 
 		~Vector() { internalResize(0); }
 
@@ -172,13 +172,13 @@ namespace Core
 			size_ = size;
 		}
 
-		void resize(index_type size, const TYPE& default)
+		void resize(index_type size, const TYPE& def)
 		{
 			DBG_ASSERT(size >= 0);
 			if(size_ != size)
 				internalResize(size);
 			for(index_type idx = size_; idx < size; ++idx)
-				new(data_ + idx) TYPE(default);
+				new(data_ + idx) TYPE(def);
 			size_ = size;
 		}
 

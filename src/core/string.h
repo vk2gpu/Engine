@@ -158,13 +158,7 @@ namespace Core
 		using const_iterator = String::const_iterator;
 		using index_type = String::index_type;
 
-		StringView(const char* begin = nullptr, const char* end = nullptr)
-		    : begin_(begin)
-		    , end_(end)
-		{
-			if(begin_ && !end_)
-				end_ = begin_ + strlen(begin_);
-		}
+		StringView(const char* begin = nullptr, const char* end = nullptr);
 
 		StringView(const String& str)
 		    : begin_(str.begin())
