@@ -27,7 +27,7 @@ namespace Core
 		auto ret = _BitScanReverse64(&index, mask);
 		return ret ? 63 - index : 64;
 #elif COMPILER_GCC || COMPILER_CLANG
-		return __builtin_clzll(Mask);
+		return __builtin_clzll(mask);
 #else
 #error "No BSR implementation."
 #endif

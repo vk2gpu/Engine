@@ -83,6 +83,7 @@ namespace Core
 		static IAllocator& proxy = CreateAllocationTracker(UntrackedVirtualAllocator(), "Virtual");
 		return proxy;
 #else
+		static AllocatorVirtual virtAlloc(ENABLE_GUARD_PAGES);
 		return virtAlloc;
 #endif // ENABLE_DEFAULT_ALLOCATION_TRACKER
 	}

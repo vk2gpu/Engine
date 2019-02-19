@@ -481,8 +481,8 @@ namespace Core
 
 		union
 		{
-			i32 handle_ = -1;
-			u32 key_ = 0;
+			i32 handle_;
+			u32 key_;
 		};
 	};
 
@@ -521,8 +521,8 @@ namespace Core
 
 		union
 		{
-			i32 handle_ = -1;
-			u32 key_ = 0;
+			i32 handle_;
+			u32 key_;
 		};
 	};
 

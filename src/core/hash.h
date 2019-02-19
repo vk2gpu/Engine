@@ -48,12 +48,14 @@ namespace Core
 	/**
 	 * Templated hash function to ensure users define their own.
 	 */
+#ifdef PLATFORM_WINDOWS
 	template<typename TYPE>
 	inline u64 Hash(u64 Input, const TYPE& Data)
 	{
 		static_assert(false, "Hash function not defined for type. Did you define it in the Core namespace?");
 		return 0;
 	}
+#endif
 
 	/**
 	 * Specialised hash functions.

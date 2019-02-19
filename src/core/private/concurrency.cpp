@@ -491,7 +491,7 @@ namespace Core
 		DWORD handle_ = 0;
 	};
 
-	TLS::TLS() { handle_ = TlsAlloc(); }
+	TLS::TLS() : handle_(-1) { handle_ = TlsAlloc(); }
 
 	TLS::~TLS() { ::TlsFree(handle_); }
 
@@ -508,7 +508,7 @@ namespace Core
 	}
 
 
-	FLS::FLS() { handle_ = FlsAlloc(nullptr); }
+	FLS::FLS() : handle_(-1) { handle_ = FlsAlloc(nullptr); }
 
 	FLS::~FLS() { ::FlsFree(handle_); }
 
@@ -528,6 +528,8 @@ namespace Core
 #elif defined(PLATFORM_LINUX) || defined(PLATFORM_ANDROID) || defined(PLATFORM_OSX) || defined(PLATFORM_IOS)
 #include "core/os.h"
 #include <sc.h>
+#include <stdlib.h> // for atoi
+#include "core/file.h"
 
 #include "Remotery.h"
 
@@ -547,8 +549,15 @@ namespace Core
 		// TODO: Fix this
 #if defined(PLATFORM_OSX) || defined(PLATFORM_IOS)
 		return std::thread::hardware_concurrency() / 2;
+#elif defined(PLATFORM_LINUX) || defined(PLATFORM_ANDROID)
+		Core::String siblings = Core::String();
+		siblings->reserve(32);
+		Core::File siblingsFile = Core::File("/sys/devices/system/cpu/cpu0/topology/thread_siblings_list", READ_ONLY);
+		siblings->Read(siblingsFile.data(), 32);
+
+		return (i32)atoi(siblings.c_str() + 2);
 #else
-		return (i32)sysconf(_SC_NPROCESSORS_ONLN) / 2;
+		return 0;
 #endif
 	}
 
@@ -562,8 +571,7 @@ namespace Core
 
 	struct ThreadImpl
 	{
-		pthread_id_np_t threadId_ = 0;
-		void* threadHandle_ = nullptr;
+		pthread_t threadHandle_ = -1;
 		Thread::EntryPointFunc entryPointFunc_ = nullptr;
 		void* userData_ = nullptr;
 #if !defined(_RELEASE)
@@ -579,7 +587,7 @@ namespace Core
 #if !defined(PLATFORM_OSX) || !defined(PLATFORM_IOS)
 		if(IsDebuggerAttached() && impl->debugName_.size() > 0)
 		{
-			pthread_setname_np(impl->threadId_, impl->debugName_.c_str());
+			pthread_setname_np(impl->threadHandle_, impl->debugName_.c_str());
 		}
 #endif
 
@@ -598,14 +606,13 @@ namespace Core
 		impl_ = new ThreadImpl();
 		impl_->entryPointFunc_ = entryPointFunc;
 		impl_->userData_ = userData;
-		impl_->threadHandle_ = new pthread_t;
+		impl_->threadHandle_ = -1;
 		pthread_attr_t attr;
 		pthread_attr_init(&attr);
-		pthread_attr_setdetatchstate(&attr, PTHREAD_CREATE_JOINABLE);
+		pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
 		pthread_attr_setstacksize(&attr, stackSize);
-		int res = pthread_create((pthread_t*)impl_->threadHandle_, &attr, ThreadEntryPoint, this);
+		int res = pthread_create(&(impl_->threadHandle_), &attr, ThreadEntryPoint, this);
 		DBG_ASSERT(res == 0);
-		pthread_getunique_np(&(pthread_t*)impl_->threadHandle_, &(impl_->threadId_));
 #if !defined(_RELEASE)
 		impl_->debugName_ = debugName;
 		debugName_ = impl_->debugName_.c_str();
@@ -644,7 +651,7 @@ namespace Core
 		cpu_set_t cpuset;
 		CPU_ZERO(&cpuset);
 		CPU_SET(mask, &cpuset);
-		return pthread_setaffinity_np((pthread_t*)impl_->threadHandle_, sizeof(cpu_set_t), &cpuset);
+		return pthread_setaffinity_np(impl_->threadHandle_, sizeof(cpu_set_t), &cpuset);
 	}
 
 	i32 Thread::Join()
@@ -652,15 +659,14 @@ namespace Core
 		if(impl_)
 		{
 			i32 exitCode = 0;
-			auto* thread = (pthread_t*)impl_->threadHandle_;
+			auto thread = impl_->threadHandle_;
 			if(thread)
 			{
 				void *status;
-				pthread_join(*thread, &status);
+				pthread_join(thread, &status);
 				exitCode = *(i32*)status;
 			}
 			DBG_ASSERT(exitCode);
-			delete thread;
 			delete impl_;
 			impl_ = nullptr;
 			return exitCode;
@@ -1033,7 +1039,7 @@ namespace Core
 
 	TLS::TLS() : key_(0)
 	{
-		i32 res = pthread_key_create(&key_), nullptr);
+		i32 res = pthread_key_create(&key_, nullptr);
 		DBG_ASSERT(res == 0);
 	}
 
@@ -1062,7 +1068,7 @@ namespace Core
 
 	FLS::FLS() : key_(0)
 	{
-		i32 res = pthread_key_create(&key_), nullptr);
+		i32 res = pthread_key_create(&key_, nullptr);
 		DBG_ASSERT(res == 0);
 	}
 
@@ -1086,5 +1092,5 @@ namespace Core
 
 } // namespace Core
 #else
-#error "Not implemented for platform!""
+#error "Not implemented for platform!"
 #endif

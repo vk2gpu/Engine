@@ -3,6 +3,8 @@
 #include "core/dll.h"
 #include "core/types.h"
 
+#include <stdarg.h>
+
 namespace Core
 {
 	/**

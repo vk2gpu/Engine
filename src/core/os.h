@@ -17,4 +17,9 @@
 #include <sys/mman.h>
 #include <unistd.h>
 
+#define _snprintf snprintf
+#define _vsnprintf vsnprintf
+#define _stricmp strcasecmp
+#define _strnicmp strncasecmp
+
 #endif

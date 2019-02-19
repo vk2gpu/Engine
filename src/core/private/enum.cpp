@@ -1,4 +1,5 @@
 #include "core/enum.h"
+#include "core/os.h"
 
 #include <cstring>
 

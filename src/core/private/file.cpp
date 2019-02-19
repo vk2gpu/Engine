@@ -20,8 +20,9 @@
 #include "core/os.h"
 #endif
 
-#include <io.h>
+#include <sys/io.h>
 #include <fcntl.h>
+#define __STDC_WANT_LIB_EXT1__ 1 // for strcpy_s
 #include <string.h>
 #include <stdio.h>
 #include <sys/stat.h>
@@ -191,7 +192,7 @@ namespace Core
 		}
 		return !!retVal;
 #else
-#error "Unimplemented on this platform!";
+//#error "Unimplemented on this platform!";
 		return false;
 #endif
 	}
@@ -346,7 +347,7 @@ namespace Core
 		}
 		return numFound;
 #else
-#error "Unimplemented on this platform!";
+//#error "Unimplemented on this platform!";
 		return 0;
 #endif
 	}

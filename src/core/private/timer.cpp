@@ -27,7 +27,7 @@ namespace Core
 		return (f64)time.QuadPart / (f64)freq.QuadPart;
 #elif USE_GET_TIME_OF_DAY
 		timeval time;
-		::gettimeofday(&MarkedTime_, nullptr);
+		::gettimeofday(&time, nullptr);
 		return (f64)(time.tv_sec * 1000000 + time.tv_usec);
 #elif PLATFORM_HTML5
 		return emscripten_get_now();
