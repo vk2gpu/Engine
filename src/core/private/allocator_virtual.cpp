@@ -1,9 +1,8 @@
 #include "core/allocator_virtual.h"
 #include "core/concurrency.h"
 #include "core/misc.h"
+#include "core/os.h"
 #include "core/set.h"
-
-#include <Windows.h>
 
 #include <cstdio>
 #include <cstdlib>
@@ -24,11 +23,26 @@ namespace Core
 
 		void* VirtualAllocate(i64 size) { return ::VirtualAlloc(nullptr, size, MEM_COMMIT, PAGE_READWRITE); }
 
-		void VirtualDeallocate(void* mem) { ::VirtualFree(mem, 0, MEM_RELEASE); }
+		void VirtualDeallocate(void* mem, i64 size) { ::VirtualFree(mem, 0, MEM_RELEASE); }
 
 		void* VirtualReserve(i64 size) { return ::VirtualAlloc(nullptr, size, MEM_RESERVE, PAGE_NOACCESS); }
 
 		void* VirtualCommit(void* mem, i64 size) { return ::VirtualAlloc(mem, size, MEM_COMMIT, PAGE_READWRITE); }
+
+#elif defined(PLATFORM_LINUX) || defined(PLATFORM_ANDROID) || defined(PLATFORM_OSX) || defined(PLATFORM_IOS)
+		void VirtualGetInfo(i64& pageSize, i64& granularity)
+		{
+			pageSize = sysconf(_SC_PAGESIZE);
+			granularity = 0;
+		}
+
+		void* VirtualAllocate(i64 size) { return mmap(nullptr, size, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANON, -1, 0); }
+
+		void VirtualDeallocate(void* mem, i64 size) { munmap(mem, size); }
+
+		void* VirtualReserve(i64 size) { return mmap(nullptr, size, PROT_NONE, MAP_PRIVATE|MAP_ANON, -1, 0); }
+
+		void* VirtualCommit(void* mem, i64 size) { return mmap(mem, size, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANON, -1, 0); }
 
 #endif
 
@@ -39,7 +53,7 @@ namespace Core
 		{
 			void* Allocate(i64 size, i64 align) { return VirtualAllocate(size); }
 
-			void Deallocate(void* mem) { VirtualDeallocate(mem); }
+			void Deallocate(void* mem, i64 size) { VirtualDeallocate(mem, size); }
 		};
 	}
 
@@ -118,7 +132,7 @@ namespace Core
 		DBG_ASSERT(impl_->reservedBytes_ == 0);
 
 		impl_->~AllocatorVirtualImpl();
-		VirtualDeallocate(impl_);
+		VirtualDeallocate(impl_, sizeof(AllocatorVirtualImpl));
 		impl_ = nullptr;
 	}
 
@@ -164,7 +178,7 @@ namespace Core
 			if(size >= 0)
 			{
 				impl_->RemoveAlloc(mem);
-				VirtualDeallocate(mem);
+				VirtualDeallocate(mem, size);
 			}
 		}
 	}
