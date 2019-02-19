@@ -38,7 +38,7 @@ namespace Core
 #if COMPILER_MSVC
 		vsprintf_s(context->buffer_.data(), bufferSize, text, argList);
 #else
-		vsprintf(context, text, argList);
+		vsprintf(context->buffer_.data(), text, argList);
 #endif
 
 #if PLATFORM_WINDOWS

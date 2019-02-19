@@ -4,8 +4,13 @@
 #include "core/debug.h"
 #include "core/map.h"
 
+#if PLATFORM_LINUX
 #include <memory.h>
-#include <cstring>
+#include <string.h>
+
+// TODO: Stick to strncpy? See what is available on Windows.
+#define strcpy_s(dst, sz, src) strncpy(dst, src, sz)
+#endif
 
 namespace Core
 {
@@ -104,8 +109,7 @@ namespace Core
 	AllocatorProxyTracker::AllocatorProxyTracker(IAllocator& allocator, const char* name)
 	{
 		impl_ = UntrackedVirtualAllocator().New<AllocatorProxyTrackerImpl>(allocator);
-		DBG_ASSERT(strlen(name) < impl_->name_.size());
-		strcpy(impl_->name_.data(), name);
+		strcpy_s(impl_->name_.data(), impl_->name_.size(), name);
 	}
 
 	AllocatorProxyTracker::~AllocatorProxyTracker()

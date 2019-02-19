@@ -12,6 +12,12 @@
 
 #if PLATFORM_LINUX || PLATFORM_OSX
 #include <dirent.h>
+#include <string.h>
+
+// TODO: Stick to strncpy/strncat? See what is available on Windows.
+#define strcpy_s(dst, sz, src) strncpy(dst, src, sz)
+#define strcat_s(dst, sz, src) strncat(dst, src, sz)
+
 #elif PLATFORM_WINDOWS
 #include <direct.h>
 #pragma warning(disable : 4996) // '_open': This function or variable may be unsafe...
@@ -356,7 +362,12 @@ namespace Core
 
 	void FileGetCurrDir(char* buffer, i32 bufferLength)
 	{
+#if PLATFORM_WINDOWS
 		i32 length = ::GetCurrentDirectoryA(bufferLength, buffer);
+#else
+		i32 length = 0;
+		//#error "Unimplemented on this platform!";
+#endif
 		FileNormalizePath(buffer, length, true);
 	}
 
@@ -916,6 +927,24 @@ namespace Core
 		FileImplWin32* fileImpl_ = nullptr;
 
 		HANDLE mappingHandle_ = INVALID_HANDLE_VALUE;
+		i64 size_ = 0;
+		void* baseAddress_ = nullptr;
+		void* mappedAddress_ = nullptr;
+	};
+#else
+	class MappedFileImpl
+	{
+	public:
+		MappedFileImpl(FileImpl* fileImpl, i64 offset, i64 size)
+		{
+		}
+
+		~MappedFileImpl()
+		{
+		}
+
+		bool IsValid() const { return false; }
+
 		i64 size_ = 0;
 		void* baseAddress_ = nullptr;
 		void* mappedAddress_ = nullptr;

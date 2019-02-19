@@ -10,7 +10,11 @@
 #include "core/os.h"
 #endif
 
+#if PLATFORM_LINUX
+#define vsprintf_s vsnprintf
+#endif
 #include <cstdio>
+#include <cstring>
 #include <utility>
 
 namespace Core

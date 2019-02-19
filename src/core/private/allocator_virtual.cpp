@@ -53,7 +53,7 @@ namespace Core
 		{
 			void* Allocate(i64 size, i64 align) { return VirtualAllocate(size); }
 
-			void Deallocate(void* mem, i64 size) { VirtualDeallocate(mem, size); }
+			void Deallocate(void* mem) { VirtualDeallocate(mem, 0 /*size*/); }
 		};
 	}
 
