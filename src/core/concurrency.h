@@ -479,7 +479,11 @@ namespace Core
 		TLS& operator=(TLS&&) = delete;
 		TLS(const TLS&) = delete;
 
-		i32 handle_ = -1;
+		union
+		{
+			i32 handle_ = -1;
+			u32 key_ = 0;
+		};
 	};
 
 	/**
@@ -515,7 +519,11 @@ namespace Core
 		FLS& operator=(FLS&&) = delete;
 		FLS(const FLS&) = delete;
 
-		i32 handle_ = -1;
+		union
+		{
+			i32 handle_ = -1;
+			u32 key_ = 0;
+		};
 	};
 
 } // namespace Core

@@ -13,6 +13,9 @@ PROJECT(Engine CXX)
 INCLUDE(configs)
 INCLUDE(projects)
 
+# Setup option
+OPTION(ENGINE_BUILD_GPU_D3D12 "Build Direct3D 12 backend." ON)
+
 # Setup ISPC
 SET(ISPC_TARGETS avx2)
 SET(ENABLE_ISPC_SUPPORT YES)

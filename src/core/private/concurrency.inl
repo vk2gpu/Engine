@@ -78,12 +78,12 @@ namespace Core
 	// clang-format on
 } // namespace Core
 
-#elif PLATFORM_LINUX
+#elif defined(PLATFORM_LINUX) || defined(PLATFORM_ANDROID) || defined(PLATFORM_OSX) || defined(PLATFORM_IOS)
 #include "core/os.h"
 
 namespace Core
 {
-	static_assert(sizeof(LONG) == sizeof(i32), "LONG and i32 sizes are not compatible.");
+	//static_assert(sizeof(LONG) == sizeof(i32), "LONG and i32 sizes are not compatible.");
 
 	// clang-format off
 	CORE_DLL_INLINE i32 AtomicInc(volatile i32* dest) { return __atomic_add_fetch(dest, 1, __ATOMIC_ACQ_REL); }

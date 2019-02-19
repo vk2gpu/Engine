@@ -12,4 +12,9 @@
 #undef LoadImage
 #undef TRANSPARENT
 
+#elif defined(PLATFORM_LINUX) || defined(PLATFORM_ANDROID) || defined(PLATFORM_OSX) || defined(PLATFORM_IOS)
+#include <pthread.h>
+#include <sys/mman.h>
+#include <unistd.h>
+
 #endif

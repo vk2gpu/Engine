@@ -92,6 +92,6 @@ INCLUDE_DIRECTORIES(
 )
 
 ADD_ENGINE_LIBRARY(core ${SOURCES_PUBLIC} ${SOURCES_ISPC} ${SOURCES_PRIVATE} ${SOURCES_TESTS})
-TARGET_LINK_LIBRARIES(core Remotery etlsf tlsf dbghelp)
+TARGET_LINK_LIBRARIES(core Remotery etlsf tlsf dbghelp sc)
 
 

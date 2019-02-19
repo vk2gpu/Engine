@@ -525,8 +525,9 @@ namespace Core
 	}
 
 } // namespace Core
-#elif PLATFORM_LINUX || PLATFORM_OSX
+#elif defined(PLATFORM_LINUX) || defined(PLATFORM_ANDROID) || defined(PLATFORM_OSX) || defined(PLATFORM_IOS)
 #include "core/os.h"
+#include <sc.h>
 
 #include "Remotery.h"
 
@@ -534,7 +535,7 @@ namespace Core
 {
 	i32 GetNumLogicalCores()
 	{
-#ifdef PLATFORM_OSX
+#if defined(PLATFORM_OSX) || defined(PLATFORM_IOS)
 		return std::thread::hardware_concurrency();
 #else
 		return (i32)sysconf(_SC_NPROCESSORS_ONLN);
@@ -544,7 +545,7 @@ namespace Core
 	i32 GetNumPhysicalCores()
 	{
 		// TODO: Fix this
-#ifdef PLATFORM_OSX
+#if defined(PLATFORM_OSX) || defined(PLATFORM_IOS)
 		return std::thread::hardware_concurrency() / 2;
 #else
 		return (i32)sysconf(_SC_NPROCESSORS_ONLN) / 2;
@@ -555,7 +556,7 @@ namespace Core
 	{
 		cpu_set_t cpuset;
 		CPU_ZERO(&cpuset);
-		CPU_SET(core, &cpu_mask);
+		CPU_SET(core, &cpuset);
 		return (u64)cpuset;
 	}
 
@@ -575,7 +576,7 @@ namespace Core
 		auto* impl = reinterpret_cast<ThreadImpl*>(threadParameter);
 
 #if !defined(_RELEASE)
-#ifndef PLATFORM_OSX
+#if !defined(PLATFORM_OSX) || !defined(PLATFORM_IOS)
 		if(IsDebuggerAttached() && impl->debugName_.size() > 0)
 		{
 			pthread_setname_np(impl->threadId_, impl->debugName_.c_str());
@@ -604,7 +605,7 @@ namespace Core
 		pthread_attr_setstacksize(&attr, stackSize);
 		int res = pthread_create((pthread_t*)impl_->threadHandle_, &attr, ThreadEntryPoint, this);
 		DBG_ASSERT(res == 0);
-		pthread_getunique_np(&(pthread_t*)impl_->threadHandle_, &(impl->threadId_));
+		pthread_getunique_np(&(pthread_t*)impl_->threadHandle_, &(impl_->threadId_));
 #if !defined(_RELEASE)
 		impl_->debugName_ = debugName;
 		debugName_ = impl_->debugName_.c_str();
@@ -643,20 +644,20 @@ namespace Core
 		cpu_set_t cpuset;
 		CPU_ZERO(&cpuset);
 		CPU_SET(mask, &cpuset);
-		return pthread_setaffinity_np(impl_->threadHandle_, sizeof(cpu_set_t), &cpuset);
+		return pthread_setaffinity_np((pthread_t*)impl_->threadHandle_, sizeof(cpu_set_t), &cpuset);
 	}
 
 	i32 Thread::Join()
 	{
 		if(impl_)
 		{
-			int exitCode = 0;
+			i32 exitCode = 0;
 			auto* thread = (pthread_t*)impl_->threadHandle_;
 			if(thread)
 			{
 				void *status;
 				pthread_join(*thread, &status);
-				exitCode = *(int*)status;
+				exitCode = *(i32*)status;
 			}
 			DBG_ASSERT(exitCode);
 			delete thread;
@@ -672,13 +673,12 @@ namespace Core
 
 	struct FiberImpl
 	{
-		//static const u64 SENTINAL = 0x11207CE82F00AA5ALL;
-		//u64 sentinal_ = SENTINAL;
-		//Fiber* parent_ = nullptr;
-		void* fiber_ = nullptr;
-		void* exitFiber_ = nullptr;
-		//Fiber::EntryPointFunc entryPointFunc_ = nullptr;
-		void* userData_ = nullptr;
+		Fiber* parent_ = nullptr;
+		sc_context_t fiber_ = nullptr;
+		u8* stack_ = nullptr;
+		//sc_context_t exitFiber_ = nullptr;
+		Fiber::EntryPointFunc entryPointFunc_ = nullptr;
+		//void* userData_ = nullptr;
 #if !defined(_RELEASE)
 		Core::String debugName_;
 #endif
@@ -689,9 +689,14 @@ namespace Core
 		auto* impl = reinterpret_cast<FiberImpl*>(parameter);
 		thisFiber_.Set(impl);
 
-		impl->entryPointFunc_(impl->userData_);
-		DBG_ASSERT(impl->exitFiber_);
-		sc_switch(impl_->fiber_, impl->exitFiber_);
+		impl->entryPointFunc_(sc_get_data(impl->fiber_));
+		if( sc_context_t parent = sc_parent_context() )
+		{
+			if( parent != sc_main_context() )
+			{
+				sc_switch(sc_parent_context(), nullptr);
+			}
+		}
 	}
 
 	Fiber::Fiber(EntryPointFunc entryPointFunc, void* userData, i32 stackSize, const char* debugName)
@@ -701,9 +706,8 @@ namespace Core
 		impl_ = new FiberImpl();
 		impl_->parent_ = this;
 		impl_->entryPointFunc_ = entryPointFunc;
-		impl_->userData_ = userData;
 		impl_->stack_ = new u8[stackSize];
-		impl_->fiber_ = (sc_context_t)sc_context_create(impl_->stack_, stackSize, &FiberEntryPoint);
+		impl_->fiber_ = sc_context_create(impl_->stack_, stackSize, &FiberEntryPoint);
 #if !defined(_RELEASE)
 		impl_->debugName_ = debugName_;
 		debugName_ = impl_->debugName_.c_str();
@@ -714,6 +718,7 @@ namespace Core
 			delete impl_;
 			impl_ = nullptr;
 		}
+		sc_set_data(impl_->fiber_, userData);
 	}
 
 	Fiber::Fiber(ThisThread, const char* debugName)
@@ -724,8 +729,8 @@ namespace Core
 		impl_ = new FiberImpl();
 		impl_->parent_ = this;
 		impl_->entryPointFunc_ = nullptr;
-		impl_->userData_ = nullptr;
-		impl_->fiber_ = ::ConvertThreadToFiber(impl_);
+		impl_->stack_ = new u8[DEFAULT_STACK_SIZE];
+		impl_->fiber_ = sc_context_create(impl_->stack_, DEFAULT_STACK_SIZE, &FiberEntryPoint);
 #if !defined(_RELEASE)
 		impl_->debugName_ = debugName_;
 #endif
@@ -741,14 +746,8 @@ namespace Core
 	{
 		if(impl_)
 		{
-			if(impl_->entryPointFunc_)
-			{
-				sc_context_destroy(impl->fiber);
-			}
-			else
-			{
-				::ConvertFiberToThread();
-			}
+			sc_context_destroy(impl_->fiber_);
+			delete impl_->stack_;
 			delete impl_;
 		}
 	}
@@ -778,21 +777,18 @@ namespace Core
 	{
 		DBG_ASSERT(impl_);
 		DBG_ASSERT(impl_->parent_ == this);
-		DBG_ASSERT(::GetCurrentFiber() != nullptr);
+		DBG_ASSERT(sc_current_context() != nullptr);
 		if(impl_)
 		{
-			DBG_ASSERT(::GetCurrentFiber() != impl_->fiber_);
-			void* lastExitFiber = impl_->exitFiber_;
-			impl_->exitFiber_ = impl_->entryPointFunc_ ? ::GetCurrentFiber() : nullptr;
-			sc_switch((sc_context_t)impl_->fiber_, impl_->userData_);
-			impl_->exitFiber_ = lastExitFiber;
+			DBG_ASSERT(sc_current_context() != impl_->fiber_);
+			sc_switch(impl_->fiber_, nullptr);
 		}
 	}
 
 	void* Fiber::GetUserData() const
 	{
 		DBG_ASSERT(impl_);
-		DBG_ASSERT(impl_->fiber_ == this);
+		DBG_ASSERT(impl_->parent_ == this);
 		//return impl_->userData_;
 		return sc_get_data(impl_->fiber_);
 	}
@@ -810,7 +806,7 @@ namespace Core
 	{
 		pthread_mutex_t mutex_;
 		pthread_cond_t cond_;
-		i32 initialCount_;
+		i32 count_;
 #if !defined(_RELEASE)
 		Core::String debugName_;
 #endif
@@ -825,7 +821,7 @@ namespace Core
 
 		new(implData_) SemaphoreImpl();
 
-		Get()->initialCount_ = initialCount;
+		Get()->count_ = initialCount;
 		int res = pthread_mutex_init(&Get()->mutex_, nullptr);
 		DBG_ASSERT(res == 0);
 		res = pthread_cond_init(&Get()->cond_, nullptr);
@@ -858,7 +854,7 @@ namespace Core
 	{
 		DBG_ASSERT(Get());
 		//return (::WaitForSingleObject(Get()->handle_, timeout) == WAIT_OBJECT_0);
-		int res = pthread_mutex_lock(&Get()->mutex_);
+		i32 res = pthread_mutex_lock(&Get()->mutex_);
 		DBG_ASSERT(res == 0);
 
 		while(Get()->count_ <= 0)
@@ -877,7 +873,7 @@ namespace Core
 	bool Semaphore::Signal(i32 count)
 	{
 		DBG_ASSERT(Get());
-		int res = pthread_mutex_lock(&Get()->mutex_);
+		i32 res = pthread_mutex_lock(&Get()->mutex_);
 		DBG_ASSERT(res == 0);
 		res = pthread_cond_signal(&Get()->cond_);
 		DBG_ASSERT(res == 0);
@@ -910,7 +906,7 @@ namespace Core
 	struct MutexImpl
 	{
 		pthread_mutex_t mutex_;
-		pthread_t lockThread_ = nullptr;
+		pthread_t lockThread_;
 		volatile i32 lockCount_ = 0;
 	};
 
@@ -923,13 +919,13 @@ namespace Core
 		pthread_mutexattr_t attr;
 		pthread_mutexattr_init(&attr);
 		pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
-		int res = pthread_mutex_init(&Get()->mutex_, &attr);
+		i32 res = pthread_mutex_init(&Get()->mutex_, &attr);
 		DBG_ASSERT(res == 0);
 	}
 
 	Mutex::~Mutex()
 	{
-		int res = pthread_mutex_destroy(&Get()->mutex_);
+		i32 res = pthread_mutex_destroy(&Get()->mutex_);
 		DBG_ASSERT(res == 0);
 
 		Get()->~MutexImpl();
@@ -955,7 +951,7 @@ namespace Core
 	void Mutex::Lock()
 	{
 		DBG_ASSERT(Get());
-		pthread_mutex_lock(Get()->mutex_);
+		pthread_mutex_lock(&(Get()->mutex_));
 		if(AtomicInc(&Get()->lockCount_) == 1)
 			Get()->lockThread_ = pthread_self();
 	}
@@ -963,7 +959,7 @@ namespace Core
 	bool Mutex::TryLock()
 	{
 		DBG_ASSERT(Get());
-		int res = pthread_mutex_trylock(Get()->mutex_);
+		i32 res = pthread_mutex_trylock(&(Get()->mutex_));
 		if(res == 0)
 		{
 			if(AtomicInc(&Get()->lockCount_) == 1)
@@ -978,13 +974,13 @@ namespace Core
 		DBG_ASSERT(Get());
 		DBG_ASSERT(Get()->lockThread_ == pthread_self());
 		if(AtomicDec(&Get()->lockCount_) == 0)
-			Get()->lockThread_ = nullptr;
-		pthread_mutex_unlock(Get()->mutex_);
+			Get()->lockThread_ = -1;
+		pthread_mutex_unlock(&(Get()->mutex_));
 	}
 
 	struct RWLockImpl
 	{
-		pthread_rwlock_t *srwLock;
+		pthread_rwlock_t srwLock_;
 	};
 
 	struct RWLockImpl* RWLock::Get() { return reinterpret_cast<RWLockImpl*>(&implData_[0]); }
@@ -1032,40 +1028,60 @@ namespace Core
 
 	struct TLSImpl
 	{
-		DWORD handle_ = 0;
+		pthread_key_t key_;
 	};
 
-	TLS::TLS() { handle_ = TlsAlloc(); }
+	TLS::TLS() : key_(0)
+	{
+		i32 res = pthread_key_create(&key_), nullptr);
+		DBG_ASSERT(res == 0);
+	}
 
-	TLS::~TLS() { ::TlsFree(handle_); }
+	TLS::~TLS()
+	{
+		i32 res = pthread_key_delete(key_);
+		DBG_ASSERT(res == 0);
+	}
 
 	bool TLS::Set(void* data)
 	{
-		DBG_ASSERT(handle_ >= 0);
-		return !!::TlsSetValue(handle_, data);
+		i32 res = pthread_setspecific(key_, data);
+		DBG_ASSERT(res == 0);
+		return !res;
 	}
 
 	void* TLS::Get() const
 	{
-		DBG_ASSERT(handle_ >= 0);
-		return ::TlsGetValue(handle_);
+		return pthread_getspecific(key_);
 	}
 
+	struct FLSImpl
+	{
+		pthread_key_t key_;
+	};
 
-	FLS::FLS() { handle_ = FlsAlloc(nullptr); }
+	FLS::FLS() : key_(0)
+	{
+		i32 res = pthread_key_create(&key_), nullptr);
+		DBG_ASSERT(res == 0);
+	}
 
-	FLS::~FLS() { ::FlsFree(handle_); }
+	FLS::~FLS()
+	{
+		i32 res = pthread_key_delete(key_);
+		DBG_ASSERT(res == 0);
+	}
 
 	bool FLS::Set(void* data)
 	{
-		DBG_ASSERT(handle_ >= 0);
-		return !!::FlsSetValue(handle_, data);
+		i32 res = pthread_setspecific(key_, data);
+		DBG_ASSERT(res == 0);
+		return !res;
 	}
 
 	void* FLS::Get() const
 	{
-		DBG_ASSERT(handle_ >= 0);
-		return ::FlsGetValue(handle_);
+		return pthread_getspecific(key_);
 	}
 
 } // namespace Core
