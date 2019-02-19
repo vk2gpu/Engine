@@ -550,10 +550,10 @@ namespace Core
 #if defined(PLATFORM_OSX) || defined(PLATFORM_IOS)
 		return std::thread::hardware_concurrency() / 2;
 #elif defined(PLATFORM_LINUX) || defined(PLATFORM_ANDROID)
-		Core::String siblings = Core::String();
-		siblings->reserve(32);
-		Core::File siblingsFile = Core::File("/sys/devices/system/cpu/cpu0/topology/thread_siblings_list", READ_ONLY);
-		siblings->Read(siblingsFile.data(), 32);
+		String siblings = String();
+		siblings.reserve(32);
+		File siblingsFile = File("/sys/devices/system/cpu/cpu0/topology/thread_siblings_list", FileFlags::READ);
+		siblingsFile.Read(siblings.data(), 32);
 
 		return (i32)atoi(siblings.c_str() + 2);
 #else
@@ -566,7 +566,7 @@ namespace Core
 		cpu_set_t cpuset;
 		CPU_ZERO(&cpuset);
 		CPU_SET(core, &cpuset);
-		return (u64)cpuset;
+		return CPU_COUNT(&cpuset);
 	}
 
 	struct ThreadImpl

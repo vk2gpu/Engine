@@ -387,7 +387,7 @@ namespace Core
 
 		struct RWLockImpl* Get();
 		struct RWLockImpl* Get() const;
-		mutable u8 implData_[8];
+		mutable u8 implData_[56];
 	};
 
 	/**
